@@ -2,6 +2,9 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
+from django.db.models import Q
+from cloudinary.models import CloudinaryField
 import uuid
 
 class BaseModel(models.Model):
@@ -69,13 +72,19 @@ class User(AbstractUser, BaseModel):
         help_text="Số điện thoại với mã quốc gia"
     )
     
-    def user_avatar_path(instance, filename):
-        return f'avatars/{instance.id}/{filename}'
-    
-    avatar = models.ImageField(
-        upload_to=user_avatar_path, 
+    # Avatar với Cloudinary
+    avatar = CloudinaryField(
+        'image',
         blank=True, 
         null=True,
+        folder='planpal/avatars',
+        transformation={
+            'width': 300,
+            'height': 300,
+            'crop': 'fill',
+            'gravity': 'face',
+            'quality': 'auto:good'
+        },
         help_text="Ảnh đại diện người dùng"
     )
     
@@ -209,7 +218,6 @@ class User(AbstractUser, BaseModel):
         group_plans = self.get_group_plans()
         
         # Combine và sort
-        from django.db.models import Q
         return Plan.objects.filter(
             Q(creator=self, plan_type='personal') |
             Q(group__members=self, plan_type='group')
@@ -217,7 +225,6 @@ class User(AbstractUser, BaseModel):
 
     def get_viewable_plans(self):
         """Lấy tất cả plans mà user có thể xem (bao gồm public)"""
-        from django.db.models import Q
         return Plan.objects.filter(
             Q(creator=self) |  # Own plans
             Q(group__members=self) |  # Group plans
@@ -254,8 +261,8 @@ class User(AbstractUser, BaseModel):
 
 class Friendship(BaseModel):
     """
-    Model quản lý mối quan hệ bạn bè giữa các user
-    Sử dụng pattern: sender -> receiver với status
+    Optimized Friendship model với consistent naming
+    Sử dụng pattern: user -> friend với status
     """
     
     # Các trạng thái của lời mời kết bạn
@@ -271,97 +278,95 @@ class Friendship(BaseModel):
         (BLOCKED, 'Đã chặn'),
     ]
     
-    # Remove id field vì đã có trong BaseModel
-    
-    # Người gửi lời mời kết bạn
-    sender = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE, # Xóa lời mời khi user bị xóa
-        related_name='sent_friend_requests',
-        help_text="Người gửi lời mời kết bạn"
-    )
-    
-    # Người nhận lời mời kết bạn
-    receiver = models.ForeignKey(
+    # ✅ CONSISTENT NAMING - user/friend instead of sender/receiver
+    user = models.ForeignKey(
         User, 
         on_delete=models.CASCADE,
-        related_name='received_friend_requests',
-        help_text="Người nhận lời mời kết bạn"
+        related_name='sent_friendships',
+        help_text="User who sent the friend request"
     )
     
-    # Trạng thái của lời mời
+    friend = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE,
+        related_name='received_friendships',
+        help_text="User who received the friend request"
+    )
+    
     status = models.CharField(
         max_length=20, 
         choices=STATUS_CHOICES, 
         default=PENDING,
-        db_index=True,  # Index cho query theo status
+        db_index=True,
         help_text="Trạng thái lời mời kết bạn"
     )
-    
-    # Remove timestamps vì đã có trong BaseModel
 
     class Meta:
         db_table = 'planpal_friendships'
-        unique_together = ('sender', 'receiver')
-        
-        # Kế thừa base indexes và thêm custom
+        unique_together = ('user', 'friend')
         indexes = [
             *BaseModel.Meta.indexes,
-            # Index cho query friends của một user
-            models.Index(fields=['sender', 'status']),
-            models.Index(fields=['receiver', 'status']),
-            # Index cho pending requests
+            # ✅ OPTIMIZED INDEXES for common queries
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['friend', 'status']),
             models.Index(fields=['status', 'created_at']),
+            # ✅ COMPOSITE INDEX for friendship checks
+            models.Index(fields=['user', 'friend', 'status']),
         ]
 
     def __str__(self):
-        return f"{self.sender.username} -> {self.receiver.username} ({self.get_status_display()})"
+        return f"{self.user.username} -> {self.friend.username} ({self.get_status_display()})"
 
     def clean(self):
-        from django.core.exceptions import ValidationError
-        if self.sender == self.receiver:
+        if self.user == self.friend:
             raise ValidationError("Không thể gửi lời mời kết bạn cho chính mình")
 
     def save(self, *args, **kwargs):
-        """Override save để chạy validation"""
         self.clean()
         super().save(*args, **kwargs)
 
-    @classmethod #Cho phép gọi trực tiếp từ class thay vì instance
-    def are_friends(cls, user1, user2):
-        """
-        Check xem 2 user có phải bạn bè không
-        
-        Args:
-            user1, user2: User instances
-            
-        Returns:
-            bool: True nếu là bạn bè
-        """
-        return cls.objects.filter(
-            models.Q(sender=user1, receiver=user2) | 
-            models.Q(sender=user2, receiver=user1),
-            status=cls.ACCEPTED
-        ).exists()
-
+    # ✅ OPTIMIZED CLASS METHODS
     @classmethod
-    def get_friendship(cls, user1, user2):
-        """
-        Lấy friendship object giữa 2 user (nếu có)
-        
-        Returns:
-            Friendship object hoặc None
-        """
+    def get_friendship_status(cls, user1, user2):
+        """Get friendship status between two users - SINGLE QUERY"""
         try:
-            return cls.objects.get(
-                models.Q(sender=user1, receiver=user2) | 
-                models.Q(sender=user2, receiver=user1)
+            friendship = cls.objects.select_related('user', 'friend').get(
+                models.Q(user=user1, friend=user2) | 
+                models.Q(user=user2, friend=user1)
             )
+            return friendship.status
         except cls.DoesNotExist:
             return None
+    
+    @classmethod
+    def are_friends(cls, user1, user2):
+        """Check if users are friends - OPTIMIZED SINGLE QUERY"""
+        return cls.objects.filter(
+            models.Q(user=user1, friend=user2) | 
+            models.Q(user=user2, friend=user1),
+            status=cls.ACCEPTED
+        ).exists()
+    
+    @classmethod
+    def get_friends_queryset(cls, user):
+        """Get friends queryset - OPTIMIZED with subquery"""
+        # Get friend IDs in single query
+        friend_subquery = cls.objects.filter(
+            models.Q(user=user) | models.Q(friend=user),
+            status=cls.ACCEPTED
+        ).annotate(
+            friend_id=models.Case(
+                models.When(user=user, then='friend'),
+                default='user',
+                output_field=models.UUIDField()
+            )
+        ).values_list('friend_id', flat=True)
+        
+        return User.objects.filter(id__in=friend_subquery)
 
+    # ✅ OPTIMIZED INSTANCE METHODS
     def accept(self):
-        """Chấp nhận lời mời kết bạn"""
+        """Accept friend request"""
         if self.status == self.PENDING:
             self.status = self.ACCEPTED
             self.save(update_fields=['status', 'updated_at'])
@@ -369,7 +374,7 @@ class Friendship(BaseModel):
         return False
 
     def reject(self):
-        """Từ chối lời mời kết bạn"""
+        """Reject friend request"""
         if self.status == self.PENDING:
             self.status = self.REJECTED
             self.save(update_fields=['status', 'updated_at'])
@@ -377,9 +382,44 @@ class Friendship(BaseModel):
         return False
 
     def block(self):
-        """Chặn user"""
+        """Block user"""
         self.status = self.BLOCKED
         self.save(update_fields=['status', 'updated_at'])
+
+    @classmethod
+    def create_friend_request(cls, user, friend):
+        """Create friend request - OPTIMIZED with get_or_create"""
+        if user == friend:
+            raise ValidationError("Cannot send friend request to yourself")
+            
+        friendship, created = cls.objects.get_or_create(
+            user=user,
+            friend=friend,
+            defaults={'status': cls.PENDING}
+        )
+        
+        if not created and friendship.status == cls.REJECTED:
+            # Allow re-sending after rejection
+            friendship.status = cls.PENDING
+            friendship.save(update_fields=['status', 'updated_at'])
+            
+        return friendship, created
+
+    @classmethod
+    def get_friendship(cls, user1, user2):
+        """
+        Get friendship object between 2 users - OPTIMIZED SINGLE QUERY
+        
+        Returns:
+            Friendship object or None
+        """
+        try:
+            return cls.objects.select_related('user', 'friend').get(
+                models.Q(user=user1, friend=user2) | 
+                models.Q(user=user2, friend=user1)
+            )
+        except cls.DoesNotExist:
+            return None
 
 class Group(BaseModel):
     """
@@ -400,15 +440,19 @@ class Group(BaseModel):
         help_text="Mô tả về nhóm"
     )
     
-    # Cover image cho nhóm
-    def group_cover_path(instance, filename):
-        """Tạo path upload cover image theo group ID"""
-        return f'groups/{instance.id}/cover/{filename}'
-    
-    cover_image = models.ImageField(
-        upload_to=group_cover_path,
+    # Cover image cho nhóm với Cloudinary
+    cover_image = CloudinaryField(
+        'image',
         blank=True, 
         null=True,
+        folder='planpal/groups/covers',
+        transformation={
+            'width': 1200,
+            'height': 400,
+            'crop': 'fill',
+            'gravity': 'center',
+            'quality': 'auto:good'
+        },
         help_text="Ảnh bìa của nhóm"
     )
     
@@ -768,7 +812,6 @@ class Plan(BaseModel):
 
     def clean(self):
         """Validation cho plan"""
-        from django.core.exceptions import ValidationError
         
         # Validate date
         if self.start_date and self.end_date:
@@ -837,6 +880,41 @@ class Plan(BaseModel):
         )['total']
         return total or 0
 
+    def add_activity_with_place(self, title, start_time, end_time, place_id=None, **extra_data):
+        """
+        Add activity to plan with Google Places lookup - FAT MODEL
+        
+        Args:
+            title: Activity title
+            start_time: datetime object
+            end_time: datetime object  
+            place_id: Google Places ID
+            **extra_data: Other activity fields
+        """
+        # Get place details if place_id provided
+        if place_id:
+            from .services.google_places_service import google_places_service
+            place_details = google_places_service.get_place_details(place_id)
+            if place_details:
+                extra_data.update({
+                    'location_name': place_details['name'],
+                    'location_address': place_details['formatted_address'],
+                    'latitude': place_details['latitude'],
+                    'longitude': place_details['longitude'],
+                })
+        
+        return self.add_activity(title, start_time, end_time, **extra_data)
+
+    def notify_activity_added(self, updater):
+        """Notify plan members about new activity - FAT MODEL"""
+        from .services.notification_service import notification_service
+        notification_service.notify_plan_update(
+            plan_id=str(self.id),
+            updater_name=updater.username,
+            update_type='activity_added',
+            updater_id=str(updater.id)
+        )
+
     def add_activity(self, title, start_time, end_time, **kwargs):
         """
         Thêm hoạt động vào kế hoạch
@@ -866,6 +944,28 @@ class Plan(BaseModel):
         return self.activities.filter(
             start_time__date=date
         ).order_by('start_time')
+
+    def check_activity_overlap(self, start_time, end_time, exclude_id=None):
+        """
+        Check and return overlapping activity - FAT MODEL
+        
+        Args:
+            start_time: Thời gian bắt đầu
+            end_time: Thời gian kết thúc  
+            exclude_id: Loại trừ activity ID này (khi update)
+            
+        Returns:
+            PlanActivity object if overlap found, None otherwise
+        """
+        queryset = self.activities.filter(
+            start_time__lt=end_time,
+            end_time__gt=start_time
+        )
+        
+        if exclude_id:
+            queryset = queryset.exclude(id=exclude_id)
+            
+        return queryset.first()  # Return first overlapping activity
 
     def has_time_conflict(self, start_time, end_time, exclude_activity=None):
         """
@@ -1045,7 +1145,6 @@ class PlanActivity(BaseModel):
 
     def clean(self):
         """Validation cho activity"""
-        from django.core.exceptions import ValidationError
         
         # Validate thời gian
         if self.start_time and self.end_time:
@@ -1133,15 +1232,13 @@ class ChatMessage(BaseModel):
         help_text="Nội dung tin nhắn"
     )
     
-    # File đính kèm
-    def message_file_path(instance, filename):
-        """Tạo path upload file theo group và message ID"""
-        return f'messages/{instance.group.id}/{instance.id}/{filename}'
-    
-    attachment = models.FileField(
-        upload_to=message_file_path,
+    # File đính kèm với Cloudinary
+    attachment = CloudinaryField(
+        'auto',  # auto: support both image and raw files
         blank=True,
         null=True,
+        folder='planpal/messages/attachments',
+        resource_type='auto',  # auto detect file type
         help_text="File đính kèm (hình ảnh, document)"
     )
     
@@ -1228,7 +1325,6 @@ class ChatMessage(BaseModel):
 
     def clean(self):
         """Validation cho message"""
-        from django.core.exceptions import ValidationError
         
         # System messages không cần sender
         if self.message_type == 'system' and self.sender is not None:

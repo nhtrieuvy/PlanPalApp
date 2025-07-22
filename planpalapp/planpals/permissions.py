@@ -1,6 +1,7 @@
-from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_METHODS
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from .models import Friendship
 
 User = get_user_model()
 
@@ -95,7 +96,6 @@ class GroupMembershipPermission(BasePermission):
             return False
         if getattr(group, 'is_public', True):
             return True
-        from .models import Friendship
         return Friendship.are_friends(user, group.admin)
     
     def _can_leave_group(self, user, group):
@@ -130,21 +130,25 @@ class ChatMessagePermission(BasePermission):
 
 
 class FriendshipPermission(BasePermission):
-    """Permission cho friendships"""
+    """Permission cho friendships - Updated for user/friend fields"""
     
     def has_object_permission(self, request, view, obj):
         user = request.user
         action = getattr(view, 'action', None)
         
-        if user not in [obj.sender, obj.receiver]:
+        # ✅ UPDATED - use user/friend instead of sender/receiver
+        if user not in [obj.user, obj.friend]:
             return False
         
         if action == 'accept':
-            return obj.receiver == user and obj.status == 'pending'
+            # ✅ UPDATED - friend receives and can accept
+            return obj.friend == user and obj.status == 'pending'
         elif action == 'reject':
-            return obj.receiver == user and obj.status == 'pending'
+            # ✅ UPDATED - friend receives and can reject  
+            return obj.friend == user and obj.status == 'pending'
         elif action == 'cancel':
-            return obj.sender == user and obj.status == 'pending'
+            # ✅ UPDATED - user sent and can cancel
+            return obj.user == user and obj.status == 'pending'
         elif action in ['block', 'unblock']:
             return True
         
@@ -169,7 +173,6 @@ class UserProfilePermission(BasePermission):
     def _can_view_profile(self, user, target_user):
         if getattr(target_user, 'is_profile_public', True):
             return True
-        from .models import Friendship
         return Friendship.are_friends(user, target_user)
 
 
