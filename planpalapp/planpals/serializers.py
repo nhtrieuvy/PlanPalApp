@@ -3,11 +3,14 @@ Serializers for PlanPal app
 
 Handle data serialization/deserialization for API endpoints.
 Includes validation, nested relationships, and computed fields.
+Support for Cloudinary image/file uploads.
 """
 
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.utils import timezone
+from cloudinary import CloudinaryImage
 from .models import (
     Plan, Group, GroupMembership, ChatMessage, 
     Friendship, PlanActivity, MessageReadStatus
@@ -17,16 +20,18 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer cho User model"""
+    """Serializer cho User model với Cloudinary avatar support"""
     full_name = serializers.SerializerMethodField()
     is_recently_online = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
+    avatar_thumbnail = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
-            'phone_number', 'avatar', 'date_of_birth', 'bio', 
-            'is_online', 'last_seen', 'is_recently_online',
+            'phone_number', 'avatar', 'avatar_url', 'avatar_thumbnail', 
+            'date_of_birth', 'bio', 'is_online', 'last_seen', 'is_recently_online',
             'date_joined', 'is_active'
         ]
         read_only_fields = ['id', 'date_joined', 'last_seen', 'is_online']
@@ -36,6 +41,26 @@ class UserSerializer(serializers.ModelSerializer):
     
     def get_is_recently_online(self, obj):
         return obj.is_recently_online
+    
+    def get_avatar_url(self, obj):
+        """Get Cloudinary avatar URL với transformation"""
+        if obj.avatar:
+            if hasattr(obj.avatar, 'build_url'):
+                return obj.avatar.build_url(
+                    width=300, height=300, crop='fill', gravity='face'
+                )
+            return obj.avatar.url
+        return None
+    
+    def get_avatar_thumbnail(self, obj):
+        """Get avatar thumbnail for lists"""
+        if obj.avatar:
+            if hasattr(obj.avatar, 'build_url'):
+                return obj.avatar.build_url(
+                    width=100, height=100, crop='fill', gravity='face'
+                )
+            return obj.avatar.url
+        return None
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -82,8 +107,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ]
     
     def validate_avatar(self, value):
-        if value and value.size > 5 * 1024 * 1024:  # 5MB limit
+        if value and hasattr(value, 'size') and value.size > 5 * 1024 * 1024:  # 5MB limit
             raise serializers.ValidationError("Avatar không được vượt quá 5MB")
+        # Note: Cloudinary fields don't need file size validation as they handle compression
         return value
 
 
@@ -100,7 +126,7 @@ class GroupMembershipSerializer(serializers.ModelSerializer):
 
 
 class GroupSerializer(serializers.ModelSerializer):
-    """Serializer cho Group model"""
+    """Serializer cho Group model với Cloudinary cover image support"""
     admin = UserSerializer(read_only=True)
     memberships = GroupMembershipSerializer(many=True, read_only=True)
     
@@ -110,13 +136,15 @@ class GroupSerializer(serializers.ModelSerializer):
     user_role = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
+    cover_image_url = serializers.SerializerMethodField()
+    cover_image_thumbnail = serializers.SerializerMethodField()
     
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description', 'cover_image', 'admin', 
-            'memberships', 'member_count', 'is_active',
-            'is_member', 'user_role', 'can_edit', 'can_delete',
+            'id', 'name', 'description', 'cover_image', 'cover_image_url', 
+            'cover_image_thumbnail', 'admin', 'memberships', 'member_count', 
+            'is_active', 'is_member', 'user_role', 'can_edit', 'can_delete',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'admin', 'created_at', 'updated_at']
@@ -153,6 +181,26 @@ class GroupSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             return obj.admin == request.user
         return False
+    
+    def get_cover_image_url(self, obj):
+        """Get Cloudinary cover image URL với transformation"""
+        if obj.cover_image:
+            if hasattr(obj.cover_image, 'build_url'):
+                return obj.cover_image.build_url(
+                    width=1200, height=400, crop='fill', gravity='center'
+                )
+            return obj.cover_image.url
+        return None
+    
+    def get_cover_image_thumbnail(self, obj):
+        """Get cover image thumbnail for lists"""
+        if obj.cover_image:
+            if hasattr(obj.cover_image, 'build_url'):
+                return obj.cover_image.build_url(
+                    width=300, height=200, crop='fill', gravity='center'
+                )
+            return obj.cover_image.url
+        return None
     
     def create(self, validated_data):
         request = self.context.get('request')
@@ -195,10 +243,28 @@ class PlanActivitySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def validate(self, attrs):
-        if attrs.get('start_time') and attrs.get('end_time'):
-            if attrs['end_time'] <= attrs['start_time']:
+        """Enhanced validation with overlap checking - FAT SERIALIZER"""
+        start_time = attrs.get('start_time')
+        end_time = attrs.get('end_time')
+        
+        # Basic time validation
+        if start_time and end_time:
+            if end_time <= start_time:
                 raise serializers.ValidationError(
                     "Thời gian kết thúc phải sau thời gian bắt đầu"
+                )
+        
+        # Check for overlapping activities if plan is set
+        plan = attrs.get('plan') or (self.instance and self.instance.plan)
+        if plan and start_time and end_time:
+            # Use model method for business logic
+            overlapping = plan.check_activity_overlap(
+                start_time, end_time, 
+                exclude_id=self.instance.id if self.instance else None
+            )
+            if overlapping:
+                raise serializers.ValidationError(
+                    f"Hoạt động bị trùng với: {overlapping.title}"
                 )
         return attrs
 
@@ -327,7 +393,7 @@ class PlanCreateSerializer(serializers.ModelSerializer):
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
-    """Serializer cho ChatMessage"""
+    """Serializer cho ChatMessage với Cloudinary attachment support"""
     sender = UserSerializer(read_only=True)
     reply_to = serializers.SerializerMethodField()
     
@@ -335,13 +401,16 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     can_edit = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
     attachment_size_display = serializers.SerializerMethodField()
+    attachment_url = serializers.SerializerMethodField()
+    attachment_thumbnail = serializers.SerializerMethodField()
     location_url = serializers.SerializerMethodField()
     
     class Meta:
         model = ChatMessage
         fields = [
             'id', 'group', 'sender', 'message_type', 'content',
-            'attachment', 'attachment_name', 'attachment_size', 'attachment_size_display',
+            'attachment', 'attachment_url', 'attachment_thumbnail',
+            'attachment_name', 'attachment_size', 'attachment_size_display',
             'latitude', 'longitude', 'location_name', 'location_url',
             'reply_to', 'is_edited', 'is_deleted',
             'can_edit', 'can_delete', 'created_at', 'updated_at'
@@ -374,7 +443,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
                 return False
             
             # Check time limit (15 minutes)
-            from django.utils import timezone
             time_limit = timezone.timedelta(minutes=15)
             return timezone.now() - obj.created_at <= time_limit
         return False
@@ -398,6 +466,24 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     def get_attachment_size_display(self, obj):
         return obj.get_attachment_size_display()
     
+    def get_attachment_url(self, obj):
+        """Get Cloudinary attachment URL"""
+        if obj.attachment:
+            if hasattr(obj.attachment, 'build_url'):
+                return obj.attachment.build_url()
+            return obj.attachment.url
+        return None
+    
+    def get_attachment_thumbnail(self, obj):
+        """Get attachment thumbnail for images"""
+        if obj.attachment and obj.message_type == 'image':
+            if hasattr(obj.attachment, 'build_url'):
+                return obj.attachment.build_url(
+                    width=300, height=300, crop='fill', gravity='center'
+                )
+            return obj.attachment.url
+        return None
+    
     def get_location_url(self, obj):
         return obj.get_location_url()
     
@@ -417,49 +503,113 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
 
 class FriendshipSerializer(serializers.ModelSerializer):
-    """Serializer cho Friendship"""
-    sender = UserSerializer(read_only=True)
-    receiver = UserSerializer(read_only=True)
-    
-    # Write fields
-    receiver_id = serializers.UUIDField(write_only=True)
+    """General Friendship serializer for admin/internal use"""
+    user = UserSerializer(read_only=True)
+    friend = UserSerializer(read_only=True)
+    friend_info = serializers.SerializerMethodField()
     
     class Meta:
         model = Friendship
         fields = [
-            'id', 'sender', 'receiver', 'receiver_id', 'status',
+            'id', 'user', 'friend', 'friend_info', 'status',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'sender', 'status', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'friend', 'created_at', 'updated_at']
     
-    def validate_receiver_id(self, value):
+    def get_friend_info(self, obj):
+        """Get friend info based on current user"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+            
+        current_user = request.user
+        
+        # Determine friend user
+        friend_user = obj.friend if obj.user == current_user else obj.user
+        
+        return {
+            'id': friend_user.id,
+            'username': friend_user.username,
+            'full_name': friend_user.get_full_name(),
+            'avatar_url': friend_user.avatar.url if friend_user.avatar else None,
+            'is_online': friend_user.is_online,
+            'last_seen': friend_user.last_seen
+        }
+
+
+class FriendRequestSerializer(serializers.Serializer):
+    """Dedicated serializer for sending friend requests"""
+    friend_id = serializers.UUIDField()
+    message = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    
+    def validate_friend_id(self, value):
+        request = self.context['request']
+        user = request.user
+        
+        # Check if friend exists
         try:
-            receiver = User.objects.get(id=value)
-            request = self.context.get('request')
-            if request and request.user == receiver:
-                raise serializers.ValidationError(
-                    "Không thể gửi lời mời kết bạn cho chính mình"
-                )
-            
-            # Check if friendship already exists
-            if Friendship.objects.filter(
-                models.Q(sender=request.user, receiver=receiver) |
-                models.Q(sender=receiver, receiver=request.user)
-            ).exists():
-                raise serializers.ValidationError(
-                    "Lời mời kết bạn đã tồn tại"
-                )
-            
-            return value
+            friend_user = User.objects.get(id=value)
         except User.DoesNotExist:
-            raise serializers.ValidationError("User không tồn tại")
+            raise serializers.ValidationError("User not found")
+        
+        # Cannot send to yourself
+        if friend_user == user:
+            raise serializers.ValidationError("Cannot send friend request to yourself")
+        
+        # Check existing friendship - Use optimized single query
+        existing = Friendship.objects.filter(
+            models.Q(user=user, friend=friend_user) |
+            models.Q(user=friend_user, friend=user)
+        ).first()
+        
+        if existing:
+            if existing.status == 'pending':
+                raise serializers.ValidationError("Friend request already sent")
+            elif existing.status == 'accepted':
+                raise serializers.ValidationError("Already friends")
+            elif existing.status == 'blocked':
+                raise serializers.ValidationError("Cannot send friend request")
+        
+        self.validated_friend = friend_user
+        return value
     
     def create(self, validated_data):
+        request = self.context['request']
+        friendship = Friendship.objects.create(
+            user=request.user,
+            friend=self.validated_friend,
+            status='pending'
+        )
+        return friendship
+
+
+class FriendsListSerializer(serializers.ModelSerializer):
+    """Optimized serializer for friends list"""
+    friendship_since = serializers.SerializerMethodField()
+    mutual_friends_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 
+            'avatar', 'is_online', 'last_seen', 'friendship_since',
+            'mutual_friends_count'
+        ]
+    
+    def get_friendship_since(self, obj):
+        """Get friendship date - optimized with context"""
+        friendships_map = self.context.get('friendships_map', {})
+        friendship = friendships_map.get(obj.id)
+        return friendship.created_at if friendship else None
+    
+    def get_mutual_friends_count(self, obj):
+        """Get mutual friends count - can be optimized with prefetch"""
         request = self.context.get('request')
-        validated_data['sender'] = request.user
-        receiver_id = validated_data.pop('receiver_id')
-        validated_data['receiver'] = User.objects.get(id=receiver_id)
-        return super().create(validated_data)
+        if not request or not request.user.is_authenticated:
+            return 0
+        
+        # This could be optimized with a separate query or cached
+        return 0  # Placeholder - implement if needed
 
 
 class MessageReadStatusSerializer(serializers.ModelSerializer):
