@@ -7,35 +7,41 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     OAuth2LoginView, OAuth2LogoutView, UserViewSet, GroupViewSet,
-    PlanViewSet, FriendshipViewSet, ChatMessageViewSet, 
-    PlanActivityViewSet,
-    # Service-based views
+    PlanViewSet, ChatMessageViewSet, PlanActivityViewSet,
+    # Friendship views (class-based, not ViewSet)
+    FriendRequestView, FriendRequestListView, FriendRequestActionView, FriendsListView,
+    # Location/Places API views (using Goong Map API)
     PlacesSearchView, PlaceDetailsView, NearbyPlacesView, 
-    SendNotificationView, EnhancedGroupViewSet, EnhancedPlanViewSet
+    PlaceAutocompleteView, GeocodeView, SendNotificationView
 )
 
 # Router cho ViewSets
 router = DefaultRouter()
-router.register(r'users', UserViewSet)
-router.register(r'groups', GroupViewSet)
-router.register(r'plans', PlanViewSet)
-router.register(r'friendships', FriendshipViewSet)
-router.register(r'messages', ChatMessageViewSet)
-router.register(r'activities', PlanActivityViewSet)
 
-# Enhanced routers with services
-router.register(r'enhanced-groups', EnhancedGroupViewSet, basename='enhancedgroup')
-router.register(r'enhanced-plans', EnhancedPlanViewSet, basename='enhancedplan')
+# ✅ FIXED: Add basename for all ViewSets without queryset attribute
+router.register(r'users', UserViewSet, basename='user')
+router.register(r'groups', GroupViewSet, basename='group')
+router.register(r'plans', PlanViewSet, basename='plan')  # FIXED - ModelViewSet also needs basename!
+router.register(r'messages', ChatMessageViewSet, basename='chatmessage')
+router.register(r'activities', PlanActivityViewSet, basename='planactivity')
 
 urlpatterns = [
     # OAuth2 Authentication endpoints
     path('auth/login/', OAuth2LoginView.as_view(), name='oauth2_login'),
     path('auth/logout/', OAuth2LogoutView.as_view(), name='oauth2_logout'),
     
-    # External API endpoints
+    # Friendship endpoints (class-based views)
+    path('friends/request/', FriendRequestView.as_view(), name='friend_request'),
+    path('friends/requests/', FriendRequestListView.as_view(), name='friend_requests'),
+    path('friends/requests/<int:request_id>/action/', FriendRequestActionView.as_view(), name='friend_request_action'),
+    path('friends/', FriendsListView.as_view(), name='friends_list'),
+    
+    # Location/Places API endpoints (using Goong Map API)
     path('places/search/', PlacesSearchView.as_view(), name='places_search'),
     path('places/<str:place_id>/details/', PlaceDetailsView.as_view(), name='place_details'),
     path('places/nearby/', NearbyPlacesView.as_view(), name='nearby_places'),
+    path('places/autocomplete/', PlaceAutocompleteView.as_view(), name='place_autocomplete'),
+    path('geocode/', GeocodeView.as_view(), name='geocode'),
     path('notifications/send/', SendNotificationView.as_view(), name='send_notification'),
     
     # API routes

@@ -25,6 +25,20 @@ class PlanPermission(BasePermission):
     Dùng với IsAuthenticated: permission_classes = [IsAuthenticated, PlanPermission]
     """
     
+    def has_permission(self, request, view):
+        """Check permission cho việc tạo plan mới"""
+        if request.method == 'POST':
+            # For creating group plans, check if user is group member
+            group_id = request.data.get('group')
+            if group_id:
+                from .models import Group
+                try:
+                    group = Group.objects.get(id=group_id)
+                    return group.is_member(request.user)
+                except Group.DoesNotExist:
+                    return False
+        return True  # For other methods, check object permission
+    
     def has_object_permission(self, request, view, obj):
         """Chỉ kiểm tra business logic, auth đã được IsAuthenticated handle"""
         user = request.user
@@ -105,6 +119,20 @@ class GroupMembershipPermission(BasePermission):
 class ChatMessagePermission(BasePermission):
     """Permission cho chat messages"""
     
+    def has_permission(self, request, view):
+        """Check nếu user có thể gửi message vào group"""
+        if request.method == 'POST':
+            # For creating messages, check if user is group member
+            group_id = request.data.get('group') or view.kwargs.get('group_id')
+            if group_id:
+                from .models import Group
+                try:
+                    group = Group.objects.get(id=group_id)
+                    return group.is_member(request.user)
+                except Group.DoesNotExist:
+                    return False
+        return True  # For other methods, check object permission
+    
     def has_object_permission(self, request, view, obj):
         user = request.user
         
@@ -127,6 +155,46 @@ class ChatMessagePermission(BasePermission):
     
     def _can_delete_message(self, user, message):
         return message.sender == user or message.group.is_admin(user)
+
+
+class PlanActivityPermission(BasePermission):
+    """Permission cho PlanActivity model - OPTIMIZED"""
+    
+    def has_object_permission(self, request, view, obj):
+        """Check if user can access plan activity"""
+        user = request.user
+        plan = obj.plan
+        
+        # Check plan access first
+        if not self._can_access_plan(user, plan):
+            return False
+        
+        if request.method in SAFE_METHODS:
+            return True
+        elif request.method in ['PUT', 'PATCH', 'DELETE']:
+            return self._can_modify_activity(user, plan)
+        
+        return False
+    
+    def _can_access_plan(self, user, plan):
+        """Check if user can access the plan"""
+        if plan.created_by == user:
+            return True
+        
+        if plan.is_group_plan() and plan.group:
+            return plan.group.is_member(user)
+        
+        return False
+    
+    def _can_modify_activity(self, user, plan):
+        """Check if user can modify activities in plan"""
+        if plan.created_by == user:
+            return True
+        
+        if plan.is_group_plan() and plan.group:
+            return plan.group.is_admin(user)
+        
+        return False
 
 
 class FriendshipPermission(BasePermission):

@@ -121,7 +121,7 @@ class User(AbstractUser, BaseModel):
         help_text="Firebase Cloud Messaging token"
     )
     
-    # Remove timestamps vì đã có trong BaseModel
+    
 
     class Meta:
         db_table = 'planpal_users' 
@@ -183,21 +183,15 @@ class User(AbstractUser, BaseModel):
         """
         Tạo kế hoạch nhóm
         """
-        # Business logic validation - đảm bảo data integrity
-        # Permission checking cho views được xử lý ở permission classes
-        if not group.is_member(self):
-            raise PermissionError("Bạn không phải thành viên của nhóm này")
-        
-        plan = Plan.objects.create(
-            group=group,
-            creator=self,
-            title=title,
-            start_date=start_date,
-            end_date=end_date,
-            plan_type='group',
-            **kwargs
-        )
-        return plan
+        return Plan.objects.create(
+        group=group,
+        creator=self,
+        title=title,
+        start_date=start_date,
+        end_date=end_date,
+        plan_type='group',
+        **kwargs
+    )
 
     def get_personal_plans(self):
         """Lấy tất cả personal plans của user"""
@@ -318,7 +312,14 @@ class Friendship(BaseModel):
         return f"{self.user.username} -> {self.friend.username} ({self.get_status_display()})"
 
     def clean(self):
+        """Validate friendship data"""
         if self.user == self.friend:
+            raise ValidationError("Không thể gửi lời mời kết bạn cho chính mình")
+
+    @classmethod
+    def _validate_friend_request(cls, user, friend):
+        """Private method for friend request validation"""
+        if user == friend:
             raise ValidationError("Không thể gửi lời mời kết bạn cho chính mình")
 
     def save(self, *args, **kwargs):
@@ -389,8 +390,8 @@ class Friendship(BaseModel):
     @classmethod
     def create_friend_request(cls, user, friend):
         """Create friend request - OPTIMIZED with get_or_create"""
-        if user == friend:
-            raise ValidationError("Cannot send friend request to yourself")
+        # Use centralized validation
+        cls._validate_friend_request(user, friend)
             
         friendship, created = cls.objects.get_or_create(
             user=user,
@@ -541,7 +542,7 @@ class Group(BaseModel):
         
     def send_message(self, sender, content, message_type='text', **kwargs):
         """
-        Gửi tin nhắn vào group
+        Gửi tin nhắn vào group - chỉ tạo object, permission check ở view layer
         
         Args:
             sender: User gửi tin nhắn
@@ -549,11 +550,6 @@ class Group(BaseModel):
             message_type: Loại tin nhắn
             **kwargs: Các field khác
         """
-        # Business logic validation - đảm bảo data integrity  
-        # Permission checking cho views được xử lý ở permission classes
-        if not self.is_member(sender):
-            raise PermissionError("Bạn không phải thành viên của nhóm này")
-        
         message = ChatMessage.objects.create(
             group=self,
             sender=sender,
@@ -882,19 +878,19 @@ class Plan(BaseModel):
 
     def add_activity_with_place(self, title, start_time, end_time, place_id=None, **extra_data):
         """
-        Add activity to plan with Google Places lookup - FAT MODEL
+        Add activity to plan with place lookup using Goong Map API - FAT MODEL
         
         Args:
             title: Activity title
             start_time: datetime object
             end_time: datetime object  
-            place_id: Google Places ID
+            place_id: Goong Map API place ID
             **extra_data: Other activity fields
         """
         # Get place details if place_id provided
         if place_id:
-            from .services.google_places_service import google_places_service
-            place_details = google_places_service.get_place_details(place_id)
+            from .services.goong_service import goong_service
+            place_details = goong_service.get_place_details(place_id)
             if place_details:
                 extra_data.update({
                     'location_name': place_details['name'],
@@ -1096,11 +1092,11 @@ class PlanActivity(BaseModel):
         help_text="Kinh độ"
     )
     
-    # Google Places API ID (nếu có)
-    google_place_id = models.CharField(
+    # Goong Map API ID (nếu có)
+    goong_place_id = models.CharField(
         max_length=200,
         blank=True,
-        help_text="Google Places API place ID"
+        help_text="Goong Map API place ID"
     )
     
     # Chi phí dự kiến
@@ -1175,8 +1171,8 @@ class PlanActivity(BaseModel):
         """Check xem có thông tin địa điểm không"""
         return bool(self.latitude and self.longitude)
 
-    def get_google_maps_url(self):
-        """Tạo URL Google Maps"""
+    def get_maps_url(self):
+        """Tạo URL Google Maps cho địa điểm"""
         if self.has_location():
             return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
         elif self.location_name:

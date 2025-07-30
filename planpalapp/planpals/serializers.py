@@ -72,7 +72,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'username', 'email', 'password', 'password_confirm',
-            'first_name', 'last_name', 'phone_number'
+            'first_name', 'last_name', 'phone_number', 'avatar'
         ]
     
     def validate_username(self, value):
@@ -237,7 +237,7 @@ class PlanActivitySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'plan', 'title', 'description', 'activity_type',
             'start_time', 'end_time', 'location_name', 'location_address',
-            'latitude', 'longitude', 'google_place_id', 'estimated_cost',
+            'latitude', 'longitude', 'goong_place_id', 'estimated_cost',
             'notes', 'order', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
