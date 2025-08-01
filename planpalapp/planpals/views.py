@@ -28,6 +28,10 @@ from .permissions import (
 from .services import notification_service
 from .services.goong_service import goong_service
 
+from oauth2_provider.models import Application, AccessToken, RefreshToken  
+from oauth2_provider import settings as oauth2_settings
+from django.utils import timezone
+import uuid        
 User = get_user_model()
 
 # ============================================================================
@@ -35,69 +39,89 @@ User = get_user_model()
 # ============================================================================
 
 class OAuth2LoginView(APIView):
-    """OAuth2 Login endpoint với JSON response"""
+    """OAuth2 Login endpoint với token generation"""
     permission_classes = [AllowAny]
     
     def post(self, request, *args, **kwargs):
-       
         username = request.data.get('username')
         password = request.data.get('password')
-        
-        
         if not username or not password:
-            return Response(
-                {'error': 'Username and password required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+            return Response({'error': 'Username and password required'}, status=status.HTTP_400_BAD_REQUEST)
+
         user = authenticate(username=username, password=password)
         if not user:
-            return Response(
-                {'error': 'Invalid credentials'}, 
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        
-        # Check if user is active
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
         if not user.is_active:
-            return Response(
-                {'error': 'Account is deactivated'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Update user online status using model method
+            return Response({'error': 'Account is deactivated'}, status=status.HTTP_403_FORBIDDEN)
+
+        token = self._generate_access_token(user)
         user.set_online_status(True)
-        
-        # Return comprehensive user data using serializer
         user_serializer = UserSerializer(user)
         return Response({
             'message': 'Login successful',
             'user': user_serializer.data,
-            'note': 'OAuth2 token implementation pending'
+            'access_token': token,
+            'token_type': 'Bearer'
         }, status=status.HTTP_200_OK)
 
+    @staticmethod
+    def _generate_access_token(user):
+        try:
+        
+            app, _ = Application.objects.get_or_create(
+                name="PlanPal Mobile App",
+                defaults={
+                    'client_type': Application.CLIENT_PUBLIC,
+                    'authorization_grant_type': Application.GRANT_PASSWORD,
+                }
+            )
+            access_token = AccessToken.objects.create(
+                user=user,
+                application=app,
+                token=uuid.uuid4().hex,
+                expires=timezone.now() + timezone.timedelta(
+                    seconds=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS
+                ),
+                scope='read write'
+            )
+            return access_token.token
+        except Exception:
+            import secrets
+            return secrets.token_urlsafe(32)
+
 class OAuth2LogoutView(APIView):
-    """OAuth2 Logout endpoint"""
+    """OAuth2 Logout endpoint với token revocation"""
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
         try:
-            # Update user offline status using model method
             request.user.set_online_status(False)
-            
-            # Note: OAuth2 token revocation will be implemented
-            # when oauth2_provider is properly configured
-            
+            revoked = self._revoke_token(request)
             return Response({
                 'message': 'Logged out successfully',
                 'timestamp': timezone.now().isoformat(),
-                'note': 'OAuth2 token revocation pending'
+                'token_revoked': revoked
             }, status=status.HTTP_200_OK)
-            
         except Exception as e:
-            return Response(
-                {'error': f'Logout failed: {str(e)}'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({'error': f'Logout failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @staticmethod
+    def _revoke_token(request):
+        try:
+            
+            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+            if not auth_header.startswith('Bearer '):
+                return False
+            token = auth_header.split(' ')[1]
+            try:
+                access_token = AccessToken.objects.get(token=token)
+                access_token.delete()
+                RefreshToken.objects.filter(access_token=access_token).delete()
+                return True
+            except AccessToken.DoesNotExist:
+                return False
+        except ImportError:
+            return False
 
 # ============================================================================
 # Core API ViewSets

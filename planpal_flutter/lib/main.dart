@@ -1,7 +1,63 @@
 import 'package:flutter/material.dart';
+import 'package:planpal_flutter/presentation/pages/users/plan_page.dart';
+import 'package:planpal_flutter/presentation/pages/users/profile_page.dart';
+import 'package:planpal_flutter/presentation/pages/users/group_page.dart';
+import 'package:provider/provider.dart';
+import 'package:planpal_flutter/core/theme/app_theme.dart';
+import 'package:planpal_flutter/core/providers/theme_provider.dart';
+import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/presentation/pages/home/home_page.dart';
+import 'package:planpal_flutter/presentation/pages/auth/login_page.dart';
+import 'package:planpal_flutter/presentation/pages/auth/register_page.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final themeProvider = ThemeProvider();
+  await themeProvider.init();
+
+  runApp(
+    ChangeNotifierProvider.value(
+      value: themeProvider,
+      child: const PlanPalApp(),
+    ),
+  );
+}
+
+class PlanPalApp extends StatelessWidget {
+  const PlanPalApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+        ChangeNotifierProvider<ThemeProvider>.value(
+          value: Provider.of<ThemeProvider>(context),
+        ),
+      ],
+      child: Consumer2<ThemeProvider, AuthProvider>(
+        builder: (context, themeProvider, authProvider, child) {
+          return MaterialApp(
+            title: 'PlanPal',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeProvider.themeMode,
+            initialRoute: authProvider.isLoggedIn ? '/home' : '/login',
+            routes: {
+              '/login': (context) => const LoginPage(),
+              '/register': (context) => const RegisterPage(),
+              '/home': (context) => const HomePage(),
+              '/group': (context) => GroupPage(),
+              '/plan': (context) => PlanPage(),
+              '/profile': (context) => ProfilePage(),
+            },
+          );
+        },
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
