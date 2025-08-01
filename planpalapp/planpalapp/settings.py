@@ -14,7 +14,6 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import cloudinary
-from decouple import config
 
 # Load environment variables
 load_dotenv()
@@ -27,10 +26,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-e8xnfjcxq9!o7dx_3k^f)ph9jg(ikx+&7-ca+k$4gug^!vm4sv'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-for-development')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = []
 
@@ -44,12 +43,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
     'rest_framework',
-    'rest_framework.authtoken',
+    'drf_yasg',
     'corsheaders',
     'cloudinary_storage',
     'cloudinary',
     'oauth2_provider',
+    'ckeditor',
+    'ckeditor_uploader',
+    
     'planpals',
 ]
 
@@ -69,9 +72,6 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
@@ -80,7 +80,7 @@ REST_FRAMEWORK = {
 OAUTH2_PROVIDER = {
     'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
     
-   
+    
     'SCOPES': {
         'read': 'Read scope',
         'write': 'Write scope',
@@ -113,18 +113,12 @@ WSGI_APPLICATION = 'planpalapp.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Load secret key from environment
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-for-development')
-
-# DEBUG setting from environment
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME', 'planpaldb'),
-        'USER': os.getenv('DB_USER', 'root'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '3306'),
     }
@@ -205,8 +199,18 @@ cloudinary.config(
 # Use Cloudinary for default file storage
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
-# External API Keys
-GOOGLE_PLACES_API_KEY = os.getenv('GOOGLE_PLACES_API_KEY')
+# ============================================================================
+# EXTERNAL API CONFIGURATIONS
+# ============================================================================
+
+# Goong Map API - PRIMARY LOCATION SERVICE FOR VIETNAM
+GOONG_API_KEY = os.getenv('GOONG_API_KEY')
+
+# OpenStreetMap/Nominatim - BACKUP OPTION (DISABLED)
+# NOMINATIM_BASE_URL = os.getenv('NOMINATIM_BASE_URL', 'https://nominatim.openstreetmap.org')
+# NOMINATIM_USER_AGENT = os.getenv('NOMINATIM_USER_AGENT', 'PlanPal-Student-Project/1.0')
+# OVERPASS_API_URL = os.getenv('OVERPASS_API_URL', 'https://overpass-api.de/api/interpreter')
+
 FCM_SERVER_KEY = os.getenv('FCM_SERVER_KEY')
 
 # Email configuration for notifications
@@ -257,3 +261,58 @@ LOGGING = {
         },
     },
 }
+
+# ============================================================================
+# DRF-SPECTACULAR SETTINGS (Swagger/OpenAPI Documentation)
+# ============================================================================
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'PlanPal API',
+    'DESCRIPTION': 'API documentation for PlanPal - Social Travel Planning Application',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'COMPONENT_NO_READ_ONLY_REQUIRED': True,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+        'filter': True,
+    },
+    'REDOC_UI_SETTINGS': {
+        'hideDownloadButton': False,
+        'expandResponses': 'all',
+    },
+    'SCHEMA_PATH_PREFIX': '/api/',
+    'SECURITY': [
+        {
+            'type': 'oauth2',
+            'flows': {
+                'authorizationCode': {
+                    'authorizationUrl': '/o/authorize/',
+                    'tokenUrl': '/o/token/',
+                    'scopes': {
+                        'read': 'Read access to API',
+                        'write': 'Write access to API'
+                    }
+                }
+            }
+        }
+    ],
+}
+
+# ============================================================================
+# CKEDITOR SETTINGS
+# ============================================================================
+
+CKEDITOR_UPLOAD_PATH = "uploads/"
+CKEDITOR_CONFIGS = {
+    'default': {
+        'toolbar': 'full',
+        'height': 300,
+        'width': '100%',
+    },
+}
+
+CLIENT_ID = os.getenv('CLIENT_ID')
+CLIENT_SECRET = os.getenv('CLIENT_SECRET')

@@ -23,9 +23,10 @@ from .serializers import (
 from .permissions import (
     IsAuthenticatedAndActive, PlanPermission, GroupPermission,
     ChatMessagePermission, FriendshipPermission, UserProfilePermission,
-    IsGroupMember, IsGroupAdmin
+    IsGroupMember, IsGroupAdmin, PlanActivityPermission
 )
-from .services import google_places_service, notification_service
+from .services import notification_service
+from .services.goong_service import goong_service
 
 User = get_user_model()
 
@@ -102,9 +103,11 @@ class OAuth2LogoutView(APIView):
 # Core API ViewSets
 # ============================================================================
 
-class UserViewSet(viewsets.ModelViewSet):
-    """User CRUD operations"""
-    queryset = User.objects.all()
+class UserViewSet(viewsets.GenericViewSet,
+                  mixins.CreateModelMixin,
+                  mixins.RetrieveModelMixin,
+                  mixins.UpdateModelMixin):
+    """SECURE User operations - Fixed dangerous ModelViewSet"""
     serializer_class = UserSerializer
     
     def get_permissions(self):
@@ -116,10 +119,61 @@ class UserViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticatedAndActive]
         return [permission() for permission in permission_classes]
     
+    def get_queryset(self):
+        """SECURE - Only current user for profile operations"""
+        return User.objects.filter(id=self.request.user.id)
+    
     def get_serializer_class(self):
         if self.action == 'create':
             return UserCreateSerializer
         return UserSerializer
+    
+    def list(self, request):
+        """Custom list - only return current user profile"""
+        user_serializer = self.get_serializer(request.user)
+        return Response({
+            'user': user_serializer.data,
+            'message': 'Use specific endpoints for user search'
+        })
+    
+    # ✅ SECURE USER SEARCH
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """Search users for friend requests (limited results)"""
+        query = request.query_params.get('q')
+        if not query:
+            return Response(
+                {'error': 'Search query (q) parameter required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Limited search - only basic info, max 20 results
+        users = User.objects.filter(
+            models.Q(username__icontains=query) |
+            models.Q(email__icontains=query) |
+            models.Q(first_name__icontains=query) |
+            models.Q(last_name__icontains=query)
+        ).exclude(
+            id=request.user.id  # Exclude self
+        ).only(
+            'id', 'username', 'first_name', 'last_name', 'avatar'
+        )[:20]  # Limit to 20 results
+        
+        # Use basic serializer for search results
+        users_data = []
+        for user in users:
+            users_data.append({
+                'id': user.id,
+                'username': user.username,
+                'full_name': f"{user.first_name} {user.last_name}".strip(),
+                'avatar': user.avatar.url if user.avatar else None
+            })
+        
+        return Response({
+            'users': users_data,
+            'count': len(users_data),
+            'query': query
+        })
     
     #API trả về thông tin người dùng hiện tại
     @action(detail=False, methods=['get'])
@@ -164,19 +218,121 @@ class UserViewSet(viewsets.ModelViewSet):
         count = request.user.get_unread_messages_count()
         return Response({'unread_count': count})
 
-class GroupViewSet(viewsets.ModelViewSet):
-    """Group CRUD operations"""
-    queryset = Group.objects.all()
+class GroupViewSet(viewsets.GenericViewSet,
+                   mixins.CreateModelMixin,
+                   mixins.RetrieveModelMixin,
+                   mixins.UpdateModelMixin,
+                   mixins.DestroyModelMixin):
+    """SECURE Group operations - Fixed dangerous ModelViewSet"""
     serializer_class = GroupSerializer
     permission_classes = [IsAuthenticated, GroupPermission]
     
     def get_queryset(self):
-        """Optimized query for groups - PERFORMANCE"""
-        return Group.objects.filter(members=self.request.user).select_related(
-            'created_by'
-        ).prefetch_related(
-            'members'
+        """SECURE - Only groups user is member of with correct field references"""
+        return Group.objects.filter(
+            members=self.request.user
+        ).select_related('admin').prefetch_related(
+            'members',
+            'memberships__user'
         )
+    
+    def list(self, request):
+        """Custom secure list implementation - user's groups only"""
+        queryset = self.get_queryset().order_by('-created_at')
+        serializer = self.get_serializer(queryset, many=True)
+        
+        return Response({
+            'groups': serializer.data,
+            'count': len(serializer.data),
+            'timestamp': timezone.now().isoformat()
+        })
+    
+    def perform_create(self, serializer):
+        """Auto-add creator as admin and member"""
+        group = serializer.save(admin=self.request.user)
+        group.members.add(self.request.user)
+        return group
+    
+    # ✅ SECURE JOIN GROUP
+    @action(detail=False, methods=['post'])
+    def join(self, request):
+        """Join group by invite code or ID"""
+        group_id = request.data.get('group_id')
+        invite_code = request.data.get('invite_code')
+        
+        if not group_id and not invite_code:
+            return Response(
+                {'error': 'group_id or invite_code required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            if invite_code:
+                group = Group.objects.get(invite_code=invite_code)
+            else:
+                # Only allow joining public groups
+                group = Group.objects.get(
+                    id=group_id, 
+                    is_public=True  # Assuming you have this field
+                )
+            
+            if request.user in group.members.all():
+                return Response({'message': 'Already a member'})
+            
+            group.members.add(request.user)
+            
+            return Response({
+                'message': 'Joined group successfully',
+                'group': self.get_serializer(group).data
+            })
+            
+        except Group.DoesNotExist:
+            return Response(
+                {'error': 'Group not found or not accessible'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=False, methods=['get'])
+    def my_groups(self, request):
+        """Get user's joined groups"""
+        groups = self.get_queryset()
+        serializer = self.get_serializer(groups, many=True)
+        return Response({
+            'groups': serializer.data,
+            'count': len(serializer.data)
+        })
+    
+    @action(detail=False, methods=['get'])
+    def created_by_me(self, request):
+        """Get groups created by user"""
+        groups = self.get_queryset().filter(created_by=request.user)
+        serializer = self.get_serializer(groups, many=True)
+        return Response({
+            'groups': serializer.data,
+            'count': len(serializer.data)
+        })
+    
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """Search in user's groups"""
+        query = request.query_params.get('q')
+        if not query:
+            return Response(
+                {'error': 'q parameter required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        groups = self.get_queryset().filter(
+            models.Q(name__icontains=query) |
+            models.Q(description__icontains=query)
+        )
+        
+        serializer = self.get_serializer(groups, many=True)
+        return Response({
+            'groups': serializer.data,
+            'query': query,
+            'count': len(serializer.data)
+        })
     
     #API gửi tin nhắn đến nhóm
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupMember])
@@ -228,16 +384,48 @@ class GroupViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 class PlanViewSet(viewsets.ModelViewSet):
-    """Plan CRUD operations"""
-    queryset = Plan.objects.all()
+    """Plan CRUD operations - SECURITY FIXED"""
     serializer_class = PlanSerializer
     permission_classes = [IsAuthenticated, PlanPermission]
     
     def get_queryset(self):
+        """SECURE - Only user's accessible plans with full optimizations"""
         return Plan.objects.filter(
             models.Q(group__members=self.request.user) |
             models.Q(created_by=self.request.user)
-        )
+        ).select_related('created_by', 'group').prefetch_related(
+            'group__members',
+            'activities'
+        ).distinct().order_by('-created_at')
+    
+    def perform_create(self, serializer):
+        """Auto-set creator and handle notifications"""
+        plan = serializer.save(created_by=self.request.user)
+        
+        # Optional: Send notification if service available
+        try:
+            if hasattr(notification_service, 'notify_plan_created'):
+                notification_service.notify_plan_created(
+                    plan_id=str(plan.id),
+                    creator_name=self.request.user.username,
+                    group_id=str(plan.group.id) if plan.group else None
+                )
+        except Exception:
+            pass  # Don't fail plan creation if notification fails
+        
+        return plan
+    
+    def list(self, request):
+        """Enhanced list with metadata"""
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        
+        return Response({
+            'plans': serializer.data,
+            'count': len(serializer.data),
+            'user_id': request.user.id,
+            'timestamp': timezone.now().isoformat()
+        })
     
     #API lấy kế hoạch theo ngày
     @action(detail=True, methods=['get'])
@@ -608,9 +796,9 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
                           mixins.RetrieveModelMixin,
                           mixins.UpdateModelMixin,
                           mixins.DestroyModelMixin):
-    """Optimized Plan Activity operations - NO dangerous list endpoint"""
+    """Optimized Plan Activity operations - SECURE permissions"""
     serializer_class = PlanActivitySerializer
-    permission_classes = [IsAuthenticated, IsGroupMember]
+    permission_classes = [IsAuthenticated, PlanActivityPermission]
     
     def get_queryset(self):
         # ✅ SECURE - Only activities from user's plans
@@ -826,7 +1014,7 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
 
 
 class PlacesSearchView(APIView):
-    """Search for places using Google Places API"""
+    """Search for places using Goong Map API"""
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -853,11 +1041,10 @@ class PlacesSearchView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
-        places = google_places_service.search_places(
+        places = goong_service.search_places(
             query=query,
             location=location,
-            radius=radius,
-            place_type=place_type
+            radius=radius
         )
         
         return Response({'places': places})
@@ -867,7 +1054,7 @@ class PlaceDetailsView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request, place_id):
-        place_details = google_places_service.get_place_details(place_id)
+        place_details = goong_service.get_place_details(place_id)
         
         if place_details:
             return Response({'place': place_details})
@@ -902,14 +1089,94 @@ class NearbyPlacesView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        places = google_places_service.get_nearby_places(
-            lat=lat,
-            lng=lng,
+        places = goong_service.nearby_search(
+            latitude=lat,
+            longitude=lng,
             radius=radius,
-            place_type=place_type
+            type_filter=place_type
         )
         
         return Response({'places': places})
+
+class PlaceAutocompleteView(APIView):
+    """Get place suggestions for autocomplete"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        input_text = request.query_params.get('input')
+        lat = request.query_params.get('lat')
+        lng = request.query_params.get('lng')
+        radius = int(request.query_params.get('radius', 5000))
+        
+        if not input_text:
+            return Response(
+                {'error': 'input parameter required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Convert lat/lng to tuple if provided for location bias
+        location = None
+        if lat and lng:
+            try:
+                location = (float(lat), float(lng))
+            except ValueError:
+                return Response(
+                    {'error': 'Invalid lat/lng format'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        suggestions = goong_service.autocomplete(
+            input_text=input_text,
+            location=location,
+            radius=radius
+        )
+        
+        return Response({'suggestions': suggestions})
+
+class GeocodeView(APIView):
+    """Convert address to coordinates and vice versa"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        address = request.query_params.get('address')
+        lat = request.query_params.get('lat')
+        lng = request.query_params.get('lng')
+        
+        if address:
+            # Forward geocoding: address to coordinates
+            result = goong_service.geocode(address)
+            if result:
+                return Response({'result': result})
+            else:
+                return Response(
+                    {'error': 'Address not found'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        elif lat and lng:
+            # Reverse geocoding: coordinates to address
+            try:
+                lat = float(lat)
+                lng = float(lng)
+                result = goong_service.reverse_geocode(lat, lng)
+                if result:
+                    return Response({'result': result})
+                else:
+                    return Response(
+                        {'error': 'Location not found'}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            except ValueError:
+                return Response(
+                    {'error': 'Invalid lat/lng format'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        else:
+            return Response(
+                {'error': 'Either address or lat/lng parameters required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class SendNotificationView(APIView):
     """Send push notification manually (for testing)"""

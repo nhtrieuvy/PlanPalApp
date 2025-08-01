@@ -5,17 +5,20 @@ Chứa các service classes để tích hợp với external APIs và xử lý b
 """
 
 from .base_service import BaseService
-from .google_places_service import GooglePlacesService
 from .notification_service import NotificationService
+from .goong_service import goong_service
+
+# Legacy import for backward compatibility
+
 
 # Export các service instances để sử dụng dễ dàng
-google_places_service = GooglePlacesService()
 notification_service = NotificationService()
+
+
 
 __all__ = [
     'BaseService',
-    'GooglePlacesService', 
     'NotificationService',
-    'google_places_service',
-    'notification_service'
+    'notification_service',
+    'goong_service'
 ]

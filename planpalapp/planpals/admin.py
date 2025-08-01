@@ -89,9 +89,9 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(Friendship)
 class FriendshipAdmin(admin.ModelAdmin):
-    list_display = ['sender', 'receiver', 'status', 'created_at']
+    list_display = ['user', 'friend', 'status', 'created_at']
     list_filter = ['status', 'created_at']
-    search_fields = ['sender__username', 'receiver__username']
+    search_fields = ['user__username', 'friend__username']
     readonly_fields = ['id', 'created_at', 'updated_at']
     
     # Custom actions
@@ -261,7 +261,7 @@ class PlanActivityAdmin(admin.ModelAdmin):
             'fields': ('start_time', 'end_time', 'order')
         }),
         ('Địa điểm', {
-            'fields': ('location_name', 'location_address', 'latitude', 'longitude', 'google_place_id'),
+            'fields': ('location_name', 'location_address', 'latitude', 'longitude', 'goong_place_id'),
             'classes': ('collapse',)
         }),
         ('Chi phí & Ghi chú', {
