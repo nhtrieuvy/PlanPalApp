@@ -43,23 +43,21 @@ class UserSerializer(serializers.ModelSerializer):
         return obj.is_recently_online
     
     def get_avatar_url(self, obj):
-        """Get Cloudinary avatar URL với transformation"""
+        """Always return full Cloudinary URL for avatar (300x300)"""
         if obj.avatar:
-            if hasattr(obj.avatar, 'build_url'):
-                return obj.avatar.build_url(
-                    width=300, height=300, crop='fill', gravity='face'
-                )
-            return obj.avatar.url
+            public_id = str(obj.avatar)
+            if public_id:
+                img = CloudinaryImage(public_id)
+                return img.build_url(width=300, height=300, crop='fill', gravity='face')
         return None
-    
+
     def get_avatar_thumbnail(self, obj):
-        """Get avatar thumbnail for lists"""
+        """Always return full Cloudinary URL for avatar thumbnail (100x100)"""
         if obj.avatar:
-            if hasattr(obj.avatar, 'build_url'):
-                return obj.avatar.build_url(
-                    width=100, height=100, crop='fill', gravity='face'
-                )
-            return obj.avatar.url
+            public_id = str(obj.avatar)
+            if public_id:
+                img = CloudinaryImage(public_id)
+                return img.build_url(width=100, height=100, crop='fill', gravity='face')
         return None
 
 
