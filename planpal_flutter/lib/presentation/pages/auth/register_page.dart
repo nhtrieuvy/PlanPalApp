@@ -14,6 +14,7 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  // Form controllers and state
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -144,6 +145,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // Widget builders
   Widget _buildHeader() {
     return Column(
       children: [
@@ -180,7 +182,7 @@ class _RegisterPageState extends State<RegisterPage> {
       margin: const EdgeInsets.all(0),
       elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       content: Form(
         key: _formKey,
         child: Column(
@@ -369,8 +371,15 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
       validator: (value) {
         if (value != null && value.trim().isNotEmpty) {
-          if (!RegExp(r'^[0-9+\-\s()]+$').hasMatch(value.trim())) {
+          final phone = value.trim();
+          // Chỉ cho phép ký tự số, +, -, (, ), khoảng trắng
+          if (!RegExp(r'^[0-9+\-\s()]+$').hasMatch(phone)) {
             return 'Số điện thoại không hợp lệ';
+          }
+          // Đếm số lượng chữ số
+          final digits = phone.replaceAll(RegExp(r'\D'), '');
+          if (digits.length < 9 || digits.length > 15) {
+            return 'Số điện thoại phải có từ 9 đến 15 số';
           }
         }
         return null;

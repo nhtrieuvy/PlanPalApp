@@ -20,27 +20,38 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer cho User model với Cloudinary avatar support"""
-    full_name = serializers.SerializerMethodField()
-    is_recently_online = serializers.SerializerMethodField()
-    avatar_url = serializers.SerializerMethodField()
-    avatar_thumbnail = serializers.SerializerMethodField()
+    """Serializer cho User model với Cloudinary avatar support - OPTIMIZED"""
+    # ✅ Use properties directly instead of SerializerMethodField
+    full_name = serializers.CharField(source='display_name', read_only=True)
+    initials = serializers.CharField(read_only=True)
+    online_status = serializers.CharField(read_only=True)
+    avatar_url = serializers.CharField(read_only=True)
+    has_avatar = serializers.BooleanField(read_only=True)
+    
+    # Count properties
+    plans_count = serializers.IntegerField(read_only=True)
+    personal_plans_count = serializers.IntegerField(read_only=True)
+    group_plans_count = serializers.IntegerField(read_only=True)
+    groups_count = serializers.IntegerField(read_only=True)
+    friends_count = serializers.IntegerField(read_only=True)
+    unread_messages_count = serializers.IntegerField(read_only=True)
+    
+    # Legacy support
+    is_recently_online = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
-            'phone_number', 'avatar', 'avatar_url', 'avatar_thumbnail', 
-            'date_of_birth', 'bio', 'is_online', 'last_seen', 'is_recently_online',
+            'id', 'username', 'email', 'first_name', 'last_name', 
+            'display_name', 'full_name', 'initials',
+            'phone_number', 'avatar', 'avatar_url', 'has_avatar',
+            'date_of_birth', 'bio', 'is_online', 'last_seen', 
+            'is_recently_online', 'online_status',
+            'plans_count', 'personal_plans_count', 'group_plans_count',
+            'groups_count', 'friends_count', 'unread_messages_count',
             'date_joined', 'is_active'
         ]
         read_only_fields = ['id', 'date_joined', 'last_seen', 'is_online']
-    
-    def get_full_name(self, obj):
-        return obj.get_full_name()
-    
-    def get_is_recently_online(self, obj):
-        return obj.is_recently_online
     
     def get_avatar_url(self, obj):
         """Always return full Cloudinary URL for avatar (300x300)"""
@@ -124,12 +135,16 @@ class GroupMembershipSerializer(serializers.ModelSerializer):
 
 
 class GroupSerializer(serializers.ModelSerializer):
-    """Serializer cho Group model với Cloudinary cover image support"""
+    """Serializer cho Group model với Cloudinary cover image support - OPTIMIZED"""
     admin = UserSerializer(read_only=True)
     memberships = GroupMembershipSerializer(many=True, read_only=True)
     
-    # Computed fields
-    member_count = serializers.SerializerMethodField()
+    # ✅ Use properties directly
+    member_count = serializers.IntegerField(source='member_count', read_only=True)
+    plans_count = serializers.IntegerField(source='plans_count', read_only=True)
+    active_plans_count = serializers.IntegerField(source='active_plans_count', read_only=True)
+    
+    # Computed fields that need context
     is_member = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
@@ -142,8 +157,8 @@ class GroupSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'cover_image', 'cover_image_url', 
             'cover_image_thumbnail', 'admin', 'memberships', 'member_count', 
-            'is_active', 'is_member', 'user_role', 'can_edit', 'can_delete',
-            'created_at', 'updated_at'
+            'plans_count', 'active_plans_count', 'is_active', 'is_member', 
+            'user_role', 'can_edit', 'can_delete', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'admin', 'created_at', 'updated_at']
     
@@ -228,15 +243,22 @@ class GroupCreateSerializer(serializers.ModelSerializer):
 
 
 class PlanActivitySerializer(serializers.ModelSerializer):
-    """Serializer cho PlanActivity"""
+    """Serializer cho PlanActivity - OPTIMIZED"""
+    # ✅ Use properties directly
+    duration_hours = serializers.FloatField(source='duration_hours', read_only=True)
+    duration_display = serializers.CharField(source='duration_display', read_only=True)
+    activity_type_display = serializers.CharField(source='activity_type_display', read_only=True)
+    has_location = serializers.BooleanField(source='has_location', read_only=True)
+    maps_url = serializers.CharField(source='maps_url', read_only=True)
     
     class Meta:
         model = PlanActivity
         fields = [
-            'id', 'plan', 'title', 'description', 'activity_type',
-            'start_time', 'end_time', 'location_name', 'location_address',
-            'latitude', 'longitude', 'goong_place_id', 'estimated_cost',
-            'notes', 'order', 'created_at', 'updated_at'
+            'id', 'plan', 'title', 'description', 'activity_type', 'activity_type_display',
+            'start_time', 'end_time', 'duration_hours', 'duration_display',
+            'location_name', 'location_address', 'latitude', 'longitude', 'goong_place_id', 
+            'has_location', 'maps_url', 'estimated_cost', 'notes', 'order', 
+            'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
@@ -268,7 +290,7 @@ class PlanActivitySerializer(serializers.ModelSerializer):
 
 
 class PlanSerializer(serializers.ModelSerializer):
-    """Serializer cho Plan model"""
+    """Serializer cho Plan model - OPTIMIZED"""
     creator = UserSerializer(read_only=True)
     group = GroupSerializer(read_only=True)
     activities = PlanActivitySerializer(many=True, read_only=True)
@@ -276,10 +298,16 @@ class PlanSerializer(serializers.ModelSerializer):
     # Write fields
     group_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     
-    # Computed fields
-    duration_days = serializers.SerializerMethodField()
-    activities_count = serializers.SerializerMethodField()
-    total_estimated_cost = serializers.SerializerMethodField()
+    # ✅ Use properties directly
+    duration_days = serializers.IntegerField(source='duration_days', read_only=True)
+    duration_display = serializers.CharField(source='duration_display', read_only=True)
+    activities_count = serializers.IntegerField(source='activities_count', read_only=True)
+    total_estimated_cost = serializers.DecimalField(source='total_estimated_cost', max_digits=12, decimal_places=2, read_only=True)
+    budget_vs_estimated = serializers.JSONField(source='budget_vs_estimated', read_only=True)
+    is_over_budget = serializers.BooleanField(source='is_over_budget', read_only=True)
+    status_display = serializers.CharField(source='status_display', read_only=True)
+    
+    # Computed fields that need context
     can_view = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     collaborators = serializers.SerializerMethodField()
@@ -288,20 +316,24 @@ class PlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = [
             'id', 'title', 'description', 'start_date', 'end_date', 'budget',
-            'is_public', 'status', 'plan_type', 'creator', 'group', 'group_id',
-            'activities', 'duration_days', 'activities_count', 'total_estimated_cost',
+            'is_public', 'status', 'status_display', 'plan_type', 'creator', 'group', 'group_id',
+            'activities', 'duration_days', 'duration_display', 'activities_count', 
+            'total_estimated_cost', 'budget_vs_estimated', 'is_over_budget',
             'can_view', 'can_edit', 'collaborators',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'creator', 'plan_type', 'created_at', 'updated_at']
     
     def get_duration_days(self, obj):
+        # Using property directly
         return obj.duration_days
     
     def get_activities_count(self, obj):
+        # Using property directly  
         return obj.activities_count
     
     def get_total_estimated_cost(self, obj):
+        # Using property directly
         return obj.total_estimated_cost
     
     def get_can_view(self, obj):
@@ -341,8 +373,9 @@ class PlanSerializer(serializers.ModelSerializer):
         return False
     
     def get_collaborators(self, obj):
-        collaborators = obj.get_collaborators()
-        return UserSerializer(collaborators, many=True).data
+        # Using property
+        collaborators = obj.collaborators
+        return UserSerializer(collaborators, many=True, context=self.context).data
     
     def validate(self, attrs):
         if attrs.get('start_date') and attrs.get('end_date'):
@@ -391,17 +424,19 @@ class PlanCreateSerializer(serializers.ModelSerializer):
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
-    """Serializer cho ChatMessage với Cloudinary attachment support"""
+    """Serializer cho ChatMessage với Cloudinary attachment support - OPTIMIZED"""
     sender = UserSerializer(read_only=True)
     reply_to = serializers.SerializerMethodField()
     
-    # Computed fields
+    # ✅ Use properties directly
+    attachment_size_display = serializers.CharField(source='attachment_size_display', read_only=True)
+    attachment_url = serializers.CharField(source='attachment_url', read_only=True)
+    location_url = serializers.CharField(source='location_url', read_only=True)
+    
+    # Computed fields that need context
     can_edit = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
-    attachment_size_display = serializers.SerializerMethodField()
-    attachment_url = serializers.SerializerMethodField()
     attachment_thumbnail = serializers.SerializerMethodField()
-    location_url = serializers.SerializerMethodField()
     
     class Meta:
         model = ChatMessage
@@ -519,16 +554,13 @@ class FriendshipSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return None
-            
         current_user = request.user
-        
         # Determine friend user
         friend_user = obj.friend if obj.user == current_user else obj.user
-        
         return {
             'id': friend_user.id,
             'username': friend_user.username,
-            'full_name': friend_user.get_full_name(),
+            'full_name': friend_user.display_name,
             'avatar_url': friend_user.avatar.url if friend_user.avatar else None,
             'is_online': friend_user.is_online,
             'last_seen': friend_user.last_seen

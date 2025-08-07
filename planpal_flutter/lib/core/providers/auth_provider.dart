@@ -2,15 +2,76 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'dart:io';
 import '../services/apis.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // ChangeNotifier cho phép lắng nghe khi dữ liệu thay đổi
 class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>?
   _user; // dữ liệu user thường trả về từ API là JSON nên dùng Map
   String? _token;
+  String? _refreshToken; // OAuth2 refresh token
   Map<String, dynamic>? get user => _user;
   String? get token => _token; // Getter để lấy token
+  String? get refreshToken => _refreshToken;
   bool get isLoggedIn => _user != null;
+
+  // Hàm refresh token
+  // Đọc client_id và client_secret từ biến môi trường Flutter (hoặc file cấu hình)
+  final String _clientId = dotenv.env['CLIENT_ID'] ?? '';
+  final String _clientSecret = dotenv.env['CLIENT_SECRET'] ?? '';
+
+  Future<bool> refreshAccessToken() async {
+    if (_refreshToken == null) return false;
+    try {
+      final dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        ),
+      );
+      final response = await dio.post(
+        '/o/token/',
+        data: {
+          'grant_type': 'refresh_token',
+          'refresh_token': _refreshToken,
+          'client_id': _clientId,
+          'client_secret': _clientSecret,
+        },
+      );
+      if (response.statusCode == 200 && response.data['access_token'] != null) {
+        _token = response.data['access_token'];
+        if (response.data['refresh_token'] != null) {
+          _refreshToken = response.data['refresh_token'];
+        }
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Hàm gọi API có tự động refresh token nếu gặp 401
+  Future<Response<T>> requestWithAutoRefresh<T>(
+    Future<Response<T>> Function(ApiClient client) requestFn,
+  ) async {
+    ApiClient client = ApiClient(token: _token);
+    try {
+      return await requestFn(client);
+    } on DioException catch (e) {
+      // Nếu gặp lỗi 401, thử refresh token
+      if (e.response?.statusCode == 401 && _refreshToken != null) {
+        final refreshed = await refreshAccessToken();
+        if (refreshed) {
+          // Gọi lại request với token mới
+          client = ApiClient(token: _token);
+          return await requestFn(client);
+        }
+      }
+      rethrow;
+    }
+  }
 
   // void setUser(Map<String, dynamic> userData) {
   //   _user = userData;
@@ -35,7 +96,7 @@ class AuthProvider extends ChangeNotifier {
         _user = response.data['user'];
         // OAuth2 token từ backend
         _token = response.data['access_token'];
-
+        _refreshToken = response.data['refresh_token'];
         notifyListeners();
       } else {
         throw Exception(
@@ -78,6 +139,7 @@ class AuthProvider extends ChangeNotifier {
       // Luôn clear user và token local
       _user = null;
       _token = null;
+      _refreshToken = null;
       notifyListeners();
     }
   }
@@ -145,6 +207,61 @@ class AuthProvider extends ChangeNotifier {
       throw Exception('Lỗi kết nối máy chủ');
     } catch (e) {
       throw Exception('Đăng ký thất bại: $e');
+    }
+  }
+
+  // Fetch user profile from API (auto refresh token)
+  Future<Map<String, dynamic>> fetchUserProfile() async {
+    try {
+      final response = await requestWithAutoRefresh(
+        (client) => client.dio.get(Endpoints.profile),
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        _user = response.data;
+        notifyListeners();
+        return response.data;
+      } else {
+        throw Exception('Failed to fetch profile data');
+      }
+    } catch (e) {
+      throw Exception('Không thể tải thông tin cá nhân: $e');
+    }
+  }
+
+  // Update user profile (auto refresh token)
+  Future<Map<String, dynamic>> updateUserProfile({
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? phoneNumber,
+    String? bio,
+    File? avatar,
+  }) async {
+    try {
+      FormData formData = FormData.fromMap({
+        if (firstName != null) 'first_name': firstName,
+        if (lastName != null) 'last_name': lastName,
+        if (email != null) 'email': email,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+        if (bio != null) 'bio': bio,
+        if (avatar != null)
+          'avatar': await MultipartFile.fromFile(
+            avatar.path,
+            filename: 'avatar.jpg',
+          ),
+      });
+      final response = await requestWithAutoRefresh(
+        (client) => client.dio.patch(Endpoints.updateProfile, data: formData),
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        _user = response.data;
+        notifyListeners();
+        return response.data;
+      } else {
+        throw Exception('Failed to update profile');
+      }
+    } catch (e) {
+      throw Exception('Không thể cập nhật thông tin: $e');
     }
   }
 }

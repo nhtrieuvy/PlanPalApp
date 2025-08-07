@@ -20,190 +20,10 @@ class _HomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: Drawer(
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Consumer<AuthProvider>(
-                builder: (context, auth, _) {
-                  final user = auth.user;
-                  return DrawerHeader(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: AppColors.primaryGradient,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 32,
-                          backgroundColor: Colors.white,
-                          backgroundImage:
-                              user != null &&
-                                  user['avatar_url'] != null &&
-                                  user['avatar_url'].toString().isNotEmpty
-                              ? NetworkImage(user['avatar_url'])
-                              : null,
-                          child:
-                              (user == null ||
-                                  user['avatar_url'] == null ||
-                                  user['avatar_url'].toString().isEmpty)
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 36,
-                                  color: Colors.grey,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          () {
-                            if (user != null) {
-  
-                              final fullName = user['full_name']?.toString() ?? '';
-                              if (fullName.isNotEmpty) {
-                                return fullName;
-                              } else if (user['username'] != null &&
-                                  user['username'].toString().isNotEmpty) {
-                                return user['username'];
-                              }
-                            }
-                            return 'Chưa đăng nhập';
-                          }(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (user != null &&
-                            user['email'] != null &&
-                            user['email'].toString().isNotEmpty)
-                          Text(
-                            user['email'],
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.groups),
-                title: const Text('Nhóm'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pushNamed('/group');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.event_note),
-                title: const Text('Kế hoạch'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pushNamed('/plan');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.person),
-                title: const Text('Cá nhân'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pushNamed('/profile');
-                },
-              ),
-              const Spacer(),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  '© 2025 PlanPal',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      drawer: _buildDrawer(context),
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            expandedHeight: 200.0,
-            floating: false,
-            pinned: true,
-            leading: Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
-            actions: [
-              Consumer<ThemeProvider>(
-                builder: (context, themeProvider, child) {
-                  return IconButton(
-                    icon: Icon(
-                      themeProvider.isDarkMode
-                          ? Icons.light_mode
-                          : Icons.dark_mode,
-                      color: Colors.white,
-                    ),
-                    onPressed: () => themeProvider.toggleTheme(),
-                  );
-                },
-              ),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text(
-                'PlanPal',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
-              ),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: AppColors.primaryGradient,
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: 60,
-                      right: -50,
-                      child: Container(
-                        width: 200,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.2),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: -30,
-                      left: -30,
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.1),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // Content giữ nguyên
+          _buildSliverAppBar(context),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -227,6 +47,211 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
+  // Main UI components
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildDrawerHeader(),
+            _buildDrawerMenuItems(context),
+            const Spacer(),
+            _buildDrawerFooter(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSliverAppBar(BuildContext context) {
+    return SliverAppBar(
+      expandedHeight: 200.0,
+      floating: false,
+      pinned: true,
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+      ),
+      actions: [
+        Consumer<ThemeProvider>(
+          builder: (context, themeProvider, child) {
+            return IconButton(
+              icon: Icon(
+                themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                color: Colors.white,
+              ),
+              onPressed: () => themeProvider.toggleTheme(),
+            );
+          },
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        title: const Text(
+          'PlanPal',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+        ),
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: AppColors.primaryGradient,
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 60,
+                right: -50,
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: -30,
+                left: -30,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Drawer components
+  Widget _buildDrawerHeader() {
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        final user = auth.user;
+        return DrawerHeader(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: AppColors.primaryGradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 32,
+                backgroundColor: Colors.white,
+                backgroundImage:
+                    user != null &&
+                        user['avatar_url'] != null &&
+                        user['avatar_url'].toString().isNotEmpty
+                    ? NetworkImage(user['avatar_url'])
+                    : null,
+                child:
+                    (user == null ||
+                        user['avatar_url'] == null ||
+                        user['avatar_url'].toString().isEmpty)
+                    ? Text(
+                        user != null && user['initials'] != null
+                            ? user['initials']
+                            : '',
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                () {
+                  if (user != null) {
+                    final fullName = user['full_name']?.toString() ?? '';
+                    if (fullName.isNotEmpty) {
+                      return fullName;
+                    } else if (user['username'] != null &&
+                        user['username'].toString().isNotEmpty) {
+                      return user['username'];
+                    }
+                  }
+                  return 'Chưa đăng nhập';
+                }(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (user != null &&
+                  user['email'] != null &&
+                  user['email'].toString().isNotEmpty)
+                Text(
+                  user['email'],
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDrawerMenuItems(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.groups),
+          title: const Text('Nhóm'),
+          onTap: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushNamed('/group');
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.event_note),
+          title: const Text('Kế hoạch'),
+          onTap: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushNamed('/plan');
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.person),
+          title: const Text('Cá nhân'),
+          onTap: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushNamed('/profile');
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDrawerFooter() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Text(
+        '© 2025 PlanPal',
+        style: TextStyle(color: Colors.grey, fontSize: 12),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  // Content sections
   Widget _buildGreetingSection(BuildContext context) {
     final hour = DateTime.now().hour;
     String greeting;
@@ -345,41 +370,6 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildActionCard(
-    BuildContext context,
-    String title,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildRecentPlans(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,6 +403,76 @@ class _HomeContent extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildActiveGroups(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Nhóm hoạt động',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            TextButton(
+              onPressed: () {
+                // Navigate to all groups
+              },
+              child: const Text('Xem tất cả'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: 3,
+          itemBuilder: (context, index) {
+            return _buildGroupCard(context, index);
+          },
+        ),
+      ],
+    );
+  }
+
+  // Card widgets
+  Widget _buildActionCard(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -502,40 +562,6 @@ class _HomeContent extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildActiveGroups(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Nhóm hoạt động',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            TextButton(
-              onPressed: () {
-                // Navigate to all groups
-              },
-              child: const Text('Xem tất cả'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 3,
-          itemBuilder: (context, index) {
-            return _buildGroupCard(context, index);
-          },
-        ),
-      ],
     );
   }
 

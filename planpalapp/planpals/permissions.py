@@ -178,7 +178,7 @@ class PlanActivityPermission(BasePermission):
     
     def _can_access_plan(self, user, plan):
         """Check if user can access the plan"""
-        if plan.created_by == user:
+        if plan.creator == user:  # Updated from created_by to creator
             return True
         
         if plan.is_group_plan() and plan.group:
@@ -188,7 +188,7 @@ class PlanActivityPermission(BasePermission):
     
     def _can_modify_activity(self, user, plan):
         """Check if user can modify activities in plan"""
-        if plan.created_by == user:
+        if plan.creator == user:  # Updated from created_by to creator
             return True
         
         if plan.is_group_plan() and plan.group:

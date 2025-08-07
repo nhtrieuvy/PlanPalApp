@@ -12,12 +12,20 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  // Form controllers and state
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _loading = false;
   String? _error;
   bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -55,6 +63,10 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -77,11 +89,13 @@ class _LoginPageState extends State<LoginPage> {
                   vertical: 32,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.lightSurface,
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.lightShadow,
+                      color: isDark
+                          ? AppColors.darkShadow
+                          : AppColors.lightShadow,
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -107,10 +121,9 @@ class _LoginPageState extends State<LoginPage> {
                           const SizedBox(height: 16),
                           Text(
                             'Đăng nhập PlanPal',
-                            style: TextStyle(
-                              fontSize: 28,
+                            style: theme.textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: AppColors.lightOnBackground,
+                              color: colorScheme.onSurface,
                               letterSpacing: 1.1,
                             ),
                           ),
@@ -120,14 +133,20 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 32),
                     TextFormField(
                       controller: _usernameController,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurface,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Tên đăng nhập',
+                        labelStyle: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                         prefixIcon: const Icon(Icons.person),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                         filled: true,
-                        fillColor: AppColors.lightSurfaceVariant,
+                        fillColor: colorScheme.surfaceContainerHighest,
                       ),
                       validator: (v) =>
                           v == null || v.isEmpty ? 'Nhập tên đăng nhập' : null,
@@ -136,19 +155,26 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurface,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Mật khẩu',
+                        labelStyle: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                         prefixIcon: const Icon(Icons.lock),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                         filled: true,
-                        fillColor: AppColors.lightSurfaceVariant,
+                        fillColor: colorScheme.surfaceContainerHighest,
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword
                                 ? Icons.visibility_off
                                 : Icons.visibility,
+                            color: colorScheme.onSurfaceVariant,
                           ),
                           onPressed: () {
                             setState(() {
@@ -215,8 +241,10 @@ class _LoginPageState extends State<LoginPage> {
                       children: [
                         Text(
                           'Chưa có tài khoản? ',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withAlpha(
+                              (0.8 * 255).round(),
+                            ),
                             fontSize: 16,
                           ),
                         ),
@@ -224,10 +252,10 @@ class _LoginPageState extends State<LoginPage> {
                           onTap: () {
                             Navigator.of(context).pushNamed('/register');
                           },
-                          child: const Text(
+                          child: Text(
                             'Đăng ký ngay',
-                            style: TextStyle(
-                              color: Colors.white,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: AppColors.primary,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               decoration: TextDecoration.underline,

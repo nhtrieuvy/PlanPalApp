@@ -136,16 +136,21 @@ class User(AbstractUser, BaseModel):
     def __str__(self):
         return f"{self.username} ({self.get_full_name()})"
 
-    def get_full_name(self):
-        """Trả về họ tên đầy đủ"""
-        return f"{self.first_name} {self.last_name}".strip() or self.username
+    @property
+    def display_name(self):
+        """Tên hiển thị ưu tiên full name, fallback username"""
+        full_name = f"{self.first_name} {self.last_name}".strip()
+        return full_name if full_name else self.username
 
     @property
-    def is_recently_online(self):
-        """Check xem user có online trong 5 phút gần đây không"""
-        if self.is_online:
-            return True
-        return timezone.now() - self.last_seen < timezone.timedelta(minutes=5)
+    def initials(self):
+        """Lấy chữ cái đầu của tên để hiển thị avatar"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name[0]}{self.last_name[0]}".upper()
+        elif self.first_name:
+            return self.first_name[0].upper()
+        return self.username[0].upper() if self.username else "U"
+
 
     def update_last_seen(self):
         """Update last_seen timestamp"""
@@ -193,37 +198,7 @@ class User(AbstractUser, BaseModel):
         **kwargs
     )
 
-    def get_personal_plans(self):
-        """Lấy tất cả personal plans của user"""
-        return self.created_plans.filter(
-            plan_type='personal'
-        ).order_by('-created_at')
-
-    def get_group_plans(self):
-        """Lấy tất cả group plans mà user tham gia"""
-        return Plan.objects.filter(
-            group__members=self,
-            plan_type='group'
-        ).order_by('-created_at')
-
-    def get_all_plans(self):
-        """Lấy tất cả plans (personal + group)"""
-        personal_plans = self.get_personal_plans()
-        group_plans = self.get_group_plans()
-        
-        # Combine và sort
-        return Plan.objects.filter(
-            Q(creator=self, plan_type='personal') |
-            Q(group__members=self, plan_type='group')
-        ).order_by('-created_at')
-
-    def get_viewable_plans(self):
-        """Lấy tất cả plans mà user có thể xem (bao gồm public)"""
-        return Plan.objects.filter(
-            Q(creator=self) |  # Own plans
-            Q(group__members=self) |  # Group plans
-            Q(is_public=True)  # Public plans
-        ).distinct().order_by('-created_at')
+    
         
     def send_group_message(self, group, content, message_type='text', **kwargs):
         """
@@ -236,14 +211,9 @@ class User(AbstractUser, BaseModel):
             **kwargs
         )
 
-    def get_unread_messages_count(self):
-        """Tổng số tin nhắn chưa đọc trong tất cả groups"""
-        total = 0
-        for group in self.joined_groups.filter(is_active=True):
-            total += group.get_unread_messages_count(self)
-        return total
-
-    def get_recent_conversations(self):
+    # ✅ QUERY PROPERTIES - Trả về QuerySet để truy vấn
+    @property
+    def recent_conversations(self):
         """Lấy danh sách conversations gần đây"""
         return Group.objects.filter(
             members=self,
@@ -251,6 +221,106 @@ class User(AbstractUser, BaseModel):
         ).annotate(
             last_message_time=models.Max('messages__created_at')
         ).order_by('-last_message_time')
+        
+    @property
+    def personal_plans(self):
+        """Lấy tất cả personal plans của user"""
+        return self.created_plans.filter(
+            plan_type='personal'
+        ).order_by('-created_at')
+
+    @property
+    def group_plans(self):
+        """Lấy tất cả group plans mà user tham gia"""
+        return Plan.objects.filter(
+            group__members=self,
+            plan_type='group'
+        ).order_by('-created_at')
+
+    @property
+    def all_plans(self):
+        """Lấy tất cả plans (personal + group)"""
+        return Plan.objects.filter(
+            Q(creator=self, plan_type='personal') |
+            Q(group__members=self, plan_type='group')
+        ).order_by('-created_at')
+
+    @property
+    def viewable_plans(self):
+        """Lấy tất cả plans mà user có thể xem (bao gồm public)"""
+        return Plan.objects.filter(
+            Q(creator=self) |  # Own plans
+            Q(group__members=self) |  # Group plans
+            Q(is_public=True)  # Public plans
+        ).distinct().order_by('-created_at')
+
+    @property
+    def friends(self):
+        """Lấy danh sách bạn bè của user"""
+        return Friendship.get_friends_queryset(self)
+
+    # ✅ COUNT PROPERTIES - Tính toán và đếm
+    @property
+    def plans_count(self):
+        """Tổng số kế hoạch (personal + group)"""
+        return self.all_plans.count()
+
+    @property
+    def personal_plans_count(self):
+        """Số lượng kế hoạch cá nhân"""
+        return self.personal_plans.count()
+
+    @property
+    def group_plans_count(self):
+        """Số lượng kế hoạch nhóm"""
+        return self.group_plans.count()
+
+    @property
+    def groups_count(self):
+        """Tổng số nhóm mà user tham gia"""
+        return self.joined_groups.filter(is_active=True).count()
+
+    @property
+    def friends_count(self):
+        """Tổng số bạn bè của user"""
+        return self.friends.count()
+        
+    # ✅ STATUS AND VALIDATION PROPERTIES
+    @property
+    def is_recently_online(self):
+        """Check xem user có online trong 5 phút gần đây không"""
+        if self.is_online:
+            return True
+        return timezone.now() - self.last_seen < timezone.timedelta(minutes=5)
+    
+    @property
+    def online_status(self):
+        """Trả về trạng thái online: 'online', 'recently_online', 'offline'"""
+        if self.is_online:
+            return 'online'
+        elif self.is_recently_online:
+            return 'recently_online'
+        return 'offline'
+
+    @property
+    def has_avatar(self):
+        """Check xem user có avatar không"""
+        return bool(self.avatar)
+
+    @property
+    def avatar_url(self):
+        """Lấy URL avatar, fallback về initials nếu không có"""
+        if self.has_avatar:
+            return self.avatar.url
+        return None
+    
+    @property
+    def unread_messages_count(self):
+        """Tổng số tin nhắn chưa đọc trong tất cả groups - OPTIMIZED"""
+        total = 0
+        for group in self.joined_groups.filter(is_active=True).prefetch_related('messages'):
+            total += group.get_unread_messages_count(self)
+        return total
     
 
 class Friendship(BaseModel):
@@ -356,14 +426,30 @@ class Friendship(BaseModel):
             models.Q(user=user) | models.Q(friend=user),
             status=cls.ACCEPTED
         ).annotate(
-            friend_id=models.Case(
+            friend_user_id=models.Case(
                 models.When(user=user, then='friend'),
                 default='user',
                 output_field=models.UUIDField()
             )
-        ).values_list('friend_id', flat=True)
+        ).values_list('friend_user_id', flat=True)
         
-        return User.objects.filter(id__in=friend_subquery)
+        return User.objects.filter(id__in=friend_subquery).select_related()
+
+    @classmethod
+    def get_pending_requests(cls, user):
+        """Lấy các lời mời kết bạn đang chờ - OPTIMIZED"""
+        return cls.objects.filter(
+            friend=user,
+            status=cls.PENDING
+        ).select_related('user').order_by('-created_at')
+
+    @classmethod
+    def get_sent_requests(cls, user):
+        """Lấy các lời mời đã gửi - OPTIMIZED"""
+        return cls.objects.filter(
+            user=user,
+            status=cls.PENDING
+        ).select_related('friend').order_by('-created_at')
 
     # ✅ OPTIMIZED INSTANCE METHODS
     def accept(self):
@@ -498,8 +584,18 @@ class Group(BaseModel):
 
     @property
     def member_count(self):
-        """Đếm số thành viên trong nhóm"""
+        """Đếm số thành viên trong nhóm - OPTIMIZED"""
         return self.members.count()
+
+    @property
+    def plans_count(self):
+        """Đếm số kế hoạch trong nhóm"""
+        return self.plans.count()
+
+    @property
+    def active_plans_count(self):
+        """Đếm số kế hoạch đang hoạt động"""
+        return self.plans.exclude(status__in=['cancelled', 'completed']).count()
 
     def add_member(self, user, role='member'):
         """
@@ -560,7 +656,7 @@ class Group(BaseModel):
         return message
 
     def get_recent_messages(self, limit=50):
-        """Lấy tin nhắn gần đây"""
+        """Lấy tin nhắn gần đây với limit tùy chỉnh"""
         return self.messages.filter(
             is_deleted=False
         ).select_related('sender').order_by('-created_at')[:limit]
@@ -841,14 +937,10 @@ class Plan(BaseModel):
         """Check xem có phải group plan không"""
         return self.plan_type == 'group'
 
-    # Permission methods đã được chuyển sang permissions.py
-    # Sử dụng PlanPermission class trong views thay vì check quyền ở đây
-    # Ví dụ: permission_classes = [PlanPermission]
 
-    def get_collaborators(self):
-        """
-        Lấy danh sách những người có thể xem/edit plan
-        """
+    @property
+    def collaborators(self):
+        """Lấy danh sách những người có thể xem/edit plan"""
         if self.is_personal():
             return [self.creator]
         elif self.is_group_plan() and self.group:
@@ -864,6 +956,17 @@ class Plan(BaseModel):
         return 0
 
     @property
+    def duration_display(self):
+        """Hiển thị thời lượng chuyến đi dễ đọc"""
+        days = self.duration_days
+        if days == 0:
+            return "Chưa xác định"
+        elif days == 1:
+            return "1 ngày"
+        else:
+            return f"{days} ngày"
+
+    @property
     def activities_count(self):
         """Đếm số hoạt động trong kế hoạch"""
         return self.activities.count()
@@ -875,6 +978,20 @@ class Plan(BaseModel):
             total=models.Sum('estimated_cost')
         )['total']
         return total or 0
+
+    
+
+    @property
+    def status_display(self):
+        """Hiển thị trạng thái plan dễ đọc"""
+        status_map = {
+            'draft': '📝 Bản nháp',
+            'published': '📋 Đã xuất bản',
+            'ongoing': '🏃 Đang diễn ra',
+            'completed': '✅ Đã hoàn thành',
+            'cancelled': '❌ Đã hủy',
+        }
+        return status_map.get(self.status, self.status)
 
     def add_activity_with_place(self, title, start_time, end_time, place_id=None, **extra_data):
         """
@@ -934,6 +1051,18 @@ class Plan(BaseModel):
             **kwargs
         )
         return activity
+
+    @property
+    def activities_by_date(self):
+        """Lấy activities nhóm theo ngày - Dictionary"""
+        activities = self.activities.order_by('start_time')
+        result = {}
+        for activity in activities:
+            date = activity.start_time.date()
+            if date not in result:
+                result[date] = []
+            result[date].append(activity)
+        return result
 
     def get_activities_by_date(self, date):
         """Lấy các hoạt động trong ngày cụ thể"""
@@ -1167,13 +1296,47 @@ class PlanActivity(BaseModel):
             return duration.total_seconds() / 3600
         return 0
 
+    @property
+    def duration_display(self):
+        """Hiển thị thời lượng dễ đọc"""
+        hours = self.duration_hours
+        if hours == 0:
+            return "Chưa xác định"
+        elif hours < 1:
+            minutes = int(hours * 60)
+            return f"{minutes} phút"
+        elif hours < 24:
+            return f"{hours:.1f} giờ"
+        else:
+            days = int(hours / 24)
+            remaining_hours = hours % 24
+            if remaining_hours == 0:
+                return f"{days} ngày"
+            return f"{days} ngày {remaining_hours:.1f} giờ"
+
+    @property
+    def activity_type_display(self):
+        """Hiển thị loại hoạt động với icon"""
+        type_icons = {
+            'restaurant': '🍽️ Nhà hàng',
+            'attraction': '🏛️ Điểm tham quan',
+            'hotel': '🏨 Khách sạn',
+            'transport': '🚗 Di chuyển',
+            'shopping': '🛍️ Mua sắm',
+            'entertainment': '🎭 Giải trí',
+            'custom': '📝 Khác',
+        }
+        return type_icons.get(self.activity_type, self.activity_type)
+
+    @property
     def has_location(self):
         """Check xem có thông tin địa điểm không"""
         return bool(self.latitude and self.longitude)
 
-    def get_maps_url(self):
+    @property
+    def maps_url(self):
         """Tạo URL Google Maps cho địa điểm"""
-        if self.has_location():
+        if self.has_location:
             return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
         elif self.location_name:
             return f"https://www.google.com/maps/search/{self.location_name}"
@@ -1372,7 +1535,8 @@ class ChatMessage(BaseModel):
             return self.attachment.url
         return None
 
-    def get_attachment_size_display(self):
+    @property
+    def attachment_size_display(self):
         """Format kích thước file cho display"""
         if not self.attachment_size:
             return None
@@ -1385,7 +1549,8 @@ class ChatMessage(BaseModel):
             size /= 1024
         return f"{size:.1f} TB"
 
-    def get_location_url(self):
+    @property
+    def location_url(self):
         """Tạo Google Maps URL cho location"""
         if self.is_location_message and self.latitude and self.longitude:
             return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"

@@ -28,10 +28,8 @@ from .permissions import (
 from .services import notification_service
 from .services.goong_service import goong_service
 
-from oauth2_provider.models import Application, AccessToken, RefreshToken  
-from oauth2_provider import settings as oauth2_settings
 from django.utils import timezone
-import uuid        
+from .oauth2_utils import OAuth2TokenManager, OAuth2ResponseFormatter
 User = get_user_model()
 
 # ============================================================================
@@ -45,49 +43,56 @@ class OAuth2LoginView(APIView):
     def post(self, request, *args, **kwargs):
         username = request.data.get('username')
         password = request.data.get('password')
+        
         if not username or not password:
-            return Response({'error': 'Username and password required'}, status=status.HTTP_400_BAD_REQUEST)
+            error_data, status_code = OAuth2ResponseFormatter.error_response(
+                'invalid_request', 
+                'Username and password required'
+            )
+            return Response(error_data, status=status_code)
 
         user = authenticate(username=username, password=password)
         if not user:
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+            error_data, status_code = OAuth2ResponseFormatter.error_response(
+                'invalid_grant',
+                'Invalid credentials',
+                401
+            )
+            return Response(error_data, status=status_code)
+            
         if not user.is_active:
-            return Response({'error': 'Account is deactivated'}, status=status.HTTP_403_FORBIDDEN)
+            error_data, status_code = OAuth2ResponseFormatter.error_response(
+                'invalid_grant',
+                'Account is deactivated',
+                403
+            )
+            return Response(error_data, status=status_code)
 
-        token = self._generate_access_token(user)
-        user.set_online_status(True)
-        user_serializer = UserSerializer(user)
-        return Response({
-            'message': 'Login successful',
-            'user': user_serializer.data,
-            'access_token': token,
-            'token_type': 'Bearer'
-        }, status=status.HTTP_200_OK)
-
-    @staticmethod
-    def _generate_access_token(user):
         try:
+            access_token, refresh_token = OAuth2TokenManager.create_tokens_for_user(user)
+            user.set_online_status(True)
+            
+            user_serializer = UserSerializer(user)
+            response_data = OAuth2ResponseFormatter.success_response(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                user_data=user_serializer.data
+            )
+            response_data['message'] = 'Login successful'
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
         
-            app, _ = Application.objects.get_or_create(
-                name="PlanPal Mobile App",
-                defaults={
-                    'client_type': Application.CLIENT_PUBLIC,
-                    'authorization_grant_type': Application.GRANT_PASSWORD,
-                }
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            error_data, status_code = OAuth2ResponseFormatter.error_response(
+                'server_error',
+                f'Token generation failed: {str(e)}',
+                500
             )
-            access_token = AccessToken.objects.create(
-                user=user,
-                application=app,
-                token=uuid.uuid4().hex,
-                expires=timezone.now() + timezone.timedelta(
-                    seconds=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS
-                ),
-                scope='read write'
-            )
-            return access_token.token
-        except Exception:
-            import secrets
-            return secrets.token_urlsafe(32)
+            return Response(error_data, status=status_code)
+
 
 class OAuth2LogoutView(APIView):
     """OAuth2 Logout endpoint với token revocation"""
@@ -96,32 +101,22 @@ class OAuth2LogoutView(APIView):
     def post(self, request):
         try:
             request.user.set_online_status(False)
-            revoked = self._revoke_token(request)
+            revoked = OAuth2TokenManager.revoke_user_tokens(request.user)
+            
             return Response({
                 'message': 'Logged out successfully',
                 'timestamp': timezone.now().isoformat(),
                 'token_revoked': revoked
             }, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': f'Logout failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    @staticmethod
-    def _revoke_token(request):
-        try:
             
-            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-            if not auth_header.startswith('Bearer '):
-                return False
-            token = auth_header.split(' ')[1]
-            try:
-                access_token = AccessToken.objects.get(token=token)
-                access_token.delete()
-                RefreshToken.objects.filter(access_token=access_token).delete()
-                return True
-            except AccessToken.DoesNotExist:
-                return False
-        except ImportError:
-            return False
+        except Exception as e:
+            error_data, status_code = OAuth2ResponseFormatter.error_response(
+                'server_error',
+                f'Logout failed: {str(e)}',
+                500
+            )
+            return Response(error_data, status=status_code)
+
 
 # ============================================================================
 # Core API ViewSets
@@ -222,25 +217,52 @@ class UserViewSet(viewsets.GenericViewSet,
     #API lấy danh sách kế hoạch của người dùng hiện tại
     @action(detail=False, methods=['get'])
     def my_plans(self, request):
-        """Get all plans for current user using model method"""
-        plans = request.user.get_all_plans()
-        serializer = PlanSerializer(plans, many=True)
-        return Response(serializer.data)
+        """Get user's plans - OPTIMIZED using properties"""
+        user = request.user
+        plan_type = request.query_params.get('type', 'all')
+        
+        if plan_type == 'personal':
+            plans = user.personal_plans  # Using property
+        elif plan_type == 'group':
+            plans = user.group_plans    # Using property
+        else:
+            plans = user.all_plans      # Using property
+        
+        serializer = PlanSerializer(plans[:20], many=True, context={'request': request})
+        
+        return Response({
+            'plans': serializer.data,
+            'counts': {
+                'total': user.plans_count,           # Using property
+                'personal': user.personal_plans_count, # Using property
+                'group': user.group_plans_count       # Using property
+            },
+            'type': plan_type
+        })
+        
     
     #API lấy danh sách chat gần đây hình như trong 5ph
     @action(detail=False, methods=['get'])
     def recent_conversations(self, request):
-        """Get recent conversations using model method"""
-        conversations = request.user.get_recent_conversations()
-        serializer = GroupSerializer(conversations, many=True)
-        return Response(serializer.data)
+        """Get recent conversations - OPTIMIZED using property"""
+        conversations = request.user.recent_conversations[:10]  # Using property
+        serializer = GroupSerializer(conversations, many=True, context={'request': request})
+        
+        return Response({
+            'conversations': serializer.data,
+            'timestamp': timezone.now().isoformat()
+        })
+       
     
     #API lấy tin nhắn chưa đọc
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
-        """Get unread messages count using model method"""
-        count = request.user.get_unread_messages_count()
-        return Response({'unread_count': count})
+        """Get unread messages count - OPTIMIZED using property"""
+        return Response({
+            'unread_count': request.user.unread_messages_count,  # Using property
+            'timestamp': timezone.now().isoformat()
+        })
+        
 
 class GroupViewSet(viewsets.GenericViewSet,
                    mixins.CreateModelMixin,
@@ -383,6 +405,17 @@ class GroupViewSet(viewsets.GenericViewSet,
     #API lấy danh sách tin nhắn gần đây
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsGroupMember])
     def recent_messages(self, request, pk=None):
+        """Get recent messages - OPTIMIZED using property"""
+        group = self.get_object()
+        limit = int(request.query_params.get('limit', 50))
+           
+        serializer = ChatMessageSerializer(group.get_recent_messages(limit), many=True, context={'request': request})
+        
+        return Response({
+            'messages': serializer.data,
+            'group_id': str(group.id),
+            'count': len(serializer.data)
+        })
         """Get recent messages using model method"""
         group = self.get_object()
         limit = int(request.query_params.get('limit', 50))
@@ -416,8 +449,8 @@ class PlanViewSet(viewsets.ModelViewSet):
         """SECURE - Only user's accessible plans with full optimizations"""
         return Plan.objects.filter(
             models.Q(group__members=self.request.user) |
-            models.Q(created_by=self.request.user)
-        ).select_related('created_by', 'group').prefetch_related(
+            models.Q(creator=self.request.user)  # Updated from created_by to creator
+        ).select_related('creator', 'group').prefetch_related(
             'group__members',
             'activities'
         ).distinct().order_by('-created_at')
@@ -454,35 +487,41 @@ class PlanViewSet(viewsets.ModelViewSet):
     #API lấy kế hoạch theo ngày
     @action(detail=True, methods=['get'])
     def activities_by_date(self, request, pk=None):
-        """Get activities for specific date using model method"""
+        """Get activities grouped by date - OPTIMIZED using property"""
         plan = self.get_object()
-        date_str = request.query_params.get('date')
         
-        if not date_str:
-            return Response(
-                {'error': 'Date parameter required (YYYY-MM-DD format)'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Using property for grouped activities
+        activities_by_date = plan.activities_by_date  # Using property
         
-        try:
-            date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            activities = plan.get_activities_by_date(date)
-            serializer = PlanActivitySerializer(activities, many=True)
-            return Response(serializer.data)
-        except ValueError:
-            return Response(
-                {'error': 'Invalid date format. Use YYYY-MM-DD'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Convert to serializable format
+        result = {}
+        for date, activities in activities_by_date.items():
+            result[date.isoformat()] = PlanActivitySerializer(
+                activities, many=True, context={'request': request}
+            ).data
+        
+        return Response({
+            'activities_by_date': result,
+            'plan_id': str(plan.id),
+            'total_activities': plan.activities_count  # Using property
+        })
+        
     
     #API lấy người tham gia kế hoạch
     @action(detail=True, methods=['get'])
     def collaborators(self, request, pk=None):
-        """Get plan collaborators using model method"""
+        """Get plan collaborators - OPTIMIZED using property"""
         plan = self.get_object()
-        collaborators = plan.get_collaborators()
-        serializer = UserSerializer(collaborators, many=True)
-        return Response(serializer.data)
+        collaborators = plan.collaborators  # Using property
+        
+        serializer = UserSerializer(collaborators, many=True, context={'request': request})
+        
+        return Response({
+            'collaborators': serializer.data,
+            'count': len(collaborators),
+            'plan_type': plan.plan_type
+        })
+        
     
     #API thêm hoạt động vào kế hoạch - OPTIMIZED
     @action(detail=True, methods=['post'])
@@ -507,17 +546,40 @@ class PlanViewSet(viewsets.ModelViewSet):
     #API lấy tóm tắt kế hoạch
     @action(detail=True, methods=['get'])
     def summary(self, request, pk=None):
-        """Get plan summary using model properties"""
+        """Get plan summary with all key metrics - OPTIMIZED using properties"""
         plan = self.get_object()
         
-        summary = {
-            'duration_days': plan.duration_days,
-            'activities_count': plan.activities_count,
-            'total_estimated_cost': plan.total_estimated_cost,
-            'collaborators_count': len(plan.get_collaborators()),
-        }
+        return Response({
+            'id': str(plan.id),
+            'title': plan.title,
+            'duration': {
+                'days': plan.duration_days,          # Using property
+                'display': plan.duration_display      # Using property
+            },
+            'activities': {
+                'count': plan.activities_count,       # Using property
+                'by_date': len(plan.activities_by_date)  # Using property
+            },
+            'budget': {
+                'planned': plan.budget,
+                'estimated': plan.total_estimated_cost,  # Using property
+                'comparison': plan.budget_vs_estimated,  # Using property
+                'over_budget': plan.is_over_budget       # Using property
+            },
+            'status': {
+                'code': plan.status,
+                'display': plan.status_display          # Using property
+            },
+            'collaboration': {
+                'type': plan.plan_type,
+                'collaborators_count': len(plan.collaborators)  # Using property
+            },
+            'timestamps': {
+                'created': plan.created_at,
+                'updated': plan.updated_at
+            }
+        })
         
-        return Response(summary)
 
 
 # 1. Send friend request - OPTIMIZED

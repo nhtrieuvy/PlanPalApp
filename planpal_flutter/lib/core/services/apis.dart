@@ -5,8 +5,11 @@ const String baseUrl = 'http://10.0.2.2:8000';
 class Endpoints {
   static const String login = '/auth/login/';
   static const String logout = '/auth/logout/';
+  static const String refreshToken = '/o/token/';
   static const String register = '/users/';
   static const String currentUser = '/users/current-user/';
+  static const String profile = '/users/profile/';
+  static const String updateProfile = '/users/update_profile/';
   static const String plans = '/plans/';
   static const String groups = '/groups/';
   static String planDetails(int planId) => '/plans/$planId/';
