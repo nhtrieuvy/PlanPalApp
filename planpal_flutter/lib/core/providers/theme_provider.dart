@@ -3,8 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider extends ChangeNotifier {
   static const String _themeKey = 'theme_mode';
-  late SharedPreferences _prefs; // Lưu trữ dữ liệu dạng key-value, dữ liệu vẫn còn sau khi tắt ứng dụng, chỉ phù hợp với dữ liệu nhỏ
-  ThemeMode _themeMode = ThemeMode.system; 
+  late SharedPreferences
+  _prefs; // Lưu trữ dữ liệu dạng key-value, dữ liệu vẫn còn sau khi tắt ứng dụng, chỉ phù hợp với dữ liệu nhỏ
+  ThemeMode _themeMode = ThemeMode.system;
 
   ThemeMode get themeMode => _themeMode;
 
@@ -18,7 +19,8 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
-    final themeIndex = _prefs.getInt(_themeKey) ?? 0; // Mặc định là 0 (ThemeMode.system)
+    final themeIndex =
+        _prefs.getInt(_themeKey) ?? 0; // Mặc định là 0 (ThemeMode.system)
     _themeMode = ThemeMode.values[themeIndex];
     notifyListeners();
   }

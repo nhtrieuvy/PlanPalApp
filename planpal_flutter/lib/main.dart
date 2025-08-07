@@ -9,10 +9,11 @@ import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/presentation/pages/home/home_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/register_page.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  await dotenv.load();
   final themeProvider = ThemeProvider();
   await themeProvider.init();
 

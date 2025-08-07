@@ -1,1359 +1,508 @@
-INFO 2025-08-01 08:29:35,798 autoreload 25732 4904 Watching for file changes with StatReloader
-WARNING 2025-08-01 08:44:26,400 log 25732 25692 Unauthorized: /auth/login/
-WARNING 2025-08-01 08:45:43,846 log 25732 32744 Not Found: /favicon.ico
-WARNING 2025-08-01 08:45:47,185 base 25732 15668 view's GroupViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 232, in get_queryset
-    return Group.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,351 base 25732 15668 view's GroupViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 232, in get_queryset
-    return Group.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,355 base 25732 15668 view's GroupViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 232, in get_queryset
-    return Group.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,358 base 25732 15668 view's GroupViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 232, in get_queryset
-    return Group.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,361 base 25732 15668 view's PlanViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 393, in get_queryset
-    return Plan.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1503, in build_filter
-    return self._add_q(
-           ^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,366 base 25732 15668 view's PlanViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 393, in get_queryset
-    return Plan.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1503, in build_filter
-    return self._add_q(
-           ^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,371 base 25732 15668 view's PlanViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 393, in get_queryset
-    return Plan.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1503, in build_filter
-    return self._add_q(
-           ^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,374 base 25732 15668 view's PlanViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 393, in get_queryset
-    return Plan.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1503, in build_filter
-    return self._add_q(
-           ^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,378 base 25732 15668 view's ChatMessageViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 610, in get_queryset
-    return ChatMessage.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,381 base 25732 15668 view's PlanActivityViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 805, in get_queryset
-    return PlanActivity.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,390 base 25732 15668 view's GroupViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 232, in get_queryset
-    return Group.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,394 base 25732 15668 view's PlanViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 393, in get_queryset
-    return Plan.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1503, in build_filter
-    return self._add_q(
-           ^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,399 base 25732 15668 view's GroupViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 232, in get_queryset
-    return Group.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,402 base 25732 15668 view's PlanViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 393, in get_queryset
-    return Plan.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1503, in build_filter
-    return self._add_q(
-           ^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,406 base 25732 15668 view's ChatMessageViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 610, in get_queryset
-    return ChatMessage.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,418 base 25732 15668 view's PlanActivityViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 805, in get_queryset
-    return PlanActivity.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,421 base 25732 15668 view's GroupViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 232, in get_queryset
-    return Group.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,427 base 25732 15668 view's PlanViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 393, in get_queryset
-    return Plan.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1503, in build_filter
-    return self._add_q(
-           ^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,433 base 25732 15668 view's ChatMessageViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 610, in get_queryset
-    return ChatMessage.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,438 base 25732 15668 view's PlanActivityViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 805, in get_queryset
-    return PlanActivity.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,443 base 25732 15668 view's GroupViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 232, in get_queryset
-    return Group.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,446 base 25732 15668 view's PlanViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 393, in get_queryset
-    return Plan.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1503, in build_filter
-    return self._add_q(
-           ^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,451 base 25732 15668 view's ChatMessageViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 610, in get_queryset
-    return ChatMessage.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-WARNING 2025-08-01 08:45:47,455 base 25732 15668 view's PlanActivityViewSet raised exception during schema generation; use `getattr(self, 'swagger_fake_view', False)` to detect and short-circuit this
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
-    return uuid.UUID(**{input_form: value})
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 175, in __init__
-    hex = hex.replace('urn:', '').replace('uuid:', '')
-          ^^^^^^^^^^^
-AttributeError: 'AnonymousUser' object has no attribute 'replace'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\drf_yasg\inspectors\base.py", line 42, in call_view_method
-    return view_method()
-           ^^^^^^^^^^^^^
-  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 805, in get_queryset
-    return PlanActivity.objects.filter(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
-    return getattr(self.get_queryset(), name)(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
-    return self._filter_or_exclude(False, args, kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
-    clone._filter_or_exclude_inplace(negate, args, kwargs)
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
-    self._query.add_q(Q(*args, **kwargs))
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
-    clause, _ = self._add_q(q_object, can_reuse)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
-    child_clause, needed_inner = self.build_filter(
-                                 ^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
-    condition = self.build_lookup(lookups, col, value)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
-    lookup = lookup_class(lhs, rhs)
-             ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
-    self.rhs = self.get_prep_lookup()
-               ^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 112, in get_prep_lookup
-    self.rhs = target_field.get_prep_value(self.rhs)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
-    return self.to_python(value)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
-    raise exceptions.ValidationError(
-django.core.exceptions.ValidationError: ['“AnonymousUser” is not a valid UUID.']
-INFO 2025-08-01 09:14:50,063 autoreload 32184 41460 Watching for file changes with StatReloader
-WARNING 2025-08-01 09:21:33,223 log 32184 35824 Unauthorized: /auth/logout/
-WARNING 2025-08-01 09:25:29,771 log 32184 41928 Unauthorized: /auth/logout/
-WARNING 2025-08-01 09:30:16,654 log 32184 45812 Unauthorized: /auth/logout/
-INFO 2025-08-01 09:34:06,631 autoreload 32184 41460 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:34:07,723 autoreload 43164 41856 Watching for file changes with StatReloader
-INFO 2025-08-01 09:35:13,494 autoreload 43164 41856 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:35:14,855 autoreload 45812 37784 Watching for file changes with StatReloader
-INFO 2025-08-01 09:37:21,426 autoreload 45812 37784 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:37:22,828 autoreload 29292 38328 Watching for file changes with StatReloader
-INFO 2025-08-01 09:41:05,473 autoreload 29292 38328 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:41:06,818 autoreload 42880 37116 Watching for file changes with StatReloader
-INFO 2025-08-01 09:41:20,264 autoreload 42880 37116 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:41:21,498 autoreload 44468 47004 Watching for file changes with StatReloader
-INFO 2025-08-01 09:43:04,211 autoreload 44468 47004 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:43:05,396 autoreload 42744 46768 Watching for file changes with StatReloader
-INFO 2025-08-01 09:44:14,496 autoreload 42744 46768 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:44:15,945 autoreload 46360 47060 Watching for file changes with StatReloader
-INFO 2025-08-01 09:44:36,835 autoreload 46360 47060 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:44:38,030 autoreload 46356 46280 Watching for file changes with StatReloader
-INFO 2025-08-01 09:44:49,988 autoreload 46356 46280 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:44:51,813 autoreload 276 39112 Watching for file changes with StatReloader
-INFO 2025-08-01 09:44:54,923 autoreload 276 39112 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:44:56,643 autoreload 48504 48508 Watching for file changes with StatReloader
-INFO 2025-08-01 09:45:04,675 autoreload 48504 48508 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:45:06,082 autoreload 48628 48796 Watching for file changes with StatReloader
-INFO 2025-08-01 09:45:09,633 autoreload 48628 48796 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:45:10,643 autoreload 48456 48464 Watching for file changes with StatReloader
-INFO 2025-08-01 09:45:14,442 autoreload 48456 48464 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:45:15,862 autoreload 48756 48816 Watching for file changes with StatReloader
-INFO 2025-08-01 09:45:26,192 autoreload 48756 48816 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:45:27,549 autoreload 26856 48588 Watching for file changes with StatReloader
-INFO 2025-08-01 09:45:31,761 autoreload 26856 48588 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:45:33,414 autoreload 21536 47064 Watching for file changes with StatReloader
-INFO 2025-08-01 09:45:35,993 autoreload 21536 47064 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
-INFO 2025-08-01 09:45:37,527 autoreload 49004 46496 Watching for file changes with StatReloader
+INFO 2025-08-03 07:48:20,134 autoreload 480 14452 Watching for file changes with StatReloader
+INFO 2025-08-03 07:53:53,095 autoreload 480 14452 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 07:53:54,342 autoreload 10640 5676 Watching for file changes with StatReloader
+INFO 2025-08-03 07:53:56,365 autoreload 10640 5676 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 07:53:57,443 autoreload 29136 28924 Watching for file changes with StatReloader
+INFO 2025-08-03 07:54:01,504 autoreload 29136 28924 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 07:54:02,531 autoreload 10400 20324 Watching for file changes with StatReloader
+INFO 2025-08-03 07:54:11,851 autoreload 10400 20324 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 07:54:12,713 autoreload 22732 21340 Watching for file changes with StatReloader
+INFO 2025-08-03 07:54:15,655 autoreload 22732 21340 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 07:54:16,584 autoreload 9848 26260 Watching for file changes with StatReloader
+INFO 2025-08-03 07:54:19,491 autoreload 9848 26260 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 07:54:20,306 autoreload 2676 28808 Watching for file changes with StatReloader
+WARNING 2025-08-03 08:05:07,668 log 2676 15940 Not Found: /favicon.ico
+INFO 2025-08-03 08:06:01,878 autoreload 2676 28808 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:06:02,843 autoreload 14884 19628 Watching for file changes with StatReloader
+INFO 2025-08-03 08:06:05,775 autoreload 14884 19628 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:06:06,611 autoreload 26304 18924 Watching for file changes with StatReloader
+INFO 2025-08-03 08:06:46,757 autoreload 26304 18924 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:06:47,529 autoreload 17576 6724 Watching for file changes with StatReloader
+INFO 2025-08-03 08:06:56,445 autoreload 17576 6724 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:06:57,186 autoreload 25216 3776 Watching for file changes with StatReloader
+INFO 2025-08-03 08:07:14,224 autoreload 25216 3776 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:07:14,980 autoreload 29108 1180 Watching for file changes with StatReloader
+INFO 2025-08-03 08:07:42,780 autoreload 29108 1180 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:07:43,516 autoreload 29400 23672 Watching for file changes with StatReloader
+INFO 2025-08-03 08:07:46,410 autoreload 29400 23672 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:07:47,217 autoreload 15704 13280 Watching for file changes with StatReloader
+INFO 2025-08-03 08:07:52,115 autoreload 15704 13280 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:07:52,977 autoreload 20704 20204 Watching for file changes with StatReloader
+INFO 2025-08-03 08:07:59,967 autoreload 20704 20204 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:08:00,726 autoreload 22976 15184 Watching for file changes with StatReloader
+INFO 2025-08-03 08:08:11,831 autoreload 22976 15184 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:08:12,556 autoreload 15816 22420 Watching for file changes with StatReloader
+INFO 2025-08-03 08:08:16,443 autoreload 15816 22420 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:08:17,321 autoreload 13840 26648 Watching for file changes with StatReloader
+INFO 2025-08-03 08:08:19,170 autoreload 13840 26648 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:08:19,946 autoreload 27132 28336 Watching for file changes with StatReloader
+INFO 2025-08-03 08:08:22,763 autoreload 27132 28336 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:08:23,569 autoreload 19976 16736 Watching for file changes with StatReloader
+INFO 2025-08-03 08:08:34,704 autoreload 19976 16736 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:08:35,517 autoreload 29400 27136 Watching for file changes with StatReloader
+INFO 2025-08-03 08:08:38,383 autoreload 29400 27136 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:08:39,203 autoreload 18372 13328 Watching for file changes with StatReloader
+INFO 2025-08-03 08:08:42,169 autoreload 18372 13328 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:08:42,991 autoreload 5236 15300 Watching for file changes with StatReloader
+INFO 2025-08-03 08:08:52,152 autoreload 5236 15300 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:08:53,013 autoreload 6860 25048 Watching for file changes with StatReloader
+INFO 2025-08-03 08:09:00,024 autoreload 6860 25048 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:09:00,798 autoreload 19612 19912 Watching for file changes with StatReloader
+INFO 2025-08-03 08:09:06,797 autoreload 19612 19912 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:09:07,640 autoreload 14560 27376 Watching for file changes with StatReloader
+INFO 2025-08-03 08:09:19,805 autoreload 14560 27376 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:09:20,703 autoreload 15480 15176 Watching for file changes with StatReloader
+INFO 2025-08-03 08:09:28,860 autoreload 15480 15176 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:09:29,725 autoreload 19048 29496 Watching for file changes with StatReloader
+INFO 2025-08-03 08:10:21,113 autoreload 19048 29496 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:10:22,008 autoreload 15296 21120 Watching for file changes with StatReloader
+INFO 2025-08-03 08:11:33,341 autoreload 15296 21120 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:11:34,121 autoreload 27652 15024 Watching for file changes with StatReloader
+INFO 2025-08-03 08:11:39,013 autoreload 27652 15024 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:11:39,846 autoreload 29096 23540 Watching for file changes with StatReloader
+INFO 2025-08-03 08:12:43,862 autoreload 29096 23540 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:12:44,667 autoreload 25524 13496 Watching for file changes with StatReloader
+INFO 2025-08-03 08:13:26,905 autoreload 25524 13496 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:13:27,817 autoreload 28088 25876 Watching for file changes with StatReloader
+INFO 2025-08-03 08:13:30,706 autoreload 28088 25876 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:13:31,609 autoreload 22688 23152 Watching for file changes with StatReloader
+INFO 2025-08-03 08:13:35,516 autoreload 22688 23152 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:13:36,371 autoreload 25528 12116 Watching for file changes with StatReloader
+INFO 2025-08-03 08:18:47,006 autoreload 25528 12116 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:18:47,830 autoreload 18100 24556 Watching for file changes with StatReloader
+INFO 2025-08-03 08:23:59,587 autoreload 18100 24556 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:24:00,494 autoreload 6152 23268 Watching for file changes with StatReloader
+INFO 2025-08-03 08:26:07,553 autoreload 6152 23268 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:26:08,386 autoreload 11360 28576 Watching for file changes with StatReloader
+INFO 2025-08-03 08:30:15,422 autoreload 11360 28576 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:30:16,199 autoreload 12840 29144 Watching for file changes with StatReloader
+INFO 2025-08-03 08:30:27,341 autoreload 12840 29144 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-03 08:30:28,171 autoreload 20812 20332 Watching for file changes with StatReloader
+INFO 2025-08-03 08:30:35,237 autoreload 20812 20332 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-03 08:30:36,071 autoreload 10840 4292 Watching for file changes with StatReloader
+INFO 2025-08-03 08:30:48,307 autoreload 10840 4292 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:30:49,075 autoreload 13524 23744 Watching for file changes with StatReloader
+INFO 2025-08-03 08:31:01,257 autoreload 13524 23744 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-03 08:31:02,134 autoreload 2264 19724 Watching for file changes with StatReloader
+INFO 2025-08-03 08:31:41,229 autoreload 2264 19724 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-03 08:31:42,049 autoreload 27016 4644 Watching for file changes with StatReloader
+INFO 2025-08-03 08:32:00,542 autoreload 27016 4644 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-03 08:32:01,353 autoreload 3068 29100 Watching for file changes with StatReloader
+INFO 2025-08-03 08:32:49,799 autoreload 3068 29100 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:32:50,604 autoreload 14780 25816 Watching for file changes with StatReloader
+INFO 2025-08-03 08:33:05,004 autoreload 14780 25816 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:33:05,776 autoreload 28072 27208 Watching for file changes with StatReloader
+INFO 2025-08-03 08:33:15,978 autoreload 28072 27208 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:33:16,752 autoreload 15588 27136 Watching for file changes with StatReloader
+INFO 2025-08-03 08:33:38,353 autoreload 15588 27136 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:33:39,104 autoreload 13656 27904 Watching for file changes with StatReloader
+INFO 2025-08-03 08:33:50,246 autoreload 13656 27904 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:33:51,000 autoreload 22616 17572 Watching for file changes with StatReloader
+INFO 2025-08-03 08:34:02,000 autoreload 22616 17572 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:34:02,876 autoreload 8996 14732 Watching for file changes with StatReloader
+INFO 2025-08-03 08:34:57,187 autoreload 8996 14732 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:34:57,973 autoreload 15028 20256 Watching for file changes with StatReloader
+INFO 2025-08-03 08:35:11,995 autoreload 15028 20256 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-03 08:35:12,729 autoreload 11016 9656 Watching for file changes with StatReloader
+INFO 2025-08-03 08:35:20,570 autoreload 11016 9656 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-03 08:35:21,335 autoreload 1576 24628 Watching for file changes with StatReloader
+INFO 2025-08-03 08:37:28,145 autoreload 1576 24628 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-03 08:37:29,033 autoreload 26828 7520 Watching for file changes with StatReloader
+INFO 2025-08-03 08:42:20,985 autoreload 26828 7520 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 08:42:23,337 autoreload 26244 25592 Watching for file changes with StatReloader
+INFO 2025-08-03 08:46:15,903 autoreload 26244 25592 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:46:16,807 autoreload 21144 932 Watching for file changes with StatReloader
+INFO 2025-08-03 08:46:18,415 autoreload 21144 932 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-03 08:46:19,189 autoreload 21464 17424 Watching for file changes with StatReloader
+INFO 2025-08-03 08:46:43,470 autoreload 21464 17424 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:46:44,376 autoreload 23188 26500 Watching for file changes with StatReloader
+INFO 2025-08-03 08:46:46,067 autoreload 23188 26500 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:46:46,990 autoreload 29248 22788 Watching for file changes with StatReloader
+INFO 2025-08-03 08:46:48,875 autoreload 29248 22788 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:46:49,712 autoreload 26568 3556 Watching for file changes with StatReloader
+INFO 2025-08-03 08:47:52,618 autoreload 26568 3556 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 08:47:53,545 autoreload 26828 21808 Watching for file changes with StatReloader
+INFO 2025-08-03 08:47:56,440 autoreload 26828 21808 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 08:47:57,185 autoreload 12364 1196 Watching for file changes with StatReloader
+INFO 2025-08-03 08:48:00,061 autoreload 12364 1196 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 08:48:00,797 autoreload 8048 14268 Watching for file changes with StatReloader
+INFO 2025-08-03 08:51:32,674 autoreload 8048 14268 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 08:51:33,603 autoreload 13276 9008 Watching for file changes with StatReloader
+INFO 2025-08-03 08:51:42,780 autoreload 13276 9008 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 08:51:43,562 autoreload 20300 7364 Watching for file changes with StatReloader
+INFO 2025-08-03 08:56:02,205 autoreload 20300 7364 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 08:56:03,085 autoreload 480 9936 Watching for file changes with StatReloader
+INFO 2025-08-03 08:58:51,331 autoreload 480 9936 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 08:58:52,074 autoreload 17044 22328 Watching for file changes with StatReloader
+INFO 2025-08-03 08:59:28,842 autoreload 17044 22328 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-03 08:59:29,623 autoreload 15480 19452 Watching for file changes with StatReloader
+INFO 2025-08-03 08:59:33,305 autoreload 15480 19452 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-03 08:59:34,133 autoreload 12620 10436 Watching for file changes with StatReloader
+INFO 2025-08-03 08:59:38,867 autoreload 12620 10436 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-03 08:59:39,681 autoreload 3036 16380 Watching for file changes with StatReloader
+INFO 2025-08-03 09:01:29,245 autoreload 3036 16380 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-03 09:01:30,052 autoreload 6780 15632 Watching for file changes with StatReloader
+INFO 2025-08-03 09:01:43,291 autoreload 6780 15632 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 09:01:44,113 autoreload 13004 21464 Watching for file changes with StatReloader
+INFO 2025-08-03 09:02:25,327 autoreload 13004 21464 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 09:02:26,101 autoreload 23200 23216 Watching for file changes with StatReloader
+INFO 2025-08-03 09:02:31,054 autoreload 23200 23216 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 09:02:31,833 autoreload 23188 13760 Watching for file changes with StatReloader
+INFO 2025-08-03 09:04:06,839 autoreload 23188 13760 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 09:04:07,588 autoreload 26620 20392 Watching for file changes with StatReloader
+INFO 2025-08-03 09:04:44,625 autoreload 26620 20392 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 09:04:45,528 autoreload 25528 24212 Watching for file changes with StatReloader
+INFO 2025-08-03 09:05:02,929 autoreload 25528 24212 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-03 09:05:03,836 autoreload 23188 7604 Watching for file changes with StatReloader
+INFO 2025-08-03 09:23:39,546 autoreload 14416 9324 Watching for file changes with StatReloader
+INFO 2025-08-03 09:50:12,200 autoreload 19576 22904 Watching for file changes with StatReloader
+WARNING 2025-08-03 09:50:31,778 log 19576 18420 Not Found: /favicon.ico
+INFO 2025-08-04 15:35:46,937 autoreload 7496 18812 Watching for file changes with StatReloader
+WARNING 2025-08-04 15:36:17,702 log 7496 14772 Not Found: /favicon.ico
+ERROR 2025-08-04 15:49:35,652 log 7496 3060 Internal Server Error: /auth/login/
+WARNING 2025-08-04 15:50:04,117 log 7496 9536 Unauthorized: /auth/login/
+ERROR 2025-08-04 15:50:07,466 log 7496 25596 Internal Server Error: /auth/login/
+WARNING 2025-08-04 15:50:13,000 log 7496 23236 Unauthorized: /auth/login/
+ERROR 2025-08-04 15:50:16,389 log 7496 8016 Internal Server Error: /auth/login/
+INFO 2025-08-04 15:55:06,733 autoreload 7496 18812 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-04 15:55:33,642 autoreload 14064 6680 Watching for file changes with StatReloader
+ERROR 2025-08-04 15:55:37,617 log 14064 12280 Internal Server Error: /auth/login/
+INFO 2025-08-04 15:59:11,085 autoreload 14064 6680 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-04 15:59:12,000 autoreload 25732 25232 Watching for file changes with StatReloader
+ERROR 2025-08-04 15:59:14,829 log 25732 21884 Internal Server Error: /auth/login/
+INFO 2025-08-04 16:00:22,032 autoreload 25732 25232 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-04 16:00:27,597 autoreload 21472 27872 Watching for file changes with StatReloader
+ERROR 2025-08-04 16:00:30,730 log 21472 27808 Internal Server Error: /auth/login/
+ERROR 2025-08-04 16:00:34,347 log 21472 2420 Internal Server Error: /auth/login/
+INFO 2025-08-04 16:01:28,455 autoreload 21472 27872 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-04 16:01:29,378 autoreload 20968 2960 Watching for file changes with StatReloader
+INFO 2025-08-04 16:01:51,451 autoreload 20968 2960 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-04 16:01:54,779 autoreload 21748 25000 Watching for file changes with StatReloader
+INFO 2025-08-04 16:02:02,099 autoreload 21748 25000 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-04 16:02:02,997 autoreload 13240 22928 Watching for file changes with StatReloader
+DEBUG 2025-08-04 16:02:04,135 resource 13240 15572 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001A64078C680>.
+ERROR 2025-08-04 16:02:04,576 log 13240 15572 Internal Server Error: /auth/login/
+INFO 2025-08-04 16:04:38,058 autoreload 13240 22928 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-04 16:04:39,008 autoreload 27884 10236 Watching for file changes with StatReloader
+INFO 2025-08-04 16:04:42,147 autoreload 27884 10236 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-04 16:04:43,142 autoreload 27444 21444 Watching for file changes with StatReloader
+INFO 2025-08-04 16:04:44,868 autoreload 27444 21444 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-04 16:04:45,746 autoreload 11484 5632 Watching for file changes with StatReloader
+DEBUG 2025-08-04 16:04:47,976 resource 11484 15496 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002182EF81FC0>.
+ERROR 2025-08-04 16:04:48,386 log 11484 15496 Internal Server Error: /auth/login/
+INFO 2025-08-04 16:07:47,238 autoreload 11484 5632 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-04 16:07:48,133 autoreload 28116 20380 Watching for file changes with StatReloader
+INFO 2025-08-04 16:08:13,441 autoreload 28116 20380 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-04 16:08:14,345 autoreload 11796 19476 Watching for file changes with StatReloader
+DEBUG 2025-08-04 16:08:25,407 resource 11796 5268 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002526AF74140>.
+ERROR 2025-08-04 16:08:26,001 log 11796 5268 Internal Server Error: /auth/login/
+INFO 2025-08-04 16:09:05,817 autoreload 11796 19476 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-04 16:09:06,687 autoreload 12360 16176 Watching for file changes with StatReloader
+DEBUG 2025-08-04 16:09:08,581 resource 12360 8388 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000023BBB775FC0>.
+ERROR 2025-08-04 16:09:08,998 log 12360 8388 Internal Server Error: /auth/login/
+INFO 2025-08-04 16:09:13,342 autoreload 12360 16176 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-04 16:09:14,188 autoreload 1744 5104 Watching for file changes with StatReloader
+DEBUG 2025-08-04 16:09:15,875 resource 1744 18872 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000020E533EA140>.
+ERROR 2025-08-04 16:09:16,306 log 1744 18872 Internal Server Error: /auth/login/
+INFO 2025-08-04 16:10:22,249 autoreload 1744 5104 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-04 16:10:23,208 autoreload 26200 6112 Watching for file changes with StatReloader
+INFO 2025-08-04 16:10:31,687 autoreload 26200 6112 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-04 16:10:32,480 autoreload 17816 28756 Watching for file changes with StatReloader
+DEBUG 2025-08-04 16:10:41,073 resource 17816 9080 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C55EC0>.
+INFO 2025-08-04 16:10:41,497 oauth2_utils 17816 9080 Created tokens for user: u1
+DEBUG 2025-08-04 16:10:48,775 resource 17816 2112 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906BED580>.
+INFO 2025-08-04 16:10:48,809 oauth2_utils 17816 2112 Revoked 4 access tokens and 1 refresh tokens for user: u1
+DEBUG 2025-08-04 16:10:54,897 resource 17816 21480 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906BCF5C0>.
+INFO 2025-08-04 16:10:55,468 oauth2_utils 17816 21480 Created tokens for user: u1
+DEBUG 2025-08-04 16:11:02,461 resource 17816 8508 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906BCC580>.
+INFO 2025-08-04 16:11:02,494 oauth2_utils 17816 8508 Revoked 1 access tokens and 1 refresh tokens for user: u1
+DEBUG 2025-08-04 16:11:06,819 resource 17816 18936 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906BCE6C0>.
+INFO 2025-08-04 16:11:07,369 oauth2_utils 17816 18936 Created tokens for user: u1
+DEBUG 2025-08-04 16:11:29,162 resource 17816 11908 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906B49140>.
+INFO 2025-08-04 16:11:29,194 oauth2_utils 17816 11908 Revoked 1 access tokens and 1 refresh tokens for user: u1
+DEBUG 2025-08-04 16:11:34,333 resource 17816 14940 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906BCEA00>.
+INFO 2025-08-04 16:11:34,870 oauth2_utils 17816 14940 Created tokens for user: u1
+DEBUG 2025-08-04 16:11:43,272 resource 17816 16596 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906CAF780>.
+INFO 2025-08-04 16:11:43,297 oauth2_utils 17816 16596 Revoked 1 access tokens and 1 refresh tokens for user: u1
+DEBUG 2025-08-04 16:12:49,333 resource 17816 14888 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906B49940>.
+WARNING 2025-08-04 16:12:49,939 log 17816 14888 Unauthorized: /auth/login/
+DEBUG 2025-08-04 16:12:55,014 resource 17816 6596 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C87F40>.
+INFO 2025-08-04 16:12:55,552 oauth2_utils 17816 6596 Created tokens for user: admin
+DEBUG 2025-08-04 16:16:07,221 resource 17816 29016 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906B4AFC0>.
+INFO 2025-08-04 16:16:07,261 oauth2_utils 17816 29016 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-04 16:20:12,612 resource 17816 10688 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C87EC0>.
+INFO 2025-08-04 16:20:13,156 oauth2_utils 17816 10688 Created tokens for user: admin
+DEBUG 2025-08-04 16:20:17,277 resource 17816 4208 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C56DC0>.
+INFO 2025-08-04 16:20:17,308 oauth2_utils 17816 4208 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-04 16:20:21,484 resource 17816 13992 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D90689A400>.
+INFO 2025-08-04 16:20:22,041 oauth2_utils 17816 13992 Created tokens for user: admin
+DEBUG 2025-08-04 16:21:50,094 resource 17816 24652 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906BAF880>.
+INFO 2025-08-04 16:21:50,116 oauth2_utils 17816 24652 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-04 16:21:55,608 resource 17816 10864 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906DA8600>.
+INFO 2025-08-04 16:21:56,169 oauth2_utils 17816 10864 Created tokens for user: admin
+DEBUG 2025-08-04 16:22:00,441 resource 17816 5108 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C0C080>.
+INFO 2025-08-04 16:22:00,463 oauth2_utils 17816 5108 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-04 16:24:39,055 resource 17816 15736 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906CAF840>.
+INFO 2025-08-04 16:24:39,465 oauth2_utils 17816 15736 Created tokens for user: admin
+DEBUG 2025-08-04 16:24:43,488 resource 17816 3112 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C9ED00>.
+INFO 2025-08-04 16:24:43,507 oauth2_utils 17816 3112 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-04 16:27:16,262 resource 17816 20592 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C9FF00>.
+INFO 2025-08-04 16:27:16,878 oauth2_utils 17816 20592 Created tokens for user: admin
+DEBUG 2025-08-04 16:27:21,095 resource 17816 472 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C27280>.
+INFO 2025-08-04 16:27:21,127 oauth2_utils 17816 472 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-04 16:29:39,329 resource 17816 20380 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C57E40>.
+INFO 2025-08-04 16:29:39,887 oauth2_utils 17816 20380 Created tokens for user: admin
+DEBUG 2025-08-04 16:29:47,777 resource 17816 17456 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C9F680>.
+INFO 2025-08-04 16:29:47,813 oauth2_utils 17816 17456 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-04 16:29:55,665 resource 17816 28080 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906B49A40>.
+INFO 2025-08-04 16:29:56,215 oauth2_utils 17816 28080 Created tokens for user: admin
+DEBUG 2025-08-04 16:29:59,625 resource 17816 11652 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906B4A9C0>.
+INFO 2025-08-04 16:29:59,654 oauth2_utils 17816 11652 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-04 16:30:48,257 resource 17816 12212 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906B61F40>.
+WARNING 2025-08-04 16:30:48,266 log 17816 12212 Bad Request: /users/
+DEBUG 2025-08-04 16:30:57,290 resource 17816 11020 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C0C480>.
+WARNING 2025-08-04 16:30:57,305 log 17816 11020 Bad Request: /users/
+DEBUG 2025-08-04 16:31:43,822 resource 17816 20496 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C0D1C0>.
+DEBUG 2025-08-04 16:31:44,291 connectionpool 17816 20496 Starting new HTTPS connection (1): api.cloudinary.com:443
+DEBUG 2025-08-04 16:31:46,454 connectionpool 17816 20496 https://api.cloudinary.com:443 "POST /v1_1/dd0q3guu9/image/upload HTTP/11" 200 None
+DEBUG 2025-08-04 16:33:45,708 resource 17816 7024 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906DFDB80>.
+WARNING 2025-08-04 16:33:45,717 log 17816 7024 Bad Request: /users/
+DEBUG 2025-08-04 16:33:52,426 resource 17816 17376 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906DA8A40>.
+DEBUG 2025-08-04 16:40:04,412 resource 17816 21196 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906CEE980>.
+WARNING 2025-08-04 16:40:04,985 log 17816 21196 Unauthorized: /auth/login/
+DEBUG 2025-08-04 16:40:08,435 resource 17816 2196 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906CEFE40>.
+INFO 2025-08-04 16:40:08,933 oauth2_utils 17816 2196 Created tokens for user: u3
+DEBUG 2025-08-04 16:47:13,715 resource 17816 20780 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906BED840>.
+INFO 2025-08-04 16:47:13,744 oauth2_utils 17816 20780 Revoked 1 access tokens and 1 refresh tokens for user: u3
+DEBUG 2025-08-04 16:47:24,935 resource 17816 26548 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906BAF240>.
+INFO 2025-08-04 16:47:25,334 oauth2_utils 17816 26548 Created tokens for user: admin
+DEBUG 2025-08-04 17:07:49,887 resource 17816 24780 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906BAFE40>.
+DEBUG 2025-08-04 17:08:25,732 resource 17816 18716 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C9EA40>.
+DEBUG 2025-08-04 17:08:26,350 resource 17816 2356 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906CC0EC0>.
+DEBUG 2025-08-04 17:08:27,604 resource 17816 20820 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906DFF380>.
+INFO 2025-08-04 17:08:27,637 oauth2_utils 17816 20820 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-04 17:08:32,211 resource 17816 9088 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906DFEEC0>.
+INFO 2025-08-04 17:08:32,765 oauth2_utils 17816 9088 Created tokens for user: admin
+DEBUG 2025-08-04 17:08:34,694 resource 17816 2428 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C87DC0>.
+DEBUG 2025-08-04 17:08:51,391 resource 17816 18536 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C9CD80>.
+INFO 2025-08-04 17:08:51,419 oauth2_utils 17816 18536 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-04 17:08:55,603 resource 17816 27280 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906C9F280>.
+INFO 2025-08-04 17:08:56,000 oauth2_utils 17816 27280 Created tokens for user: admin
+DEBUG 2025-08-04 17:08:57,689 resource 17816 11744 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906D3C880>.
+DEBUG 2025-08-04 17:09:15,737 resource 17816 17120 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D906DA9280>.
+INFO 2025-08-06 13:59:53,169 autoreload 25232 25236 Watching for file changes with StatReloader
+DEBUG 2025-08-06 14:11:08,169 resource 25232 3284 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E048BA7C80>.
+INFO 2025-08-06 14:11:08,726 oauth2_utils 25232 3284 Created tokens for user: admin
+DEBUG 2025-08-06 14:11:13,427 resource 25232 12664 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E0488F22C0>.
+DEBUG 2025-08-06 14:11:35,711 resource 25232 7292 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E048BD7E00>.
+DEBUG 2025-08-06 14:11:36,819 resource 25232 1044 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E048CB04C0>.
+DEBUG 2025-08-06 14:14:29,735 resource 25232 10736 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E0464A0540>.
+DEBUG 2025-08-06 14:14:29,803 connectionpool 25232 10736 Starting new HTTPS connection (1): api.cloudinary.com:443
+DEBUG 2025-08-06 14:14:31,443 resource 25232 3948 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E048CFE140>.
+DEBUG 2025-08-06 14:14:31,453 connectionpool 25232 3948 Starting new HTTPS connection (2): api.cloudinary.com:443
+DEBUG 2025-08-06 14:14:31,950 connectionpool 25232 10736 https://api.cloudinary.com:443 "POST /v1_1/dd0q3guu9/image/upload HTTP/11" 200 None
+DEBUG 2025-08-06 14:14:32,074 resource 25232 548 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E048BFE700>.
+DEBUG 2025-08-06 14:14:33,576 connectionpool 25232 3948 https://api.cloudinary.com:443 "POST /v1_1/dd0q3guu9/image/upload HTTP/11" 200 None
+WARNING 2025-08-06 14:14:33,578 connectionpool 25232 3948 Connection pool is full, discarding connection: api.cloudinary.com. Connection pool size: 1
+DEBUG 2025-08-06 14:14:39,643 resource 25232 25164 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E048BFE340>.
+INFO 2025-08-06 14:32:04,601 autoreload 25232 25236 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:32:05,968 autoreload 9708 27728 Watching for file changes with StatReloader
+INFO 2025-08-06 14:32:15,512 autoreload 9708 27728 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:32:16,364 autoreload 1512 5104 Watching for file changes with StatReloader
+INFO 2025-08-06 14:35:25,876 autoreload 1512 5104 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:35:26,768 autoreload 21556 20344 Watching for file changes with StatReloader
+INFO 2025-08-06 14:35:30,843 autoreload 21556 20344 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:35:31,878 autoreload 8748 7888 Watching for file changes with StatReloader
+INFO 2025-08-06 14:35:36,037 autoreload 8748 7888 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:35:36,983 autoreload 16276 4836 Watching for file changes with StatReloader
+INFO 2025-08-06 14:35:40,027 autoreload 16276 4836 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:35:40,863 autoreload 3972 7100 Watching for file changes with StatReloader
+INFO 2025-08-06 14:37:25,472 autoreload 3972 7100 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:37:26,422 autoreload 26220 3276 Watching for file changes with StatReloader
+INFO 2025-08-06 14:37:33,698 autoreload 26220 3276 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:37:34,647 autoreload 22256 2536 Watching for file changes with StatReloader
+INFO 2025-08-06 14:37:37,697 autoreload 22256 2536 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:37:38,526 autoreload 14572 8216 Watching for file changes with StatReloader
+INFO 2025-08-06 14:37:41,575 autoreload 14572 8216 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:37:42,415 autoreload 28416 20252 Watching for file changes with StatReloader
+INFO 2025-08-06 14:39:12,272 autoreload 28416 20252 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:39:13,224 autoreload 27100 25768 Watching for file changes with StatReloader
+INFO 2025-08-06 14:40:22,083 autoreload 27100 25768 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:40:23,077 autoreload 20252 28416 Watching for file changes with StatReloader
+INFO 2025-08-06 14:41:07,256 autoreload 20252 28416 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:41:08,152 autoreload 27548 28504 Watching for file changes with StatReloader
+INFO 2025-08-06 14:44:59,888 autoreload 27548 28504 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:45:00,751 autoreload 27904 25712 Watching for file changes with StatReloader
+INFO 2025-08-06 14:45:13,338 autoreload 27904 25712 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:45:14,266 autoreload 16140 18072 Watching for file changes with StatReloader
+INFO 2025-08-06 14:45:23,764 autoreload 16140 18072 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:45:24,708 autoreload 21456 24972 Watching for file changes with StatReloader
+INFO 2025-08-06 14:45:31,031 autoreload 21456 24972 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:45:31,903 autoreload 8216 21676 Watching for file changes with StatReloader
+INFO 2025-08-06 14:45:40,197 autoreload 8216 21676 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:45:41,061 autoreload 15488 7956 Watching for file changes with StatReloader
+INFO 2025-08-06 14:45:48,365 autoreload 15488 7956 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:45:49,288 autoreload 7736 3080 Watching for file changes with StatReloader
+INFO 2025-08-06 14:45:57,675 autoreload 7736 3080 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:45:58,612 autoreload 5292 10784 Watching for file changes with StatReloader
+INFO 2025-08-06 14:46:09,198 autoreload 5292 10784 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:46:10,086 autoreload 10080 5640 Watching for file changes with StatReloader
+INFO 2025-08-06 14:46:19,575 autoreload 10080 5640 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:46:20,445 autoreload 25760 25756 Watching for file changes with StatReloader
+INFO 2025-08-06 14:46:29,931 autoreload 25760 25756 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:46:30,756 autoreload 24480 24536 Watching for file changes with StatReloader
+INFO 2025-08-06 14:46:46,505 autoreload 24480 24536 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:46:47,323 autoreload 13864 14304 Watching for file changes with StatReloader
+INFO 2025-08-06 14:46:57,792 autoreload 13864 14304 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:46:58,708 autoreload 10076 25972 Watching for file changes with StatReloader
+INFO 2025-08-06 14:47:13,432 autoreload 10076 25972 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:47:14,290 autoreload 5808 19784 Watching for file changes with StatReloader
+INFO 2025-08-06 14:49:27,482 autoreload 5808 19784 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 14:49:28,377 autoreload 9512 13908 Watching for file changes with StatReloader
+INFO 2025-08-06 14:51:38,475 autoreload 9512 13908 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 14:51:39,347 autoreload 14400 13992 Watching for file changes with StatReloader
+INFO 2025-08-06 14:52:13,103 autoreload 14400 13992 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 14:52:13,997 autoreload 14344 24588 Watching for file changes with StatReloader
+INFO 2025-08-06 14:52:34,205 autoreload 14344 24588 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 14:52:35,128 autoreload 22520 28268 Watching for file changes with StatReloader
+INFO 2025-08-06 14:52:42,816 autoreload 22520 28268 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 14:52:43,725 autoreload 9708 14896 Watching for file changes with StatReloader
+INFO 2025-08-06 14:52:51,237 autoreload 9708 14896 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 14:52:52,263 autoreload 12172 1528 Watching for file changes with StatReloader
+INFO 2025-08-06 14:53:05,008 autoreload 12172 1528 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 14:53:05,975 autoreload 4276 1048 Watching for file changes with StatReloader
+INFO 2025-08-06 14:53:21,161 autoreload 4276 1048 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 14:53:22,098 autoreload 18976 15504 Watching for file changes with StatReloader
+INFO 2025-08-06 14:53:48,496 autoreload 18976 15504 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 14:53:49,369 autoreload 12724 7196 Watching for file changes with StatReloader
+INFO 2025-08-06 14:53:57,051 autoreload 12724 7196 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 14:53:57,939 autoreload 15700 14896 Watching for file changes with StatReloader
+INFO 2025-08-06 14:54:05,579 autoreload 15700 14896 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 14:54:06,615 autoreload 3752 548 Watching for file changes with StatReloader
+INFO 2025-08-06 14:54:15,567 autoreload 3752 548 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 14:54:16,498 autoreload 2288 10516 Watching for file changes with StatReloader
+INFO 2025-08-06 14:54:26,683 autoreload 2288 10516 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 14:54:27,667 autoreload 27628 19768 Watching for file changes with StatReloader
+INFO 2025-08-06 14:54:37,789 autoreload 27628 19768 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 14:54:38,678 autoreload 21676 9528 Watching for file changes with StatReloader
+INFO 2025-08-06 14:54:57,682 autoreload 21676 9528 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 14:54:58,614 autoreload 28516 27964 Watching for file changes with StatReloader
+INFO 2025-08-06 14:55:19,928 autoreload 28516 27964 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\permissions.py changed, reloading.
+INFO 2025-08-06 14:55:20,848 autoreload 2744 13112 Watching for file changes with StatReloader
+INFO 2025-08-06 14:55:33,545 autoreload 2744 13112 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\permissions.py changed, reloading.
+INFO 2025-08-06 14:55:34,503 autoreload 22676 1344 Watching for file changes with StatReloader
+INFO 2025-08-06 14:55:45,901 autoreload 22676 1344 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 14:55:46,796 autoreload 24588 14344 Watching for file changes with StatReloader
+INFO 2025-08-06 15:17:33,683 autoreload 24588 14344 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:17:35,961 autoreload 9348 6608 Watching for file changes with StatReloader
+INFO 2025-08-06 15:18:09,839 autoreload 9348 6608 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:18:10,702 autoreload 27436 21208 Watching for file changes with StatReloader
+INFO 2025-08-06 15:18:27,655 autoreload 27436 21208 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:18:28,592 autoreload 16812 27052 Watching for file changes with StatReloader
+INFO 2025-08-06 15:18:32,817 autoreload 16812 27052 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:18:33,613 autoreload 10384 24236 Watching for file changes with StatReloader
+INFO 2025-08-06 15:20:39,237 autoreload 10384 24236 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:20:40,219 autoreload 15956 10448 Watching for file changes with StatReloader
+INFO 2025-08-06 15:20:50,577 autoreload 15956 10448 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:20:51,391 autoreload 10444 15772 Watching for file changes with StatReloader
+INFO 2025-08-06 15:20:54,219 autoreload 10444 15772 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:20:55,099 autoreload 3916 3044 Watching for file changes with StatReloader
+INFO 2025-08-06 15:20:58,959 autoreload 3916 3044 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:20:59,864 autoreload 7364 2912 Watching for file changes with StatReloader
+INFO 2025-08-06 15:21:04,851 autoreload 7364 2912 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:21:05,612 autoreload 6788 9164 Watching for file changes with StatReloader
+INFO 2025-08-06 15:21:21,437 autoreload 6788 9164 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:21:22,459 autoreload 28552 10448 Watching for file changes with StatReloader
+INFO 2025-08-06 15:21:54,082 autoreload 28552 10448 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:21:54,879 autoreload 25084 5364 Watching for file changes with StatReloader
+INFO 2025-08-06 15:22:43,397 autoreload 25084 5364 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:22:44,174 autoreload 24156 10888 Watching for file changes with StatReloader
+INFO 2025-08-06 15:23:03,021 autoreload 24156 10888 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:23:03,823 autoreload 5800 27020 Watching for file changes with StatReloader
+INFO 2025-08-06 15:23:49,104 autoreload 5800 27020 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:23:49,937 autoreload 20644 24260 Watching for file changes with StatReloader
+INFO 2025-08-06 15:24:04,507 autoreload 20644 24260 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:24:05,445 autoreload 12104 13080 Watching for file changes with StatReloader
+INFO 2025-08-06 15:24:07,403 autoreload 12104 13080 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:24:08,301 autoreload 15120 15748 Watching for file changes with StatReloader
+INFO 2025-08-06 15:24:13,495 autoreload 15120 15748 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:24:14,469 autoreload 25404 18864 Watching for file changes with StatReloader
+INFO 2025-08-06 15:24:19,638 autoreload 25404 18864 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:24:20,509 autoreload 11244 3344 Watching for file changes with StatReloader
+INFO 2025-08-06 15:25:34,312 autoreload 11244 3344 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-06 15:25:35,271 autoreload 16840 26044 Watching for file changes with StatReloader
+INFO 2025-08-06 15:28:12,966 autoreload 2672 20644 Watching for file changes with StatReloader
+WARNING 2025-08-06 15:28:39,125 log 2672 25724 Not Found: /favicon.ico
+DEBUG 2025-08-06 15:29:06,566 resource 2672 21180 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D362D7C300>.
+INFO 2025-08-06 15:29:07,025 oauth2_utils 2672 21180 Created tokens for user: admin
+ERROR 2025-08-06 15:29:07,081 log 2672 21180 Internal Server Error: /auth/login/
+INFO 2025-08-06 15:31:06,108 autoreload 2672 20644 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:31:07,073 autoreload 16140 25680 Watching for file changes with StatReloader
+DEBUG 2025-08-06 15:31:11,598 resource 16140 27864 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000016342834F80>.
+INFO 2025-08-06 15:31:12,149 oauth2_utils 16140 27864 Created tokens for user: admin
+ERROR 2025-08-06 15:31:12,206 log 16140 27864 Internal Server Error: /auth/login/
+INFO 2025-08-06 15:31:42,473 autoreload 16140 25680 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:31:43,368 autoreload 28304 1380 Watching for file changes with StatReloader
+INFO 2025-08-06 15:32:15,174 autoreload 28304 1380 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:32:16,123 autoreload 27696 26140 Watching for file changes with StatReloader
+INFO 2025-08-06 15:33:14,360 autoreload 27696 26140 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:33:15,253 autoreload 23988 10572 Watching for file changes with StatReloader
+INFO 2025-08-06 15:33:39,459 autoreload 23988 10572 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:33:40,449 autoreload 19276 7380 Watching for file changes with StatReloader
+INFO 2025-08-06 15:37:12,132 autoreload 19276 7380 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:37:13,046 autoreload 7756 20456 Watching for file changes with StatReloader
+INFO 2025-08-06 15:37:24,514 autoreload 7756 20456 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:37:25,494 autoreload 28580 492 Watching for file changes with StatReloader
+INFO 2025-08-06 15:37:58,144 autoreload 28580 492 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:37:59,032 autoreload 6376 10108 Watching for file changes with StatReloader
+INFO 2025-08-06 15:38:09,521 autoreload 6376 10108 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:38:10,513 autoreload 11836 21584 Watching for file changes with StatReloader
+DEBUG 2025-08-06 15:38:53,364 resource 11836 3408 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000225A64747C0>.
+INFO 2025-08-06 15:38:53,775 oauth2_utils 11836 3408 Created tokens for user: admin
+ERROR 2025-08-06 15:38:53,872 log 11836 3408 Internal Server Error: /auth/login/
+INFO 2025-08-06 15:43:04,019 autoreload 11836 21584 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:43:04,908 autoreload 13112 8132 Watching for file changes with StatReloader
+INFO 2025-08-06 15:43:15,379 autoreload 13112 8132 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:43:16,235 autoreload 10880 11372 Watching for file changes with StatReloader
+DEBUG 2025-08-06 15:43:18,847 resource 10880 8940 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002A1E0D89C80>.
+INFO 2025-08-06 15:43:19,238 oauth2_utils 10880 8940 Created tokens for user: admin
+ERROR 2025-08-06 15:43:19,279 log 10880 8940 Internal Server Error: /auth/login/
+INFO 2025-08-06 15:44:38,991 autoreload 10880 11372 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:44:39,943 autoreload 23720 10184 Watching for file changes with StatReloader
+INFO 2025-08-06 15:45:21,130 autoreload 23720 10184 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:45:21,967 autoreload 18244 12404 Watching for file changes with StatReloader
+DEBUG 2025-08-06 15:46:31,774 resource 18244 12580 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000242488CE340>.
+INFO 2025-08-06 15:46:32,206 oauth2_utils 18244 12580 Created tokens for user: admin
+ERROR 2025-08-06 15:46:32,258 log 18244 12580 Internal Server Error: /auth/login/
+DEBUG 2025-08-06 15:46:37,216 resource 18244 9952 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024248904700>.
+INFO 2025-08-06 15:46:37,720 oauth2_utils 18244 9952 Created tokens for user: admin
+ERROR 2025-08-06 15:46:37,733 log 18244 9952 Internal Server Error: /auth/login/
+INFO 2025-08-06 15:46:42,179 autoreload 3084 9628 Watching for file changes with StatReloader
+DEBUG 2025-08-06 15:46:44,442 resource 3084 19584 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019742F47880>.
+INFO 2025-08-06 15:46:44,834 oauth2_utils 3084 19584 Created tokens for user: admin
+ERROR 2025-08-06 15:46:44,873 log 3084 19584 Internal Server Error: /auth/login/
+INFO 2025-08-06 15:46:50,682 autoreload 3084 9628 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-06 15:46:51,536 autoreload 25056 20796 Watching for file changes with StatReloader
+INFO 2025-08-06 15:48:43,809 autoreload 25056 20796 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:48:44,716 autoreload 14916 2856 Watching for file changes with StatReloader
+INFO 2025-08-06 15:48:47,790 autoreload 14916 2856 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-06 15:48:48,716 autoreload 508 492 Watching for file changes with StatReloader
+DEBUG 2025-08-06 15:48:51,511 resource 508 1056 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D211E300>.
+INFO 2025-08-06 15:48:51,929 oauth2_utils 508 1056 Created tokens for user: admin
+DEBUG 2025-08-06 15:49:20,628 resource 508 12200 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D21E1100>.
+DEBUG 2025-08-06 15:50:47,370 resource 508 15220 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D21E0FC0>.
+INFO 2025-08-06 15:50:47,401 oauth2_utils 508 15220 Revoked 10 access tokens and 10 refresh tokens for user: admin
+DEBUG 2025-08-06 15:50:52,300 resource 508 2020 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D211E240>.
+INFO 2025-08-06 15:50:52,895 oauth2_utils 508 2020 Created tokens for user: admin
+DEBUG 2025-08-06 15:50:55,463 resource 508 27832 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D21E34C0>.
+DEBUG 2025-08-06 15:51:38,705 resource 508 18068 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D2201300>.
+DEBUG 2025-08-06 15:59:11,669 resource 508 21788 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D2154F00>.
+DEBUG 2025-08-06 16:00:07,647 resource 508 28172 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D2201300>.
+DEBUG 2025-08-06 16:00:08,676 resource 508 14180 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D22345C0>.
+INFO 2025-08-06 16:00:08,707 oauth2_utils 508 14180 Revoked 1 access tokens and 1 refresh tokens for user: admin
+DEBUG 2025-08-06 16:00:13,248 resource 508 27668 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D2105C80>.
+INFO 2025-08-06 16:00:13,853 oauth2_utils 508 27668 Created tokens for user: u1
+DEBUG 2025-08-06 16:00:26,512 resource 508 12100 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D21B2D40>.
+DEBUG 2025-08-06 16:08:41,074 resource 508 27544 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D2259680>.
+DEBUG 2025-08-06 16:10:06,777 resource 508 27976 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D2259BC0>.
+DEBUG 2025-08-06 16:12:34,524 resource 508 19848 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D21E3400>.

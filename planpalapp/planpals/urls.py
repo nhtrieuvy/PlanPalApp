@@ -29,6 +29,8 @@ urlpatterns = [
     # OAuth2 Authentication endpoints
     path('auth/login/', OAuth2LoginView.as_view(), name='oauth2_login'),
     path('auth/logout/', OAuth2LogoutView.as_view(), name='oauth2_logout'),
+    # path('auth/refresh/', OAuth2RefreshTokenView.as_view(), name='oauth2_refresh'),
+    # path('auth/token-status/', OAuth2TokenStatusView.as_view(), name='oauth2_token_status'),
     
     # Friendship endpoints (class-based views)
     path('friends/request/', FriendRequestView.as_view(), name='friend_request'),
