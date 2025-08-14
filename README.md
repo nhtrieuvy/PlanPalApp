@@ -4,6 +4,7 @@
 
 ## 📋 Mục Lục
 - [Tổng Quan Hệ Thống](#tổng-quan-hệ-thống)
+- [Chức năng Hệ Thống](#-chức-năng-hệ-thống)
 - [Yêu Cầu Hệ Thống](#yêu-cầu-hệ-thống)
 - [Setup Backend (Django)](#setup-backend-django)
 - [Setup Frontend (Flutter)](#setup-frontend-flutter)
@@ -39,6 +40,50 @@
 - 📱 **Cross-platform**: Android, iOS, Web support
 
 ---
+
+## 🧩 Chức năng Hệ Thống
+
+### Backend (Django REST Framework)
+- Xác thực & Phiên đăng nhập
+  - Đăng nhập/đăng xuất theo kiểu OAuth2 (token access/refresh)
+  - Bảo vệ API bằng quyền hạn và middleware
+- Người dùng & Bạn bè
+  - Hồ sơ người dùng (avatar Cloudinary, họ tên, tiểu sử)
+  - Gửi/nhận lời mời kết bạn, chấp nhận/từ chối, danh sách bạn bè
+  - Đếm thông báo/tin nhắn chưa đọc theo người dùng
+- Nhóm (Groups)
+  - Tạo/xem/sửa/xoá nhóm; vai trò: admin/thành viên; kiểm tra quyền
+  - Tham gia nhóm (bằng mã mời hoặc ID phù hợp), danh sách admins, tin nhắn gần đây
+- Kế hoạch (Plans)
+  - Hỗ trợ 2 loại: cá nhân (personal) và nhóm (group)
+  - Tạo kế hoạch: title, description, start_date, end_date, is_public, plan_type, (group_id nếu là group)
+  - Mặc định status = "upcoming" khi tạo; validate ngày kết thúc > ngày bắt đầu
+  - Với kế hoạch nhóm: kiểm tra thành viên nhóm trước khi cho tạo/cập nhật; không cho gán nhóm với kế hoạch cá nhân
+  - Cập nhật: tôn trọng plan_type (cá nhân không thể có group; nhóm phải có group hợp lệ)
+  - Tính toán phụ trợ: duration, activities_count, tổng chi phí ước tính, trạng thái hiển thị, group_name
+- Hoạt động trong kế hoạch (Plan Activities)
+  - Thêm hoạt động: thời gian bắt đầu/kết thúc, địa điểm (tuỳ chọn), chi phí ước tính, ghi chú, thứ tự
+  - Chống chồng lấn thời gian hoạt động trong cùng kế hoạch
+- Nhắn tin nhóm (Messages)
+  - Gửi/sửa/xoá tin nhắn trong nhóm; đếm tin chưa đọc; danh sách theo nhóm
+  - Hỗ trợ tệp đính kèm qua Cloudinary; tin nhắn vị trí (lat/long, tên địa điểm)
+- Tích hợp ngoài
+  - Cloudinary (lưu media), Goong Maps (tìm kiếm, geocode, nearby), Firebase (FCM thông báo — tuỳ chọn)
+
+### Frontend (Flutter)
+- Xác thực & Hồ sơ
+  - Đăng nhập/đăng ký; xem/cập nhật hồ sơ cá nhân
+- Quản lý kế hoạch
+  - Danh sách/chi tiết/tạo/sửa/xoá kế hoạch
+  - Form tạo kế hoạch có radio chọn loại (Cá nhân/Nhóm); nếu chọn Nhóm sẽ yêu cầu chọn nhóm
+  - Validate đầu vào (tiêu đề tối thiểu 3 ký tự; ngày kết thúc sau ngày bắt đầu); hiển thị lỗi rõ ràng
+  - Hiển thị badge loại kế hoạch (Nhóm/Cá nhân), tên nhóm (nếu là nhóm), chip trạng thái, ngày bắt đầu/kết thúc
+- Quản lý nhóm
+  - Danh sách/chi tiết/tạo/sửa/xoá nhóm; hiển thị số thành viên, mô tả, quyền
+- Trải nghiệm người dùng
+  - Giao diện hiện đại, thống nhất; xử lý lỗi tập trung ở Repository để hiện thông báo dễ hiểu
+  - Hỗ trợ Android/iOS/Web; hot reload cho phát triển nhanh
+
 
 ## 🛠️ Yêu Cầu Hệ Thống
 

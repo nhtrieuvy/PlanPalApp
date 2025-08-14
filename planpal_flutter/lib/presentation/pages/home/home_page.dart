@@ -3,7 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:getwidget/getwidget.dart';
 import '../../../core/providers/theme_provider.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/models/user.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/repositories/group_repository.dart';
+import 'package:planpal_flutter/core/repositories/plan_repository.dart';
+import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
+import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
+import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -14,8 +20,68 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _HomeContent extends StatelessWidget {
+class _HomeContent extends StatefulWidget {
   const _HomeContent();
+
+  @override
+  State<_HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<_HomeContent> {
+  late final GroupRepository _groupRepo;
+  late final PlanRepository _planRepo;
+  bool _loading = false;
+  String? _error;
+  List<Map<String, dynamic>> _recentPlans = const [];
+  List<Map<String, dynamic>> _activeGroups = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _groupRepo = GroupRepository(context.read<AuthProvider>());
+    _planRepo = PlanRepository(context.read<AuthProvider>());
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final results = await Future.wait([
+        _planRepo.getPlans(),
+        _groupRepo.getGroups(),
+      ]);
+      if (!mounted) return;
+      final plans = results[0];
+      final groups = results[1];
+      setState(() {
+        _recentPlans = plans.take(5).toList();
+        _activeGroups = groups.take(5).toList();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = 'Lỗi: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _handleQuickCreatePlan() async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(builder: (_) => const PlanFormPage()),
+    );
+    if (!mounted) return;
+    if (result != null &&
+        result['action'] == 'created' &&
+        result['plan'] != null) {
+      final p = Map<String, dynamic>.from(result['plan'] as Map);
+      setState(() => _recentPlans = [p, ..._recentPlans].take(5).toList());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,19 +93,47 @@ class _HomeContent extends StatelessWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildGreetingSection(context),
-                  const SizedBox(height: 24),
-                  _buildQuickActions(context),
-                  const SizedBox(height: 24),
-                  _buildRecentPlans(context),
-                  const SizedBox(height: 24),
-                  _buildActiveGroups(context),
-                  const SizedBox(height: 100),
-                ],
-              ),
+              child: _loading
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 60.0, bottom: 120),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  : _error != null
+                  ? Center(
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 80),
+                          const Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: Colors.redAccent,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(_error!, textAlign: TextAlign.center),
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: _loadData,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Thử lại'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildGreetingSection(context),
+                        const SizedBox(height: 24),
+                        _buildQuickActions(context),
+                        const SizedBox(height: 24),
+                        _buildRecentPlans(context),
+                        const SizedBox(height: 24),
+                        _buildActiveGroups(context),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
             ),
           ),
         ],
@@ -47,7 +141,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  // Main UI components
+  // Drawer components
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
       child: SafeArea(
@@ -134,11 +228,10 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  // Drawer components
   Widget _buildDrawerHeader() {
-    return Consumer<AuthProvider>(
-      builder: (context, auth, _) {
-        final user = auth.user;
+    return Selector<AuthProvider, User?>(
+      selector: (_, auth) => auth.user,
+      builder: (context, user, _) {
         return DrawerHeader(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -153,20 +246,12 @@ class _HomeContent extends StatelessWidget {
               CircleAvatar(
                 radius: 32,
                 backgroundColor: Colors.white,
-                backgroundImage:
-                    user != null &&
-                        user['avatar_url'] != null &&
-                        user['avatar_url'].toString().isNotEmpty
-                    ? NetworkImage(user['avatar_url'])
+                backgroundImage: user != null && user.hasAvatar
+                    ? NetworkImage(user.avatarUrl!)
                     : null,
-                child:
-                    (user == null ||
-                        user['avatar_url'] == null ||
-                        user['avatar_url'].toString().isEmpty)
+                child: (user == null || !user.hasAvatar)
                     ? Text(
-                        user != null && user['initials'] != null
-                            ? user['initials']
-                            : '',
+                        user?.initials ?? '',
                         style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -177,29 +262,16 @@ class _HomeContent extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                () {
-                  if (user != null) {
-                    final fullName = user['full_name']?.toString() ?? '';
-                    if (fullName.isNotEmpty) {
-                      return fullName;
-                    } else if (user['username'] != null &&
-                        user['username'].toString().isNotEmpty) {
-                      return user['username'];
-                    }
-                  }
-                  return 'Chưa đăng nhập';
-                }(),
+                user?.primaryDisplay ?? 'Chưa đăng nhập',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              if (user != null &&
-                  user['email'] != null &&
-                  user['email'].toString().isNotEmpty)
+              if (user != null && user.email != null && user.email!.isNotEmpty)
                 Text(
-                  user['email'],
+                  user.email!,
                   style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
             ],
@@ -251,7 +323,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  // Content sections
+  // Content sections using loaded data
   Widget _buildGreetingSection(BuildContext context) {
     final hour = DateTime.now().hour;
     String greeting;
@@ -314,26 +386,74 @@ class _HomeContent extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _buildActionCard(
-                context,
-                'Tạo kế hoạch',
-                Icons.add_location_alt,
-                AppColors.primary,
-                () {
-                  // Navigate to create plan
-                },
+              child: GestureDetector(
+                onTap: _handleQuickCreatePlan,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: const [
+                      Icon(
+                        Icons.add_location_alt,
+                        color: AppColors.primary,
+                        size: 32,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Tạo kế hoạch',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildActionCard(
-                context,
-                'Tham gia nhóm',
-                Icons.group_add,
-                AppColors.secondary,
-                () {
-                  // Navigate to join group
-                },
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pushNamed('/group'),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.secondary.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: const [
+                      Icon(
+                        Icons.group_add,
+                        color: AppColors.secondary,
+                        size: 32,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Tham gia nhóm',
+                        style: TextStyle(
+                          color: AppColors.secondary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -342,26 +462,66 @@ class _HomeContent extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _buildActionCard(
-                context,
-                'Khám phá',
-                Icons.explore,
-                AppColors.success,
-                () {
-                  // Navigate to explore
-                },
+              child: GestureDetector(
+                onTap: () {},
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.success.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: const [
+                      Icon(Icons.explore, color: AppColors.success, size: 32),
+                      SizedBox(height: 8),
+                      Text(
+                        'Khám phá',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildActionCard(
-                context,
-                'Bản đồ',
-                Icons.map,
-                AppColors.warning,
-                () {
-                  // Navigate to map
-                },
+              child: GestureDetector(
+                onTap: () {},
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.warning.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: const [
+                      Icon(Icons.map, color: AppColors.warning, size: 32),
+                      SizedBox(height: 8),
+                      Text(
+                        'Bản đồ',
+                        style: TextStyle(
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -384,24 +544,38 @@ class _HomeContent extends StatelessWidget {
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             TextButton(
-              onPressed: () {
-                // Navigate to all plans
-              },
+              onPressed: () => Navigator.of(context).pushNamed('/plan'),
               child: const Text('Xem tất cả'),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        SizedBox(
-          height: 180,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: 5,
-            itemBuilder: (context, index) {
-              return _buildPlanCard(context, index);
-            },
+        if (_recentPlans.isEmpty)
+          const Text('Chưa có kế hoạch', style: TextStyle(color: Colors.grey))
+        else
+          SizedBox(
+            height: 180,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _recentPlans.length,
+              itemBuilder: (context, index) {
+                final p = _recentPlans[index];
+                return GestureDetector(
+                  onTap: () {
+                    final id = p['id'];
+                    if (id != null) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PlanDetailsPage(id: id),
+                        ),
+                      );
+                    }
+                  },
+                  child: _buildPlanCardItem(context, index, p),
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
   }
@@ -420,69 +594,62 @@ class _HomeContent extends StatelessWidget {
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             TextButton(
-              onPressed: () {
-                // Navigate to all groups
-              },
+              onPressed: () => Navigator.of(context).pushNamed('/group'),
               child: const Text('Xem tất cả'),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 3,
-          itemBuilder: (context, index) {
-            return _buildGroupCard(context, index);
-          },
-        ),
+        if (_activeGroups.isEmpty)
+          const Text('Chưa có nhóm', style: TextStyle(color: Colors.grey))
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _activeGroups.length,
+            itemBuilder: (context, index) {
+              final g = _activeGroups[index];
+              return GestureDetector(
+                onTap: () {
+                  final id = g['id'];
+                  if (id != null) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => GroupDetailsPage(id: id),
+                      ),
+                    );
+                  }
+                },
+                child: _buildGroupCardItem(context, index, g),
+              );
+            },
+          ),
       ],
     );
   }
 
-  // Card widgets
-  Widget _buildActionCard(
+  Widget _buildPlanCardItem(
     BuildContext context,
-    String title,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
+    int index,
+    Map<String, dynamic> p,
   ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlanCard(BuildContext context, int index) {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
+    final name = (p['name'] ?? 'Kế hoạch').toString();
+    final dest = (p['destination'] ?? '').toString();
+    final start = p['start_date']?.toString();
+    final end = p['end_date']?.toString();
+    DateTime? startDt, endDt;
+    try {
+      if (start != null) startDt = DateTime.parse(start);
+    } catch (_) {}
+    try {
+      if (end != null) endDt = DateTime.parse(end);
+    } catch (_) {}
 
     return Container(
       width: 280,
-      margin: EdgeInsets.only(right: index == 4 ? 0 : 16),
+      margin: EdgeInsets.only(right: index == _recentPlans.length - 1 ? 0 : 16),
       child: GFCard(
         padding: const EdgeInsets.all(16),
         margin: const EdgeInsets.all(0),
@@ -507,35 +674,42 @@ class _HomeContent extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Chuyến đi ${index + 1}',
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
-                      Text(
-                        '${index + 1}-${index + 3} tháng 8',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
+                      if (startDt != null && endDt != null)
+                        Text(
+                          '${startDt.day}/${startDt.month} - ${endDt.day}/${endDt.month}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              'Khám phá những địa điểm tuyệt vời và tạo những kỷ niệm đáng nhớ cùng bạn bè.',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            if (dest.isNotEmpty)
+              Text(
+                dest,
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Icon(Icons.group, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  '${index + 2} thành viên',
+                  '•',
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
                 const Spacer(),
@@ -549,7 +723,7 @@ class _HomeContent extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
-                    'Đang diễn ra',
+                    'Mới',
                     style: TextStyle(
                       color: AppColors.success,
                       fontSize: 10,
@@ -565,9 +739,15 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildGroupCard(BuildContext context, int index) {
+  Widget _buildGroupCardItem(
+    BuildContext context,
+    int index,
+    Map<String, dynamic> g,
+  ) {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
+    final name = (g['name'] ?? 'Nhóm').toString();
+    final membersCount = g['members_count'] ?? g['member_count'] ?? 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -593,7 +773,9 @@ class _HomeContent extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Nhóm ${index + 1}',
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -601,7 +783,7 @@ class _HomeContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${(index + 2) * 3} thành viên • ${index + 1} kế hoạch',
+                    '$membersCount thành viên',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
@@ -610,7 +792,7 @@ class _HomeContent extends StatelessWidget {
             Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.success,
                 shape: BoxShape.circle,
               ),

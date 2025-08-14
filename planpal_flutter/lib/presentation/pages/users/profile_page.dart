@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/models/user.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:getwidget/getwidget.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:planpal_flutter/core/repositories/user_repository.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -22,116 +24,64 @@ class _ProfilePageState extends State<ProfilePage> {
     vertical: 32,
   );
 
-  // API result
-  Future<Map<String, dynamic>>? _profileFuture;
+  // Repo & API result
+  late final UserRepository _repo;
 
   @override
   void initState() {
     super.initState();
-    _profileFuture = fetchProfile();
-  }
-
-  Future<Map<String, dynamic>> fetchProfile() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    try {
-      final user = await authProvider.fetchUserProfile();
-      return user;
-    } catch (e) {
-      throw Exception('Không thể tải thông tin cá nhân: $e');
-    }
-  }
-
-  void _refreshProfile() {
-    setState(() {
-      _profileFuture = fetchProfile();
-    });
+    _repo = UserRepository(context.read<AuthProvider>());
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+
+    // Use Selector instead of watch so only this subtree rebuilds on user changes
     return Scaffold(
       appBar: AppBar(title: const Text('Trang cá nhân'), centerTitle: true),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _profileFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: Selector<AuthProvider, User?>(
+        selector: (_, p) => p.user,
+        builder: (context, user, _) {
+          if (user == null) {
             return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error, color: Colors.red, size: 48),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Lỗi: ${snapshot.error}',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: Colors.red,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Thử lại'),
-                      onPressed: () {
-                        setState(() {
-                          _profileFuture = fetchProfile();
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            );
-          } else if (snapshot.hasData) {
-            final user = snapshot.data!;
-            return SingleChildScrollView(
-              padding: _pagePadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Center(child: _buildAvatarSection(user, colorScheme)),
-                  const SizedBox(height: 24),
-                  ..._buildStatisticsCards(user, colorScheme, theme),
-                  const SizedBox(height: 24),
-                  _buildUserNameSection(user, theme, colorScheme),
-                  // ..._buildContactInfo(user, colorScheme),
-                  const SizedBox(height: 24),
-                  _buildPersonalInfoCard(user, theme, colorScheme),
-                  const SizedBox(height: 32),
-                  _buildLogoutButton(context),
-                ],
-              ),
-            );
           }
-          return const SizedBox();
+          return SingleChildScrollView(
+            padding: _pagePadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Center(child: _buildAvatarSection(user, colorScheme)),
+                const SizedBox(height: 24),
+                ..._buildStatisticsCards(user, colorScheme, theme),
+                const SizedBox(height: 24),
+                _buildUserNameSection(user, theme, colorScheme),
+                const SizedBox(height: 24),
+                _buildPersonalInfoCard(user, theme, colorScheme),
+                const SizedBox(height: 32),
+                _buildLogoutButton(context),
+              ],
+            ),
+          );
         },
       ),
     );
   }
 
   // Widget builders
-  Widget _buildAvatarSection(
-    Map<String, dynamic> user,
-    ColorScheme colorScheme,
-  ) {
+  Widget _buildAvatarSection(User user, ColorScheme colorScheme) {
     return Stack(
       children: [
         GFAvatar(
-          backgroundImage:
-              user['avatar_url'] != null && user['avatar_url'] != ''
-              ? NetworkImage(user['avatar_url'])
+          backgroundImage: user.avatarUrl != null && user.avatarUrl != ''
+              ? NetworkImage(user.avatarUrl!)
               : null,
           backgroundColor: colorScheme.primary.withAlpha(30),
           radius: _avatarRadius,
-          child: (user['avatar_url'] == null || user['avatar_url'] == '')
+          child: (user.avatarUrl == null || user.avatarUrl == '')
               ? Text(
-                  user['initials'] ?? '',
+                  user.initials,
                   style: TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.bold,
@@ -149,7 +99,10 @@ class _ProfilePageState extends State<ProfilePage> {
             elevation: 2,
             child: InkWell(
               customBorder: const CircleBorder(),
-              onTap: () => _showEditProfileDialog(context, user),
+              onTap: () async {
+                final user = context.read<AuthProvider>().user;
+                if (user != null) await _showEditProfileDialog(context, user);
+              },
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Icon(
@@ -166,12 +119,14 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildUserNameSection(
-    Map<String, dynamic> user,
+    User user,
     ThemeData theme,
     ColorScheme colorScheme,
   ) {
     return Text(
-      user['display_name'] ?? user['full_name'] ?? user['username'] ?? '',
+      user.displayName.isNotEmpty
+          ? user.displayName
+          : (user.username.isNotEmpty ? user.username : ''),
       style: theme.textTheme.headlineSmall?.copyWith(
         fontWeight: FontWeight.bold,
         color: colorScheme.onSurface,
@@ -181,7 +136,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   List<Widget> _buildStatisticsCards(
-    Map<String, dynamic> user,
+    User user,
     ColorScheme colorScheme,
     ThemeData theme,
   ) {
@@ -189,21 +144,21 @@ class _ProfilePageState extends State<ProfilePage> {
       {
         'icon': Icons.travel_explore,
         'label': 'Kế hoạch',
-        'count': user['plans_count'] ?? 0,
+        'count': user.plansCount,
         'color': colorScheme.primary,
         'containerColor': colorScheme.primaryContainer,
       },
       {
         'icon': Icons.group,
         'label': 'Nhóm',
-        'count': user['groups_count'] ?? 0,
+        'count': user.groupsCount,
         'color': colorScheme.secondary,
         'containerColor': colorScheme.secondaryContainer,
       },
       {
         'icon': Icons.people,
         'label': 'Bạn bè',
-        'count': user['friends_count'] ?? 0,
+        'count': user.friendsCount,
         'color': colorScheme.tertiary,
         'containerColor': colorScheme.tertiaryContainer,
       },
@@ -248,7 +203,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildPersonalInfoCard(
-    Map<String, dynamic> user,
+    User user,
     ThemeData theme,
     ColorScheme colorScheme,
   ) {
@@ -267,16 +222,13 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 12),
-          _buildInfoRow('Tên đăng nhập', user['username'] ?? ''),
-          _buildInfoRow(
-            'Họ tên',
-            user['display_name'] ?? user['full_name'] ?? '',
-          ),
-          _buildInfoRow('Email', user['email'] ?? ''),
-          _buildInfoRow('Số điện thoại', user['phone_number'] ?? ''),
-          _buildInfoRow('Ngày sinh', user['date_of_birth'] ?? ''),
+          _buildInfoRow('Tên đăng nhập', user.username),
+          _buildInfoRow('Họ tên', user.displayName),
+          _buildInfoRow('Email', user.email ?? ''),
+          _buildInfoRow('Số điện thoại', user.phoneNumber ?? ''),
+          _buildInfoRow('Ngày sinh', user.dateOfBirth ?? ''),
           const SizedBox(height: 8),
-          _buildInfoRow('Giới thiệu', user['bio'] ?? ''),
+          _buildInfoRow('Giới thiệu', user.bio ?? ''),
         ],
       ),
     );
@@ -320,21 +272,21 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // Helper methods
-  void _showEditProfileDialog(BuildContext context, Map user) async {
+  Future<void> _showEditProfileDialog(BuildContext context, User user) async {
     final TextEditingController firstNameController = TextEditingController(
-      text: user['first_name'] ?? '',
+      text: user.firstName,
     );
     final TextEditingController lastNameController = TextEditingController(
-      text: user['last_name'] ?? '',
+      text: user.lastName,
     );
     final TextEditingController emailController = TextEditingController(
-      text: user['email'] ?? '',
+      text: user.email ?? '',
     );
     final TextEditingController phoneController = TextEditingController(
-      text: user['phone_number'] ?? '',
+      text: user.phoneNumber ?? '',
     );
     final TextEditingController bioController = TextEditingController(
-      text: user['bio'] ?? '',
+      text: user.bio ?? '',
     );
 
     File? selectedImage;
@@ -367,14 +319,12 @@ class _ProfilePageState extends State<ProfilePage> {
                     radius: 40,
                     backgroundImage: selectedImage != null
                         ? FileImage(selectedImage!)
-                        : (user['avatar_url'] != null &&
-                                  user['avatar_url'] != ''
-                              ? NetworkImage(user['avatar_url'])
+                        : (user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                              ? NetworkImage(user.avatarUrl!)
                               : null),
                     child:
                         selectedImage == null &&
-                            (user['avatar_url'] == null ||
-                                user['avatar_url'] == '')
+                            (user.avatarUrl == null || user.avatarUrl!.isEmpty)
                         ? const Icon(Icons.camera_alt, size: 30)
                         : null,
                   ),
@@ -433,11 +383,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  final authProvider = Provider.of<AuthProvider>(
-                    context,
-                    listen: false,
-                  );
-                  await authProvider.updateUserProfile(
+                  final updated = await _repo.updateProfile(
                     firstName: firstNameController.text.trim(),
                     lastName: lastNameController.text.trim(),
                     email: emailController.text.trim(),
@@ -446,24 +392,28 @@ class _ProfilePageState extends State<ProfilePage> {
                     avatar: selectedImage,
                   );
                   if (context.mounted) {
+                    // Update provider state so all listeners get refreshed
+                    try {
+                      context.read<AuthProvider>().setUser(updated);
+                    } catch (_) {}
                     Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Cập nhật thông tin thành công!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    _refreshProfile();
-                  }
-                } catch (e) {
-                  if (context.mounted) {
+                    setState(() {});
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Lỗi: $e'),
-                        backgroundColor: AppColors.error,
+                        content: const Text('Cập nhật thông tin thành công'),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 2),
                       ),
                     );
                   }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Đã xảy ra lỗi. Vui lòng thử lại.'),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
                 }
               },
               child: const Text('Lưu'),

@@ -16,8 +16,8 @@ from datetime import datetime
 
 from .models import User, Group, Plan, Friendship, ChatMessage, PlanActivity
 from .serializers import (
-    UserSerializer, UserCreateSerializer, GroupSerializer, 
-    PlanSerializer, FriendshipSerializer, FriendRequestSerializer, ChatMessageSerializer,
+    GroupSummarySerializer, PlanSummarySerializer, UserSerializer, UserCreateSerializer, GroupSerializer, 
+    PlanSerializer, PlanCreateSerializer, FriendshipSerializer, FriendRequestSerializer, ChatMessageSerializer,
     PlanActivitySerializer
 )
 from .permissions import (
@@ -29,93 +29,41 @@ from .services import notification_service
 from .services.goong_service import goong_service
 
 from django.utils import timezone
-from .oauth2_utils import OAuth2TokenManager, OAuth2ResponseFormatter
+from .oauth2_utils import OAuth2ResponseFormatter
+from oauth2_provider.models import AccessToken, RefreshToken
 User = get_user_model()
 
 # ============================================================================
 # OAuth2 Authentication Views (Simplified for now)
 # ============================================================================
 
-class OAuth2LoginView(APIView):
-    """OAuth2 Login endpoint với token generation"""
-    permission_classes = [AllowAny]
-    
-    def post(self, request, *args, **kwargs):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        
-        if not username or not password:
-            error_data, status_code = OAuth2ResponseFormatter.error_response(
-                'invalid_request', 
-                'Username and password required'
-            )
-            return Response(error_data, status=status_code)
-
-        user = authenticate(username=username, password=password)
-        if not user:
-            error_data, status_code = OAuth2ResponseFormatter.error_response(
-                'invalid_grant',
-                'Invalid credentials',
-                401
-            )
-            return Response(error_data, status=status_code)
-            
-        if not user.is_active:
-            error_data, status_code = OAuth2ResponseFormatter.error_response(
-                'invalid_grant',
-                'Account is deactivated',
-                403
-            )
-            return Response(error_data, status=status_code)
-
-        try:
-            access_token, refresh_token = OAuth2TokenManager.create_tokens_for_user(user)
-            user.set_online_status(True)
-            
-            user_serializer = UserSerializer(user)
-            response_data = OAuth2ResponseFormatter.success_response(
-                access_token=access_token,
-                refresh_token=refresh_token,
-                user_data=user_serializer.data
-            )
-            response_data['message'] = 'Login successful'
-            
-            return Response(response_data, status=status.HTTP_200_OK)
-            
-        
-        except Exception as e:
-            import traceback
-            print(traceback.format_exc())
-            error_data, status_code = OAuth2ResponseFormatter.error_response(
-                'server_error',
-                f'Token generation failed: {str(e)}',
-                500
-            )
-            return Response(error_data, status=status_code)
-
 
 class OAuth2LogoutView(APIView):
-    """OAuth2 Logout endpoint với token revocation"""
+    """Standard OAuth2 logout: revoke current access token (and its refresh)."""
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request):
+        user = request.user
+        token_string = getattr(request.auth, 'token', None) if hasattr(request.auth, 'token') else request.auth
+        revoked = False
         try:
-            request.user.set_online_status(False)
-            revoked = OAuth2TokenManager.revoke_user_tokens(request.user)
-            
+            if token_string:
+                at_qs = AccessToken.objects.filter(token=token_string, user=user)
+                if at_qs.exists():
+                    at = at_qs.first()
+                    # Delete linked refresh tokens first
+                    RefreshToken.objects.filter(access_token=at).delete()
+                    at.delete()
+                    revoked = True
+            user.set_online_status(False)
             return Response({
                 'message': 'Logged out successfully',
                 'timestamp': timezone.now().isoformat(),
                 'token_revoked': revoked
-            }, status=status.HTTP_200_OK)
-            
+            })
         except Exception as e:
-            error_data, status_code = OAuth2ResponseFormatter.error_response(
-                'server_error',
-                f'Logout failed: {str(e)}',
-                500
-            )
-            return Response(error_data, status=status_code)
+            data, code = OAuth2ResponseFormatter.error_response('server_error', f'Logout failed: {e}', 500)
+            return Response(data, status=code)
 
 
 # ============================================================================
@@ -273,6 +221,14 @@ class GroupViewSet(viewsets.GenericViewSet,
     serializer_class = GroupSerializer
     permission_classes = [IsAuthenticated, GroupPermission]
     
+    def get_serializer_class(self):
+        """Use optimized serializer for create operations"""
+        if self.action == 'create':
+            return GroupSerializer
+        elif self.action == 'list':
+            return GroupSummarySerializer
+        return self.serializer_class
+
     def get_queryset(self):
         """SECURE - Only groups user is member of with correct field references"""
         return Group.objects.filter(
@@ -445,6 +401,14 @@ class PlanViewSet(viewsets.ModelViewSet):
     serializer_class = PlanSerializer
     permission_classes = [IsAuthenticated, PlanPermission]
     
+    def get_serializer_class(self):
+        """Use optimized serializer for create operations"""
+        if self.action == 'create':
+            return PlanCreateSerializer
+        elif self.action == 'list':
+            return PlanSummarySerializer
+        return self.serializer_class
+    
     def get_queryset(self):
         """SECURE - Only user's accessible plans with full optimizations"""
         return Plan.objects.filter(
@@ -457,7 +421,7 @@ class PlanViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Auto-set creator and handle notifications"""
-        plan = serializer.save(created_by=self.request.user)
+        plan = serializer.save(creator=self.request.user)  # Fixed: use creator instead of created_by
         
         # Optional: Send notification if service available
         try:

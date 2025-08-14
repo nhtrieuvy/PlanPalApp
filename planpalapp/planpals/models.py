@@ -426,12 +426,12 @@ class Friendship(BaseModel):
             models.Q(user=user) | models.Q(friend=user),
             status=cls.ACCEPTED
         ).annotate(
-            friend_user_id=models.Case(
+            friend_user_id=models.Case( # Case giống if else, nếu user là người gửi thì lấy friend, ngược lại lấy user
                 models.When(user=user, then='friend'),
                 default='user',
                 output_field=models.UUIDField()
             )
-        ).values_list('friend_user_id', flat=True)
+        ).values_list('friend_user_id', flat=True) 
         
         return User.objects.filter(id__in=friend_subquery).select_related()
 
@@ -735,6 +735,7 @@ class GroupMembership(BaseModel):
     group = models.ForeignKey(
         Group,
         on_delete=models.CASCADE,
+        related_name='memberships',
         help_text="Nhóm"
     )
     
@@ -847,14 +848,14 @@ class Plan(BaseModel):
         help_text="Thời gian kết thúc chuyến đi"
     )
     
-    # Ngân sách dự kiến
-    budget = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        blank=True, 
-        null=True,
-        help_text="Ngân sách dự kiến (VND)"
-    )
+    # # Ngân sách dự kiến
+    # budget = models.DecimalField(
+    #     max_digits=12,
+    #     decimal_places=2,
+    #     blank=True, 
+    #     null=True,
+    #     help_text="Ngân sách dự kiến (VND)"
+    # )
     
     # Trạng thái công khai
     is_public = models.BooleanField(
@@ -865,8 +866,7 @@ class Plan(BaseModel):
     
     # Trạng thái kế hoạch
     STATUS_CHOICES = [
-        ('draft', 'Bản nháp'),
-        ('published', 'Đã xuất bản'),
+        ('upcoming', 'Sắp bắt đầu'),
         ('ongoing', 'Đang diễn ra'),
         ('completed', 'Đã hoàn thành'),
         ('cancelled', 'Đã hủy'),
@@ -985,8 +985,7 @@ class Plan(BaseModel):
     def status_display(self):
         """Hiển thị trạng thái plan dễ đọc"""
         status_map = {
-            'draft': '📝 Bản nháp',
-            'published': '📋 Đã xuất bản',
+            'upcoming': '⏳ Sắp bắt đầu',
             'ongoing': '🏃 Đang diễn ra',
             'completed': '✅ Đã hoàn thành',
             'cancelled': '❌ Đã hủy',
@@ -1111,17 +1110,10 @@ class Plan(BaseModel):
             
         return queryset.exists()
 
-    def publish(self):
-        """Xuất bản kế hoạch"""
-        if self.status == 'draft':
-            self.status = 'published'
-            self.save(update_fields=['status', 'updated_at'])
-            return True
-        return False
 
     def start_trip(self):
         """Bắt đầu chuyến đi"""
-        if self.status == 'published':
+        if self.status == 'iscoming':
             self.status = 'ongoing'
             self.save(update_fields=['status', 'updated_at'])
             return True
@@ -1134,6 +1126,14 @@ class Plan(BaseModel):
             self.save(update_fields=['status', 'updated_at'])
             return True
         return False
+    
+    def cancel_trip(self):
+        """Hủy chuyến đi"""
+        if self.status not in ['cancelled', 'completed']:
+            self.status = 'cancelled'
+            self.save(update_fields=['status', 'updated_at'])
+            return True
+        return False
 
 
 class PlanActivity(BaseModel):
@@ -1142,15 +1142,19 @@ class PlanActivity(BaseModel):
     Mỗi activity có thời gian, địa điểm và chi phí cụ thể
     """
     
-    # Các loại hoạt động
+    # Các loại hoạt động cụ thể hơn
     ACTIVITY_TYPES = [
-        ('restaurant', 'Nhà hàng'),
-        ('attraction', 'Điểm tham quan'),
-        ('hotel', 'Khách sạn'),
-        ('transport', 'Di chuyển'),
+        ('eating', 'Ăn uống'),
+        ('resting', 'Nghỉ ngơi'),
+        ('moving', 'Di chuyển'),
+        ('sightseeing', 'Tham quan'),
         ('shopping', 'Mua sắm'),
         ('entertainment', 'Giải trí'),
-        ('custom', 'Khác'),
+        ('event', 'Sự kiện'),
+        ('sport', 'Thể thao'),
+        ('study', 'Học tập'),
+        ('work', 'Công việc'),
+        ('other', 'Khác'),
     ]
     
     # Remove id field vì đã có trong BaseModel
@@ -1178,7 +1182,7 @@ class PlanActivity(BaseModel):
     activity_type = models.CharField(
         max_length=20,
         choices=ACTIVITY_TYPES,
-        default='custom',
+        default='other',
         db_index=True,
         help_text="Loại hoạt động"
     )
@@ -1318,13 +1322,17 @@ class PlanActivity(BaseModel):
     def activity_type_display(self):
         """Hiển thị loại hoạt động với icon"""
         type_icons = {
-            'restaurant': '🍽️ Nhà hàng',
-            'attraction': '🏛️ Điểm tham quan',
-            'hotel': '🏨 Khách sạn',
-            'transport': '🚗 Di chuyển',
+            'eating': '🍽️ Ăn uống',
+            'resting': '🛏️ Nghỉ ngơi',
+            'moving': '🚗 Di chuyển',
+            'sightseeing': '🏛️ Tham quan',
             'shopping': '🛍️ Mua sắm',
             'entertainment': '🎭 Giải trí',
-            'custom': '📝 Khác',
+            'event': '🎉 Sự kiện',
+            'sport': '🏅 Thể thao',
+            'study': '📚 Học tập',
+            'work': '💼 Công việc',
+            'other': '📝 Khác',
         }
         return type_icons.get(self.activity_type, self.activity_type)
 
@@ -1556,9 +1564,6 @@ class ChatMessage(BaseModel):
             return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
         return None
 
-    # Permission methods đã được chuyển sang permissions.py
-    # Sử dụng ChatMessagePermission class trong views thay vì check quyền ở đây
-    # Ví dụ: permission_classes = [ChatMessagePermission]
 
     def soft_delete(self):
         """Soft delete message"""

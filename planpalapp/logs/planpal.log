@@ -506,3 +506,1109 @@ DEBUG 2025-08-06 16:00:26,512 resource 508 12100 Dispatching token_type Bearer r
 DEBUG 2025-08-06 16:08:41,074 resource 508 27544 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D2259680>.
 DEBUG 2025-08-06 16:10:06,777 resource 508 27976 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D2259BC0>.
 DEBUG 2025-08-06 16:12:34,524 resource 508 19848 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000263D21E3400>.
+INFO 2025-08-08 17:10:29,845 autoreload 17244 16644 Watching for file changes with StatReloader
+DEBUG 2025-08-08 17:13:31,504 resource 17244 25648 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27531900>.
+INFO 2025-08-08 17:13:32,300 oauth2_utils 17244 25648 Created tokens for user: admin
+DEBUG 2025-08-08 17:13:36,777 resource 17244 12852 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27982C40>.
+DEBUG 2025-08-08 17:13:40,071 resource 17244 15344 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27A02740>.
+DEBUG 2025-08-08 17:13:43,045 resource 17244 9220 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB279D2BC0>.
+DEBUG 2025-08-08 17:13:44,257 resource 17244 15504 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB279A6C00>.
+DEBUG 2025-08-08 17:13:48,630 resource 17244 8988 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB278B8240>.
+DEBUG 2025-08-08 17:13:49,625 resource 17244 1004 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27A02080>.
+DEBUG 2025-08-08 17:13:52,058 resource 17244 2064 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27A02F40>.
+DEBUG 2025-08-08 17:14:16,896 resource 17244 12592 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB279AF0C0>.
+DEBUG 2025-08-08 17:14:56,517 resource 17244 3972 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27AA85C0>.
+DEBUG 2025-08-08 17:15:01,382 resource 17244 15504 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB279AEF00>.
+DEBUG 2025-08-08 17:15:04,556 resource 17244 27432 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27ADDF00>.
+WARNING 2025-08-08 17:38:13,047 log 17244 16880 Not Found: /favicon.ico
+WARNING 2025-08-08 17:38:21,077 log 17244 16880 Not Found: /plan
+WARNING 2025-08-08 17:38:39,241 log 17244 18880 Not Found: /plan/
+WARNING 2025-08-08 17:38:51,324 log 17244 18880 Not Found: /plan/
+DEBUG 2025-08-08 17:39:12,629 resource 17244 18880 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27BB6200>.
+WARNING 2025-08-08 17:39:12,629 log 17244 18880 Unauthorized: /plans/
+DEBUG 2025-08-08 17:39:32,882 resource 17244 19104 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27B22000>.
+WARNING 2025-08-08 17:39:32,883 log 17244 19104 Unauthorized: /plans/
+DEBUG 2025-08-08 17:40:49,441 resource 17244 21268 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB2787C8C0>.
+INFO 2025-08-08 17:40:50,067 oauth2_utils 17244 21268 Created tokens for user: admin
+DEBUG 2025-08-08 17:41:36,692 resource 17244 20076 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27AAB840>.
+WARNING 2025-08-08 17:41:36,693 log 17244 20076 Unauthorized: /plans/
+DEBUG 2025-08-08 17:41:48,896 resource 17244 20076 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB278B8140>.
+WARNING 2025-08-08 17:41:48,897 log 17244 20076 Unauthorized: /plans/
+DEBUG 2025-08-08 17:42:02,046 resource 17244 20076 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CB27A54C00>.
+INFO 2025-08-08 21:23:34,110 autoreload 14576 20388 Watching for file changes with StatReloader
+DEBUG 2025-08-08 21:25:42,902 resource 14576 16552 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002D15DD54300>.
+WARNING 2025-08-08 21:25:42,919 log 14576 16552 Unauthorized: /users/profile/
+DEBUG 2025-08-08 21:25:43,008 token 14576 15820 Dispatching grant_type None request to <oauthlib.oauth2.rfc6749.grant_types.authorization_code.AuthorizationCodeGrant object at 0x000002D15DD7E2D0>.
+DEBUG 2025-08-08 21:25:43,008 authorization_code 14576 15820 Client error during validation of <oauthlib.Request SANITIZED>. UnsupportedGrantTypeError('(unsupported_grant_type)  <oauthlib.Request SANITIZED>').
+WARNING 2025-08-08 21:25:43,009 log 14576 15820 Bad Request: /o/token/
+DEBUG 2025-08-08 21:25:58,373 resource 14576 22124 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002D15DD60F00>.
+INFO 2025-08-08 21:25:59,012 oauth2_utils 14576 22124 Created tokens for user: admin
+DEBUG 2025-08-08 21:26:06,290 resource 14576 3812 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002D15DD91000>.
+DEBUG 2025-08-08 21:26:11,259 resource 14576 3360 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002D15DD80B00>.
+DEBUG 2025-08-08 21:26:15,590 resource 14576 14052 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002D15DE5DD80>.
+DEBUG 2025-08-08 21:27:14,334 resource 14576 18576 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002D15DD40B00>.
+DEBUG 2025-08-08 21:27:18,713 resource 14576 17460 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002D15DD247C0>.
+INFO 2025-08-08 22:15:50,454 autoreload 14120 20892 Watching for file changes with StatReloader
+DEBUG 2025-08-08 22:16:43,338 resource 14120 15224 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE29A400>.
+DEBUG 2025-08-08 22:16:45,172 resource 14120 17824 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE282240>.
+DEBUG 2025-08-08 22:16:45,175 resource 14120 16488 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE1C2880>.
+DEBUG 2025-08-08 22:17:29,971 resource 14120 6652 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE266DC0>.
+DEBUG 2025-08-08 22:17:33,104 resource 14120 22932 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE1C24C0>.
+DEBUG 2025-08-08 22:17:35,104 resource 14120 15552 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE22D880>.
+DEBUG 2025-08-08 22:17:51,237 resource 14120 21428 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE1DB9C0>.
+DEBUG 2025-08-08 22:17:55,712 resource 14120 13552 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE19E300>.
+DEBUG 2025-08-08 22:18:05,104 resource 14120 14792 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE1C3240>.
+DEBUG 2025-08-08 22:18:15,004 resource 14120 18364 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE1F72C0>.
+DEBUG 2025-08-08 22:20:40,802 resource 14120 17244 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE22CAC0>.
+DEBUG 2025-08-08 22:21:11,278 resource 14120 5460 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000192CE1C0600>.
+ERROR 2025-08-08 22:21:11,518 log 14120 5460 Internal Server Error: /plans/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\mixins.py", line 18, in create
+    serializer.is_valid(raise_exception=True)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 227, in is_valid
+    self._validated_data = self.run_validation(self.initial_data)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 426, in run_validation
+    value = self.to_internal_value(data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 479, in to_internal_value
+    for field in fields:
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 362, in _writable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 357, in fields
+    fields[key] = value
+    ~~~~~~^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\utils\serializer_helpers.py", line 169, in __setitem__
+    field.bind(field_name=key, parent=self.serializer)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\fields.py", line 367, in bind
+    assert self.source != field_name, (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: It is redundant to specify `source='status_display'` on field 'CharField' in serializer 'PlanSerializer', because it is the same as the field name. Remove the `source` keyword argument.
+WARNING 2025-08-08 22:21:39,575 log 14120 19268 Not Found: /favicon.ico
+INFO 2025-08-09 15:24:11,770 autoreload 21716 21796 Watching for file changes with StatReloader
+DEBUG 2025-08-09 15:26:40,860 resource 21716 14216 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B1DD114680>.
+WARNING 2025-08-09 15:26:40,955 log 21716 14216 Unauthorized: /users/profile/
+DEBUG 2025-08-09 15:26:41,314 token 21716 12900 Dispatching grant_type None request to <oauthlib.oauth2.rfc6749.grant_types.authorization_code.AuthorizationCodeGrant object at 0x000001B1DD2519D0>.
+DEBUG 2025-08-09 15:26:41,314 authorization_code 21716 12900 Client error during validation of <oauthlib.Request SANITIZED>. UnsupportedGrantTypeError('(unsupported_grant_type)  <oauthlib.Request SANITIZED>').
+WARNING 2025-08-09 15:26:41,315 log 21716 12900 Bad Request: /o/token/
+DEBUG 2025-08-09 15:26:52,022 resource 21716 13148 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B1DD2429C0>.
+INFO 2025-08-09 15:26:52,642 oauth2_utils 21716 13148 Created tokens for user: admin
+DEBUG 2025-08-09 15:26:53,408 resource 21716 3456 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B1DD269000>.
+DEBUG 2025-08-09 15:26:53,409 resource 21716 17556 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B1DD167280>.
+DEBUG 2025-08-09 15:26:56,550 resource 21716 15316 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B1DD12AAC0>.
+DEBUG 2025-08-09 15:26:59,766 resource 21716 27328 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B1DD0C2FC0>.
+DEBUG 2025-08-09 15:27:06,139 resource 21716 20864 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B1DD1B1880>.
+ERROR 2025-08-09 15:27:06,335 log 21716 20864 Internal Server Error: /groups/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\mixins.py", line 18, in create
+    serializer.is_valid(raise_exception=True)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 227, in is_valid
+    self._validated_data = self.run_validation(self.initial_data)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 426, in run_validation
+    value = self.to_internal_value(data)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 479, in to_internal_value
+    for field in fields:
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 362, in _writable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 357, in fields
+    fields[key] = value
+    ~~~~~~^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\utils\serializer_helpers.py", line 169, in __setitem__
+    field.bind(field_name=key, parent=self.serializer)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\fields.py", line 367, in bind
+    assert self.source != field_name, (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: It is redundant to specify `source='member_count'` on field 'IntegerField' in serializer 'GroupSerializer', because it is the same as the field name. Remove the `source` keyword argument.
+INFO 2025-08-09 15:28:38,505 autoreload 21716 21796 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 15:28:39,581 autoreload 14172 22056 Watching for file changes with StatReloader
+INFO 2025-08-09 15:28:41,540 autoreload 14172 22056 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 15:28:42,297 autoreload 22348 17552 Watching for file changes with StatReloader
+INFO 2025-08-09 15:28:46,137 autoreload 22348 17552 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 15:28:47,097 autoreload 8552 12928 Watching for file changes with StatReloader
+INFO 2025-08-09 15:29:05,434 autoreload 8552 12928 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 15:29:06,219 autoreload 21316 4792 Watching for file changes with StatReloader
+INFO 2025-08-09 15:29:15,174 autoreload 21316 4792 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 15:29:15,998 autoreload 8384 17812 Watching for file changes with StatReloader
+INFO 2025-08-09 15:29:29,023 autoreload 8384 17812 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 15:29:29,861 autoreload 18836 23364 Watching for file changes with StatReloader
+INFO 2025-08-09 15:29:32,681 autoreload 18836 23364 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 15:29:33,470 autoreload 25120 17800 Watching for file changes with StatReloader
+INFO 2025-08-09 15:29:39,319 autoreload 25120 17800 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 15:29:40,118 autoreload 13352 12516 Watching for file changes with StatReloader
+INFO 2025-08-09 15:29:57,259 autoreload 13352 12516 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 15:29:58,210 autoreload 15420 18096 Watching for file changes with StatReloader
+INFO 2025-08-09 15:30:01,091 autoreload 15420 18096 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 15:30:01,906 autoreload 15540 13192 Watching for file changes with StatReloader
+DEBUG 2025-08-09 15:30:05,627 resource 15540 27500 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000162F60EDDC0>.
+DEBUG 2025-08-09 15:30:14,626 resource 15540 21696 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000162F6151000>.
+ERROR 2025-08-09 15:30:14,694 log 15540 21696 Internal Server Error: /groups/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 291, in list
+    'groups': serializer.data,
+              ^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 768, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 686, in to_representation
+    return [
+           ^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 384, in __iter__
+    self._fetch_all()
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1951, in _fetch_all
+    self._prefetch_related_objects()
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1328, in _prefetch_related_objects
+    prefetch_related_objects(self._result_cache, *self._prefetch_related_lookups)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 2372, in prefetch_related_objects
+    raise AttributeError(
+AttributeError: Cannot find 'memberships' on Group object, 'memberships__user' is an invalid parameter to prefetch_related()
+DEBUG 2025-08-09 15:30:21,381 resource 15540 15264 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000162F6213000>.
+ERROR 2025-08-09 15:30:21,431 log 15540 15264 Internal Server Error: /groups/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 291, in list
+    'groups': serializer.data,
+              ^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 768, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 686, in to_representation
+    return [
+           ^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 384, in __iter__
+    self._fetch_all()
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1951, in _fetch_all
+    self._prefetch_related_objects()
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1328, in _prefetch_related_objects
+    prefetch_related_objects(self._result_cache, *self._prefetch_related_lookups)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 2372, in prefetch_related_objects
+    raise AttributeError(
+AttributeError: Cannot find 'memberships' on Group object, 'memberships__user' is an invalid parameter to prefetch_related()
+INFO 2025-08-09 16:04:42,677 autoreload 15540 13192 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-09 16:04:43,976 autoreload 4000 23332 Watching for file changes with StatReloader
+INFO 2025-08-09 16:04:45,996 autoreload 4000 23332 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-09 16:04:46,867 autoreload 23216 5076 Watching for file changes with StatReloader
+INFO 2025-08-09 16:06:15,678 autoreload 9556 28156 Watching for file changes with StatReloader
+DEBUG 2025-08-09 16:06:20,814 resource 9556 25332 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1E86800>.
+DEBUG 2025-08-09 16:06:23,613 resource 9556 16696 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EF0DC0>.
+DEBUG 2025-08-09 16:06:26,780 resource 9556 25472 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1E1AE80>.
+DEBUG 2025-08-09 16:06:59,784 resource 9556 27296 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1E1B740>.
+DEBUG 2025-08-09 16:07:45,546 resource 9556 9540 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1DE3C40>.
+WARNING 2025-08-09 16:07:45,554 log 9556 9540 Unauthorized: /groups/
+DEBUG 2025-08-09 16:08:06,913 resource 9556 9540 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1ED01C0>.
+INFO 2025-08-09 16:08:07,317 oauth2_utils 9556 9540 Created tokens for user: admin
+DEBUG 2025-08-09 16:08:24,419 resource 9556 9540 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1E46640>.
+DEBUG 2025-08-09 16:09:09,513 resource 9556 9156 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1E312C0>.
+DEBUG 2025-08-09 16:09:10,875 resource 9556 10744 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1F72F40>.
+DEBUG 2025-08-09 16:09:10,876 resource 9556 14836 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1F55E40>.
+DEBUG 2025-08-09 16:11:39,866 resource 9556 11704 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1FE1740>.
+DEBUG 2025-08-09 16:27:35,998 resource 9556 6152 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1D6B4C0>.
+WARNING 2025-08-09 16:27:36,013 log 9556 6152 Unauthorized: /groups/
+DEBUG 2025-08-09 16:27:36,093 token 9556 29324 Dispatching grant_type None request to <oauthlib.oauth2.rfc6749.grant_types.authorization_code.AuthorizationCodeGrant object at 0x000001F8E1DF68D0>.
+DEBUG 2025-08-09 16:27:36,093 authorization_code 9556 29324 Client error during validation of <oauthlib.Request SANITIZED>. UnsupportedGrantTypeError('(unsupported_grant_type)  <oauthlib.Request SANITIZED>').
+WARNING 2025-08-09 16:27:36,094 log 9556 29324 Bad Request: /o/token/
+DEBUG 2025-08-09 16:27:37,299 resource 9556 27972 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EB5D40>.
+WARNING 2025-08-09 16:27:37,299 log 9556 27972 Unauthorized: /groups/
+DEBUG 2025-08-09 16:27:38,293 resource 9556 23024 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1F51000>.
+WARNING 2025-08-09 16:27:38,294 log 9556 23024 Unauthorized: /groups/
+DEBUG 2025-08-09 16:27:46,381 resource 9556 26604 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EC4100>.
+WARNING 2025-08-09 16:27:46,382 log 9556 26604 Unauthorized: /groups/
+DEBUG 2025-08-09 16:27:51,660 resource 9556 20416 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EB5000>.
+WARNING 2025-08-09 16:27:51,662 log 9556 20416 Unauthorized: /groups/
+DEBUG 2025-08-09 16:27:57,111 resource 9556 27960 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EB4B80>.
+WARNING 2025-08-09 16:27:57,111 log 9556 27960 Unauthorized: /users/profile/
+DEBUG 2025-08-09 16:28:00,368 resource 9556 27816 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1E1BA40>.
+WARNING 2025-08-09 16:28:00,368 log 9556 27816 Unauthorized: /users/profile/
+DEBUG 2025-08-09 16:28:01,333 resource 9556 29304 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EFDB40>.
+WARNING 2025-08-09 16:28:01,334 log 9556 29304 Unauthorized: /users/profile/
+DEBUG 2025-08-09 16:28:01,823 resource 9556 11204 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EE9780>.
+WARNING 2025-08-09 16:28:01,823 log 9556 11204 Unauthorized: /users/profile/
+DEBUG 2025-08-09 16:28:02,249 resource 9556 6672 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EF3C80>.
+WARNING 2025-08-09 16:28:02,250 log 9556 6672 Unauthorized: /users/profile/
+DEBUG 2025-08-09 16:28:07,097 resource 9556 29132 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1ECBC80>.
+WARNING 2025-08-09 16:28:07,098 log 9556 29132 Unauthorized: /groups/
+DEBUG 2025-08-09 16:28:56,416 resource 9556 30296 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EF01C0>.
+INFO 2025-08-09 16:28:56,857 oauth2_utils 9556 30296 Created tokens for user: admin
+DEBUG 2025-08-09 16:28:57,214 resource 9556 30228 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1DB2500>.
+DEBUG 2025-08-09 16:28:57,215 resource 9556 12692 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EC9940>.
+DEBUG 2025-08-09 16:28:59,830 resource 9556 5528 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1F52C80>.
+DEBUG 2025-08-09 16:29:33,875 resource 9556 26516 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1DB26C0>.
+DEBUG 2025-08-09 16:29:45,425 resource 9556 30708 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EBF280>.
+WARNING 2025-08-09 16:29:45,434 log 9556 30708 Bad Request: /plans/
+DEBUG 2025-08-09 16:34:25,362 resource 9556 12604 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1FF9180>.
+DEBUG 2025-08-09 16:38:09,887 resource 9556 15960 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1F23F00>.
+DEBUG 2025-08-09 16:38:10,993 resource 9556 28344 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EB5000>.
+DEBUG 2025-08-09 16:38:10,994 resource 9556 23108 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1F48880>.
+DEBUG 2025-08-09 16:38:16,450 resource 9556 29936 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1E3F6C0>.
+DEBUG 2025-08-09 16:43:44,825 resource 9556 5724 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1FE9400>.
+DEBUG 2025-08-09 16:43:46,073 resource 9556 26484 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1FE87C0>.
+DEBUG 2025-08-09 16:43:46,074 resource 9556 29092 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1FA0E80>.
+DEBUG 2025-08-09 16:44:51,023 resource 9556 12996 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1FEE300>.
+DEBUG 2025-08-09 16:53:23,025 resource 9556 29548 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1D6B6C0>.
+DEBUG 2025-08-09 16:53:24,330 resource 9556 21432 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1DCA580>.
+DEBUG 2025-08-09 16:53:24,333 resource 9556 22612 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1FE3780>.
+DEBUG 2025-08-09 16:53:34,135 resource 9556 27384 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EEB340>.
+DEBUG 2025-08-09 16:53:38,437 resource 9556 30432 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EFF480>.
+DEBUG 2025-08-09 16:53:48,700 resource 9556 26900 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1ECBD40>.
+DEBUG 2025-08-09 16:53:53,727 resource 9556 12100 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EC4B00>.
+DEBUG 2025-08-09 16:53:55,977 resource 9556 29204 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1F547C0>.
+DEBUG 2025-08-09 16:54:06,393 resource 9556 25060 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1E19140>.
+DEBUG 2025-08-09 16:54:15,835 resource 9556 12468 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001F8E1EF12C0>.
+WARNING 2025-08-09 16:54:15,851 log 9556 12468 Bad Request: /plans/
+INFO 2025-08-09 16:59:00,325 autoreload 9556 28156 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 16:59:01,813 autoreload 1720 14460 Watching for file changes with StatReloader
+INFO 2025-08-09 16:59:10,915 autoreload 1720 14460 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 16:59:11,746 autoreload 7572 16668 Watching for file changes with StatReloader
+INFO 2025-08-09 17:02:10,875 autoreload 7572 16668 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-09 17:02:11,879 autoreload 12476 30028 Watching for file changes with StatReloader
+INFO 2025-08-09 17:02:20,930 autoreload 12476 30028 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-09 17:02:21,698 autoreload 29856 27528 Watching for file changes with StatReloader
+INFO 2025-08-09 17:02:31,677 autoreload 29856 27528 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-09 17:02:32,457 autoreload 22616 29948 Watching for file changes with StatReloader
+INFO 2025-08-09 17:03:03,107 autoreload 22616 29948 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 17:03:03,881 autoreload 13964 29816 Watching for file changes with StatReloader
+INFO 2025-08-09 17:03:40,545 autoreload 13964 29816 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 17:03:41,410 autoreload 3232 28004 Watching for file changes with StatReloader
+DEBUG 2025-08-09 17:04:10,542 resource 3232 30624 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E85615400>.
+DEBUG 2025-08-09 17:04:11,735 resource 3232 29148 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E85509580>.
+DEBUG 2025-08-09 17:04:11,736 resource 3232 24240 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E855E1540>.
+DEBUG 2025-08-09 17:04:43,445 resource 3232 5528 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E85554780>.
+DEBUG 2025-08-09 17:05:00,980 resource 3232 1096 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E85554500>.
+WARNING 2025-08-09 17:05:00,994 log 3232 1096 Bad Request: /plans/
+DEBUG 2025-08-09 17:09:14,165 resource 3232 22456 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E85764900>.
+DEBUG 2025-08-09 17:09:15,263 resource 3232 16236 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E8565CA00>.
+DEBUG 2025-08-09 17:09:15,265 resource 3232 13132 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E856AF300>.
+DEBUG 2025-08-09 17:09:20,217 resource 3232 12112 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E853546C0>.
+DEBUG 2025-08-09 17:09:21,573 resource 3232 19832 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E85765080>.
+DEBUG 2025-08-09 17:09:36,130 resource 3232 9300 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E856C4300>.
+WARNING 2025-08-09 17:09:36,136 log 3232 9300 Bad Request: /plans/
+DEBUG 2025-08-09 17:11:20,654 resource 3232 28576 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E856659C0>.
+DEBUG 2025-08-09 17:11:24,588 resource 3232 15800 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E8556D5C0>.
+DEBUG 2025-08-09 17:11:27,413 resource 3232 14664 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E8565D740>.
+DEBUG 2025-08-09 17:11:28,522 resource 3232 14580 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018E8565C880>.
+INFO 2025-08-09 17:14:44,625 autoreload 3232 28004 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 17:14:45,723 autoreload 19068 22584 Watching for file changes with StatReloader
+INFO 2025-08-09 17:15:14,329 autoreload 19068 22584 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 17:15:15,152 autoreload 29988 21612 Watching for file changes with StatReloader
+DEBUG 2025-08-09 17:15:52,158 resource 29988 26288 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018A06665F00>.
+DEBUG 2025-08-09 17:15:53,378 resource 29988 30672 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018A066B1340>.
+DEBUG 2025-08-09 17:15:53,379 resource 29988 30068 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018A0664A200>.
+DEBUG 2025-08-09 17:15:58,518 resource 29988 452 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018A066126C0>.
+DEBUG 2025-08-09 17:16:00,431 resource 29988 18172 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018A065FEF80>.
+DEBUG 2025-08-09 17:16:19,343 resource 29988 21056 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018A06563400>.
+DEBUG 2025-08-09 17:17:17,944 resource 29988 15960 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018A066B8140>.
+INFO 2025-08-09 17:18:57,558 autoreload 10720 23852 Watching for file changes with StatReloader
+DEBUG 2025-08-09 17:19:02,164 resource 10720 20628 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000271F5951880>.
+INFO 2025-08-09 17:19:53,205 autoreload 10720 23852 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-09 17:19:54,084 autoreload 29768 29088 Watching for file changes with StatReloader
+INFO 2025-08-09 17:20:19,449 autoreload 29768 29088 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-09 17:20:20,341 autoreload 24112 26440 Watching for file changes with StatReloader
+DEBUG 2025-08-09 17:20:23,194 resource 24112 7572 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000175719844C0>.
+DEBUG 2025-08-09 17:20:31,160 resource 24112 17076 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000175718A7200>.
+DEBUG 2025-08-09 17:20:41,378 resource 24112 17048 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000175719641C0>.
+DEBUG 2025-08-09 17:20:43,756 resource 24112 30520 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571AD8540>.
+DEBUG 2025-08-09 17:20:47,067 resource 24112 16388 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571ADF980>.
+DEBUG 2025-08-09 17:20:54,647 resource 24112 30448 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571AECB40>.
+DEBUG 2025-08-09 17:20:56,807 resource 24112 14232 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571B06E40>.
+DEBUG 2025-08-09 17:21:15,146 resource 24112 15752 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001757188D080>.
+DEBUG 2025-08-09 17:21:23,467 resource 24112 276 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571B05B40>.
+DEBUG 2025-08-09 17:22:02,336 resource 24112 16432 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571967940>.
+DEBUG 2025-08-09 17:22:19,801 resource 24112 29848 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001757197A480>.
+DEBUG 2025-08-09 17:22:23,144 resource 24112 7580 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571AEDAC0>.
+DEBUG 2025-08-09 17:22:25,252 resource 24112 6280 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571946940>.
+DEBUG 2025-08-09 17:22:28,408 resource 24112 28076 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000175718BF700>.
+DEBUG 2025-08-09 17:22:44,408 resource 24112 16488 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000175719C26C0>.
+DEBUG 2025-08-09 17:22:45,029 resource 24112 30104 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000175718702C0>.
+DEBUG 2025-08-09 17:23:19,557 resource 24112 28076 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571AF5D00>.
+DEBUG 2025-08-09 17:23:21,135 resource 24112 3232 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571B50300>.
+DEBUG 2025-08-09 17:23:24,433 resource 24112 28872 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571AF6600>.
+DEBUG 2025-08-09 17:23:26,582 resource 24112 28788 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571AF6600>.
+DEBUG 2025-08-09 17:23:27,417 resource 24112 3800 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571B2B7C0>.
+DEBUG 2025-08-09 17:23:40,849 resource 24112 25292 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000017571930280>.
+INFO 2025-08-09 17:35:50,173 autoreload 24112 26440 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 17:35:51,281 autoreload 21720 8784 Watching for file changes with StatReloader
+INFO 2025-08-09 17:43:12,091 autoreload 21720 8784 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-09 17:43:12,950 autoreload 2808 15488 Watching for file changes with StatReloader
+INFO 2025-08-11 19:43:50,536 autoreload 8728 27488 Watching for file changes with StatReloader
+DEBUG 2025-08-11 19:46:09,857 resource 8728 16416 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0E61EC0>.
+WARNING 2025-08-11 19:46:09,888 log 8728 16416 Unauthorized: /users/profile/
+DEBUG 2025-08-11 19:46:11,175 token 8728 3284 Dispatching grant_type None request to <oauthlib.oauth2.rfc6749.grant_types.authorization_code.AuthorizationCodeGrant object at 0x0000019CA0D99F70>.
+DEBUG 2025-08-11 19:46:11,175 authorization_code 8728 3284 Client error during validation of <oauthlib.Request SANITIZED>. UnsupportedGrantTypeError('(unsupported_grant_type)  <oauthlib.Request SANITIZED>').
+WARNING 2025-08-11 19:46:11,177 log 8728 3284 Bad Request: /o/token/
+DEBUG 2025-08-11 19:48:33,623 resource 8728 3312 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0D54FC0>.
+INFO 2025-08-11 19:48:34,051 oauth2_utils 8728 3312 Created tokens for user: admin
+DEBUG 2025-08-11 19:48:34,485 resource 8728 3524 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0D5EC80>.
+DEBUG 2025-08-11 19:48:34,486 resource 8728 13132 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0E08A80>.
+DEBUG 2025-08-11 19:48:38,376 resource 8728 24328 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F92500>.
+DEBUG 2025-08-11 19:48:41,923 resource 8728 28312 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F70C00>.
+DEBUG 2025-08-11 19:48:46,637 resource 8728 14628 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0DD0240>.
+DEBUG 2025-08-11 19:48:51,586 resource 8728 16572 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0EB6EC0>.
+DEBUG 2025-08-11 19:48:52,669 resource 8728 10532 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0DA28C0>.
+DEBUG 2025-08-11 19:49:16,337 resource 8728 26776 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0EBDC40>.
+DEBUG 2025-08-11 19:51:32,008 resource 8728 26452 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0DE61C0>.
+DEBUG 2025-08-11 19:51:32,840 resource 8728 24800 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F0A7C0>.
+DEBUG 2025-08-11 20:06:26,942 resource 8728 2564 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F082C0>.
+DEBUG 2025-08-11 20:06:28,064 resource 8728 26140 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA10A9640>.
+DEBUG 2025-08-11 20:06:28,066 resource 8728 25228 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F28CC0>.
+DEBUG 2025-08-11 20:06:31,722 resource 8728 9324 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F73A40>.
+DEBUG 2025-08-11 20:06:37,988 resource 8728 27816 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0DD0380>.
+DEBUG 2025-08-11 20:06:41,175 resource 8728 21968 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0EBFF80>.
+DEBUG 2025-08-11 20:06:44,207 resource 8728 18052 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0FB2480>.
+DEBUG 2025-08-11 20:06:46,823 resource 8728 29216 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F57480>.
+DEBUG 2025-08-11 20:06:49,849 resource 8728 22076 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F71A40>.
+DEBUG 2025-08-11 20:07:03,072 resource 8728 25480 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0FD5300>.
+DEBUG 2025-08-11 20:07:05,020 resource 8728 19104 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA10AA740>.
+DEBUG 2025-08-11 20:07:21,674 resource 8728 28856 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1098340>.
+DEBUG 2025-08-11 20:07:23,851 resource 8728 16328 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0E2BA40>.
+DEBUG 2025-08-11 20:07:32,539 resource 8728 29288 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1135F80>.
+DEBUG 2025-08-11 20:07:33,852 resource 8728 22448 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1194980>.
+DEBUG 2025-08-11 20:07:41,310 resource 8728 19896 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA118FEC0>.
+DEBUG 2025-08-11 20:08:22,135 resource 8728 21536 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1167D40>.
+DEBUG 2025-08-11 20:08:27,966 resource 8728 2328 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1166EC0>.
+DEBUG 2025-08-11 20:08:32,067 resource 8728 3768 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1166540>.
+DEBUG 2025-08-11 20:08:32,899 resource 8728 24968 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA10FA0C0>.
+DEBUG 2025-08-11 20:08:35,482 resource 8728 14924 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA10E28C0>.
+DEBUG 2025-08-11 20:08:36,362 resource 8728 5900 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0D86E00>.
+DEBUG 2025-08-11 20:08:37,711 resource 8728 2384 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA108E580>.
+DEBUG 2025-08-11 20:08:41,420 resource 8728 18992 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F91F40>.
+DEBUG 2025-08-11 20:08:52,154 resource 8728 24232 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA118FC00>.
+DEBUG 2025-08-11 20:14:04,075 resource 8728 13932 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1173200>.
+DEBUG 2025-08-11 20:14:05,943 resource 8728 19432 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F4E180>.
+DEBUG 2025-08-11 20:14:07,671 resource 8728 27404 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F5F9C0>.
+DEBUG 2025-08-11 20:14:17,148 resource 8728 18728 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1136A00>.
+DEBUG 2025-08-11 20:14:21,864 resource 8728 30408 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA10AB480>.
+DEBUG 2025-08-11 20:14:25,529 resource 8728 20088 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1120AC0>.
+DEBUG 2025-08-11 20:14:27,514 resource 8728 26320 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1210B40>.
+DEBUG 2025-08-11 20:14:28,191 resource 8728 16620 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA11A5440>.
+DEBUG 2025-08-11 20:14:33,474 resource 8728 28712 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA11FAE80>.
+DEBUG 2025-08-11 20:14:34,420 resource 8728 22436 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1248F80>.
+DEBUG 2025-08-11 20:14:53,552 resource 8728 24116 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA12977C0>.
+DEBUG 2025-08-11 20:14:55,765 resource 8728 28360 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1103F40>.
+DEBUG 2025-08-11 20:15:11,207 resource 8728 25332 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F45BC0>.
+DEBUG 2025-08-11 20:15:14,832 resource 8728 19684 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0E3A6C0>.
+DEBUG 2025-08-11 20:16:12,451 resource 8728 3116 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA12EA500>.
+DEBUG 2025-08-11 20:16:33,888 resource 8728 22000 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0E08180>.
+DEBUG 2025-08-11 20:16:37,667 resource 8728 26496 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F29340>.
+DEBUG 2025-08-11 20:16:42,439 resource 8728 9944 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0D81100>.
+DEBUG 2025-08-11 20:16:44,263 resource 8728 21344 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA112E580>.
+DEBUG 2025-08-11 20:16:54,958 resource 8728 23880 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1173400>.
+DEBUG 2025-08-11 20:17:06,036 resource 8728 14924 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0FD4E40>.
+DEBUG 2025-08-11 20:17:08,560 resource 8728 9004 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1277740>.
+DEBUG 2025-08-11 20:17:11,337 resource 8728 17188 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA112D0C0>.
+DEBUG 2025-08-11 20:17:13,096 resource 8728 21280 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1277B40>.
+DEBUG 2025-08-11 20:17:38,569 resource 8728 20444 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA12CB0C0>.
+DEBUG 2025-08-11 20:17:40,865 resource 8728 26656 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1297F00>.
+DEBUG 2025-08-11 20:17:42,998 resource 8728 27324 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA121C740>.
+DEBUG 2025-08-11 20:17:48,334 resource 8728 19752 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA118FC40>.
+DEBUG 2025-08-11 20:18:01,649 resource 8728 18816 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA108D4C0>.
+DEBUG 2025-08-11 20:18:03,332 resource 8728 30020 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA125E3C0>.
+DEBUG 2025-08-11 20:18:08,375 resource 8728 8168 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA10AAE40>.
+DEBUG 2025-08-11 20:18:18,651 resource 8728 26568 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F9E380>.
+DEBUG 2025-08-11 20:18:23,780 resource 8728 23496 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA11A6F80>.
+DEBUG 2025-08-11 20:18:26,264 resource 8728 21392 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA126F740>.
+WARNING 2025-08-11 20:18:26,272 log 8728 21392 Not Found: /plans/a12167bb-bd36-4148-a59e-344d4899a100/
+DEBUG 2025-08-11 20:29:32,445 resource 8728 10256 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA12A4380>.
+INFO 2025-08-11 20:29:32,926 oauth2_utils 8728 10256 Created tokens for user: admin
+DEBUG 2025-08-11 20:30:35,134 resource 8728 25680 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA1297C80>.
+DEBUG 2025-08-11 20:30:59,404 resource 8728 25680 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F701C0>.
+DEBUG 2025-08-11 20:36:44,971 resource 8728 14764 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000019CA0F28F80>.
+INFO 2025-08-12 16:46:30,482 autoreload 24008 2636 Watching for file changes with StatReloader
+DEBUG 2025-08-12 16:49:20,183 resource 24008 22712 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001DDFCFA06C0>.
+WARNING 2025-08-12 16:49:20,211 log 24008 22712 Unauthorized: /users/profile/
+DEBUG 2025-08-12 16:49:20,656 token 24008 7480 Dispatching grant_type None request to <oauthlib.oauth2.rfc6749.grant_types.authorization_code.AuthorizationCodeGrant object at 0x000001DDFCE6FC20>.
+DEBUG 2025-08-12 16:49:20,658 authorization_code 24008 7480 Client error during validation of <oauthlib.Request SANITIZED>. UnsupportedGrantTypeError('(unsupported_grant_type)  <oauthlib.Request SANITIZED>').
+WARNING 2025-08-12 16:49:20,658 log 24008 7480 Bad Request: /o/token/
+DEBUG 2025-08-12 16:49:39,680 resource 24008 28840 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001DDFCE96240>.
+INFO 2025-08-12 16:49:40,270 oauth2_utils 24008 28840 Created tokens for user: admin
+DEBUG 2025-08-12 16:49:51,174 resource 24008 28840 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001DDFCF31400>.
+INFO 2025-08-12 16:56:28,244 autoreload 24008 2636 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 16:56:29,482 autoreload 17056 27812 Watching for file changes with StatReloader
+INFO 2025-08-12 16:56:32,461 autoreload 17056 27812 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 16:56:33,252 autoreload 1012 24624 Watching for file changes with StatReloader
+INFO 2025-08-12 16:56:38,182 autoreload 1012 24624 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 16:56:38,931 autoreload 17324 10808 Watching for file changes with StatReloader
+INFO 2025-08-12 17:05:17,524 autoreload 17324 10808 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:05:18,488 autoreload 14552 15036 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:05:19,704 resource 14552 12232 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001DF2DBE1400>.
+INFO 2025-08-12 17:05:20,125 oauth2_utils 14552 12232 Created tokens for user: admin
+DEBUG 2025-08-12 17:05:20,501 resource 14552 15196 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001DF2DD962C0>.
+DEBUG 2025-08-12 17:05:20,502 resource 14552 15396 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001DF2DEDBE00>.
+INFO 2025-08-12 17:05:29,850 autoreload 14552 15036 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:05:30,632 autoreload 17280 20848 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:06:15,601 resource 17280 22388 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E0674BC0>.
+DEBUG 2025-08-12 17:06:17,115 resource 17280 5696 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E069F1C0>.
+DEBUG 2025-08-12 17:06:23,961 resource 17280 4952 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E0707480>.
+DEBUG 2025-08-12 17:06:24,633 resource 17280 29716 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E0629400>.
+DEBUG 2025-08-12 17:06:33,537 resource 17280 19808 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E0555580>.
+DEBUG 2025-08-12 17:06:44,356 resource 17280 4808 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E0557EC0>.
+DEBUG 2025-08-12 17:06:54,591 resource 17280 24800 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E0616E40>.
+DEBUG 2025-08-12 17:07:06,352 resource 17280 1812 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E05497C0>.
+DEBUG 2025-08-12 17:07:16,181 resource 17280 26832 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E0706E40>.
+WARNING 2025-08-12 17:07:16,196 log 17280 26832 Bad Request: /plans/
+DEBUG 2025-08-12 17:07:19,234 resource 17280 20252 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E07A3000>.
+WARNING 2025-08-12 17:07:19,242 log 17280 20252 Bad Request: /plans/
+DEBUG 2025-08-12 17:07:25,247 resource 17280 15344 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E07A01C0>.
+DEBUG 2025-08-12 17:07:26,526 resource 17280 26024 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E07452C0>.
+DEBUG 2025-08-12 17:07:36,175 resource 17280 30404 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E071B840>.
+DEBUG 2025-08-12 17:07:36,748 resource 17280 28260 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E05CCE80>.
+DEBUG 2025-08-12 17:08:05,406 resource 17280 19048 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E0654480>.
+DEBUG 2025-08-12 17:08:31,247 resource 17280 20112 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E06B0EC0>.
+DEBUG 2025-08-12 17:08:32,142 resource 17280 29956 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000205E05520C0>.
+INFO 2025-08-12 17:12:04,082 autoreload 27016 5160 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:12:12,073 resource 27016 23288 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E6767C0>.
+DEBUG 2025-08-12 17:12:12,926 resource 27016 19508 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E7126C0>.
+DEBUG 2025-08-12 17:12:18,419 resource 27016 5156 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E6BF480>.
+DEBUG 2025-08-12 17:12:19,183 resource 27016 18368 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E63CAC0>.
+DEBUG 2025-08-12 17:12:25,877 resource 27016 13200 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E6BFA00>.
+DEBUG 2025-08-12 17:12:26,614 resource 27016 24784 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E3B8640>.
+DEBUG 2025-08-12 17:12:51,650 resource 27016 20584 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E60C880>.
+DEBUG 2025-08-12 17:12:52,091 resource 27016 15928 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E5CA2C0>.
+DEBUG 2025-08-12 17:14:36,483 resource 27016 30204 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E597480>.
+DEBUG 2025-08-12 17:14:37,217 resource 27016 29752 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E8905C0>.
+DEBUG 2025-08-12 17:15:48,235 resource 27016 20032 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E8AA6C0>.
+DEBUG 2025-08-12 17:15:54,410 resource 27016 24888 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E878740>.
+DEBUG 2025-08-12 17:15:56,726 resource 27016 26552 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E87F480>.
+DEBUG 2025-08-12 17:15:57,463 resource 27016 25992 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E5B4800>.
+DEBUG 2025-08-12 17:16:25,602 resource 27016 17356 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E72EE80>.
+DEBUG 2025-08-12 17:16:34,836 resource 27016 26904 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000022E0E6BF480>.
+INFO 2025-08-12 17:16:58,342 autoreload 27016 5160 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:16:59,310 autoreload 12140 29932 Watching for file changes with StatReloader
+INFO 2025-08-12 17:17:02,140 autoreload 12140 29932 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:17:02,915 autoreload 30564 24044 Watching for file changes with StatReloader
+INFO 2025-08-12 17:17:18,057 autoreload 30564 24044 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:17:18,855 autoreload 22824 20692 Watching for file changes with StatReloader
+INFO 2025-08-12 17:17:20,690 autoreload 22824 20692 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:17:21,532 autoreload 12400 30300 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:17:27,572 resource 12400 26024 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FCC0684280>.
+DEBUG 2025-08-12 17:17:28,379 resource 12400 10288 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FCC06EEE80>.
+DEBUG 2025-08-12 17:17:32,997 resource 12400 27608 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FCC067D840>.
+INFO 2025-08-12 17:24:07,890 autoreload 12400 30300 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:24:08,735 autoreload 9932 24408 Watching for file changes with StatReloader
+INFO 2025-08-12 17:24:20,548 autoreload 9932 24408 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:24:21,400 autoreload 27700 11820 Watching for file changes with StatReloader
+INFO 2025-08-12 17:24:28,060 autoreload 27700 11820 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:24:28,860 autoreload 11896 2768 Watching for file changes with StatReloader
+INFO 2025-08-12 17:24:30,451 autoreload 11896 2768 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:24:31,245 autoreload 27836 24728 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:25:49,395 resource 27836 26164 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001EA2EF94E40>.
+INFO 2025-08-12 17:28:36,464 autoreload 27836 24728 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:28:37,351 autoreload 23656 19608 Watching for file changes with StatReloader
+INFO 2025-08-12 17:28:39,223 autoreload 23656 19608 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:28:40,096 autoreload 2816 480 Watching for file changes with StatReloader
+INFO 2025-08-12 17:28:41,862 autoreload 2816 480 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:28:42,677 autoreload 10160 30420 Watching for file changes with StatReloader
+INFO 2025-08-12 17:28:44,467 autoreload 10160 30420 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:28:45,396 autoreload 19356 28596 Watching for file changes with StatReloader
+INFO 2025-08-12 17:28:47,181 autoreload 19356 28596 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:28:47,978 autoreload 15396 14880 Watching for file changes with StatReloader
+INFO 2025-08-12 17:29:01,007 autoreload 15396 14880 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:29:01,786 autoreload 22376 29080 Watching for file changes with StatReloader
+INFO 2025-08-12 17:29:08,779 autoreload 22376 29080 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:29:09,567 autoreload 14784 21744 Watching for file changes with StatReloader
+INFO 2025-08-12 17:29:13,393 autoreload 14784 21744 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:29:14,311 autoreload 21480 16472 Watching for file changes with StatReloader
+INFO 2025-08-12 17:29:18,153 autoreload 21480 16472 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:29:19,082 autoreload 24528 20516 Watching for file changes with StatReloader
+INFO 2025-08-12 17:29:20,988 autoreload 24528 20516 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:29:21,853 autoreload 6504 12140 Watching for file changes with StatReloader
+INFO 2025-08-12 17:29:23,707 autoreload 6504 12140 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:29:24,614 autoreload 19472 20640 Watching for file changes with StatReloader
+INFO 2025-08-12 17:29:56,892 autoreload 19472 20640 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:29:57,759 autoreload 9628 27008 Watching for file changes with StatReloader
+INFO 2025-08-12 17:29:59,590 autoreload 9628 27008 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:30:00,414 autoreload 980 28492 Watching for file changes with StatReloader
+INFO 2025-08-12 17:30:02,197 autoreload 980 28492 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:30:03,063 autoreload 10336 20116 Watching for file changes with StatReloader
+INFO 2025-08-12 17:30:16,472 autoreload 10336 20116 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:30:17,329 autoreload 20752 16580 Watching for file changes with StatReloader
+INFO 2025-08-12 17:30:19,171 autoreload 20752 16580 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:30:20,037 autoreload 11204 23536 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:32:21,148 resource 11204 24800 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001109C204140>.
+ERROR 2025-08-12 17:32:21,339 log 11204 24800 Internal Server Error: /plans/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 487, in list
+    'plans': serializer.data,
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 768, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\fields.py", line 1838, in to_representation
+    return method(value)
+           ^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 385, in get_collaborators
+    return UserSerializer(collaborators, many=True, context=self.context).data
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 768, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\fields.py", line 1875, in to_representation
+    value = self.model_field.value_from_object(obj)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 1152, in value_from_object
+    return getattr(obj, self.attname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'avatar'
+INFO 2025-08-12 17:32:27,968 autoreload 24456 24360 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:32:31,789 resource 24456 12248 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D9F58C11C0>.
+ERROR 2025-08-12 17:32:31,834 log 24456 12248 Internal Server Error: /plans/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 487, in list
+    'plans': serializer.data,
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 768, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\fields.py", line 1838, in to_representation
+    return method(value)
+           ^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 385, in get_collaborators
+    return UserSerializer(collaborators, many=True, context=self.context).data
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 768, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\fields.py", line 1875, in to_representation
+    value = self.model_field.value_from_object(obj)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 1152, in value_from_object
+    return getattr(obj, self.attname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'avatar'
+INFO 2025-08-12 17:36:24,770 autoreload 24456 24360 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:36:25,687 autoreload 5636 16140 Watching for file changes with StatReloader
+INFO 2025-08-12 17:40:07,111 autoreload 5636 16140 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:40:07,963 autoreload 6156 26196 Watching for file changes with StatReloader
+INFO 2025-08-12 17:40:09,611 autoreload 6156 26196 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:40:10,413 autoreload 17012 14000 Watching for file changes with StatReloader
+INFO 2025-08-12 17:40:27,635 autoreload 17012 14000 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:40:28,502 autoreload 18292 19652 Watching for file changes with StatReloader
+INFO 2025-08-12 17:40:32,225 autoreload 18292 19652 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:40:33,082 autoreload 16608 6244 Watching for file changes with StatReloader
+INFO 2025-08-12 17:40:36,990 autoreload 16608 6244 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:40:37,760 autoreload 5792 21724 Watching for file changes with StatReloader
+INFO 2025-08-12 17:40:40,573 autoreload 5792 21724 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:40:41,374 autoreload 16704 28504 Watching for file changes with StatReloader
+INFO 2025-08-12 17:40:43,224 autoreload 16704 28504 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:40:43,976 autoreload 17712 17584 Watching for file changes with StatReloader
+INFO 2025-08-12 17:40:51,893 autoreload 17712 17584 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:40:52,703 autoreload 27468 27344 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:41:30,359 resource 27468 18360 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000254E7E24180>.
+ERROR 2025-08-12 17:41:30,404 log 27468 18360 Internal Server Error: /plans/fafa728e-2965-4841-abc6-c41c156fb06e/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\mixins.py", line 56, in retrieve
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 507, in to_representation
+    for field in fields:
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 368, in _readable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 356, in fields
+    for key, value in self.get_fields().items():
+                      ^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 1076, in get_fields
+    field_class, field_kwargs = self.build_field(
+                                ^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 1222, in build_field
+    return self.build_unknown_field(field_name, model_class)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 1340, in build_unknown_field
+    raise ImproperlyConfigured(
+django.core.exceptions.ImproperlyConfigured: Field name `is` is not valid for model `User`.
+DEBUG 2025-08-12 17:41:47,937 resource 27468 20348 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000254E7E4B3C0>.
+ERROR 2025-08-12 17:41:47,973 log 27468 20348 Internal Server Error: /groups/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 291, in list
+    'groups': serializer.data,
+              ^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 768, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 507, in to_representation
+    for field in fields:
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 368, in _readable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 356, in fields
+    for key, value in self.get_fields().items():
+                      ^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 1076, in get_fields
+    field_class, field_kwargs = self.build_field(
+                                ^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 1222, in build_field
+    return self.build_unknown_field(field_name, model_class)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 1340, in build_unknown_field
+    raise ImproperlyConfigured(
+django.core.exceptions.ImproperlyConfigured: Field name `is` is not valid for model `User`.
+INFO 2025-08-12 17:42:29,320 autoreload 27468 27344 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:42:30,354 autoreload 28272 18068 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:42:33,150 resource 28272 9464 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002BB164B4780>.
+DEBUG 2025-08-12 17:42:35,699 resource 28272 29012 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002BB1652AB00>.
+DEBUG 2025-08-12 17:42:38,631 resource 28272 21368 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002BB163FA900>.
+DEBUG 2025-08-12 17:42:39,210 resource 28272 25356 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002BB16428540>.
+INFO 2025-08-12 17:43:04,365 autoreload 28272 18068 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:43:05,245 autoreload 22692 9080 Watching for file changes with StatReloader
+INFO 2025-08-12 17:43:06,851 autoreload 22692 9080 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:43:07,591 autoreload 28288 23332 Watching for file changes with StatReloader
+INFO 2025-08-12 17:43:10,378 autoreload 28288 23332 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:43:11,179 autoreload 7944 21840 Watching for file changes with StatReloader
+INFO 2025-08-12 17:43:13,922 autoreload 7944 21840 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:43:14,735 autoreload 15148 25308 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:43:18,320 resource 15148 29616 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002405D8B8040>.
+DEBUG 2025-08-12 17:43:21,120 resource 15148 23508 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002405D8F22C0>.
+DEBUG 2025-08-12 17:43:21,994 resource 15148 15256 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002405D8A4A00>.
+DEBUG 2025-08-12 17:43:29,828 resource 15148 19756 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002405D941240>.
+DEBUG 2025-08-12 17:47:02,457 resource 15148 20588 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002405D876400>.
+DEBUG 2025-08-12 17:50:17,171 resource 15148 8976 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002405D876240>.
+INFO 2025-08-12 17:53:02,831 autoreload 15148 25308 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+INFO 2025-08-12 17:53:03,765 autoreload 28580 7760 Watching for file changes with StatReloader
+INFO 2025-08-12 17:53:16,816 autoreload 28580 7760 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 17:53:17,662 autoreload 17028 17976 Watching for file changes with StatReloader
+DEBUG 2025-08-12 17:54:20,026 resource 17028 23628 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000138F59C4200>.
+DEBUG 2025-08-12 17:55:29,189 resource 17028 26116 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000138F59BB780>.
+WARNING 2025-08-12 17:55:29,195 log 17028 26116 Unauthorized: /plans/
+DEBUG 2025-08-12 17:55:35,878 resource 17028 14528 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000138F5978040>.
+DEBUG 2025-08-12 17:55:44,891 resource 17028 1604 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000138F59A4400>.
+DEBUG 2025-08-12 17:55:55,905 resource 17028 26116 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000138F58C3FC0>.
+INFO 2025-08-12 17:55:56,275 oauth2_utils 17028 26116 Created tokens for user: admin
+DEBUG 2025-08-12 17:56:05,905 resource 17028 26116 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000138F596D600>.
+DEBUG 2025-08-12 17:56:45,376 resource 17028 7116 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000138F58A3F00>.
+DEBUG 2025-08-12 17:56:56,532 resource 17028 13200 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000138F5B29640>.
+DEBUG 2025-08-12 17:58:08,009 resource 17028 4664 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000138F5B57E40>.
+INFO 2025-08-12 17:59:34,939 autoreload 17028 17976 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 17:59:35,705 autoreload 5792 18212 Watching for file changes with StatReloader
+INFO 2025-08-12 17:59:40,667 autoreload 5792 18212 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 17:59:41,392 autoreload 27304 24092 Watching for file changes with StatReloader
+INFO 2025-08-12 17:59:48,025 autoreload 27304 24092 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 17:59:48,885 autoreload 6396 15124 Watching for file changes with StatReloader
+INFO 2025-08-12 17:59:53,562 autoreload 6396 15124 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 17:59:54,404 autoreload 21468 7116 Watching for file changes with StatReloader
+INFO 2025-08-12 17:59:55,978 autoreload 21468 7116 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 17:59:56,688 autoreload 26696 13004 Watching for file changes with StatReloader
+INFO 2025-08-12 17:59:59,252 autoreload 26696 13004 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:00:00,026 autoreload 21668 29932 Watching for file changes with StatReloader
+INFO 2025-08-12 18:00:07,871 autoreload 21668 29932 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:00:08,639 autoreload 8976 25732 Watching for file changes with StatReloader
+INFO 2025-08-12 18:00:21,501 autoreload 8976 25732 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:00:22,310 autoreload 18696 1924 Watching for file changes with StatReloader
+INFO 2025-08-12 18:00:35,141 autoreload 18696 1924 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:00:35,882 autoreload 20332 17960 Watching for file changes with StatReloader
+DEBUG 2025-08-12 18:02:39,549 resource 20332 27744 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002353F869700>.
+DEBUG 2025-08-12 18:03:11,218 resource 20332 18308 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002353F8B96C0>.
+DEBUG 2025-08-12 18:03:14,013 resource 20332 25732 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002353F82F240>.
+DEBUG 2025-08-12 18:03:14,591 resource 20332 7288 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002353F788740>.
+INFO 2025-08-12 18:06:08,048 autoreload 20332 17960 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:06:08,987 autoreload 4120 12088 Watching for file changes with StatReloader
+INFO 2025-08-12 18:06:10,824 autoreload 4120 12088 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:06:11,683 autoreload 18480 29008 Watching for file changes with StatReloader
+INFO 2025-08-12 18:06:14,565 autoreload 18480 29008 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:06:15,405 autoreload 25020 28684 Watching for file changes with StatReloader
+INFO 2025-08-12 18:06:19,204 autoreload 25020 28684 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:06:19,988 autoreload 22428 19056 Watching for file changes with StatReloader
+INFO 2025-08-12 18:06:21,774 autoreload 22428 19056 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:06:22,515 autoreload 11148 29656 Watching for file changes with StatReloader
+DEBUG 2025-08-12 18:06:44,342 resource 11148 24628 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000018F183B0700>.
+INFO 2025-08-12 18:07:09,619 autoreload 11148 29656 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+INFO 2025-08-12 18:07:10,481 autoreload 18108 27568 Watching for file changes with StatReloader
+DEBUG 2025-08-12 18:07:13,827 resource 18108 6204 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000013AE43A0480>.
+DEBUG 2025-08-12 18:07:34,982 resource 18108 25260 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000013AE43E5A00>.
+WARNING 2025-08-12 18:07:34,994 log 18108 25260 Unauthorized: /groups/
+DEBUG 2025-08-12 18:07:35,020 token 18108 20400 Dispatching grant_type None request to <oauthlib.oauth2.rfc6749.grant_types.authorization_code.AuthorizationCodeGrant object at 0x0000013AE4267FE0>.
+DEBUG 2025-08-12 18:07:35,021 authorization_code 18108 20400 Client error during validation of <oauthlib.Request SANITIZED>. UnsupportedGrantTypeError('(unsupported_grant_type)  <oauthlib.Request SANITIZED>').
+WARNING 2025-08-12 18:07:35,021 log 18108 20400 Bad Request: /o/token/
+DEBUG 2025-08-12 18:07:35,992 resource 18108 17012 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000013AE43E2B80>.
+WARNING 2025-08-12 18:07:35,992 log 18108 17012 Unauthorized: /groups/
+DEBUG 2025-08-12 18:07:40,194 resource 18108 20012 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000013AE42FE7C0>.
+WARNING 2025-08-12 18:07:40,195 log 18108 20012 Unauthorized: /plans/
+DEBUG 2025-08-12 18:12:05,599 resource 18108 21272 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000013AE43E7F80>.
+WARNING 2025-08-12 18:12:05,599 log 18108 21272 Unauthorized: /groups/
+DEBUG 2025-08-12 18:12:09,476 resource 18108 23984 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000013AE43DCB80>.
+WARNING 2025-08-12 18:12:09,477 log 18108 23984 Unauthorized: /groups/
+DEBUG 2025-08-12 18:12:59,115 resource 18108 14972 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000013AE427E040>.
+WARNING 2025-08-12 18:12:59,117 log 18108 14972 Unauthorized: /groups/
+INFO 2025-08-12 18:17:19,877 autoreload 19572 21272 Watching for file changes with StatReloader
+DEBUG 2025-08-12 18:19:24,558 resource 18108 13844 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000013AE43E3C00>.
+WARNING 2025-08-12 18:19:24,559 log 18108 13844 Unauthorized: /groups/
+DEBUG 2025-08-12 18:19:28,787 resource 18108 22776 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000013AE43DD180>.
+WARNING 2025-08-12 18:19:28,788 log 18108 22776 Unauthorized: /groups/
+WARNING 2025-08-12 18:19:41,599 log 18108 4456 Not Found: /favicon.ico
+DEBUG 2025-08-12 18:26:23,215 models 3316 10676 PlanPalApp: client_secret is not hashed; hashing it now.
+DEBUG 2025-08-12 18:27:02,977 resource 18108 4180 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000013AE46E4D00>.
+WARNING 2025-08-12 18:27:02,979 log 18108 4180 Unauthorized: /groups/
+INFO 2025-08-12 18:27:08,807 autoreload 13836 21040 Watching for file changes with StatReloader
+DEBUG 2025-08-12 18:27:11,047 resource 13836 23436 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E1A4F7FF00>.
+WARNING 2025-08-12 18:27:11,048 log 13836 23436 Unauthorized: /groups/
+DEBUG 2025-08-12 18:27:11,723 resource 13836 9324 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E1A5061180>.
+WARNING 2025-08-12 18:27:11,724 log 13836 9324 Unauthorized: /groups/
+DEBUG 2025-08-12 18:30:00,830 models 13836 17492 PlanPalApp: client_secret is not hashed; hashing it now.
+DEBUG 2025-08-12 18:31:10,150 resource 13836 16724 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E1A52A4380>.
+WARNING 2025-08-12 18:31:10,150 log 13836 16724 Unauthorized: /groups/
+DEBUG 2025-08-12 18:31:10,889 resource 13836 3372 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E1A5039740>.
+WARNING 2025-08-12 18:31:10,889 log 13836 3372 Unauthorized: /groups/
+DEBUG 2025-08-12 18:31:56,595 resource 13836 28500 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E1A52A4580>.
+WARNING 2025-08-12 18:31:56,596 log 13836 28500 Unauthorized: /groups/
+DEBUG 2025-08-12 18:32:18,767 resource 13836 11424 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E1A5039540>.
+WARNING 2025-08-12 18:32:18,767 log 13836 11424 Unauthorized: /groups/
+DEBUG 2025-08-12 18:32:20,013 resource 13836 10348 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001E1A50ABE00>.
+WARNING 2025-08-12 18:32:20,014 log 13836 10348 Unauthorized: /groups/
+INFO 2025-08-12 18:35:28,441 autoreload 13836 21040 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-12 18:35:29,445 autoreload 6600 29300 Watching for file changes with StatReloader
+INFO 2025-08-12 18:35:40,266 autoreload 6600 29300 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-12 18:35:41,067 autoreload 19152 17072 Watching for file changes with StatReloader
+INFO 2025-08-12 18:35:50,072 autoreload 19152 17072 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:35:50,970 autoreload 8264 10372 Watching for file changes with StatReloader
+INFO 2025-08-12 18:35:54,880 autoreload 8264 10372 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-12 18:35:55,810 autoreload 11424 20564 Watching for file changes with StatReloader
+INFO 2025-08-12 18:35:59,729 autoreload 11424 20564 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-12 18:36:00,494 autoreload 26084 12124 Watching for file changes with StatReloader
+INFO 2025-08-12 18:36:15,557 autoreload 26084 12124 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-12 18:36:16,369 autoreload 19572 1484 Watching for file changes with StatReloader
+DEBUG 2025-08-12 18:39:23,513 resource 19572 18360 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FE43D59D40>.
+WARNING 2025-08-12 18:39:23,515 log 19572 18360 Unauthorized: /groups/
+INFO 2025-08-14 19:30:05,842 autoreload 4624 19864 Watching for file changes with StatReloader
+INFO 2025-08-14 19:43:45,248 autoreload 4624 19864 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-14 19:43:46,624 autoreload 18588 19128 Watching for file changes with StatReloader
+INFO 2025-08-14 19:43:59,509 autoreload 18588 19128 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-14 19:44:00,367 autoreload 2888 23456 Watching for file changes with StatReloader
+INFO 2025-08-14 19:44:12,429 autoreload 2888 23456 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-14 19:44:13,210 autoreload 23508 18700 Watching for file changes with StatReloader
+INFO 2025-08-14 19:45:15,975 autoreload 23508 18700 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-14 19:45:16,926 autoreload 11764 9308 Watching for file changes with StatReloader
+INFO 2025-08-14 19:46:12,133 autoreload 11764 9308 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-14 19:46:12,902 autoreload 18832 3064 Watching for file changes with StatReloader
+INFO 2025-08-14 19:46:19,763 autoreload 18832 3064 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-14 19:46:20,507 autoreload 7696 23504 Watching for file changes with StatReloader
+WARNING 2025-08-14 19:46:54,989 log 7696 20828 Not Found: /favicon.ico
+DEBUG 2025-08-14 19:48:54,708 models 7696 9300 PlanPalApp: client_secret is already hashed with <django.contrib.auth.hashers.PBKDF2PasswordHasher object at 0x00000188DF07F2C0>.
+INFO 2025-08-14 19:49:03,474 autoreload 7696 23504 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-14 19:49:04,580 autoreload 19932 17240 Watching for file changes with StatReloader
+INFO 2025-08-14 19:49:30,996 autoreload 19932 17240 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-14 19:49:31,821 autoreload 2064 25452 Watching for file changes with StatReloader
+INFO 2025-08-14 19:49:42,810 autoreload 2064 25452 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py changed, reloading.
+INFO 2025-08-14 19:49:43,564 autoreload 20696 13072 Watching for file changes with StatReloader
+DEBUG 2025-08-14 19:51:06,350 models 20696 12204 PlanPalApp: client_secret is already hashed with <django.contrib.auth.hashers.PBKDF2PasswordHasher object at 0x000002C47B441FA0>.
+INFO 2025-08-14 19:52:09,694 autoreload 20120 20792 Watching for file changes with StatReloader
+DEBUG 2025-08-14 19:52:20,649 token 20120 12828 Dispatching grant_type None request to <oauthlib.oauth2.rfc6749.grant_types.authorization_code.AuthorizationCodeGrant object at 0x00000140952E34D0>.
+DEBUG 2025-08-14 19:52:20,649 authorization_code 20120 12828 Client error during validation of <oauthlib.Request SANITIZED>. UnsupportedGrantTypeError('(unsupported_grant_type)  <oauthlib.Request SANITIZED>').
+WARNING 2025-08-14 19:52:20,650 log 20120 12828 Bad Request: /o/token/
+DEBUG 2025-08-14 20:03:20,279 token 20120 15492 Dispatching grant_type None request to <oauthlib.oauth2.rfc6749.grant_types.authorization_code.AuthorizationCodeGrant object at 0x00000140952E34D0>.
+DEBUG 2025-08-14 20:03:20,280 authorization_code 20120 15492 Client error during validation of <oauthlib.Request SANITIZED>. UnsupportedGrantTypeError('(unsupported_grant_type)  <oauthlib.Request SANITIZED>').
+WARNING 2025-08-14 20:03:20,280 log 20120 15492 Bad Request: /o/token/
+DEBUG 2025-08-14 20:08:42,144 token 20120 5248 Dispatching grant_type None request to <oauthlib.oauth2.rfc6749.grant_types.authorization_code.AuthorizationCodeGrant object at 0x00000140952E34D0>.
+DEBUG 2025-08-14 20:08:42,144 authorization_code 20120 5248 Client error during validation of <oauthlib.Request SANITIZED>. UnsupportedGrantTypeError('(unsupported_grant_type)  <oauthlib.Request SANITIZED>').
+WARNING 2025-08-14 20:08:42,145 log 20120 5248 Bad Request: /o/token/
+DEBUG 2025-08-14 20:13:48,663 token 20120 9832 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x0000014095314BC0>.
+DEBUG 2025-08-14 20:13:48,668 resource_owner_password_credentials 20120 9832 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-08-14 20:13:48,668 resource_owner_password_credentials 20120 9832 Validating username admin.
+DEBUG 2025-08-14 20:13:49,048 resource_owner_password_credentials 20120 9832 Authorizing access to user <User: admin ()>.
+DEBUG 2025-08-14 20:13:49,049 base 20120 9832 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-08-14 20:13:49,085 resource_owner_password_credentials 20120 9832 Issuing token {'access_token': 'ZPbyRTB6MgDUoa1vIDSVmcLdXGrHUc', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'CbIzxyVG6JOl9lfAYO7SaKhZ90ApGg'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-08-14 20:13:49,157 resource 20120 23832 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000014095331600>.
+DEBUG 2025-08-14 20:13:49,559 resource 20120 19712 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000140955D7E40>.
+DEBUG 2025-08-14 20:13:49,562 resource 20120 8068 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000014095377F80>.
+DEBUG 2025-08-14 20:13:59,722 resource 20120 13172 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000140952B6B80>.
+DEBUG 2025-08-14 20:51:06,573 resource 20120 11836 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001409538C680>.
+DEBUG 2025-08-14 20:51:17,415 resource 20120 27172 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000014095357180>.
+DEBUG 2025-08-14 20:51:18,285 resource 20120 3428 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000140953A3F40>.
+INFO 2025-08-14 20:52:13,429 autoreload 20120 20792 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-08-14 20:52:14,560 autoreload 23772 18304 Watching for file changes with StatReloader
+DEBUG 2025-08-14 21:29:45,879 resource 23772 15128 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B761D64D80>.
+WARNING 2025-08-14 21:29:45,889 log 23772 15128 Unauthorized: /plans/
+DEBUG 2025-08-14 21:29:45,949 token 23772 6564 Dispatching grant_type refresh_token request to <oauthlib.oauth2.rfc6749.grant_types.refresh_token.RefreshTokenGrant object at 0x000001B761D82D80>.
+DEBUG 2025-08-14 21:29:45,949 refresh_token 23772 6564 Validating refresh token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-08-14 21:29:45,954 refresh_token 23772 6564 Validating refresh token CbIzxyVG6JOl9lfAYO7SaKhZ90ApGg for client <Application: PlanPalApp>.
+DEBUG 2025-08-14 21:29:45,973 refresh_token 23772 6564 Issuing new token to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>), {'access_token': 'hGMXMnfXgJnbbQ8AEiKSiNhPczgTps', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': '3tGvnVvf9mp9nqSv9DXZA2vDIt7uXe'}.
+DEBUG 2025-08-14 21:29:46,025 resource 23772 27056 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B761DAD000>.
+INFO 2025-08-14 21:35:49,311 autoreload 23772 18304 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+INFO 2025-08-14 21:35:50,177 autoreload 20736 26264 Watching for file changes with StatReloader
+INFO 2025-08-14 21:37:25,354 autoreload 20736 26264 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-14 21:37:26,284 autoreload 11176 24928 Watching for file changes with StatReloader
+INFO 2025-08-14 21:37:28,104 autoreload 11176 24928 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-14 21:37:28,871 autoreload 20204 8848 Watching for file changes with StatReloader
+INFO 2025-08-14 23:37:03,152 autoreload 9640 24476 Watching for file changes with StatReloader
+INFO 2025-08-14 23:39:07,995 autoreload 9640 24476 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\oauth2_utils.py changed, reloading.
+INFO 2025-08-14 23:39:09,781 autoreload 20588 6780 Watching for file changes with StatReloader
+DEBUG 2025-08-14 23:40:10,682 token 20588 27448 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x0000024D75AF2FF0>.
+DEBUG 2025-08-14 23:40:10,697 resource_owner_password_credentials 20588 27448 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-08-14 23:40:10,698 resource_owner_password_credentials 20588 27448 Validating username admin.
+DEBUG 2025-08-14 23:40:11,157 resource_owner_password_credentials 20588 27448 Authorizing access to user <User: admin ()>.
+DEBUG 2025-08-14 23:40:11,158 base 20588 27448 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-08-14 23:40:11,185 resource_owner_password_credentials 20588 27448 Issuing token {'access_token': 'N8Rp0Jn9LMyGzdbgRMBu5WBa4eolnf', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'kO2nwki90Cmc30v8LkUDWAfsReEnfF'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-08-14 23:40:11,251 resource 20588 9588 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75B31480>.
+DEBUG 2025-08-14 23:40:11,526 resource 20588 27324 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75B63900>.
+DEBUG 2025-08-14 23:40:11,580 resource 20588 5620 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75B63900>.
+DEBUG 2025-08-14 23:40:21,164 resource 20588 27008 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75BB3680>.
+DEBUG 2025-08-14 23:40:23,406 resource 20588 13092 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75ACF280>.
+DEBUG 2025-08-14 23:40:28,769 resource 20588 29584 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75A95BC0>.
+DEBUG 2025-08-14 23:40:32,583 resource 20588 23692 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75B6DA40>.
+DEBUG 2025-08-14 23:40:43,965 resource 20588 22128 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75A96080>.
+DEBUG 2025-08-14 23:40:46,500 resource 20588 17128 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75A07B40>.
+DEBUG 2025-08-14 23:40:47,149 resource 20588 23720 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75B63C80>.
+DEBUG 2025-08-14 23:40:57,741 resource 20588 10876 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75AB1500>.
+DEBUG 2025-08-14 23:40:58,520 resource 20588 4376 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75B38700>.
+DEBUG 2025-08-14 23:41:00,634 resource 20588 21932 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75BBF380>.
+DEBUG 2025-08-14 23:41:01,404 resource 20588 22872 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75B3B4C0>.
+DEBUG 2025-08-14 23:41:11,636 resource 20588 3808 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75A71500>.
+DEBUG 2025-08-14 23:41:17,836 token 20588 8332 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x0000024D75AF2FF0>.
+DEBUG 2025-08-14 23:41:17,839 resource_owner_password_credentials 20588 8332 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-08-14 23:41:17,839 resource_owner_password_credentials 20588 8332 Validating username u1.
+DEBUG 2025-08-14 23:41:18,204 resource_owner_password_credentials 20588 8332 Authorizing access to user <User: u1 (Nguyen Vy)>.
+DEBUG 2025-08-14 23:41:18,205 base 20588 8332 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-08-14 23:41:18,213 resource_owner_password_credentials 20588 8332 Issuing token {'access_token': 'oIySOPpzIrG5DgcjaAxk4duOZXU4dG', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'R1tBZv6mJKHwDWOuwAe1OEtHB3AeLT'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username u1.
+DEBUG 2025-08-14 23:41:18,238 resource 20588 3084 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75A70280>.
+DEBUG 2025-08-14 23:41:18,329 resource 20588 29144 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75A66240>.
+DEBUG 2025-08-14 23:41:18,331 resource 20588 26228 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D75A3EF80>.
+DEBUG 2025-08-14 23:41:26,133 resource 20588 28796 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D759F3C80>.
+DEBUG 2025-08-14 23:41:27,967 resource 20588 19200 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D759E9E80>.
+DEBUG 2025-08-14 23:41:30,348 resource 20588 17864 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000024D733FF300>.
