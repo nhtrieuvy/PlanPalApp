@@ -6,7 +6,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    OAuth2LoginView, OAuth2LogoutView, UserViewSet, GroupViewSet,
+    OAuth2LogoutView, UserViewSet, GroupViewSet,
     PlanViewSet, ChatMessageViewSet, PlanActivityViewSet,
     # Friendship views (class-based, not ViewSet)
     FriendRequestView, FriendRequestListView, FriendRequestActionView, FriendsListView,
@@ -27,10 +27,7 @@ router.register(r'activities', PlanActivityViewSet, basename='planactivity')
 
 urlpatterns = [
     # OAuth2 Authentication endpoints
-    path('auth/login/', OAuth2LoginView.as_view(), name='oauth2_login'),
     path('auth/logout/', OAuth2LogoutView.as_view(), name='oauth2_logout'),
-    # path('auth/refresh/', OAuth2RefreshTokenView.as_view(), name='oauth2_refresh'),
-    # path('auth/token-status/', OAuth2TokenStatusView.as_view(), name='oauth2_token_status'),
     
     # Friendship endpoints (class-based views)
     path('friends/request/', FriendRequestView.as_view(), name='friend_request'),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:getwidget/getwidget.dart';
+import 'package:planpal_flutter/core/repositories/user_repository.dart';
 import 'package:provider/provider.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -74,9 +75,9 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final repo = UserRepository(Provider.of<AuthProvider>(context, listen: false));
 
-      await authProvider.register(
+      await repo.register(
         username: _usernameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,

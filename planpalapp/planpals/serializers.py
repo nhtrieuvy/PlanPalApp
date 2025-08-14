@@ -105,21 +105,13 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return user
 
 
-class UserProfileSerializer(serializers.ModelSerializer):
-    """Serializer cho user profile - có thể edit"""
-    
+class UserSummarySerializer(serializers.ModelSerializer):
+    """Serializer tóm tắt cho User"""
     class Meta:
         model = User
         fields = [
-            'first_name', 'last_name', 'phone_number', 'avatar', 
-            'date_of_birth', 'bio'
+            'id', 'username', 'display_name', 'initials', 'is_online', 'avatar_url'
         ]
-    
-    def validate_avatar(self, value):
-        if value and hasattr(value, 'size') and value.size > 5 * 1024 * 1024:  # 5MB limit
-            raise serializers.ValidationError("Avatar không được vượt quá 5MB")
-        # Note: Cloudinary fields don't need file size validation as they handle compression
-        return value
 
 
 class GroupMembershipSerializer(serializers.ModelSerializer):
@@ -136,13 +128,13 @@ class GroupMembershipSerializer(serializers.ModelSerializer):
 
 class GroupSerializer(serializers.ModelSerializer):
     """Serializer cho Group model với Cloudinary cover image support - OPTIMIZED"""
-    admin = UserSerializer(read_only=True)
+    admin = UserSummarySerializer(read_only=True)
     memberships = GroupMembershipSerializer(many=True, read_only=True)
     
     # ✅ Use properties directly
-    member_count = serializers.IntegerField(source='member_count', read_only=True)
-    plans_count = serializers.IntegerField(source='plans_count', read_only=True)
-    active_plans_count = serializers.IntegerField(source='active_plans_count', read_only=True)
+    member_count = serializers.IntegerField( read_only=True)
+    plans_count = serializers.IntegerField(read_only=True)
+    active_plans_count = serializers.IntegerField(read_only=True)
     
     # Computed fields that need context
     is_member = serializers.SerializerMethodField()
@@ -240,17 +232,33 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         if len(value.strip()) < 3:
             raise serializers.ValidationError("Tên nhóm phải có ít nhất 3 ký tự")
         return value.strip()
+    
+
+class GroupSummarySerializer(serializers.ModelSerializer):
+    """Serializer tóm tắt cho Group list view"""
+    admin = UserSummarySerializer(read_only=True)
+    member_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Group
+        fields = [
+            'id', 'name', 'description', 'admin', 'member_count', 
+            'is_active', 'created_at'
+        ]
+    
+    def get_member_count(self, obj):
+        return obj.member_count
 
 
 class PlanActivitySerializer(serializers.ModelSerializer):
     """Serializer cho PlanActivity - OPTIMIZED"""
     # ✅ Use properties directly
-    duration_hours = serializers.FloatField(source='duration_hours', read_only=True)
-    duration_display = serializers.CharField(source='duration_display', read_only=True)
-    activity_type_display = serializers.CharField(source='activity_type_display', read_only=True)
-    has_location = serializers.BooleanField(source='has_location', read_only=True)
-    maps_url = serializers.CharField(source='maps_url', read_only=True)
-    
+    duration_hours = serializers.FloatField(read_only=True)
+    duration_display = serializers.CharField(read_only=True)
+    activity_type_display = serializers.CharField(read_only=True)
+    has_location = serializers.BooleanField(read_only=True)
+    maps_url = serializers.CharField(read_only=True)
+
     class Meta:
         model = PlanActivity
         fields = [
@@ -291,35 +299,34 @@ class PlanActivitySerializer(serializers.ModelSerializer):
 
 class PlanSerializer(serializers.ModelSerializer):
     """Serializer cho Plan model - OPTIMIZED"""
-    creator = UserSerializer(read_only=True)
-    group = GroupSerializer(read_only=True)
+    creator = UserSummarySerializer(read_only=True)
+    group = GroupSummarySerializer(read_only=True)
     activities = PlanActivitySerializer(many=True, read_only=True)
     
     # Write fields
     group_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+    # Convenience read field for frontend badges
+    group_name = serializers.CharField(source='group.name', read_only=True)
     
     # ✅ Use properties directly
-    duration_days = serializers.IntegerField(source='duration_days', read_only=True)
-    duration_display = serializers.CharField(source='duration_display', read_only=True)
-    activities_count = serializers.IntegerField(source='activities_count', read_only=True)
-    total_estimated_cost = serializers.DecimalField(source='total_estimated_cost', max_digits=12, decimal_places=2, read_only=True)
-    budget_vs_estimated = serializers.JSONField(source='budget_vs_estimated', read_only=True)
-    is_over_budget = serializers.BooleanField(source='is_over_budget', read_only=True)
-    status_display = serializers.CharField(source='status_display', read_only=True)
-    
+    duration_days = serializers.IntegerField(read_only=True)
+    duration_display = serializers.CharField( read_only=True)
+    activities_count = serializers.IntegerField( read_only=True)
+    total_estimated_cost = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    status_display = serializers.CharField(read_only=True)
+
     # Computed fields that need context
     can_view = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
-    collaborators = serializers.SerializerMethodField()
-    
+    collaborators = UserSummarySerializer(many=True, read_only=True)
+
     class Meta:
         model = Plan
         fields = [
-            'id', 'title', 'description', 'start_date', 'end_date', 'budget',
-            'is_public', 'status', 'status_display', 'plan_type', 'creator', 'group', 'group_id',
+            'id', 'title', 'description', 'start_date', 'end_date',
+            'is_public', 'status', 'status_display', 'plan_type', 'creator', 'group', 'group_id', 'group_name',
             'activities', 'duration_days', 'duration_display', 'activities_count', 
-            'total_estimated_cost', 'budget_vs_estimated', 'is_over_budget',
-            'can_view', 'can_edit', 'collaborators',
+            'total_estimated_cost', 'can_view', 'can_edit', 'collaborators',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'creator', 'plan_type', 'created_at', 'updated_at']
@@ -384,8 +391,15 @@ class PlanSerializer(serializers.ModelSerializer):
                     "Ngày kết thúc phải sau ngày bắt đầu"
                 )
         
-        # Validate group access
+        # Validate group access and plan_type consistency on update
         group_id = attrs.get('group_id')
+        instance = getattr(self, 'instance', None)
+        if instance:
+            if instance.plan_type == 'personal' and group_id:
+                raise serializers.ValidationError("Kế hoạch cá nhân không thể gán nhóm")
+            if instance.plan_type == 'group' and ('group_id' in attrs) and group_id is None:
+                raise serializers.ValidationError("Kế hoạch nhóm phải thuộc một nhóm")
+
         if group_id:
             try:
                 group = Group.objects.get(id=group_id)
@@ -405,22 +419,88 @@ class PlanSerializer(serializers.ModelSerializer):
         validated_data['creator'] = request.user
         return super().create(validated_data)
 
+    def update(self, instance, validated_data):
+        """Apply group_id changes respecting plan_type rules."""
+        if 'group_id' in validated_data:
+            group_id = validated_data.pop('group_id')
+        else:
+            group_id = None
+
+        if instance.plan_type == 'personal':
+            # Ensure personal plan has no group
+            validated_data['group'] = None
+        else:
+            # Group plan: update group if provided
+            if group_id is not None:
+                try:
+                    group = Group.objects.get(id=group_id)
+                except Group.DoesNotExist:
+                    raise serializers.ValidationError("Nhóm không tồn tại")
+                validated_data['group'] = group
+        return super().update(instance, validated_data)
+
 
 class PlanCreateSerializer(serializers.ModelSerializer):
     """Serializer đơn giản cho tạo plan"""
+    plan_type = serializers.ChoiceField(choices=[('personal', 'Cá nhân'), ('group', 'Nhóm')], required=True)
     group_id = serializers.UUIDField(required=False, allow_null=True)
     
     class Meta:
         model = Plan
         fields = [
             'title', 'description', 'start_date', 'end_date', 
-            'budget', 'is_public', 'group_id'
+            'is_public', 'plan_type', 'group_id'
         ]
     
+
     def validate_title(self, value):
         if len(value.strip()) < 3:
             raise serializers.ValidationError("Tiêu đề phải có ít nhất 3 ký tự")
         return value.strip()
+
+    def validate(self, attrs):
+        """Validate dates, plan type, and group access"""
+        if attrs.get('start_date') and attrs.get('end_date'):
+            if attrs['end_date'] <= attrs['start_date']:
+                raise serializers.ValidationError(
+                    "Ngày kết thúc phải sau ngày bắt đầu"
+                )
+        plan_type = attrs.get('plan_type')
+        group_id = attrs.get('group_id')
+        if plan_type == 'group':
+            if not group_id:
+                raise serializers.ValidationError("Kế hoạch nhóm cần chọn nhóm")
+            try:
+                group = Group.objects.get(id=group_id)
+                request = self.context.get('request')
+                if request and request.user.is_authenticated:
+                    if not group.is_member(request.user):
+                        raise serializers.ValidationError(
+                            "Bạn không phải thành viên của nhóm này"
+                        )
+            except Group.DoesNotExist:
+                raise serializers.ValidationError("Nhóm không tồn tại")
+        elif plan_type == 'personal':
+            attrs['group_id'] = None
+        else:
+            raise serializers.ValidationError("Loại kế hoạch không hợp lệ")
+        return attrs
+
+    def create(self, validated_data):
+        # Set default status to 'upcoming' on creation
+        validated_data['status'] = 'upcoming'
+        # Handle group assignment for group plans
+        plan_type = validated_data.get('plan_type')
+        group_id = validated_data.pop('group_id', None)
+        if plan_type == 'group' and group_id:
+            try:
+                group = Group.objects.get(id=group_id)
+                validated_data['group'] = group
+            except Group.DoesNotExist:
+                pass  # Will be handled by validation
+        else:
+            validated_data['group'] = None
+        return super().create(validated_data)
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
@@ -429,9 +509,9 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     reply_to = serializers.SerializerMethodField()
     
     # ✅ Use properties directly
-    attachment_size_display = serializers.CharField(source='attachment_size_display', read_only=True)
-    attachment_url = serializers.CharField(source='attachment_url', read_only=True)
-    location_url = serializers.CharField(source='location_url', read_only=True)
+    attachment_size_display = serializers.CharField( read_only=True)
+    attachment_url = serializers.CharField(read_only=True)
+    location_url = serializers.CharField(read_only=True)
     
     # Computed fields that need context
     can_edit = serializers.SerializerMethodField()
@@ -670,17 +750,4 @@ class PlanSummarySerializer(serializers.ModelSerializer):
         return obj.duration_days
 
 
-class GroupSummarySerializer(serializers.ModelSerializer):
-    """Serializer tóm tắt cho Group list view"""
-    admin = UserSerializer(read_only=True)
-    member_count = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Group
-        fields = [
-            'id', 'name', 'description', 'admin', 'member_count', 
-            'is_active', 'created_at'
-        ]
-    
-    def get_member_count(self, obj):
-        return obj.member_count
+
