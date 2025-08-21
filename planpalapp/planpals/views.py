@@ -16,9 +16,9 @@ from datetime import datetime
 
 from .models import User, Group, Plan, Friendship, ChatMessage, PlanActivity
 from .serializers import (
-    GroupSummarySerializer, PlanSummarySerializer, UserSerializer, UserCreateSerializer, GroupSerializer, 
+    GroupCreateSerializer, GroupSummarySerializer, PlanSummarySerializer, UserSerializer, UserCreateSerializer, GroupSerializer, 
     PlanSerializer, PlanCreateSerializer, FriendshipSerializer, FriendRequestSerializer, ChatMessageSerializer,
-    PlanActivitySerializer
+    PlanActivitySerializer, UserSummarySerializer
 )
 from .permissions import (
     IsAuthenticatedAndActive, PlanPermission, GroupPermission,
@@ -93,6 +93,8 @@ class UserViewSet(viewsets.GenericViewSet,
     def get_serializer_class(self):
         if self.action == 'create':
             return UserCreateSerializer
+        if self.action == "list":
+            return UserSummarySerializer
         return UserSerializer
     
     def list(self, request):
@@ -133,7 +135,7 @@ class UserViewSet(viewsets.GenericViewSet,
                 'id': user.id,
                 'username': user.username,
                 'full_name': f"{user.first_name} {user.last_name}".strip(),
-                'avatar': user.avatar.url if user.avatar else None
+                'avatar': user.avatar_url  # Dùng property để có URL đầy đủ
             })
         
         return Response({
@@ -224,7 +226,7 @@ class GroupViewSet(viewsets.GenericViewSet,
     def get_serializer_class(self):
         """Use optimized serializer for create operations"""
         if self.action == 'create':
-            return GroupSerializer
+            return GroupCreateSerializer
         elif self.action == 'list':
             return GroupSummarySerializer
         return self.serializer_class
@@ -307,7 +309,8 @@ class GroupViewSet(viewsets.GenericViewSet,
     @action(detail=False, methods=['get'])
     def created_by_me(self, request):
         """Get groups created by user"""
-        groups = self.get_queryset().filter(created_by=request.user)
+        # Group model dùng field 'admin' thay vì 'created_by'
+        groups = self.get_queryset().filter(admin=request.user)
         serializer = self.get_serializer(groups, many=True)
         return Response({
             'groups': serializer.data,
@@ -872,7 +875,7 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
             plan = Plan.objects.filter(
                 models.Q(id=plan_id) & (
                     models.Q(group__members=request.user) | 
-                    models.Q(created_by=request.user)
+                    models.Q(creator=request.user)
                 )
             ).first()
             
@@ -892,8 +895,8 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
         activity = self.get_object()
         
         # Check if user can modify this activity
-        if not (activity.plan.created_by == request.user or 
-                activity.plan.group.is_admin(request.user)):
+        if not (activity.plan.creator == request.user or 
+            activity.plan.group.is_admin(request.user)):
             return Response(
                 {'error': 'Permission denied. Only plan creator or group admin can modify activities'}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -906,8 +909,8 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
         activity = self.get_object()
         
         # Check if user can delete this activity
-        if not (activity.plan.created_by == request.user or 
-                activity.plan.group.is_admin(request.user)):
+        if not (activity.plan.creator == request.user or 
+            activity.plan.group.is_admin(request.user)):
             return Response(
                 {'error': 'Permission denied. Only plan creator or group admin can delete activities'}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -932,7 +935,7 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
             plan = Plan.objects.filter(
                 models.Q(id=plan_id) & (
                     models.Q(group__members=request.user) | 
-                    models.Q(created_by=request.user)
+                    models.Q(creator=request.user)
                 )
             ).first()
             
@@ -1039,7 +1042,7 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
                 Plan.objects.filter(
                     models.Q(id=plan_id) & (
                         models.Q(group__members=request.user) | 
-                        models.Q(created_by=request.user)
+                        models.Q(creator=request.user)
                     )
                 ).first()
                 queryset = queryset.filter(plan_id=plan_id)

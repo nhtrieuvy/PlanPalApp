@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_form_page.dart';
+import '../../../core/models/group_summary.dart';
 
 class GroupPage extends StatefulWidget {
   const GroupPage({super.key});
@@ -17,7 +19,7 @@ class _GroupPageState extends State<GroupPage> {
   late final GroupRepository _repo;
   bool _loading = false;
   String? _error;
-  List<Map<String, dynamic>> _groups = const [];
+  List<GroupSummary> _groups = const [];
 
   @override
   void initState() {
@@ -27,6 +29,7 @@ class _GroupPageState extends State<GroupPage> {
   }
 
   Future<void> _loadGroups() async {
+    if (_loading) return; // avoid duplicate concurrent loads
     setState(() {
       _loading = true;
       _error = null;
@@ -34,70 +37,89 @@ class _GroupPageState extends State<GroupPage> {
     try {
       final data = await _repo.getGroups();
       if (!mounted) return;
-      setState(() => _groups = data);
+  setState(() => _groups = data);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'Lỗi: $e');
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
-  }
-
-  String _initialsFrom(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    return parts
-        .take(2)
-        .map((e) => e.isNotEmpty ? e[0] : '')
-        .join()
-        .toUpperCase();
   }
 
   void _onCreateGroup() async {
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(builder: (_) => const GroupFormPage()),
     );
-    if (result != null &&
-        result['action'] == 'created' &&
-        result['group'] != null) {
-      final g = Map<String, dynamic>.from(result['group'] as Map);
-      if (!mounted) return;
-      setState(() => _groups = [g, ..._groups]);
+    if (result != null && result['action'] == 'created' && result['group'] != null) {
+      final raw = Map<String, dynamic>.from(result['group'] as Map);
+      GroupSummary? created;
+      try { created = GroupSummary.fromJson(raw); } catch (_) {}
+      if (!mounted || created == null) return;
+      setState(() => _groups = [created!, ..._groups]);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Tạo nhóm thành công')));
     }
   }
 
-  void _onEditGroup(Map<String, dynamic> g) async {
-    final result = await Navigator.of(context).push<Map<String, dynamic>>(
-      MaterialPageRoute(builder: (_) => GroupFormPage(initial: g)),
+  void _onEditGroup(GroupSummary g) async {
+    final navigator = Navigator.of(context); // capture before awaits
+    Map<String, dynamic>? initial;
+    final needDetail = true; // always fetch if more fields might be needed
+    if (needDetail && g.id.isNotEmpty) {
+      try {
+        final detail = await _repo.getGroupDetail(g.id);
+        initial = {
+          'id': detail.id,
+          'name': detail.name,
+          'description': detail.description,
+          'avatar_url': detail.avatarThumb, // may be null
+          'cover_image_url': detail.coverImageUrl,
+        };
+      } catch (_) {
+        // fallback silently
+      }
+    }
+    final result = await navigator.push<Map<String, dynamic>>(
+      MaterialPageRoute(builder: (_) => GroupFormPage(initial: initial ?? {
+        'id': g.id,
+        'name': g.name,
+        'description': g.description,
+        'avatar_thumb': g.avatarThumb,
+      })),
     );
     if (result != null &&
         result['action'] == 'updated' &&
         result['group'] != null) {
-      final updated = Map<String, dynamic>.from(result['group'] as Map);
-      final id = updated['id']; // id là String
+      final updatedRaw = Map<String, dynamic>.from(result['group'] as Map);
+      GroupSummary? updated;
+      try { updated = GroupSummary.fromJson(updatedRaw); } catch (_) {}
+      final id = updatedRaw['id'];
       if (!mounted) return;
-      setState(
-        () =>
-            _groups = _groups.map((e) => e['id'] == id ? updated : e).toList(),
-      );
+      // Evict cached images for this group so the list will show fresh images
+      try {
+        final avatar = (updatedRaw['avatar_url'] ?? '') as String;
+        final cover = (updatedRaw['cover_image_url'] ?? '') as String;
+        if (avatar.isNotEmpty) CachedNetworkImage.evictFromCache(avatar);
+        if (cover.isNotEmpty) CachedNetworkImage.evictFromCache(cover);
+      } catch (_) {}
+      if (updated != null) {
+        setState(() => _groups = _groups.map((e) => e.id == id ? updated! : e).toList());
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Cập nhật nhóm thành công')));
     }
   }
 
-  void _onDeleteGroup(Map<String, dynamic> g) async {
-    final id = g['id']; // id là String
-    if (id == null) return;
+  void _onDeleteGroup(GroupSummary g) async {
+    final id = g.id;
+    if (id.isEmpty) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Xoá nhóm'),
-        content: Text("Bạn chắc chắn muốn xoá nhóm '${g['name']}'?"),
+        content: Text("Bạn chắc chắn muốn xoá nhóm '${g.name}'?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -114,7 +136,7 @@ class _GroupPageState extends State<GroupPage> {
     try {
       await _repo.deleteGroup(id);
       if (!mounted) return;
-      setState(() => _groups = _groups.where((e) => e['id'] != id).toList());
+  setState(() => _groups = _groups.where((e) => e.id != id).toList());
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đã xoá nhóm')));
@@ -186,13 +208,10 @@ class _GroupPageState extends State<GroupPage> {
     );
   }
 
-  Widget _buildGroupCard(Map<String, dynamic> g, int index, ThemeData theme) {
-    final name = (g['name'] ?? 'Nhóm không tên').toString();
-    final desc = (g['description'] ?? '').toString();
-    final membersCount =
-        g['members_count'] ??
-        g['member_count'] ??
-        (g['members'] is List ? (g['members'] as List).length : 0);
+  Widget _buildGroupCard(GroupSummary g, int index, ThemeData theme) {
+    final name = g.name.isNotEmpty ? g.name : 'Nhóm không tên';
+    final desc = g.description;
+    final membersCount = g.memberCount;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -211,23 +230,78 @@ class _GroupPageState extends State<GroupPage> {
                 // Header Row
                 Row(
                   children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: AppColors.getCardColor(index).withAlpha(25),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Center(
-                        child: Text(
-                          _initialsFrom(name),
-                          style: TextStyle(
-                            color: AppColors.getCardColor(index),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
+                    // Avatar: prefer backend avatar_thumb for list view,
+                    // fallback to initials if no avatar.
+                    Builder(
+                      builder: (_) {
+            final avatar = g.avatarThumb;
+            final initials = name
+              .trim()
+              .split(RegExp(r'\s+'))
+              .take(2)
+              .map((e) => e.isNotEmpty ? e[0] : '')
+              .join()
+              .toUpperCase();
+
+                        if (avatar != null && avatar.isNotEmpty) {
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: CachedNetworkImage(
+                              imageUrl: avatar,
+                              width: 56,
+                              height: 56,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                width: 56,
+                                height: 56,
+                                color: AppColors.getCardColor(
+                                  index,
+                                ).withAlpha(25),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: AppColors.getCardColor(
+                                    index,
+                                  ).withAlpha(25),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    initials,
+                                    style: TextStyle(
+                                      color: AppColors.getCardColor(index),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        // Fallback to initials
+                        return Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppColors.getCardColor(index).withAlpha(25),
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                        ),
-                      ),
+                          child: Center(
+                            child: Text(
+                              initials,
+                              style: TextStyle(
+                                color: AppColors.getCardColor(index),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -309,9 +383,9 @@ class _GroupPageState extends State<GroupPage> {
     );
   }
 
-  Future<void> _handleGroupTap(Map<String, dynamic> g) async {
-    final id = g['id'];
-    if (id != null) {
+  Future<void> _handleGroupTap(GroupSummary g) async {
+    final id = g.id;
+    if (id.isNotEmpty) {
       final action = await Navigator.of(context).push<Map<String, dynamic>>(
         MaterialPageRoute(builder: (_) => GroupDetailsPage(id: id)),
       );

@@ -3,17 +3,19 @@ import 'package:dio/dio.dart';
 import '../services/apis.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../models/user.dart';
 import '../repositories/user_repository.dart';
 
 // ChangeNotifier cho phép lắng nghe khi dữ liệu thay đổi
 class AuthProvider extends ChangeNotifier {
-  // Secure storage keys
   static const String _kAccessTokenKey = 'access_token';
   static const String _kRefreshTokenKey = 'refresh_token';
+  static const String _kCachedUserKey = 'cached_user';
 
-  // Secure token storage
+  // Chỗ lưu bảo mật của thư viện flutter_secure_storage
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   User? _user; // cached User model
@@ -24,8 +26,6 @@ class AuthProvider extends ChangeNotifier {
   String? get refreshToken => _refreshToken;
   bool get isLoggedIn => _user != null && _token != null;
 
-  // Hàm refresh token
-  // Đọc client_id và client_secret từ biến môi trường Flutter (hoặc file cấu hình)
   final String _clientId = dotenv.env['CLIENT_ID'] ?? '';
 
   // Dùng để tránh nhiều refresh token chạy song song
@@ -36,8 +36,35 @@ class AuthProvider extends ChangeNotifier {
     try {
       _token = await _secureStorage.read(key: _kAccessTokenKey);
       _refreshToken = await _secureStorage.read(key: _kRefreshTokenKey);
-      // Don't auto-fetch profile here; repositories handle profile requests
-      // Keep tokens restored for requestWithAutoRefresh to work
+
+      // Try to restore cached user from SharedPreferences so UI can show immediately
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final cached = prefs.getString(_kCachedUserKey);
+        if (cached != null && cached.isNotEmpty) {
+          final Map<String, dynamic> map = Map<String, dynamic>.from(
+            jsonDecode(cached) as Map,
+          );
+          final cachedUser = User.fromJson(map);
+          // Set synchronously so UI can show immediately; repo will refresh later
+          _user = cachedUser;
+          notifyListeners();
+        }
+      } catch (_) {
+        // ignore cache restore failures
+      }
+
+      // Nếu có token, fetch user profile
+      if (_token != null) {
+        try {
+          final userRepo = UserRepository(this);
+          await userRepo
+              .getProfile(); // This will call setUser() and update cache
+        } catch (e) {
+          // Nếu token hết hạn hoặc không hợp lệ, clear session
+          await _clearSession();
+        }
+      }
     } catch (e) {
       // Nếu có lỗi khi khôi phục, đảm bảo trạng thái sạch
       await _clearSession();
@@ -67,15 +94,25 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _clearSession() async {
     _user = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kCachedUserKey);
+    } catch (_) {}
     await _clearTokens();
     notifyListeners();
   }
 
-  // Public setter so callers (repositories or pages) can update cached user
-  // with a typed User model and notify listeners.
   void setUser(User userData) {
-    if (_user == userData) return; // avoid unnecessary rebuilds
+    if (_user == userData) return; // Tránh rebuild không cần thiết
     _user = userData;
+    // Persist cached user asynchronously (don't block callers)
+    SharedPreferences.getInstance().then((prefs) {
+      try {
+        prefs.setString(_kCachedUserKey, jsonEncode(userData.toJson()));
+      } catch (_) {
+        // ignore
+      }
+    });
     notifyListeners();
   }
 
@@ -152,7 +189,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Login chuẩn OAuth2 password grant
   Future<void> login({
     required String username,
     required String password,
@@ -174,10 +210,8 @@ class AuthProvider extends ChangeNotifier {
           accessToken: response.data['access_token'] as String,
           refreshToken: response.data['refresh_token'] as String?,
         );
-        // Fetch profile immediately (safe fail)
         try {
           final repo = UserRepository(this);
-          // Use repository for auto refresh logic path
           final profile = await repo.getProfile();
           setUser(profile);
         } catch (e) {
@@ -216,19 +250,15 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Logout với API và xóa token
   Future<void> logout() async {
     try {
-      // Gọi API logout với token hiện tại nếu có
       if (_token != null) {
         final apiClient = ApiClient(token: _token);
         await apiClient.dio.post(Endpoints.logout);
       }
     } catch (e) {
-      // Không throw error nếu API logout lỗi, vẫn clear local data
       debugPrint('Logout API error: $e');
     } finally {
-      // Luôn clear user và token local
       await _clearSession();
     }
   }

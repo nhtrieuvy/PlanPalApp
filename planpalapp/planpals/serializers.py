@@ -10,7 +10,6 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils import timezone
-from cloudinary import CloudinaryImage
 from .models import (
     Plan, Group, GroupMembership, ChatMessage, 
     Friendship, PlanActivity, MessageReadStatus
@@ -20,56 +19,31 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer cho User model với Cloudinary avatar support - OPTIMIZED"""
-    # ✅ Use properties directly instead of SerializerMethodField
+    """Full User serializer - dùng trực tiếp model properties (zero extra queries)."""
     full_name = serializers.CharField(source='display_name', read_only=True)
     initials = serializers.CharField(read_only=True)
     online_status = serializers.CharField(read_only=True)
     avatar_url = serializers.CharField(read_only=True)
     has_avatar = serializers.BooleanField(read_only=True)
-    
-    # Count properties
     plans_count = serializers.IntegerField(read_only=True)
     personal_plans_count = serializers.IntegerField(read_only=True)
     group_plans_count = serializers.IntegerField(read_only=True)
     groups_count = serializers.IntegerField(read_only=True)
     friends_count = serializers.IntegerField(read_only=True)
     unread_messages_count = serializers.IntegerField(read_only=True)
-    
-    # Legacy support
     is_recently_online = serializers.BooleanField(read_only=True)
-    
+
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'first_name', 'last_name', 
-            'display_name', 'full_name', 'initials',
-            'phone_number', 'avatar', 'avatar_url', 'has_avatar',
-            'date_of_birth', 'bio', 'is_online', 'last_seen', 
-            'is_recently_online', 'online_status',
-            'plans_count', 'personal_plans_count', 'group_plans_count',
-            'groups_count', 'friends_count', 'unread_messages_count',
-            'date_joined', 'is_active'
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'display_name', 'full_name', 'initials', 'phone_number',
+            'avatar', 'avatar_url', 'has_avatar',
+            'date_of_birth', 'bio', 'is_online', 'last_seen', 'is_recently_online', 'online_status',
+            'plans_count', 'personal_plans_count', 'group_plans_count', 'groups_count',
+            'friends_count', 'unread_messages_count', 'date_joined', 'is_active'
         ]
         read_only_fields = ['id', 'date_joined', 'last_seen', 'is_online']
-    
-    def get_avatar_url(self, obj):
-        """Always return full Cloudinary URL for avatar (300x300)"""
-        if obj.avatar:
-            public_id = str(obj.avatar)
-            if public_id:
-                img = CloudinaryImage(public_id)
-                return img.build_url(width=300, height=300, crop='fill', gravity='face')
-        return None
-
-    def get_avatar_thumbnail(self, obj):
-        """Always return full Cloudinary URL for avatar thumbnail (100x100)"""
-        if obj.avatar:
-            public_id = str(obj.avatar)
-            if public_id:
-                img = CloudinaryImage(public_id)
-                return img.build_url(width=100, height=100, crop='fill', gravity='face')
-        return None
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -106,12 +80,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserSummarySerializer(serializers.ModelSerializer):
-    """Serializer tóm tắt cho User"""
+    """Lightweight user summary (for embedding in other payloads)."""
+    avatar_thumb = serializers.CharField(read_only=True)
     class Meta:
         model = User
-        fields = [
-            'id', 'username', 'display_name', 'initials', 'is_online', 'avatar_url'
-        ]
+        fields = ['id', 'username', 'display_name', 'initials', 'is_online', 'avatar_thumb']
 
 
 class GroupMembershipSerializer(serializers.ModelSerializer):
@@ -127,35 +100,39 @@ class GroupMembershipSerializer(serializers.ModelSerializer):
 
 
 class GroupSerializer(serializers.ModelSerializer):
-    """Serializer cho Group model với Cloudinary cover image support - OPTIMIZED"""
+    """Full group detail serializer."""
     admin = UserSummarySerializer(read_only=True)
     memberships = GroupMembershipSerializer(many=True, read_only=True)
-    
-    # ✅ Use properties directly
-    member_count = serializers.IntegerField( read_only=True)
+    member_count = serializers.IntegerField(read_only=True)
     plans_count = serializers.IntegerField(read_only=True)
     active_plans_count = serializers.IntegerField(read_only=True)
     
-    # Computed fields that need context
+    # Avatar properties
+    avatar_url = serializers.CharField(read_only=True)
+    avatar_thumb = serializers.CharField(read_only=True)
+    has_avatar = serializers.BooleanField(read_only=True)
+    
+    # Cover image properties
+    cover_image_url = serializers.CharField(read_only=True)
+    has_cover_image = serializers.BooleanField(read_only=True)
+    
+    initials = serializers.CharField(read_only=True)
     is_member = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
-    cover_image_url = serializers.SerializerMethodField()
-    cover_image_thumbnail = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description', 'cover_image', 'cover_image_url', 
-            'cover_image_thumbnail', 'admin', 'memberships', 'member_count', 
-            'plans_count', 'active_plans_count', 'is_active', 'is_member', 
-            'user_role', 'can_edit', 'can_delete', 'created_at', 'updated_at'
+            'id', 'name', 'description', 
+            'avatar', 'avatar_url', 'avatar_thumb', 'has_avatar',
+            'cover_image', 'cover_image_url', 'has_cover_image',
+            'initials',
+            'admin', 'memberships', 'member_count', 'plans_count', 'active_plans_count',
+            'is_active', 'is_member', 'user_role', 'can_edit', 'can_delete', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'admin', 'created_at', 'updated_at']
-    
-    def get_member_count(self, obj):
-        return obj.member_count
     
     def get_is_member(self, obj):
         request = self.context.get('request')
@@ -186,26 +163,8 @@ class GroupSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             return obj.admin == request.user
         return False
-    
-    def get_cover_image_url(self, obj):
-        """Get Cloudinary cover image URL với transformation"""
-        if obj.cover_image:
-            if hasattr(obj.cover_image, 'build_url'):
-                return obj.cover_image.build_url(
-                    width=1200, height=400, crop='fill', gravity='center'
-                )
-            return obj.cover_image.url
-        return None
-    
-    def get_cover_image_thumbnail(self, obj):
-        """Get cover image thumbnail for lists"""
-        if obj.cover_image:
-            if hasattr(obj.cover_image, 'build_url'):
-                return obj.cover_image.build_url(
-                    width=300, height=200, crop='fill', gravity='center'
-                )
-            return obj.cover_image.url
-        return None
+
+    # cover_image_url & cover_image_thumb dùng trực tiếp từ model properties (cached)
     
     def create(self, validated_data):
         request = self.context.get('request')
@@ -223,11 +182,26 @@ class GroupSerializer(serializers.ModelSerializer):
 
 class GroupCreateSerializer(serializers.ModelSerializer):
     """Serializer riêng cho tạo group"""
+
+    avatar_thumb = serializers.CharField(read_only=True)
+    avatar_url = serializers.CharField(read_only=True)
+    has_avatar = serializers.BooleanField(read_only=True)
+    cover_image_url = serializers.CharField(read_only=True)
+    has_cover_image = serializers.BooleanField(read_only=True)
+    
+    initials = serializers.CharField(read_only=True)
+    member_count = serializers.IntegerField(read_only=True)
+    admin = UserSummarySerializer(read_only=True)
     
     class Meta:
         model = Group
-        fields = ['name', 'description', 'cover_image']
-    
+        fields = [
+            'id', 'name', 'description', 
+            'avatar', 'avatar_thumb', 'avatar_url', 'has_avatar', 'cover_image_url', 'has_cover_image',
+            'initials', 'member_count', 'admin', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'admin', 'created_at', 'updated_at']
+
     def validate_name(self, value):
         if len(value.strip()) < 3:
             raise serializers.ValidationError("Tên nhóm phải có ít nhất 3 ký tự")
@@ -235,19 +209,13 @@ class GroupCreateSerializer(serializers.ModelSerializer):
     
 
 class GroupSummarySerializer(serializers.ModelSerializer):
-    """Serializer tóm tắt cho Group list view"""
-    admin = UserSummarySerializer(read_only=True)
-    member_count = serializers.SerializerMethodField()
-    
+    """Lightweight group summary (list views)."""
+    member_count = serializers.IntegerField(read_only=True)
+    avatar_thumb = serializers.CharField(read_only=True)
+    initials = serializers.CharField(read_only=True)
     class Meta:
         model = Group
-        fields = [
-            'id', 'name', 'description', 'admin', 'member_count', 
-            'is_active', 'created_at'
-        ]
-    
-    def get_member_count(self, obj):
-        return obj.member_count
+        fields = ['id', 'name', 'description', 'member_count', 'avatar_thumb', 'initials']
 
 
 class PlanActivitySerializer(serializers.ModelSerializer):

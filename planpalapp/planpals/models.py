@@ -5,6 +5,7 @@ from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from cloudinary.models import CloudinaryField
+from cloudinary import CloudinaryImage
 import uuid
 
 class BaseModel(models.Model):
@@ -309,11 +310,26 @@ class User(AbstractUser, BaseModel):
 
     @property
     def avatar_url(self):
-        """Lấy URL avatar, fallback về initials nếu không có"""
-        if self.has_avatar:
-            return self.avatar.url
+        """Lấy URL avatar đầy đủ Cloudinary, fallback về initials nếu không có"""
+        # If user does not have an avatar, return None so frontend can
+        # render initials/text fallback instead of treating the value as a URL.
+        if not self.has_avatar:
+            return None
+        # Sử dụng CloudinaryImage để tạo URL đầy đủ
+        if self.avatar:
+            cloudinary_image = CloudinaryImage(str(self.avatar))
+            return cloudinary_image.build_url(secure=True)
         return None
-    
+
+    @property
+    def avatar_thumb(self):
+        """Thumbnail cho avatar (dùng trong summary/list)"""
+        if not self.avatar:
+            return None
+        # Sử dụng CloudinaryImage để tạo thumbnail
+        cloudinary_image = CloudinaryImage(str(self.avatar))
+        return cloudinary_image.build_url(width=100, height=100, crop='fill', gravity='face', secure=True)
+
     @property
     def unread_messages_count(self):
         """Tổng số tin nhắn chưa đọc trong tất cả groups - OPTIMIZED"""
@@ -527,7 +543,23 @@ class Group(BaseModel):
         help_text="Mô tả về nhóm"
     )
     
-    # Cover image cho nhóm với Cloudinary
+    # Avatar cho nhóm với Cloudinary (display nhỏ)
+    avatar = CloudinaryField(
+        'image',
+        blank=True, 
+        null=True,
+        folder='planpal/groups/avatars',
+        transformation={
+            'width': 300,
+            'height': 300,
+            'crop': 'fill',
+            'gravity': 'face',
+            'quality': 'auto:good'
+        },
+        help_text="Ảnh đại diện nhóm"
+    )
+    
+    # Cover image cho nhóm với Cloudinary (header lớn)
     cover_image = CloudinaryField(
         'image',
         blank=True, 
@@ -542,6 +574,7 @@ class Group(BaseModel):
         },
         help_text="Ảnh bìa của nhóm"
     )
+
     
     # Admin của nhóm (người tạo)
     admin = models.ForeignKey(
@@ -582,6 +615,68 @@ class Group(BaseModel):
     def __str__(self):
         return f"{self.name} (Admin: {self.admin.username})"
 
+    # -------- AVATAR PROPERTIES --------
+    @property
+    def has_avatar(self):
+        return bool(self.avatar)
+
+    @property
+    def avatar_url(self):
+        """Avatar URL đầy đủ (ưu tiên cho display nhỏ)"""
+        if not self.avatar:
+            return None
+        cloudinary_image = CloudinaryImage(str(self.avatar))
+        return cloudinary_image.build_url(width=300, height=300, crop='fill', gravity='face', secure=True)
+
+    @property
+    def avatar_thumb(self):
+        """Avatar thumbnail (dùng trong list/card)"""
+        if not self.avatar:
+            return None
+        cloudinary_image = CloudinaryImage(str(self.avatar))
+        return cloudinary_image.build_url(width=100, height=100, crop='fill', gravity='face', secure=True)
+
+    # -------- COVER IMAGE PROPERTIES --------
+    @property
+    def has_cover_image(self):
+        return bool(self.cover_image)
+
+    @property
+    def cover_image_url(self):
+        """Cover image URL đầy đủ (chất lượng bình thường)"""
+        if not self.cover_image:
+            return None
+        # Sử dụng CloudinaryImage để tạo URL đầy đủ
+        cloudinary_image = CloudinaryImage(str(self.cover_image))
+        return cloudinary_image.build_url(width=1200, height=600, crop='fill', gravity='center', secure=True)
+
+    # @property
+    # def cover_image_thumb(self):
+    #     """Cover image thumbnail (dùng trong summary/list)"""
+    #     if not self.cover_image:
+    #         return None
+    #     # Sử dụng CloudinaryImage để tạo thumbnail
+    #     cloudinary_image = CloudinaryImage(str(self.cover_image))
+    #     return cloudinary_image.build_url(width=400, height=400, crop='fill', gravity='center', secure=True)
+    
+    @property
+    def initials(self):
+        """Lấy chữ cái viết tắt (initials) từ tên nhóm để hiển thị avatar.
+
+        - Nếu tên nhóm có >= 2 từ thì lấy chữ cái đầu của hai từ đầu.
+        - Nếu chỉ có 1 từ thì lấy hai ký tự đầu của từ đó (hoặc 1 ký tự nếu tên chỉ có 1 ký tự).
+        - Nếu không có tên, trả về 'G' làm fallback.
+        """
+        if not self.name:
+            return 'G'
+
+        parts = [p for p in self.name.split() if p]
+        if len(parts) >= 2:
+            return (parts[0][0] + parts[1][0]).upper()
+
+        # Single word: take up to first two characters
+        return self.name[:2].upper()
+    
     @property
     def member_count(self):
         """Đếm số thành viên trong nhóm - OPTIMIZED"""
@@ -875,7 +970,7 @@ class Plan(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='draft',
+        default='upcoming',  # đồng bộ với STATUS_CHOICES hiện tại
         db_index=True,
         help_text="Trạng thái kế hoạch"
     )
@@ -917,14 +1012,22 @@ class Plan(BaseModel):
         if self.plan_type == 'group' and self.group is None:
             raise ValidationError("Group plan phải có group")
 
+    def _auto_status(self):
+        """Chuẩn hoá & tự động cập nhật status dựa vào thời gian.
+
+        Chuyển trạng thái theo timeline nếu chưa bị cancelled/completed.
+        """
+        now = timezone.now()
+        if self.start_date and self.end_date:
+            if self.status == 'upcoming' and now >= self.start_date:
+                self.status = 'ongoing'
+            if self.status == 'ongoing' and now > self.end_date:
+                self.status = 'completed'
+
     def save(self, *args, **kwargs):
-        """Override save để auto-set plan_type"""
-        # Auto determine plan type based on group
-        if self.group is None:
-            self.plan_type = 'personal'
-        else:
-            self.plan_type = 'group'
-        
+        """Override save để auto-set plan_type & auto status"""
+        self.plan_type = 'personal' if self.group is None else 'group'
+        self._auto_status()
         self.clean()
         super().save(*args, **kwargs)
 
@@ -991,6 +1094,14 @@ class Plan(BaseModel):
             'cancelled': '❌ Đã hủy',
         }
         return status_map.get(self.status, self.status)
+
+    def get_members(self):
+        """Trả về queryset các user tham gia kế hoạch (thay cho plan.members không tồn tại)."""
+        if self.is_personal():
+            return User.objects.filter(id=self.creator_id)
+        if self.group_id:
+            return self.group.members.all()
+        return User.objects.none()
 
     def add_activity_with_place(self, title, start_time, end_time, place_id=None, **extra_data):
         """
@@ -1113,7 +1224,7 @@ class Plan(BaseModel):
 
     def start_trip(self):
         """Bắt đầu chuyến đi"""
-        if self.status == 'iscoming':
+        if self.status == 'upcoming':
             self.status = 'ongoing'
             self.save(update_fields=['status', 'updated_at'])
             return True

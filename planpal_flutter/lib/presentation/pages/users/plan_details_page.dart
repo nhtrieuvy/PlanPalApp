@@ -1,327 +1,341 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
+import 'package:getwidget/getwidget.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import 'package:intl/intl.dart';
-import 'package:getwidget/getwidget.dart';
+import '../../../core/models/plan_detail.dart';
+import '../../../core/models/plan_status.dart';
 
-class PlanDetailsPage extends StatelessWidget {
+class PlanDetailsPage extends StatefulWidget {
   final String id;
   const PlanDetailsPage({super.key, required this.id});
 
   @override
-  Widget build(BuildContext context) {
-    final repo = PlanRepository(context.read<AuthProvider>());
-    final df = DateFormat('dd/MM/yyyy HH:mm');
-    final theme = Theme.of(context);
+  State<PlanDetailsPage> createState() => _PlanDetailsPageState();
+}
 
+class _PlanDetailsPageState extends State<PlanDetailsPage> {
+  late final PlanRepository _repo;
+  PlanDetail? _detail;
+  Object? _error;
+  bool _loading = true;
+  final _df = DateFormat('dd/MM/yyyy HH:mm');
+
+  @override
+  void initState() {
+    super.initState();
+    _repo = PlanRepository(context.read<AuthProvider>());
+    _load();
+  }
+
+  Future<void> _load({bool refresh = false}) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final d = await _repo.getPlanDetail(widget.id, forceRefresh: refresh);
+      if (!mounted) return;
+      setState(() {
+        _detail = d;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Chi tiết kế hoạch'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_error != null || _detail == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Chi tiết kế hoạch'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+              onPressed: () => _load(refresh: true),
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.redAccent[200],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Có lỗi xảy ra',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text('Lỗi: $_error', textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final p = _detail!;
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: repo.getPlanDetail(id),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Scaffold(
-              appBar: AppBar(
-                title: const Text('Chi tiết kế hoạch'),
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, inner) => [
+          SliverAppBar(
+            expandedHeight: 200,
+            pinned: true,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(
+                p.title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
               ),
-              body: const Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (snapshot.hasError) {
-            return Scaffold(
-              appBar: AppBar(
-                title: const Text('Chi tiết kế hoạch'),
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-              ),
-              body: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.redAccent[200],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Có lỗi xảy ra',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Lỗi: ${snapshot.error}',
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: AppColors.primaryGradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.event_note,
+                    size: 80,
+                    color: Colors.white.withAlpha(75),
                   ),
                 ),
               ),
-            );
-          }
-
-          final p = snapshot.data ?? <String, dynamic>{};
-          final name = (p['title'] ?? '').toString();
-          final dest = (p['description'] ?? '').toString();
-          final status = (p['status_display'] ?? p['status'] ?? '').toString();
-          final planType = (p['plan_type'] ?? 'personal').toString();
-          final isPublic = p['is_public'] == true;
-          final groupName = (p['group_name'] ?? p['group']?['name'] ?? '')
-              .toString();
-          final start = p['start_date']?.toString();
-          final end = p['end_date']?.toString();
-          final durationDisplay = (p['duration_display'] ?? '').toString();
-          final activitiesCount = p['activities_count'] ?? 0;
-          final totalEstimatedCost = p['total_estimated_cost'];
-          final activities = (p['activities'] is List)
-              ? List<Map<String, dynamic>>.from(p['activities'])
-              : <Map<String, dynamic>>[];
-
-          DateTime? startDt, endDt;
-          try {
-            if (start != null) startDt = DateTime.parse(start);
-          } catch (_) {}
-          try {
-            if (end != null) endDt = DateTime.parse(end);
-          } catch (_) {}
-
-          final creator = p['creator'] as Map<String, dynamic>? ?? {};
-          final creatorName =
-              creator['display_name'] ?? creator['username'] ?? 'Không rõ';
-          final creatorAvatar = creator['avatar_url'] ?? '';
-
-          return NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              SliverAppBar(
-                expandedHeight: 200,
-                floating: false,
-                pinned: true,
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                flexibleSpace: FlexibleSpaceBar(
-                  title: Text(
-                    name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
+            ),
+            actions: [
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    Navigator.of(context).pop({
+                      'action': 'edit',
+                      'plan': {'id': p.id, 'title': p.title},
+                    });
+                  } else if (value == 'delete') {
+                    Navigator.of(context).pop({'action': 'delete', 'id': p.id});
+                  } else if (value == 'refresh') {
+                    _load(refresh: true);
+                  }
+                },
+                itemBuilder: (c) => const [
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 20),
+                        SizedBox(width: 8),
+                        Text('Sửa'),
+                      ],
                     ),
                   ),
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: AppColors.primaryGradient,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.event_note,
-                        size: 80,
-                        color: Colors.white.withAlpha(75),
-                      ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, size: 20),
+                        SizedBox(width: 8),
+                        Text('Xoá'),
+                      ],
                     ),
                   ),
-                ),
-                actions: [
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        Navigator.of(
-                          context,
-                        ).pop({'action': 'edit', 'plan': p});
-                      } else if (value == 'delete') {
-                        Navigator.of(
-                          context,
-                        ).pop({'action': 'delete', 'id': p['id']});
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 20),
-                            SizedBox(width: 8),
-                            Text('Sửa'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, size: 20),
-                            SizedBox(width: 8),
-                            Text('Xoá'),
-                          ],
-                        ),
-                      ),
-                    ],
+                  PopupMenuItem(
+                    value: 'refresh',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, size: 20),
+                        SizedBox(width: 8),
+                        Text('Làm mới'),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ],
-            body: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildCreatorCard(creatorAvatar, creatorName),
-                  const SizedBox(height: 16),
-                  // Meta card (status, type, visibility, duration, counts)
-                  _buildMetaCard(
-                    theme: theme,
-                    status: status,
-                    planType: planType,
-                    isPublic: isPublic,
-                    durationDisplay: durationDisplay,
-                    activitiesCount: activitiesCount,
-                    totalEstimatedCost: totalEstimatedCost,
-                    groupName: groupName,
+          ),
+        ],
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildCreatorCard(
+                p.creator?.avatarUrl ?? '',
+                (p.creator?.displayName.isNotEmpty == true
+                    ? p.creator!.displayName
+                    : (p.creator?.username ?? 'Không rõ')),
+              ),
+              const SizedBox(height: 16),
+              _buildMetaCard(
+                theme: theme,
+                status: p.status,
+                planType: p.planType,
+                isPublic: p.isPublic,
+                durationDisplay: p.durationDisplay ?? '',
+                activitiesCount: p.activitiesCount,
+                totalEstimatedCost: p.totalEstimatedCost,
+                groupName: p.groupName ?? '',
+              ),
+              if (p.description.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildInfoCard(
+                  icon: Icons.description,
+                  title: 'Mô tả',
+                  subtitle: p.description,
+                  color: AppColors.primary,
+                  theme: theme,
+                ),
+              ],
+              if (p.startDate != null || p.endDate != null) ...[
+                const SizedBox(height: 16),
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-
-                  // Description Card
-                  if (dest.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _buildInfoCard(
-                      icon: Icons.description,
-                      title: 'Mô tả',
-                      subtitle: dest,
-                      color: AppColors.primary,
-                      theme: theme,
-                    ),
-                  ],
-
-                  // Date Information Card
-                  if (startDt != null || endDt != null) ...[
-                    const SizedBox(height: 16),
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.info.withAlpha(25),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(
-                                    Icons.schedule,
-                                    color: AppColors.info,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Thời gian',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.info.withAlpha(25),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.schedule,
+                                color: AppColors.info,
+                                size: 20,
+                              ),
                             ),
-                            const SizedBox(height: 16),
-                            if (startDt != null)
-                              _buildDateRow(
-                                icon: Icons.play_arrow,
-                                label: 'Bắt đầu',
-                                date: df.format(startDt),
-                                theme: theme,
+                            const SizedBox(width: 12),
+                            Text(
+                              'Thời gian',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
-                            if (startDt != null && endDt != null)
-                              const SizedBox(height: 12),
-                            if (endDt != null)
-                              _buildDateRow(
-                                icon: Icons.stop,
-                                label: 'Kết thúc',
-                                date: df.format(endDt),
-                                theme: theme,
-                              ),
+                            ),
                           ],
                         ),
-                      ),
-                    ),
-                  ],
-
-                  // Activities Card
-                  if (activities.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _buildActivitiesCard(
-                      theme: theme,
-                      activities: activities,
-                      df: df,
-                    ),
-                  ],
-
-                  // Action Buttons
-                  const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(
-                              context,
-                            ).pop({'action': 'edit', 'plan': p});
-                          },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Chỉnh sửa'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                        const SizedBox(height: 16),
+                        if (p.startDate != null)
+                          _buildDateRow(
+                            icon: Icons.play_arrow,
+                            label: 'Bắt đầu',
+                            date: _df.format(p.startDate!),
+                            theme: theme,
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.of(
-                              context,
-                            ).pop({'action': 'delete', 'id': p['id']});
-                          },
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('Xoá'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.redAccent,
-                            side: const BorderSide(color: Colors.redAccent),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                        if (p.startDate != null && p.endDate != null)
+                          const SizedBox(height: 12),
+                        if (p.endDate != null)
+                          _buildDateRow(
+                            icon: Icons.stop,
+                            label: 'Kết thúc',
+                            date: _df.format(p.endDate!),
+                            theme: theme,
                           ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-
-                  const SizedBox(height: 20),
+                ),
+              ],
+              if (p.activities.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildActivitiesCard(
+                  theme: theme,
+                  activities: p.activities,
+                  df: _df,
+                ),
+              ],
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.of(context).pop({
+                        'action': 'edit',
+                        'plan': {'id': p.id, 'title': p.title},
+                      }),
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Chỉnh sửa'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).pop({'action': 'delete', 'id': p.id}),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Xoá'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.redAccent,
+                        side: const BorderSide(color: Colors.redAccent),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ),
-          );
-        },
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -470,10 +484,28 @@ class PlanDetailsPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: avatarUrl.isNotEmpty
-                  ? CircleAvatar(
-                      radius: 24,
-                      backgroundImage: NetworkImage(avatarUrl),
-                      backgroundColor: Colors.transparent,
+                  ? ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: avatarUrl,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        placeholder: (c, u) => Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (c, u, e) => const Icon(
+                          Icons.person,
+                          color: AppColors.primary,
+                          size: 28,
+                        ),
+                      ),
                     )
                   : const Icon(
                       Icons.person,
@@ -513,7 +545,7 @@ class PlanDetailsPage extends StatelessWidget {
 
   Widget _buildMetaCard({
     required ThemeData theme,
-    required String status,
+    required PlanStatus status,
     required String planType,
     required bool isPublic,
     required String durationDisplay,
@@ -557,7 +589,7 @@ class PlanDetailsPage extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildStatusChip(status, theme),
+                _buildStatusChip(planStatusLabel(status), theme),
                 _buildChip(
                   label: planType == 'group'
                       ? 'Kế hoạch nhóm'
@@ -637,7 +669,7 @@ class PlanDetailsPage extends StatelessWidget {
 
   Widget _buildActivitiesCard({
     required ThemeData theme,
-    required List<Map<String, dynamic>> activities,
+    required List<ActivityItem> activities,
     required DateFormat df,
   }) {
     final display = activities.take(5).toList();
@@ -677,23 +709,14 @@ class PlanDetailsPage extends StatelessWidget {
               Text('Chưa có hoạt động', style: theme.textTheme.bodyMedium)
             else
               ...display.map((a) {
-                DateTime? st, et;
-                try {
-                  st = DateTime.parse(a['start_time'].toString());
-                } catch (_) {}
-                try {
-                  et = DateTime.parse(a['end_time'].toString());
-                } catch (_) {}
-                final title = (a['title'] ?? '').toString();
-                final type =
-                    (a['activity_type_display'] ?? a['activity_type'] ?? '')
-                        .toString();
+                final st = a.startTime;
+                final et = a.endTime;
+                final title = a.title;
+                final type = a.type;
                 String timeRange = '';
                 if (st != null) {
                   timeRange = df.format(st);
-                  if (et != null) {
-                    timeRange += ' - ' + df.format(et);
-                  }
+                  if (et != null) timeRange += ' - ${df.format(et)}';
                 }
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),

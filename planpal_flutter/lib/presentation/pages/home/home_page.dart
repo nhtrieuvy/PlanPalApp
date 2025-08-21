@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:getwidget/getwidget.dart';
 import '../../../core/providers/theme_provider.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/models/user.dart';
+import 'package:planpal_flutter/core/models/plan_summary.dart';
+import 'package:planpal_flutter/core/models/group_summary.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
@@ -32,8 +35,8 @@ class _HomeContentState extends State<_HomeContent> {
   late final PlanRepository _planRepo;
   bool _loading = false;
   String? _error;
-  List<Map<String, dynamic>> _recentPlans = const [];
-  List<Map<String, dynamic>> _activeGroups = const [];
+  List<PlanSummary> _recentPlans = const <PlanSummary>[];
+  List<GroupSummary> _activeGroups = const <GroupSummary>[];
 
   @override
   void initState() {
@@ -49,13 +52,9 @@ class _HomeContentState extends State<_HomeContent> {
       _error = null;
     });
     try {
-      final results = await Future.wait([
-        _planRepo.getPlans(),
-        _groupRepo.getGroups(),
-      ]);
+      final plans = await _planRepo.getPlans();
+      final groups = await _groupRepo.getGroups();
       if (!mounted) return;
-      final plans = results[0];
-      final groups = results[1];
       setState(() {
         _recentPlans = plans.take(5).toList();
         _activeGroups = groups.take(5).toList();
@@ -78,8 +77,15 @@ class _HomeContentState extends State<_HomeContent> {
     if (result != null &&
         result['action'] == 'created' &&
         result['plan'] != null) {
-      final p = Map<String, dynamic>.from(result['plan'] as Map);
-      setState(() => _recentPlans = [p, ..._recentPlans].take(5).toList());
+      try {
+        final map = Map<String, dynamic>.from(result['plan'] as Map);
+        final summary = PlanSummary.fromJson(map);
+        setState(
+          () => _recentPlans = [summary, ..._recentPlans].take(5).toList(),
+        );
+      } catch (_) {
+        // ignore malformed return
+      }
     }
   }
 
@@ -243,26 +249,65 @@ class _HomeContentState extends State<_HomeContent> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircleAvatar(
-                radius: 32,
-                backgroundColor: Colors.white,
-                backgroundImage: user != null && user.hasAvatar
-                    ? NetworkImage(user.avatarUrl!)
-                    : null,
-                child: (user == null || !user.hasAvatar)
-                    ? Text(
-                        user?.initials ?? '',
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey,
+              // Avatar: use CachedNetworkImage to show placeholder / error states
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                ),
+                child: ClipOval(
+                  child: user != null && user.avatarUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: user.avatarUrl!,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                          placeholder: (c, u) => Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (c, u, e) => Container(
+                            color: Colors.grey[100],
+                            child: Center(
+                              child: Text(
+                                user.initials.isNotEmpty ? user.initials : '?',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: Colors.grey[100],
+                          child: Center(
+                            child: Text(
+                              user?.initials ?? '?',
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
                         ),
-                      )
-                    : null,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
-                user?.primaryDisplay ?? 'Chưa đăng nhập',
+                user?.displayName ?? 'Chưa đăng nhập',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -562,8 +607,8 @@ class _HomeContentState extends State<_HomeContent> {
                 final p = _recentPlans[index];
                 return GestureDetector(
                   onTap: () {
-                    final id = p['id'];
-                    if (id != null) {
+                    final id = p.id;
+                    if (id.isNotEmpty) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => PlanDetailsPage(id: id),
@@ -611,8 +656,8 @@ class _HomeContentState extends State<_HomeContent> {
               final g = _activeGroups[index];
               return GestureDetector(
                 onTap: () {
-                  final id = g['id'];
-                  if (id != null) {
+                  final id = g.id;
+                  if (id.isNotEmpty) {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => GroupDetailsPage(id: id),
@@ -628,17 +673,13 @@ class _HomeContentState extends State<_HomeContent> {
     );
   }
 
-  Widget _buildPlanCardItem(
-    BuildContext context,
-    int index,
-    Map<String, dynamic> p,
-  ) {
+  Widget _buildPlanCardItem(BuildContext context, int index, PlanSummary p) {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
-    final name = (p['name'] ?? 'Kế hoạch').toString();
-    final dest = (p['destination'] ?? '').toString();
-    final start = p['start_date']?.toString();
-    final end = p['end_date']?.toString();
+    final name = p.title.isNotEmpty ? p.title : 'Kế hoạch';
+    final dest = '';
+    final start = p.startDate?.toIso8601String();
+    final end = p.endDate?.toIso8601String();
     DateTime? startDt, endDt;
     try {
       if (start != null) startDt = DateTime.parse(start);
@@ -739,15 +780,11 @@ class _HomeContentState extends State<_HomeContent> {
     );
   }
 
-  Widget _buildGroupCardItem(
-    BuildContext context,
-    int index,
-    Map<String, dynamic> g,
-  ) {
+  Widget _buildGroupCardItem(BuildContext context, int index, GroupSummary g) {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
-    final name = (g['name'] ?? 'Nhóm').toString();
-    final membersCount = g['members_count'] ?? g['member_count'] ?? 0;
+    final name = g.name.isNotEmpty ? g.name : 'Nhóm';
+    final membersCount = g.memberCount;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
