@@ -25,15 +25,12 @@ class GroupRepository {
         final List<dynamic> rawList = (data is Map && data['groups'] is List)
             ? List<dynamic>.from(data['groups'] as List)
             : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
+
         if (rawList.isEmpty) return const <GroupSummary>[];
         final parsed = <GroupSummary>[];
         for (final m in rawList) {
           if (m is Map) {
-            try {
-              parsed.add(GroupSummary.fromJson(Map<String, dynamic>.from(m)));
-            } catch (_) {
-              /* skip malformed item */
-            }
+            parsed.add(GroupSummary.fromJson(Map<String, dynamic>.from(m)));
           }
         }
         return parsed;
@@ -50,6 +47,7 @@ class GroupRepository {
     String id, {
     bool forceRefresh = false,
   }) async {
+    // Trả về từ cache nếu có
     if (!forceRefresh && _detailCache.containsKey(id)) {
       return _detailCache[id]!;
     }

@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from cloudinary.models import CloudinaryField
 from cloudinary import CloudinaryImage
+from collections import defaultdict
 import uuid
 
 class BaseModel(models.Model):
@@ -215,13 +216,13 @@ class User(AbstractUser, BaseModel):
     # ✅ QUERY PROPERTIES - Trả về QuerySet để truy vấn
     @property
     def recent_conversations(self):
-        """Lấy danh sách conversations gần đây"""
+        """Lấy danh sách conversations gần đây - OPTIMIZED"""
         return Group.objects.filter(
             members=self,
             is_active=True
         ).annotate(
             last_message_time=models.Max('messages__created_at')
-        ).order_by('-last_message_time')
+        ).order_by('-last_message_time').select_related('admin')
         
     @property
     def personal_plans(self):
@@ -333,10 +334,16 @@ class User(AbstractUser, BaseModel):
     @property
     def unread_messages_count(self):
         """Tổng số tin nhắn chưa đọc trong tất cả groups - OPTIMIZED"""
-        total = 0
-        for group in self.joined_groups.filter(is_active=True).prefetch_related('messages'):
-            total += group.get_unread_messages_count(self)
-        return total
+        from django.db.models import Count, Q
+        
+        # Single query to count unread messages across all groups
+        return ChatMessage.objects.filter(
+            group__members=self,
+            group__is_active=True,
+            is_deleted=False
+        ).exclude(
+            Q(sender=self) | Q(read_statuses__user=self)
+        ).count()
     
 
 class Friendship(BaseModel):
@@ -436,20 +443,20 @@ class Friendship(BaseModel):
     
     @classmethod
     def get_friends_queryset(cls, user):
-        """Get friends queryset - OPTIMIZED with subquery"""
-        # Get friend IDs in single query
-        friend_subquery = cls.objects.filter(
-            models.Q(user=user) | models.Q(friend=user),
-            status=cls.ACCEPTED
-        ).annotate(
-            friend_user_id=models.Case( # Case giống if else, nếu user là người gửi thì lấy friend, ngược lại lấy user
-                models.When(user=user, then='friend'),
-                default='user',
+        """Get friends queryset - OPTIMIZED with single query"""
+        # Use EXISTS subquery instead of subquery with values_list for better performance
+        friend_ids = cls.objects.filter(
+            Q(user=user, status=cls.ACCEPTED) | Q(friend=user, status=cls.ACCEPTED)
+        ).values_list(
+            models.Case(
+                models.When(user=user, then='friend_id'),
+                default='user_id',
                 output_field=models.UUIDField()
-            )
-        ).values_list('friend_user_id', flat=True) 
+            ),
+            flat=True
+        )
         
-        return User.objects.filter(id__in=friend_subquery).select_related()
+        return User.objects.filter(id__in=friend_ids)
 
     @classmethod
     def get_pending_requests(cls, user):
@@ -491,22 +498,32 @@ class Friendship(BaseModel):
 
     @classmethod
     def create_friend_request(cls, user, friend):
-        """Create friend request - OPTIMIZED with get_or_create"""
+        """Create friend request - FIXED duplicate logic"""
         # Use centralized validation
         cls._validate_friend_request(user, friend)
-            
-        friendship, created = cls.objects.get_or_create(
+        
+        # FIXED: Check existing friendship in both directions first
+        existing_friendship = cls.get_friendship(user, friend)
+        
+        if existing_friendship:
+            # Handle existing friendship
+            if existing_friendship.status == cls.REJECTED:
+                # Allow re-sending after rejection
+                existing_friendship.status = cls.PENDING
+                existing_friendship.save(update_fields=['status', 'updated_at'])
+                return existing_friendship, False
+            else:
+                # Return existing friendship
+                return existing_friendship, False
+        
+        # Create new friendship request (user -> friend direction)
+        friendship = cls.objects.create(
             user=user,
             friend=friend,
-            defaults={'status': cls.PENDING}
+            status=cls.PENDING
         )
         
-        if not created and friendship.status == cls.REJECTED:
-            # Allow re-sending after rejection
-            friendship.status = cls.PENDING
-            friendship.save(update_fields=['status', 'updated_at'])
-            
-        return friendship, created
+        return friendship, True
 
     @classmethod
     def get_friendship(cls, user1, user2):
@@ -523,6 +540,53 @@ class Friendship(BaseModel):
             )
         except cls.DoesNotExist:
             return None
+
+class GroupQuerySet(models.QuerySet):
+    """Custom QuerySet for Group with optimized methods"""
+    
+    def with_member_count(self):
+        """Annotate with member count"""
+        return self.annotate(
+            member_count_annotated=models.Count('members', distinct=True)
+        )
+    
+    def with_admin_count(self):
+        """Annotate with admin count"""
+        return self.annotate(
+            admin_count_annotated=models.Count(
+                'memberships', 
+                filter=models.Q(memberships__role=GroupMembership.ADMIN),
+                distinct=True
+            )
+        )
+    
+    def active(self):
+        """Filter active groups"""
+        return self.filter(is_active=True)
+    
+    def for_user(self, user):
+        """Filter groups for specific user"""
+        return self.filter(members=user)
+
+
+class GroupManager(models.Manager):
+    """Custom Manager for Group"""
+    
+    def get_queryset(self):
+        return GroupQuerySet(self.model, using=self._db)
+    
+    def with_member_count(self):
+        return self.get_queryset().with_member_count()
+    
+    def with_admin_count(self):
+        return self.get_queryset().with_admin_count()
+    
+    def active(self):
+        return self.get_queryset().active()
+    
+    def for_user(self, user):
+        return self.get_queryset().for_user(user)
+
 
 class Group(BaseModel):
     """
@@ -600,6 +664,9 @@ class Group(BaseModel):
     )
     
     # Remove timestamps vì đã có trong BaseModel
+    
+    # Custom manager
+    objects = GroupManager()
 
     class Meta:
         db_table = 'planpal_groups'
@@ -614,6 +681,21 @@ class Group(BaseModel):
 
     def __str__(self):
         return f"{self.name} (Admin: {self.admin.username})"
+
+    def save(self, *args, **kwargs):
+        """Override save để auto-add admin membership và validate"""
+        # Check if this is a new instance by looking at _state.adding
+        is_new = self._state.adding
+        
+        super().save(*args, **kwargs)
+        
+        # Auto-add admin as member on create
+        if is_new and self.admin:
+            GroupMembership.objects.get_or_create(
+                group=self,
+                user=self.admin,
+                defaults={'role': GroupMembership.ADMIN}
+            )
 
     # -------- AVATAR PROPERTIES --------
     @property
@@ -650,14 +732,6 @@ class Group(BaseModel):
         cloudinary_image = CloudinaryImage(str(self.cover_image))
         return cloudinary_image.build_url(width=1200, height=600, crop='fill', gravity='center', secure=True)
 
-    # @property
-    # def cover_image_thumb(self):
-    #     """Cover image thumbnail (dùng trong summary/list)"""
-    #     if not self.cover_image:
-    #         return None
-    #     # Sử dụng CloudinaryImage để tạo thumbnail
-    #     cloudinary_image = CloudinaryImage(str(self.cover_image))
-    #     return cloudinary_image.build_url(width=400, height=400, crop='fill', gravity='center', secure=True)
     
     @property
     def initials(self):
@@ -680,16 +754,19 @@ class Group(BaseModel):
     @property
     def member_count(self):
         """Đếm số thành viên trong nhóm - OPTIMIZED"""
+        # Use annotated value if available, fallback to count()
+        if hasattr(self, 'member_count_annotated'):
+            return self.member_count_annotated
         return self.members.count()
 
     @property
     def plans_count(self):
-        """Đếm số kế hoạch trong nhóm"""
+        """Đếm số kế hoạch trong nhóm - OPTIMIZED"""
         return self.plans.count()
 
     @property
     def active_plans_count(self):
-        """Đếm số kế hoạch đang hoạt động"""
+        """Đếm số kế hoạch đang hoạt động - OPTIMIZED"""
         return self.plans.exclude(status__in=['cancelled', 'completed']).count()
 
     def add_member(self, user, role='member'):
@@ -708,9 +785,23 @@ class Group(BaseModel):
         return membership, created
 
     def remove_member(self, user):
-        """Xóa thành viên khỏi nhóm"""
+        """
+        Xóa thành viên khỏi nhóm
+        Kiểm tra không để nhóm không có admin
+        """
         try:
             membership = GroupMembership.objects.get(user=user, group=self)
+            
+            # If removing an admin, check if there will be at least one admin left
+            if membership.role == GroupMembership.ADMIN:
+                admin_count = GroupMembership.objects.filter(
+                    group=self,
+                    role=GroupMembership.ADMIN
+                ).exclude(user=user).count()
+                
+                if admin_count == 0:
+                    raise ValueError("Không thể xóa admin cuối cùng. Nhóm phải có ít nhất một admin.")
+            
             membership.delete()
             return True
         except GroupMembership.DoesNotExist:
@@ -721,15 +812,137 @@ class Group(BaseModel):
         return self.members.filter(id=user.id).exists()
 
     def is_admin(self, user):
-        """Check xem user có phải admin không"""
-        return self.admin == user
+        """
+        Check xem user có phải admin không - OPTIMIZED
+        Chỉ kiểm tra membership role, không ưu tiên admin field nữa
+        """
+        return GroupMembership.objects.filter(
+            group=self,
+            user=user,
+            role=GroupMembership.ADMIN
+        ).exists()
 
     def get_admins(self):
-        """Lấy danh sách các admin của nhóm"""
+        """Lấy danh sách các admin của nhóm - OPTIMIZED"""
         return User.objects.filter(
             groupmembership__group=self,
             groupmembership__role=GroupMembership.ADMIN
         )
+    
+    def get_admin_count(self):
+        """Đếm số admin hiện tại trong nhóm - OPTIMIZED với single query"""
+        return GroupMembership.objects.filter(
+            group=self,
+            role=GroupMembership.ADMIN
+        ).count()
+    
+    def promote_to_admin(self, user):
+        """
+        Thăng cấp user lên admin
+        """
+        try:
+            membership = GroupMembership.objects.get(group=self, user=user)
+            return membership.promote_to_admin()
+        except GroupMembership.DoesNotExist:
+            return False
+    
+    def demote_from_admin(self, user):
+        """
+        Hạ cấp user xuống member
+        """
+        try:
+            membership = GroupMembership.objects.get(group=self, user=user)
+            return membership.demote_to_member()
+        except GroupMembership.DoesNotExist:
+            return False
+    
+    def bulk_update_member_roles(self, user_role_pairs):
+        """
+        Batch update roles for multiple users - OPTIMIZED
+        
+        Args:
+            user_role_pairs: List of (user_id, role) tuples
+        
+        Example:
+            group.bulk_update_member_roles([
+                (user1.id, 'admin'),
+                (user2.id, 'member')
+            ])
+        """
+        # Validate that at least one admin will remain
+        admin_users = [user_id for user_id, role in user_role_pairs if role == GroupMembership.ADMIN]
+        current_admin_count = self.get_admin_count()
+        users_being_demoted = [user_id for user_id, role in user_role_pairs if role == GroupMembership.MEMBER]
+        
+        # Count how many current admins are being demoted
+        demoted_admin_count = GroupMembership.objects.filter(
+            group=self,
+            user_id__in=users_being_demoted,
+            role=GroupMembership.ADMIN
+        ).count()
+        
+        # Calculate final admin count
+        final_admin_count = current_admin_count - demoted_admin_count + len(admin_users)
+        
+        if final_admin_count == 0:
+            raise ValueError("Nhóm phải có ít nhất một admin")
+        
+        # Perform batch update
+        memberships_to_update = []
+        for user_id, role in user_role_pairs:
+            try:
+                membership = GroupMembership.objects.get(group=self, user_id=user_id)
+                membership.role = role
+                memberships_to_update.append(membership)
+            except GroupMembership.DoesNotExist:
+                continue
+        
+        if memberships_to_update:
+            GroupMembership.objects.bulk_update(memberships_to_update, ['role'])
+        
+        return len(memberships_to_update)
+    
+    def get_member_roles(self):
+        """
+        Lấy mapping user_id -> role cho tất cả members - OPTIMIZED
+        
+        Returns:
+            Dict: {user_id: role}
+        """
+        return dict(
+            GroupMembership.objects.filter(group=self)
+            .values_list('user_id', 'role')
+        )
+    
+    def can_demote_user(self, user):
+        """
+        Kiểm tra xem có thể hạ cấp user này không
+        Chỉ kiểm tra không để nhóm không có admin
+        """
+        # Cannot demote if this is the last admin
+        if self.get_admin_count() <= 1:
+            try:
+                membership = GroupMembership.objects.get(group=self, user=user)
+                return membership.role != GroupMembership.ADMIN
+            except GroupMembership.DoesNotExist:
+                return False
+            
+        return True
+    
+    def can_remove_user(self, user):
+        """
+        Kiểm tra xem có thể xóa user này khỏi nhóm không
+        Chỉ kiểm tra không để nhóm không có admin
+        """
+        # If user is admin and this is the last admin, cannot remove
+        try:
+            membership = GroupMembership.objects.get(group=self, user=user)
+            if membership.role == GroupMembership.ADMIN and self.get_admin_count() <= 1:
+                return False
+        except GroupMembership.DoesNotExist:
+            return False
+            
+        return True
         
     def send_message(self, sender, content, message_type='text', **kwargs):
         """
@@ -751,34 +964,20 @@ class Group(BaseModel):
         return message
 
     def get_recent_messages(self, limit=50):
-        """Lấy tin nhắn gần đây với limit tùy chỉnh"""
-        return self.messages.filter(
-            is_deleted=False
-        ).select_related('sender').order_by('-created_at')[:limit]
+        """Lấy tin nhắn gần đây với limit tùy chỉnh - OPTIMIZED"""
+        return self.messages.active().select_related('sender').order_by('-created_at')[:limit]
 
     def get_unread_messages_count(self, user):
-        """Đếm số tin nhắn chưa đọc của user"""
+        """Đếm số tin nhắn chưa đọc của user - OPTIMIZED"""
         if not self.is_member(user):
             return 0
         
-        # Lấy tin nhắn cuối cùng user đã đọc
-        try:
-            last_read = MessageReadStatus.objects.filter(
-                message__group=self,
-                user=user
-            ).latest('read_at')
-            
-            # Đếm tin nhắn sau thời điểm đó
-            return self.messages.filter(
-                created_at__gt=last_read.read_at,
-                is_deleted=False
-            ).exclude(sender=user).count()
-            
-        except MessageReadStatus.DoesNotExist:
-            # User chưa đọc tin nhắn nào
-            return self.messages.filter(
-                is_deleted=False
-            ).exclude(sender=user).count()
+        # Single query to count unread messages
+        return self.messages.filter(
+            is_deleted=False
+        ).exclude(
+            models.Q(sender=user) | models.Q(read_statuses__user=user)
+        ).count()
 
     def mark_messages_as_read(self, user, up_to_message=None):
         """
@@ -801,6 +1000,45 @@ class Group(BaseModel):
                 message=message,
                 user=user
             )
+
+
+class GroupMembershipQuerySet(models.QuerySet):
+    """Custom QuerySet for GroupMembership"""
+    
+    def admins(self):
+        """Filter admin memberships"""
+        return self.filter(role=GroupMembership.ADMIN)
+    
+    def members(self):
+        """Filter member memberships"""
+        return self.filter(role=GroupMembership.MEMBER)
+    
+    def for_group(self, group):
+        """Filter memberships for specific group"""
+        return self.filter(group=group)
+    
+    def for_user(self, user):
+        """Filter memberships for specific user"""
+        return self.filter(user=user)
+
+
+class GroupMembershipManager(models.Manager):
+    """Custom Manager for GroupMembership"""
+    
+    def get_queryset(self):
+        return GroupMembershipQuerySet(self.model, using=self._db)
+    
+    def admins(self):
+        return self.get_queryset().admins()
+    
+    def members(self):
+        return self.get_queryset().members()
+    
+    def for_group(self, group):
+        return self.get_queryset().for_group(group)
+    
+    def for_user(self, user):
+        return self.get_queryset().for_user(user)
 
 
 class GroupMembership(BaseModel):
@@ -848,6 +1086,9 @@ class GroupMembership(BaseModel):
         auto_now_add=True,
         help_text="Thời gian tham gia nhóm"
     )
+    
+    # Custom manager
+    objects = GroupMembershipManager()
 
     class Meta:
         db_table = 'planpal_group_memberships'
@@ -867,6 +1108,36 @@ class GroupMembership(BaseModel):
     def __str__(self):
         return f"{self.user.username} in {self.group.name} ({self.get_role_display()})"
 
+    def clean(self):
+        """Validate membership rules"""
+        super().clean()
+        
+        # If demoting to MEMBER, ensure at least one admin remains
+        if self.pk and self.role == self.MEMBER:
+            # Count current admins excluding this membership
+            admin_count = GroupMembership.objects.filter(
+                group=self.group,
+                role=self.ADMIN
+            ).exclude(pk=self.pk).count()
+            
+            if admin_count == 0:
+                raise ValidationError("Nhóm phải có ít nhất một admin. Không thể hạ cấp admin cuối cùng.")
+
+    def save(self, *args, **kwargs):
+        """Override save to enforce business rules"""
+        # Ensure at least one admin remains when demoting
+        if self.pk and self.role == self.MEMBER:
+            admin_count = GroupMembership.objects.filter(
+                group=self.group,
+                role=self.ADMIN
+            ).exclude(pk=self.pk).count()
+            
+            if admin_count == 0:
+                raise ValueError("Nhóm phải có ít nhất một admin")
+        
+        self.clean()
+        super().save(*args, **kwargs)
+
     def promote_to_admin(self):
         """Thăng cấp thành admin"""
         if self.role == self.MEMBER:
@@ -876,12 +1147,113 @@ class GroupMembership(BaseModel):
         return False
 
     def demote_to_member(self):
-        """Hạ cấp xuống member"""
+        """
+        Hạ cấp xuống member
+        Chỉ kiểm tra không để nhóm không có admin
+        """
+        # Prevent demoting last admin
+        admin_count = GroupMembership.objects.filter(
+            group=self.group,
+            role=self.ADMIN
+        ).exclude(pk=self.pk).count()
+        
+        if admin_count == 0:
+            raise ValueError("Không thể hạ cấp admin cuối cùng. Nhóm phải có ít nhất một admin.")
+        
         if self.role == self.ADMIN:
             self.role = self.MEMBER
             self.save(update_fields=['role'])
             return True
         return False
+
+class PlanQuerySet(models.QuerySet):
+    """Custom QuerySet for Plan with optimized methods"""
+    
+    def personal(self):
+        """Filter personal plans"""
+        return self.filter(plan_type='personal')
+    
+    def group_plans(self):
+        """Filter group plans"""
+        return self.filter(plan_type='group')
+    
+    def public(self):
+        """Filter public plans"""
+        return self.filter(is_public=True)
+    
+    def upcoming(self):
+        """Filter upcoming plans"""
+        return self.filter(status='upcoming')
+    
+    def ongoing(self):
+        """Filter ongoing plans"""
+        return self.filter(status='ongoing')
+    
+    def completed(self):
+        """Filter completed plans"""
+        return self.filter(status='completed')
+    
+    def active(self):
+        """Filter active plans (not cancelled or completed)"""
+        return self.exclude(status__in=['cancelled', 'completed'])
+    
+    def for_user(self, user):
+        """Filter plans accessible by user"""
+        return self.filter(
+            models.Q(creator=user) |  # Own plans
+            models.Q(group__members=user) |  # Group plans
+            models.Q(is_public=True)  # Public plans
+        ).distinct()
+    
+    def with_activity_count(self):
+        """Annotate with activity count"""
+        return self.annotate(
+            activity_count_annotated=models.Count('activities', distinct=True)
+        )
+    
+    def with_total_cost(self):
+        """Annotate with total estimated cost"""
+        return self.annotate(
+            total_cost_annotated=models.Sum('activities__estimated_cost')
+        )
+
+
+class PlanManager(models.Manager):
+    """Custom Manager for Plan"""
+    
+    def get_queryset(self):
+        return PlanQuerySet(self.model, using=self._db)
+    
+    def personal(self):
+        return self.get_queryset().personal()
+    
+    def group_plans(self):
+        return self.get_queryset().group_plans()
+    
+    def public(self):
+        return self.get_queryset().public()
+    
+    def upcoming(self):
+        return self.get_queryset().upcoming()
+    
+    def ongoing(self):
+        return self.get_queryset().ongoing()
+    
+    def completed(self):
+        return self.get_queryset().completed()
+    
+    def active(self):
+        return self.get_queryset().active()
+    
+    def for_user(self, user):
+        return self.get_queryset().for_user(user)
+    
+    def with_activity_count(self):
+        return self.get_queryset().with_activity_count()
+    
+    def with_total_cost(self):
+        return self.get_queryset().with_total_cost()
+
 
 class Plan(BaseModel):
     """
@@ -976,6 +1348,9 @@ class Plan(BaseModel):
     )
     
     # Remove timestamps vì đã có trong BaseModel
+    
+    # Custom manager
+    objects = PlanManager()
 
     class Meta:
         db_table = 'planpal_plans'
@@ -1071,16 +1446,23 @@ class Plan(BaseModel):
 
     @property
     def activities_count(self):
-        """Đếm số hoạt động trong kế hoạch"""
+        """Đếm số hoạt động trong kế hoạch - OPTIMIZED"""
+        # Use annotated value if available, fallback to count()
+        if hasattr(self, 'activity_count_annotated'):
+            return self.activity_count_annotated
         return self.activities.count()
 
     @property
     def total_estimated_cost(self):
-        """Tính tổng chi phí dự kiến từ các activities"""
-        total = self.activities.aggregate(
+        """Tính tổng chi phí dự kiến từ các activities - OPTIMIZED"""
+        # Use annotated value if available, fallback to aggregation
+        if hasattr(self, 'total_cost_annotated'):
+            return self.total_cost_annotated or 0
+        
+        result = self.activities.aggregate(
             total=models.Sum('estimated_cost')
         )['total']
-        return total or 0
+        return result or 0
 
     
 
@@ -1096,11 +1478,11 @@ class Plan(BaseModel):
         return status_map.get(self.status, self.status)
 
     def get_members(self):
-        """Trả về queryset các user tham gia kế hoạch (thay cho plan.members không tồn tại)."""
+        """Trả về queryset các user tham gia kế hoạch - OPTIMIZED"""
         if self.is_personal():
-            return User.objects.filter(id=self.creator_id)
+            return User.objects.filter(id=self.creator_id).select_related()
         if self.group_id:
-            return self.group.members.all()
+            return self.group.members.select_related()
         return User.objects.none()
 
     def add_activity_with_place(self, title, start_time, end_time, place_id=None, **extra_data):
@@ -1164,15 +1546,15 @@ class Plan(BaseModel):
 
     @property
     def activities_by_date(self):
-        """Lấy activities nhóm theo ngày - Dictionary"""
-        activities = self.activities.order_by('start_time')
-        result = {}
+        """Lấy activities nhóm theo ngày - Dictionary - OPTIMIZED"""
+        activities = self.activities.order_by('start_time').select_related()
+        result = defaultdict(list)
+        
         for activity in activities:
             date = activity.start_time.date()
-            if date not in result:
-                result[date] = []
             result[date].append(activity)
-        return result
+        
+        return dict(result)
 
     def get_activities_by_date(self, date):
         """Lấy các hoạt động trong ngày cụ thể"""
@@ -1461,6 +1843,66 @@ class PlanActivity(BaseModel):
             return f"https://www.google.com/maps/search/{self.location_name}"
         return None
 
+class ChatMessageQuerySet(models.QuerySet):
+    """Custom QuerySet for ChatMessage"""
+    
+    def active(self):
+        """Filter non-deleted messages"""
+        return self.filter(is_deleted=False)
+    
+    def for_group(self, group):
+        """Filter messages for specific group"""
+        return self.filter(group=group)
+    
+    def by_user(self, user):
+        """Filter messages by specific user"""
+        return self.filter(sender=user)
+    
+    def text_messages(self):
+        """Filter text messages"""
+        return self.filter(message_type='text')
+    
+    def system_messages(self):
+        """Filter system messages"""
+        return self.filter(message_type='system')
+    
+    def with_attachments(self):
+        """Filter messages with attachments"""
+        return self.exclude(attachment='')
+    
+    def recent(self, limit=50):
+        """Get recent messages"""
+        return self.order_by('-created_at')[:limit]
+
+
+class ChatMessageManager(models.Manager):
+    """Custom Manager for ChatMessage"""
+    
+    def get_queryset(self):
+        return ChatMessageQuerySet(self.model, using=self._db)
+    
+    def active(self):
+        return self.get_queryset().active()
+    
+    def for_group(self, group):
+        return self.get_queryset().for_group(group)
+    
+    def by_user(self, user):
+        return self.get_queryset().by_user(user)
+    
+    def text_messages(self):
+        return self.get_queryset().text_messages()
+    
+    def system_messages(self):
+        return self.get_queryset().system_messages()
+    
+    def with_attachments(self):
+        return self.get_queryset().with_attachments()
+    
+    def recent(self, limit=50):
+        return self.get_queryset().recent(limit)
+
+
 class ChatMessage(BaseModel):
     """
     Model quản lý tin nhắn trong group chat
@@ -1579,6 +2021,9 @@ class ChatMessage(BaseModel):
     )
     
     # Remove timestamps vì đã có trong BaseModel
+    
+    # Custom manager
+    objects = ChatMessageManager()
 
     class Meta:
         db_table = 'planpal_chat_messages'

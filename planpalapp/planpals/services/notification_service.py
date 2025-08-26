@@ -290,3 +290,57 @@ class NotificationService(BaseService):
         except Exception as e:
             self.log_error(f"Lỗi khi gửi invitation notification", e)
             return False
+
+    def notify_friend_request(self, user_id: str, requester_name: str) -> bool:
+        """Thông báo lời mời kết bạn"""
+        from ..models import User  # Import ở đây để tránh circular import
+        
+        try:
+            user = User.objects.get(id=user_id)
+            if not hasattr(user, 'fcm_token') or not user.fcm_token:
+                return False
+            
+            title = "Lời mời kết bạn"
+            body = f"{requester_name} đã gửi lời mời kết bạn"
+            
+            data = {
+                'action': 'friend_request',
+                'requester_name': requester_name,
+                'type': 'friend_request'
+            }
+            
+            return self.send_push_notification([user.fcm_token], title, body, data)
+            
+        except User.DoesNotExist:
+            self.log_error(f"User {user_id} không tồn tại")
+            return False
+        except Exception as e:
+            self.log_error(f"Lỗi khi gửi friend request notification", e)
+            return False
+
+    def notify_friend_request_accepted(self, user_id: str, accepter_name: str) -> bool:
+        """Thông báo lời mời kết bạn được chấp nhận"""
+        from ..models import User  # Import ở đây để tránh circular import
+        
+        try:
+            user = User.objects.get(id=user_id)
+            if not hasattr(user, 'fcm_token') or not user.fcm_token:
+                return False
+            
+            title = "Kết bạn thành công"
+            body = f"{accepter_name} đã chấp nhận lời mời kết bạn của bạn"
+            
+            data = {
+                'action': 'friend_request_accepted',
+                'accepter_name': accepter_name,
+                'type': 'friend_request_accepted'
+            }
+            
+            return self.send_push_notification([user.fcm_token], title, body, data)
+            
+        except User.DoesNotExist:
+            self.log_error(f"User {user_id} không tồn tại")
+            return False
+        except Exception as e:
+            self.log_error(f"Lỗi khi gửi friend request accepted notification", e)
+            return False

@@ -1,5 +1,3 @@
-import 'plan_status.dart';
-
 class PlanSummary {
   final String id;
   final String title;
@@ -7,7 +5,9 @@ class PlanSummary {
   final DateTime? endDate;
   final bool isPublic;
   final String planType; // personal | group
-  final PlanStatus status;
+  final String status;
+
+  final String statusDisplay;
   final String? groupId;
   final int activitiesCount;
 
@@ -19,28 +19,33 @@ class PlanSummary {
     required this.isPublic,
     required this.planType,
     required this.status,
+    required this.statusDisplay,
     required this.groupId,
     required this.activitiesCount,
   });
 
-  factory PlanSummary.fromJson(Map<String, dynamic> j) {
+  factory PlanSummary.fromJson(Map<String, dynamic> ps) {
     DateTime? parseDate(String k) {
-      final v = j[k];
+      final v = ps[k];
       if (v == null) return null;
       return DateTime.tryParse(v.toString());
     }
+
     return PlanSummary(
-      id: j['id']?.toString() ?? '',
-      title: j['title']?.toString() ?? '',
+      id: ps['id']?.toString() ?? '',
+      title: ps['title']?.toString() ?? '',
       startDate: parseDate('start_date'),
       endDate: parseDate('end_date'),
-      isPublic: j['is_public'] == true,
-      planType: j['plan_type']?.toString() ?? (j['group_id'] != null ? 'group' : 'personal'),
-      status: parsePlanStatus(j['status']?.toString()),
-      groupId: j['group_id']?.toString(),
-      activitiesCount: j['activities_count'] is int
-          ? j['activities_count']
-          : int.tryParse('${j['activities_count']}') ?? 0,
+      isPublic: ps['is_public'] == true,
+      planType:
+          ps['plan_type']?.toString() ??
+          (ps['group_id'] != null ? 'group' : 'personal'),
+      status: ps['status']?.toString() ?? 'unknown',
+      statusDisplay: ps['status_display']?.toString() ?? '',
+      groupId: ps['group_id']?.toString(),
+      activitiesCount: ps['activities_count'] is int
+          ? ps['activities_count']
+          : int.tryParse('${ps['activities_count']}') ?? 0,
     );
   }
 }

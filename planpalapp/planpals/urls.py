@@ -32,7 +32,7 @@ urlpatterns = [
     # Friendship endpoints (class-based views)
     path('friends/request/', FriendRequestView.as_view(), name='friend_request'),
     path('friends/requests/', FriendRequestListView.as_view(), name='friend_requests'),
-    path('friends/requests/<int:request_id>/action/', FriendRequestActionView.as_view(), name='friend_request_action'),
+    path('friends/requests/<uuid:request_id>/action/', FriendRequestActionView.as_view(), name='friend_request_action'),
     path('friends/', FriendsListView.as_view(), name='friends_list'),
     
     # Location/Places API endpoints (using Goong Map API)

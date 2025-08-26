@@ -9,8 +9,10 @@ class Endpoints {
 
   // User endpoints
   static const String register = '/users/';
+  static const String users = '/users';
   static const String profile = '/users/profile/';
   static const String updateProfile = '/users/update_profile/';
+  static const String searchUsers = '/users/search/';
 
   // Core API endpoints
   static const String plans = '/plans/';
@@ -24,8 +26,13 @@ class Endpoints {
   static const String friendRequest = '/friends/request/';
   static const String friendRequests = '/friends/requests/';
   static const String friends = '/friends/';
-  static String friendRequestAction(int requestId) =>
+  static String friendRequestAction(String requestId) =>
       '/friends/requests/$requestId/action/';
+
+  // User profile endpoints
+  static String userProfile(String userId) => '/users/$userId/';
+  static String userFriendshipStatus(String userId) =>
+      '/users/$userId/friendship-status/';
 }
 
 class ApiClient {

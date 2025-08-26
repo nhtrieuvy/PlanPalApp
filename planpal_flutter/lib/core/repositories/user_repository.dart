@@ -9,7 +9,6 @@ class UserRepository {
   final AuthProvider auth;
   UserRepository(this.auth);
 
-  // Centralized throwing helper
   Never _throwApiError(Response res) => throw buildApiException(res);
 
   Future<User> getProfile() async {
@@ -19,7 +18,7 @@ class UserRepository {
       );
       if (res.statusCode == 200 && res.data is Map) {
         final user = User.fromJson(Map<String, dynamic>.from(res.data as Map));
-        auth.setUser(user); // Update cached user in auth provider
+        auth.setUser(user);
         return user;
       }
       return _throwApiError(res);

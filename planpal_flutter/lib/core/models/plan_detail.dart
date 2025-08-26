@@ -18,6 +18,7 @@ class PlanDetail extends PlanSummary {
     required super.isPublic,
     required super.planType,
     required super.status,
+    required super.statusDisplay,
     required super.groupId,
     required super.activitiesCount,
     required this.description,
@@ -28,10 +29,10 @@ class PlanDetail extends PlanSummary {
     this.creator,
   });
 
-  factory PlanDetail.fromJson(Map<String, dynamic> j) {
-    final summary = PlanSummary.fromJson(j);
-    final acts = (j['activities'] is List)
-        ? (j['activities'] as List)
+  factory PlanDetail.fromJson(Map<String, dynamic> pd) {
+    final summary = PlanSummary.fromJson(pd);
+    final acts = (pd['activities'] is List)
+        ? (pd['activities'] as List)
               .whereType<Map>()
               .map((m) => ActivityItem.fromJson(Map<String, dynamic>.from(m)))
               .toList(growable: false)
@@ -50,15 +51,19 @@ class PlanDetail extends PlanSummary {
       isPublic: summary.isPublic,
       planType: summary.planType,
       status: summary.status,
+      statusDisplay: summary.statusDisplay,
       groupId: summary.groupId,
       activitiesCount: summary.activitiesCount,
-      description: j['description']?.toString() ?? '',
+      description: pd['description']?.toString() ?? '',
       activities: acts,
-      groupName: j['group_name']?.toString() ?? j['group']?['name']?.toString(),
-      durationDisplay: j['duration_display']?.toString(),
-      totalEstimatedCost: parseNum(j['total_estimated_cost']),
-      creator: j['creator'] is Map
-          ? UserSummary.fromJson(Map<String, dynamic>.from(j['creator'] as Map))
+      groupName:
+          pd['group_name']?.toString() ?? pd['group']?['name']?.toString(),
+      durationDisplay: pd['duration_display']?.toString(),
+      totalEstimatedCost: parseNum(pd['total_estimated_cost']),
+      creator: pd['creator'] is Map
+          ? UserSummary.fromJson(
+              Map<String, dynamic>.from(pd['creator'] as Map),
+            )
           : null,
     );
   }

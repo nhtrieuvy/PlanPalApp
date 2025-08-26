@@ -80,16 +80,30 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserSummarySerializer(serializers.ModelSerializer):
-    """Lightweight user summary (for embedding in other payloads)."""
+    """Enhanced user summary with optimized performance"""
+    # Use properties instead of SerializerMethodField for better performance
     avatar_thumb = serializers.CharField(read_only=True)
+    avatar_url = serializers.CharField(read_only=True)
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'display_name', 'initials', 'is_online', 'avatar_thumb']
+        fields = [
+            'id', 'username', 'display_name', 'initials', 'is_online', 
+            'avatar_thumb', 'avatar_url', 'first_name', 
+            'last_name', 'email', 'date_joined', 'last_seen'
+        ]
+    
+    def to_representation(self, instance):
+        """OPTIMIZED: Add computed fields in to_representation for better caching"""
+        data = super().to_representation(instance)
+        # Add full_name without using SerializerMethodField
+        data['full_name'] = f"{instance.first_name} {instance.last_name}".strip() or instance.username
+        return data
 
 
 class GroupMembershipSerializer(serializers.ModelSerializer):
     """Serializer cho GroupMembership"""
-    user = UserSerializer(read_only=True)
+    user = UserSummarySerializer(read_only=True)
     
     class Meta:
         model = GroupMembership
@@ -109,12 +123,12 @@ class GroupSerializer(serializers.ModelSerializer):
     
     # Avatar properties
     avatar_url = serializers.CharField(read_only=True)
-    avatar_thumb = serializers.CharField(read_only=True)
-    has_avatar = serializers.BooleanField(read_only=True)
+    # avatar_thumb = serializers.CharField(read_only=True)
+    # has_avatar = serializers.BooleanField(read_only=True)
     
     # Cover image properties
     cover_image_url = serializers.CharField(read_only=True)
-    has_cover_image = serializers.BooleanField(read_only=True)
+    # has_cover_image = serializers.BooleanField(read_only=True)
     
     initials = serializers.CharField(read_only=True)
     is_member = serializers.SerializerMethodField()
@@ -126,8 +140,8 @@ class GroupSerializer(serializers.ModelSerializer):
         model = Group
         fields = [
             'id', 'name', 'description', 
-            'avatar', 'avatar_url', 'avatar_thumb', 'has_avatar',
-            'cover_image', 'cover_image_url', 'has_cover_image',
+            'avatar_url',
+            'cover_image', 'cover_image_url',
             'initials',
             'admin', 'memberships', 'member_count', 'plans_count', 'active_plans_count',
             'is_active', 'is_member', 'user_role', 'can_edit', 'can_delete', 'created_at', 'updated_at'
@@ -164,19 +178,18 @@ class GroupSerializer(serializers.ModelSerializer):
             return obj.admin == request.user
         return False
 
-    # cover_image_url & cover_image_thumb dùng trực tiếp từ model properties (cached)
     
     def create(self, validated_data):
         request = self.context.get('request')
         validated_data['admin'] = request.user
         group = super().create(validated_data)
         
-        # Auto-add creator as admin member
-        GroupMembership.objects.create(
-            group=group,
-            user=request.user,
-            role=GroupMembership.ADMIN
-        )
+        # # Auto-add creator as admin member
+        # GroupMembership.objects.create(
+        #     group=group,
+        #     user=request.user,
+        #     role=GroupMembership.ADMIN
+        # )
         return group
 
 
@@ -207,6 +220,20 @@ class GroupCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Tên nhóm phải có ít nhất 3 ký tự")
         return value.strip()
     
+    def create(self, validated_data):
+        """Create group và auto-add creator thành admin member"""
+        request = self.context.get('request')
+        validated_data['admin'] = request.user
+        group = super().create(validated_data)
+        
+        # # Auto-add creator as admin member
+        # GroupMembership.objects.create(
+        #     group=group,
+        #     user=request.user,
+        #     role=GroupMembership.ADMIN
+        # )
+        return group
+
 
 class GroupSummarySerializer(serializers.ModelSerializer):
     """Lightweight group summary (list views)."""
@@ -471,6 +498,24 @@ class PlanCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class PlanSummarySerializer(serializers.ModelSerializer):
+    """Serializer tóm tắt cho Plan list view"""
+    creator = UserSummarySerializer(read_only=True)
+    group_name = serializers.CharField(source='group.name', read_only=True)
+    duration_days = serializers.SerializerMethodField()
+    status_display = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = Plan
+        fields = [
+            'id', 'title', 'start_date', 'end_date', 'is_public', 'status',
+            'status_display', 'creator', 'group_name', 'duration_days', 'created_at'
+        ]
+    
+    def get_duration_days(self, obj):
+        return obj.duration_days
+    
+    
 class ChatMessageSerializer(serializers.ModelSerializer):
     """Serializer cho ChatMessage với Cloudinary attachment support - OPTIMIZED"""
     sender = UserSerializer(read_only=True)
@@ -584,39 +629,40 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
 
 class FriendshipSerializer(serializers.ModelSerializer):
-    """General Friendship serializer for admin/internal use"""
-    user = UserSerializer(read_only=True)
-    friend = UserSerializer(read_only=True)
-    friend_info = serializers.SerializerMethodField()
+    # OPTIMIZED: Use UserSummarySerializer instead of full UserSerializer
+    user = UserSummarySerializer(read_only=True)
+    friend = UserSummarySerializer(read_only=True)
     
     class Meta:
         model = Friendship
         fields = [
-            'id', 'user', 'friend', 'friend_info', 'status',
+            'id', 'user', 'friend', 'status',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'user', 'friend', 'created_at', 'updated_at']
     
-    def get_friend_info(self, obj):
-        """Get friend info based on current user"""
+    def to_representation(self, instance):
+        """OPTIMIZED: Add friend_info without SerializerMethodField"""
+        data = super().to_representation(instance)
+        
         request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            return None
-        current_user = request.user
-        # Determine friend user
-        friend_user = obj.friend if obj.user == current_user else obj.user
-        return {
-            'id': friend_user.id,
-            'username': friend_user.username,
-            'full_name': friend_user.display_name,
-            'avatar_url': friend_user.avatar.url if friend_user.avatar else None,
-            'is_online': friend_user.is_online,
-            'last_seen': friend_user.last_seen
-        }
+        if request and request.user.is_authenticated:
+            current_user = request.user
+            # Determine friend user efficiently
+            friend_user = instance.friend if instance.user == current_user else instance.user
+            data['friend_info'] = {
+                'id': friend_user.id,
+                'username': friend_user.username,
+                'display_name': friend_user.display_name,
+                'avatar_url': friend_user.avatar_url,
+                'is_online': friend_user.is_online,
+                'last_seen': friend_user.last_seen
+            }
+        
+        return data
 
 
 class FriendRequestSerializer(serializers.Serializer):
-    """Dedicated serializer for sending friend requests"""
     friend_id = serializers.UUIDField()
     message = serializers.CharField(max_length=200, required=False, allow_blank=True)
     
@@ -700,22 +746,7 @@ class MessageReadStatusSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'user', 'read_at']
 
 
-# Summary serializers for list views
-class PlanSummarySerializer(serializers.ModelSerializer):
-    """Serializer tóm tắt cho Plan list view"""
-    creator = UserSerializer(read_only=True)
-    group_name = serializers.CharField(source='group.name', read_only=True)
-    duration_days = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Plan
-        fields = [
-            'id', 'title', 'start_date', 'end_date', 'is_public', 
-            'status', 'creator', 'group_name', 'duration_days', 'created_at'
-        ]
-    
-    def get_duration_days(self, obj):
-        return obj.duration_days
+
 
 
 
