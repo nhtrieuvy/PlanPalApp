@@ -75,7 +75,9 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
-      final repo = UserRepository(Provider.of<AuthProvider>(context, listen: false));
+      final repo = UserRepository(
+        Provider.of<AuthProvider>(context, listen: false),
+      );
 
       await repo.register(
         username: _usernameController.text.trim(),

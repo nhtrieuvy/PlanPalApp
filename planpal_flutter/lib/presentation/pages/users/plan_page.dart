@@ -6,6 +6,8 @@ import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:intl/intl.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
+import '../../../core/models/plan_summary.dart';
+import '../../../core/models/plan_status.dart';
 
 class PlanPage extends StatefulWidget {
   const PlanPage({super.key});
@@ -18,8 +20,19 @@ class _PlanPageState extends State<PlanPage> {
   late final PlanRepository _repo;
   bool _loading = false;
   String? _error;
-  List<Map<String, dynamic>> _plans = const [];
+  List<PlanSummary> _plans = const [];
   final DateFormat _dateFmt = DateFormat('dd/MM/yyyy HH:mm');
+
+  static const Map<PlanStatus, Color> _statusColorMap = {
+    PlanStatus.upcoming: AppColors.info,
+    PlanStatus.ongoing: AppColors.warning,
+    PlanStatus.completed: AppColors.success,
+    PlanStatus.cancelled: AppColors.error,
+    PlanStatus.unknown: Colors.grey,
+  };
+
+  Color _statusColor(PlanStatus status) =>
+      _statusColorMap[status] ?? Colors.grey;
 
   @override
   void initState() {
@@ -41,25 +54,7 @@ class _PlanPageState extends State<PlanPage> {
       if (!mounted) return;
       setState(() => _error = 'Lỗi: $e');
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-    }
-  }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'upcoming':
-      case 'iscoming':
-        return AppColors.info;
-      case 'ongoing':
-        return AppColors.warning;
-      case 'completed':
-        return AppColors.success;
-      case 'cancelled':
-        return AppColors.error;
-      default:
-        return Colors.grey;
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -69,45 +64,52 @@ class _PlanPageState extends State<PlanPage> {
     );
     if (result != null &&
         result['action'] == 'created' &&
-        result['plan'] != null) {
-      final p = Map<String, dynamic>.from(result['plan'] as Map);
-      if (!mounted) return;
-      setState(() => _plans = [p, ..._plans]);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Tạo kế hoạch thành công')));
+        result['plan'] is Map) {
+      try {
+        final summary = PlanSummary.fromJson(
+          Map<String, dynamic>.from(result['plan'] as Map),
+        );
+        if (!mounted) return;
+        setState(() => _plans = [summary, ..._plans]);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tạo kế hoạch thành công')),
+        );
+      } catch (_) {}
     }
   }
 
-  void _onEditPlan(Map<String, dynamic> p) async {
+  void _onEditPlan(PlanSummary ps) async {
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
-      MaterialPageRoute(builder: (_) => PlanFormPage(initial: p)),
+      MaterialPageRoute(
+        builder: (_) => PlanFormPage(initial: {'id': ps.id, 'title': ps.title}),
+      ),
     );
     if (result != null &&
         result['action'] == 'updated' &&
-        result['plan'] != null) {
-      final updated = Map<String, dynamic>.from(result['plan'] as Map);
-      final id = updated['id'];
-      if (!mounted) return;
-      setState(
-        () => _plans = _plans.map((e) => e['id'] == id ? updated : e).toList(),
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cập nhật kế hoạch thành công')),
-      );
+        result['plan'] is Map) {
+      try {
+        final updatedSummary = PlanSummary.fromJson(
+          Map<String, dynamic>.from(result['plan'] as Map),
+        );
+        if (!mounted) return;
+        setState(
+          () => _plans = _plans
+              .map((p) => p.id == updatedSummary.id ? updatedSummary : p)
+              .toList(),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cập nhật kế hoạch thành công')),
+        );
+      } catch (_) {}
     }
   }
 
-  void _onDeletePlan(Map<String, dynamic> p) async {
-    final id = p['id'];
-    if (id == null) return;
+  void _onDeletePlan(PlanSummary ps) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Xoá kế hoạch'),
-        content: Text(
-          "Bạn chắc chắn muốn xoá kế hoạch '${p['title'] ?? 'kế hoạch'}'?",
-        ),
+        content: Text("Bạn chắc chắn muốn xoá kế hoạch '${ps.title}'?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -122,9 +124,9 @@ class _PlanPageState extends State<PlanPage> {
     );
     if (confirm != true) return;
     try {
-      await _repo.deletePlan(id);
+      await _repo.deletePlan(ps.id);
       if (!mounted) return;
-      setState(() => _plans = _plans.where((e) => e['id'] != id).toList());
+      setState(() => _plans = _plans.where((p) => p.id != ps.id).toList());
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đã xoá kế hoạch')));
@@ -136,13 +138,26 @@ class _PlanPageState extends State<PlanPage> {
     }
   }
 
+  Future<void> _handlePlanTap(PlanSummary ps) async {
+    final action = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(builder: (_) => PlanDetailsPage(id: ps.id)),
+    );
+    if (action != null) {
+      if (action['action'] == 'delete' && action['id'] == ps.id) {
+        _onDeletePlan(ps);
+      } else if (action['action'] == 'edit') {
+        _onEditPlan(ps);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+        headerSliverBuilder: (context, inner) => [
           SliverAppBar(
             title: const Text(
               'Kế hoạch',
@@ -175,40 +190,27 @@ class _PlanPageState extends State<PlanPage> {
   }
 
   Widget _buildBody() {
-    final theme = Theme.of(context);
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) return _buildError(_error!);
     if (_plans.isEmpty) return _buildEmpty();
-
+    final theme = Theme.of(context);
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _plans.length,
-      itemBuilder: (context, index) {
-        final p = _plans[index];
-        return _buildPlanCard(p, index, theme);
-      },
+      itemBuilder: (context, index) =>
+          _buildPlanCard(_plans[index], index, theme),
     );
   }
 
-  Widget _buildPlanCard(Map<String, dynamic> p, int index, ThemeData theme) {
-    final name = (p['title'] ?? 'Kế hoạch').toString();
-    final dest = (p['description'] ?? '').toString();
-    final status = (p['status'] ?? '').toString();
-    final statusDisplay = (p['status_display'] ?? status).toString();
-    final planType = (p['plan_type'] ?? 'personal').toString();
-    final groupName = (p['group_name'] ?? p['group']?['name'] ?? '').toString();
-    final start = p['start_date']?.toString();
-    final end = p['end_date']?.toString();
-
-    DateTime? startDt, endDt;
-    try {
-      if (start != null) startDt = DateTime.parse(start);
-    } catch (_) {}
-    try {
-      if (end != null) endDt = DateTime.parse(end);
-    } catch (_) {}
-
+  Widget _buildPlanCard(PlanSummary p, int index, ThemeData theme) {
+    final start = p.startDate;
+    final end = p.endDate;
+    String range = '';
+    if (start != null) {
+      range = _dateFmt.format(start);
+      if (end != null) range += ' - ${_dateFmt.format(end)}';
+    }
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Card(
@@ -223,7 +225,6 @@ class _PlanPageState extends State<PlanPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Row
                 Row(
                   children: [
                     Container(
@@ -245,23 +246,22 @@ class _PlanPageState extends State<PlanPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            name,
+                            p.title,
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
-                          if (dest.isNotEmpty)
+                          if (range.isNotEmpty) ...[
+                            const SizedBox(height: 4),
                             Text(
-                              dest,
-                              style: theme.textTheme.bodyMedium?.copyWith(
+                              range,
+                              style: theme.textTheme.bodySmall?.copyWith(
                                 color: Colors.grey[600],
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                             ),
+                          ],
                         ],
                       ),
                     ),
@@ -270,157 +270,30 @@ class _PlanPageState extends State<PlanPage> {
                         if (v == 'edit') _onEditPlan(p);
                         if (v == 'delete') _onDeletePlan(p);
                       },
-                      itemBuilder: (context) => const [
+                      itemBuilder: (c) => const [
                         PopupMenuItem(value: 'edit', child: Text('Sửa')),
                         PopupMenuItem(value: 'delete', child: Text('Xoá')),
                       ],
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 16),
-
-                // Plan Type and Group Info
-                if (planType == 'group' && groupName.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(25),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.group, size: 16, color: AppColors.primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          groupName,
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Date Information
-                if (startDt != null || endDt != null)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        if (startDt != null)
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today,
-                                size: 16,
-                                color: Colors.grey[600],
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Bắt đầu: ${_dateFmt.format(startDt)}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        if (startDt != null && endDt != null)
-                          const SizedBox(height: 4),
-                        if (endDt != null)
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.event_available,
-                                size: 16,
-                                color: Colors.grey[600],
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Kết thúc: ${_dateFmt.format(endDt)}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-
                 const SizedBox(height: 12),
-
-                // Bottom Row - Badges
                 Row(
                   children: [
-                    // Plan Type Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: planType == 'group'
-                            ? AppColors.secondary.withAlpha(25)
-                            : Colors.grey.withAlpha(25),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: planType == 'group'
-                              ? AppColors.secondary.withAlpha(75)
-                              : Colors.grey.withAlpha(75),
-                        ),
-                      ),
-                      child: Text(
-                        planType == 'group' ? 'Nhóm' : 'Cá nhân',
-                        style: TextStyle(
-                          color: planType == 'group'
-                              ? AppColors.secondary
-                              : Colors.grey[700],
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                      ),
+                    _badge(
+                      p.planType == 'group' ? 'Nhóm' : 'Cá nhân',
+                      p.planType == 'group' ? AppColors.secondary : Colors.grey,
                     ),
-
                     const SizedBox(width: 8),
-
-                    // Status Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+                    _badge(planStatusLabel(p.status), _statusColor(p.status)),
+                    if (p.activitiesCount > 0) ...[
+                      const SizedBox(width: 8),
+                      _badge(
+                        '${p.activitiesCount} hoạt động',
+                        AppColors.primary,
                       ),
-                      decoration: BoxDecoration(
-                        color: _statusColor(status).withAlpha(25),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _statusColor(status).withAlpha(75),
-                        ),
-                      ),
-                      child: Text(
-                        statusDisplay,
-                        style: TextStyle(
-                          color: _statusColor(status),
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-
+                    ],
                     const Spacer(),
-
-                    // Arrow Icon
                     Icon(
                       Icons.arrow_forward_ios,
                       size: 16,
@@ -436,88 +309,81 @@ class _PlanPageState extends State<PlanPage> {
     );
   }
 
-  Future<void> _handlePlanTap(Map<String, dynamic> p) async {
-    final id = p['id'];
-    if (id != null) {
-      final action = await Navigator.of(context).push<Map<String, dynamic>>(
-        MaterialPageRoute(builder: (_) => PlanDetailsPage(id: id)),
-      );
-      if (action != null) {
-        if (action['action'] == 'delete' && action['id'] == id) {
-          _onDeletePlan(p);
-        } else if (action['action'] == 'edit') {
-          _onEditPlan(p);
-        }
-      }
-    }
-  }
+  Widget _badge(String text, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: color.withAlpha(25),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: color.withAlpha(75)),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(color: color, fontWeight: FontWeight.w500, fontSize: 12),
+    ),
+  );
 
-  Widget _buildEmpty() {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        const SizedBox(height: 120),
-        Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
-        const SizedBox(height: 16),
-        Center(
-          child: Text(
-            'Chưa có kế hoạch nào',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
-            ),
+  Widget _buildEmpty() => ListView(
+    physics: const AlwaysScrollableScrollPhysics(),
+    children: [
+      const SizedBox(height: 120),
+      Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
+      const SizedBox(height: 16),
+      Center(
+        child: Text(
+          'Chưa có kế hoạch nào',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[600],
           ),
         ),
-        const SizedBox(height: 8),
-        Center(
-          child: Text(
-            'Tạo kế hoạch đầu tiên của bạn!',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
+      ),
+      const SizedBox(height: 8),
+      Center(
+        child: Text(
+          'Tạo kế hoạch đầu tiên của bạn!',
+          style: TextStyle(fontSize: 14, color: Colors.grey[500]),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 
-  Widget _buildError(String msg) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        const SizedBox(height: 120),
-        Icon(Icons.error_outline, size: 64, color: Colors.redAccent[200]),
-        const SizedBox(height: 16),
-        Center(
-          child: Text(
-            'Có lỗi xảy ra',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[700],
-            ),
+  Widget _buildError(String msg) => ListView(
+    physics: const AlwaysScrollableScrollPhysics(),
+    children: [
+      const SizedBox(height: 120),
+      Icon(Icons.error_outline, size: 64, color: Colors.redAccent[200]),
+      const SizedBox(height: 16),
+      Center(
+        child: Text(
+          'Có lỗi xảy ra',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[700],
           ),
         ),
-        const SizedBox(height: 8),
-        Center(
-          child: Text(
-            msg,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+      ),
+      const SizedBox(height: 8),
+      Center(
+        child: Text(
+          msg,
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+        ),
+      ),
+      const SizedBox(height: 16),
+      Center(
+        child: ElevatedButton.icon(
+          onPressed: _loadPlans,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Thử lại'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
           ),
         ),
-        const SizedBox(height: 16),
-        Center(
-          child: ElevatedButton.icon(
-            onPressed: _loadPlans,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Thử lại'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }

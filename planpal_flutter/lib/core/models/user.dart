@@ -1,5 +1,13 @@
 import 'package:equatable/equatable.dart';
 
+bool _isValidImageUrl(String? url) {
+  if (url == null || url.isEmpty) return false;
+  final uri = Uri.tryParse(url);
+  return uri != null &&
+      uri.isAbsolute &&
+      (uri.scheme == 'http' || uri.scheme == 'https');
+}
+
 class User extends Equatable {
   final String? id;
   final String username;
@@ -34,45 +42,20 @@ class User extends Equatable {
   });
 
   factory User.fromJson(Map<String, dynamic> raw) {
-    final firstName = (raw['first_name'] ?? '').toString();
-    final lastName = (raw['last_name'] ?? '').toString();
-    final username = (raw['username'] ?? '').toString();
-    final email = (raw['email'] ?? '').toString();
-
-    String displayName = [
-      firstName,
-      lastName,
-    ].where((e) => e.isNotEmpty).join(' ').trim();
-    if (displayName.isEmpty) {
-      displayName = username.isNotEmpty ? username : email;
-    }
-
-    String initials = '';
-    final parts = displayName.trim().split(RegExp(r'\s+'));
-    if (parts.isNotEmpty) {
-      initials = parts
-          .take(2)
-          .map((p) => p.isNotEmpty ? p[0] : '')
-          .join()
-          .toUpperCase();
-    }
-
     String? avatarUrl;
-    final avatar = raw['avatar'];
-    if (avatar is String && avatar.isNotEmpty) {
-      avatarUrl = avatar;
-    } else if (avatar is Map && avatar['url'] is String) {
-      avatarUrl = avatar['url'] as String;
+    final rawAvatar = raw['avatar_url']?.toString();
+    if (_isValidImageUrl(rawAvatar)) {
+      avatarUrl = rawAvatar;
     }
 
     return User(
       id: raw['id']?.toString(),
-      username: username,
-      firstName: firstName,
-      lastName: lastName,
-      displayName: displayName,
-      initials: initials,
       avatarUrl: avatarUrl,
+      username: raw['username']?.toString() ?? '',
+      firstName: raw['first_name']?.toString() ?? '',
+      lastName: raw['last_name']?.toString() ?? '',
+      displayName: raw['display_name']?.toString() ?? '',
+      initials: raw['initials']?.toString() ?? '',
       email: raw['email']?.toString(),
       phoneNumber: raw['phone_number']?.toString(),
       dateOfBirth: raw['date_of_birth']?.toString(),
@@ -142,13 +125,7 @@ class User extends Equatable {
     );
   }
 
-  // Convenience computed properties / flags
-  bool get hasAvatar => (avatarUrl != null && avatarUrl!.isNotEmpty);
-  String get fullName =>
-      [firstName, lastName].where((e) => e.isNotEmpty).join(' ').trim();
-  String get primaryDisplay => displayName.isNotEmpty
-      ? displayName
-      : (fullName.isNotEmpty ? fullName : username);
+
 
   @override
   List<Object?> get props => [

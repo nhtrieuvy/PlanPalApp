@@ -3,37 +3,24 @@ import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import '../services/apis.dart';
 import '../models/user.dart';
+import '../services/api_error.dart';
 
 class UserRepository {
   final AuthProvider auth;
   UserRepository(this.auth);
 
-  // Normalization moved into User model (User.fromJson)
-
-  Never _throwApiError(Response res) {
-    final data = res.data;
-    if (data is Map && data['error'] != null) {
-      throw Exception(data['error'].toString());
-    }
-    if (data is Map && data['detail'] != null) {
-      throw Exception(data['detail'].toString());
-    }
-    if (data is Map && data['message'] != null) {
-      throw Exception(data['message'].toString());
-    }
-    if (data is Map && data.isNotEmpty) {
-      throw Exception(data.values.first.toString());
-    }
-    throw Exception('Yêu cầu thất bại (${res.statusCode})');
-  }
+  // Centralized throwing helper
+  Never _throwApiError(Response res) => throw buildApiException(res);
 
   Future<User> getProfile() async {
     try {
       final Response res = await auth.requestWithAutoRefresh(
         (c) => c.dio.get(Endpoints.profile),
       );
-      if (res.statusCode == 200 && res.data != null) {
-        return User.fromJson(Map<String, dynamic>.from(res.data as Map));
+      if (res.statusCode == 200 && res.data is Map) {
+        final user = User.fromJson(Map<String, dynamic>.from(res.data as Map));
+        auth.setUser(user); // Update cached user in auth provider
+        return user;
       }
       return _throwApiError(res);
     } on DioException catch (e) {
@@ -67,8 +54,12 @@ class UserRepository {
       final Response res = await auth.requestWithAutoRefresh(
         (c) => c.dio.patch(Endpoints.updateProfile, data: formData),
       );
-      if (res.statusCode == 200 && res.data != null) {
-        return User.fromJson(Map<String, dynamic>.from(res.data as Map));
+      if (res.statusCode == 200 && res.data is Map) {
+        final updatedUser = User.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+        auth.setUser(updatedUser); // Update cached user in auth provider
+        return updatedUser;
       }
       return _throwApiError(res);
     } on DioException catch (e) {

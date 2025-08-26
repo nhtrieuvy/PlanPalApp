@@ -1,32 +1,113 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import '../../../core/models/group_detail.dart';
+import '../../../core/models/user_summary.dart';
 
-class GroupDetailsPage extends StatelessWidget {
+class GroupDetailsPage extends StatefulWidget {
   final String id;
   const GroupDetailsPage({super.key, required this.id});
 
   @override
+  State<GroupDetailsPage> createState() => _GroupDetailsPageState();
+}
+
+class _GroupDetailsPageState extends State<GroupDetailsPage> {
+  late final GroupRepository repo;
+  GroupDetail? groupData;
+  bool isLoading = true;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    repo = GroupRepository(context.read<AuthProvider>());
+    _loadGroupData();
+  }
+
+  Future<void> _loadGroupData() async {
+    try {
+      setState(() {
+        isLoading = true;
+        error = null;
+      });
+  final data = await repo.getGroupDetail(widget.id);
+      setState(() {
+        groupData = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        error = e.toString();
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _updateCoverImage() async {
+    try {
+      final picker = ImagePicker();
+      final XFile? picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 400,
+        imageQuality: 85,
+      );
+
+      if (picked != null) {
+        final coverFile = File(picked.path);
+
+        // Show loading dialog
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) =>
+              const Center(child: CircularProgressIndicator()),
+        );
+
+        // Update group with new cover image
+  await repo.updateGroup(widget.id, {}, coverImage: coverFile);
+
+        // Close loading dialog
+        if (!mounted) return;
+        Navigator.of(context).pop();
+
+        // Reload group data to show updated cover
+        await _loadGroupData();
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ảnh bìa đã được cập nhật')),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if open
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final repo = GroupRepository(context.read<AuthProvider>());
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: repo.getGroupDetail(id),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildLoading();
-          }
-          if (snapshot.hasError) {
-            return _buildError(context, snapshot.error.toString());
-          }
-          final g = snapshot.data ?? <String, dynamic>{};
-          return _buildContent(context, g, theme);
-        },
-      ),
+      body: isLoading
+          ? _buildLoading()
+          : error != null
+          ? _buildError(context, error!)
+          : _buildContent(context, groupData!, theme),
     );
   }
 
@@ -37,17 +118,9 @@ class GroupDetailsPage extends StatelessWidget {
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: AppColors.primaryGradient,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-              title: const Text('Chi tiết nhóm'),
+            flexibleSpace: const FlexibleSpaceBar(
+              background: SizedBox.shrink(),
+              title: Text('Chi tiết nhóm'),
               centerTitle: true,
             ),
           ),
@@ -64,17 +137,9 @@ class GroupDetailsPage extends StatelessWidget {
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: AppColors.primaryGradient,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-              title: const Text('Chi tiết nhóm'),
+            flexibleSpace: const FlexibleSpaceBar(
+              background: SizedBox.shrink(),
+              title: Text('Chi tiết nhóm'),
               centerTitle: true,
             ),
           ),
@@ -117,78 +182,145 @@ class GroupDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(
-    BuildContext context,
-    Map<String, dynamic> g,
-    ThemeData theme,
-  ) {
-    final name = (g['name'] ?? '').toString();
-    final desc = (g['description'] ?? '').toString();
-    final membersCount =
-        g['members_count'] ??
-        g['member_count'] ??
-        (g['members'] is List ? (g['members'] as List).length : 0);
-    final members = g['members'] as List<dynamic>? ?? [];
-    final admin = g['admin'] as Map<String, dynamic>? ?? {};
-    final adminName = admin['display_name'] ?? admin['username'] ?? 'Không rõ';
-    final adminAvatar = admin['avatar_url'] ?? '';
+  Widget _buildContent(BuildContext context, GroupDetail g, ThemeData theme) {
+    final name = g.name;
+    final desc = g.description;
+    final membersCount = g.memberCount;
+  final members = g.members;
+  final UserSummary? admin = g.admin;
+  final adminName = admin?.displayName.isNotEmpty == true
+    ? admin!.displayName
+    : (admin?.username ?? '');
+  final adminAvatar = admin?.avatarUrl ?? '';
+  final adminInitials = (admin?.initials.isNotEmpty == true)
+    ? admin!.initials.toUpperCase()
+    : (adminName.isNotEmpty
+      ? (adminName.trim().split(RegExp(r'\s+')).first[0] +
+        (adminName.trim().split(RegExp(r'\s+')).length > 1
+          ? adminName.trim().split(RegExp(r'\s+')).last[0]
+          : (adminName.length > 1 ? adminName[1] : '?')))
+        .toUpperCase()
+      : '?');
+    final coverUrl = g.coverImageUrl ?? '';
 
     return NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) => [
         SliverAppBar(
           expandedHeight: 200,
           pinned: true,
-          flexibleSpace: FlexibleSpaceBar(
-            background: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: AppColors.primaryGradient,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          actions: [
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: IconButton.filled(
+                onPressed: _updateCoverImage,
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.9),
+                  foregroundColor: AppColors.primary,
                 ),
+                icon: const Icon(Icons.photo_camera),
+                tooltip: 'Cập nhật ảnh bìa',
               ),
-              child: SafeArea(
+            ),
+          ],
+          flexibleSpace: FlexibleSpaceBar(
+            centerTitle: true,
+            title: Text(
+              name.isNotEmpty ? name : 'Nhóm không tên',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            background: Container(
+              decoration: coverUrl.isNotEmpty
+                  ? BoxDecoration(
+                      image: DecorationImage(
+                        image: CachedNetworkImageProvider(coverUrl),
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: AppColors.primaryGradient,
+                      ),
+                    ),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.7),
+                    ],
+                  ),
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(50),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _initialsFrom(name),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 24,
-                            ),
+                  padding: const EdgeInsets.all(16.0),
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        CircleAvatar(
+                          radius: 36,
+                          backgroundColor: Colors.white,
+                          child: Builder(
+                            builder: (context) {
+                final groupAvatarUrl = g.avatarThumb ?? '';
+                final groupInitials = name.isNotEmpty
+                  ? (name.trim().split(RegExp(r'\s+')).first[0] +
+                      (name.trim().split(RegExp(r'\s+')).length > 1
+                        ? name.trim().split(RegExp(r'\s+')).last[0]
+                        : (name.length > 1 ? name[1] : '?')))
+                    .toUpperCase()
+                  : '?';
+
+                              if (groupAvatarUrl.isNotEmpty) {
+                                return CircleAvatar(
+                                  radius: 34,
+                                  backgroundImage: CachedNetworkImageProvider(
+                                    groupAvatarUrl,
+                                  ),
+                                );
+                              }
+
+                              return CircleAvatar(
+                                radius: 34,
+                                backgroundColor: AppColors.primary.withValues(
+                                  alpha: 0.1,
+                                ),
+                                child: Text(
+                                  groupInitials,
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        name.isNotEmpty ? name : 'Nhóm không tên',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            name.isNotEmpty ? name : 'Nhóm không tên',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                      // Admin info moved to body card to avoid overflow & unify style
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-            title: Text(name.isNotEmpty ? name : 'Nhóm không tên'),
-            centerTitle: true,
           ),
         ),
       ],
@@ -196,7 +328,7 @@ class GroupDetailsPage extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildAdminCard(adminAvatar, adminName),
+            _buildAdminCard(adminAvatar, adminName, adminInitials),
             const SizedBox(height: 16),
             if (desc.isNotEmpty)
               _buildInfoCard('Mô tả', desc, Icons.description_outlined),
@@ -205,62 +337,6 @@ class GroupDetailsPage extends StatelessWidget {
             const SizedBox(height: 24),
             _buildActionButtons(context, g),
             const SizedBox(height: 100), // Extra space for scrolling
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdminCard(String avatarUrl, String name) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(25),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: avatarUrl.isNotEmpty
-                  ? CircleAvatar(
-                      radius: 24,
-                      backgroundImage: NetworkImage(avatarUrl),
-                      backgroundColor: Colors.transparent,
-                    )
-                  : const Icon(
-                      Icons.person,
-                      color: AppColors.primary,
-                      size: 28,
-                    ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Người tạo',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -368,59 +444,74 @@ class GroupDetailsPage extends StatelessWidget {
             ),
             if (members.isNotEmpty) ...[
               const SizedBox(height: 16),
-              ...members.take(5).map((member) {
-                final memberName =
-                    member['name']?.toString() ??
-                    member['username']?.toString() ??
-                    'Thành viên';
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+        children: members.take(12).map((member) {
+          // members already parsed to User objects
+          final display = member.displayName?.isNotEmpty == true
+            ? member.displayName!
+            : (member.username ?? '');
+          final initials = (member.initials?.isNotEmpty == true)
+            ? member.initials!.toUpperCase()
+            : (display.isNotEmpty
+              ? (display.trim().split(RegExp(r'\s+')).first[0] +
+                (display.trim().split(RegExp(r'\s+')).length > 1
+                  ? display
+                    .trim()
+                    .split(RegExp(r'\s+'))
+                    .last[0]
+                  : (display.length > 1
+                    ? display[1]
+                    : '?')))
+                .toUpperCase()
+              : '?');
+          final avatar = member.avatarUrl ?? '';
+          return Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppColors.getCardColor(
-                          members.indexOf(member),
+                        radius: 28,
+                        backgroundColor: AppColors.primary.withValues(
+                          alpha: 0.1,
                         ),
-                        child: Text(
-                          _initialsFrom(memberName),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
+                        backgroundImage: avatar.isNotEmpty
+                            ? CachedNetworkImageProvider(avatar)
+                            : null,
+                        child: avatar.isEmpty
+                            ? Text(
+                                initials,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              )
+                            : null,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        width: 72,
                         child: Text(
-                          memberName,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                          display,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 12),
                         ),
                       ),
                     ],
-                  ),
-                );
-              }),
-              if (members.length > 5)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'và ${members.length - 5} thành viên khác',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontStyle: FontStyle.italic,
-                      ),
+                  );
+                }).toList(),
+              ),
+              if (members.length > 12)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    '... và ${members.length - 12} thành viên khác',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
                     ),
                   ),
                 ),
@@ -431,13 +522,75 @@ class GroupDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, Map<String, dynamic> g) {
+  Widget _buildAdminCard(String avatarUrl, String name, String initials) {
+    return Card(
+      elevation: 2,
+      shadowColor: Colors.black26,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 32,
+              backgroundColor: Colors.white,
+              child: CircleAvatar(
+                radius: 30,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                backgroundImage: avatarUrl.isNotEmpty
+                    ? CachedNetworkImageProvider(avatarUrl)
+                    : null,
+                child: avatarUrl.isEmpty
+                    ? Text(
+                        initials,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Quản trị viên',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  Text(
+                    name.isNotEmpty ? name : 'Không rõ',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context, GroupDetail g) {
     return Row(
       children: [
         Expanded(
           child: FloatingActionButton.extended(
             onPressed: () {
-              Navigator.of(context).pop({'action': 'edit', 'group': g});
+              Navigator.of(context).pop({'action': 'edit', 'group': {
+                'id': g.id,
+                'name': g.name,
+                'description': g.description,
+                'avatar_thumb': g.avatarThumb,
+                'cover_image_url': g.coverImageUrl,
+                'members_count': g.memberCount,
+              }});
             },
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
@@ -450,7 +603,7 @@ class GroupDetailsPage extends StatelessWidget {
         Expanded(
           child: FloatingActionButton.extended(
             onPressed: () {
-              Navigator.of(context).pop({'action': 'delete', 'id': g['id']});
+              Navigator.of(context).pop({'action': 'delete', 'id': g.id});
             },
             backgroundColor: Colors.redAccent,
             foregroundColor: Colors.white,
@@ -463,11 +616,5 @@ class GroupDetailsPage extends StatelessWidget {
     );
   }
 
-  String _initialsFrom(String name) {
-    if (name.isEmpty) return '?';
-    final words = name.split(' ');
-    if (words.length == 1) return words.first.substring(0, 1).toUpperCase();
-    return (words.first.substring(0, 1) + words.last.substring(0, 1))
-        .toUpperCase();
-  }
+  // Helper removed: use backend-provided 'initials' when available; inline fallback computed where needed.
 }

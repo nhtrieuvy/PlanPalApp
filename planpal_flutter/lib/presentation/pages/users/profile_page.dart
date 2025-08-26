@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/models/user.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -73,22 +74,52 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildAvatarSection(User user, ColorScheme colorScheme) {
     return Stack(
       children: [
+        // Avatar with placeholder and error handling
         GFAvatar(
-          backgroundImage: user.avatarUrl != null && user.avatarUrl != ''
-              ? NetworkImage(user.avatarUrl!)
-              : null,
           backgroundColor: colorScheme.primary.withAlpha(30),
           radius: _avatarRadius,
-          child: (user.avatarUrl == null || user.avatarUrl == '')
-              ? Text(
-                  user.initials,
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
+          child: ClipOval(
+            child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: user.avatarUrl!,
+                    width: _avatarRadius * 2,
+                    height: _avatarRadius * 2,
+                    fit: BoxFit.cover,
+                    placeholder: (c, u) => Container(
+                      color: Colors.grey[200],
+                      child: const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    ),
+                    errorWidget: (c, u, e) => Container(
+                      color: Colors.grey[100],
+                      child: Center(
+                        child: Text(
+                          user.initials,
+                          style: TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      user.initials,
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
                   ),
-                )
-              : null,
+          ),
         ),
         Positioned(
           bottom: 0,
@@ -272,7 +303,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // Helper methods
-  Future<void> _showEditProfileDialog(BuildContext context, User user) async {
+  Future<void> _showEditProfileDialog(
+    BuildContext pageContext,
+    User user,
+  ) async {
     final TextEditingController firstNameController = TextEditingController(
       text: user.firstName,
     );
@@ -292,10 +326,17 @@ class _ProfilePageState extends State<ProfilePage> {
     File? selectedImage;
     final ImagePicker picker = ImagePicker();
 
+    // Capture objects from the page context before any async gaps so we don't
+    // use a dialog/build context after awaiting (avoids Flutter lint/error:
+    // "Don't use 'BuildContext's across async gaps").
+    final scaffoldMessenger = ScaffoldMessenger.of(pageContext);
+    final pageNavigator = Navigator.of(pageContext);
+    final authProvider = Provider.of<AuthProvider>(pageContext, listen: false);
+
     await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+      context: pageContext,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
           title: const Text('Chỉnh sửa thông tin'),
           content: SingleChildScrollView(
             child: Column(
@@ -317,32 +358,40 @@ class _ProfilePageState extends State<ProfilePage> {
                   },
                   child: CircleAvatar(
                     radius: 40,
-                    backgroundImage: selectedImage != null
-                        ? FileImage(selectedImage!)
+                    backgroundColor: Colors.grey[200],
+                    child: selectedImage != null
+                        ? ClipOval(
+                            child: Image.file(
+                              selectedImage!,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+                          )
                         : (user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                              ? NetworkImage(user.avatarUrl!)
-                              : null),
-                    child:
-                        selectedImage == null &&
-                            (user.avatarUrl == null || user.avatarUrl!.isEmpty)
-                        ? const Icon(Icons.camera_alt, size: 30)
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: firstNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Tên',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: lastNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Họ',
-                    border: OutlineInputBorder(),
+                              ? ClipOval(
+                                  child: CachedNetworkImage(
+                                    imageUrl: user.avatarUrl!,
+                                    width: 80,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                    placeholder: (c, u) => Container(
+                                      color: Colors.grey[200],
+                                      child: const Center(
+                                        child: SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    errorWidget: (c, u, e) =>
+                                        const Icon(Icons.error),
+                                  ),
+                                )
+                              : const Icon(Icons.camera_alt, size: 30)),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -377,7 +426,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Hủy'),
             ),
             ElevatedButton(
@@ -391,27 +440,27 @@ class _ProfilePageState extends State<ProfilePage> {
                     bio: bioController.text.trim(),
                     avatar: selectedImage,
                   );
-                  if (context.mounted) {
-                    // Update provider state so all listeners get refreshed
-                    try {
-                      context.read<AuthProvider>().setUser(updated);
-                    } catch (_) {}
-                    Navigator.of(context).pop();
-                    setState(() {});
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Cập nhật thông tin thành công'),
-                        backgroundColor: Colors.green,
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  }
+
+                  if (!mounted) return;
+
+                  try {
+                    authProvider.setUser(updated);
+                  } catch (_) {}
+                  // Close the dialog using the page navigator we captured
+                  pageNavigator.pop();
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Cập nhật thông tin thành công'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Đã xảy ra lỗi. Vui lòng thử lại.'),
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Đã xảy ra lỗi. Vui lòng thử lại.'),
                       backgroundColor: Colors.red,
-                      duration: const Duration(seconds: 2),
+                      duration: Duration(seconds: 2),
                     ),
                   );
                 }

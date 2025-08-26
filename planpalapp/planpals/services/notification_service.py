@@ -149,7 +149,8 @@ class NotificationService(BaseService):
         
         try:
             plan = Plan.objects.get(id=plan_id)
-            members = plan.members.all()
+            # sử dụng helper để tránh lỗi thuộc tính không tồn tại
+            members = plan.get_members()
             
             if exclude_user_id:
                 members = members.exclude(id=exclude_user_id)
