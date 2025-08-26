@@ -1,13 +1,18 @@
 import 'group_summary.dart';
-import 'user.dart';
+// import 'user.dart';
 import 'user_summary.dart';
 
 class GroupDetail extends GroupSummary {
-  final List<User> members; // flattened users (full detail objects for now)
+  final List<UserSummary> members;
   final String? userRole;
   final int plansCount;
+  final int? activePlansCount;
   final String? coverImageUrl;
-  final UserSummary? admin; // typed admin summary
+  final String? avatarUrl;
+  final UserSummary? admin;
+  final bool? canEdit;
+  final bool? canDelete;
+  final bool? isMember;
 
   GroupDetail({
     required super.id,
@@ -16,36 +21,59 @@ class GroupDetail extends GroupSummary {
     required super.memberCount,
     required super.isActive,
     super.avatarThumb,
+    super.initials,
     required this.members,
     required this.userRole,
     required this.plansCount,
+    this.activePlansCount,
     this.coverImageUrl,
-  this.admin,
+    this.avatarUrl,
+    this.admin,
+    this.canEdit,
+    this.canDelete,
+    this.isMember,
   });
 
-  factory GroupDetail.fromJson(Map<String, dynamic> j) {
-    final summary = GroupSummary.fromJson(j);
-    final membersRaw = j['memberships'] is List
-        ? j['memberships']
-        : (j['members'] is List ? j['members'] : const []);
-    final members = membersRaw
-        .whereType<Map>()
-        .map((m) => (m['user'] is Map ? m['user'] : m))
-        .whereType<Map>()
-        .map((u) => User.fromJson(Map<String, dynamic>.from(u as Map)))
-        .toList(growable: false);
+  factory GroupDetail.fromJson(Map<String, dynamic> gd) {
+    final summary = GroupSummary.fromJson(gd);
+    final List<dynamic> membersRaw = gd['memberships'] is List
+        ? List<dynamic>.from(gd['memberships'] as List)
+        : const <dynamic>[];
+
+    final members = <UserSummary>[];
+    for (final item in membersRaw) {
+      if (item is Map) {
+        final dynamic userObj = item['user'] ?? item;
+        if (userObj is Map) {
+          members.add(UserSummary.fromJson(Map<String, dynamic>.from(userObj)));
+        }
+      }
+    }
+
+    final membersList = List<UserSummary>.unmodifiable(members);
     return GroupDetail(
       id: summary.id,
       name: summary.name,
       description: summary.description,
       memberCount: summary.memberCount,
       isActive: summary.isActive,
-      avatarThumb: summary.avatarThumb,
-      members: members,
-      userRole: j['user_role']?.toString(),
-      plansCount: j['plans_count'] is int ? j['plans_count'] : int.tryParse('${j['plans_count']}') ?? 0,
-      coverImageUrl: j['cover_image_url']?.toString(),
-      admin: j['admin'] is Map ? UserSummary.fromJson(Map<String, dynamic>.from(j['admin'] as Map)) : null,
+      initials: summary.initials,
+      avatarUrl: gd['avatar_url']?.toString(),
+      members: membersList,
+      userRole: gd['user_role']?.toString(),
+      plansCount: gd['plans_count'] is int
+          ? gd['plans_count']
+          : int.tryParse('${gd['plans_count']}') ?? 0,
+      activePlansCount: gd['active_plans_count'] is int
+          ? gd['active_plans_count']
+          : int.tryParse('${gd['active_plans_count']}'),
+      coverImageUrl: gd['cover_image_url']?.toString(),
+      admin: gd['admin'] is Map
+          ? UserSummary.fromJson(Map<String, dynamic>.from(gd['admin'] as Map))
+          : null,
+      canEdit: gd['can_edit'] as bool?,
+      canDelete: gd['can_delete'] as bool?,
+      isMember: gd['is_member'] as bool?,
     );
   }
 }

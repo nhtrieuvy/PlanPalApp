@@ -7,7 +7,7 @@ import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import '../../../core/models/plan_detail.dart';
-import '../../../core/models/plan_status.dart';
+// Removed local PlanStatus mapping; rely on backend-provided status strings
 
 class PlanDetailsPage extends StatefulWidget {
   final String id;
@@ -200,7 +200,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildCreatorCard(
-                p.creator?.avatarUrl ?? '',
+                p.creator?.avatarThumb ?? '',
                 (p.creator?.displayName.isNotEmpty == true
                     ? p.creator!.displayName
                     : (p.creator?.username ?? 'Không rõ')),
@@ -208,7 +208,10 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
               const SizedBox(height: 16),
               _buildMetaCard(
                 theme: theme,
-                status: p.status,
+                statusCode: p.status,
+                statusLabel: p.statusDisplay.isNotEmpty
+                    ? p.statusDisplay
+                    : p.status,
                 planType: p.planType,
                 isPublic: p.isPublic,
                 durationDisplay: p.durationDisplay ?? '',
@@ -413,29 +416,27 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
     );
   }
 
-  Widget _buildStatusChip(String status, ThemeData theme) {
+  Widget _buildStatusChip({
+    required String code,
+    required String label,
+    required ThemeData theme,
+  }) {
     Color statusColor;
     IconData statusIcon;
-    String statusText = status;
-
-    switch (status.toLowerCase()) {
+    switch (code.toLowerCase()) {
       case 'upcoming':
-      case 'sắp diễn ra':
         statusColor = AppColors.info;
         statusIcon = Icons.schedule;
         break;
       case 'ongoing':
-      case 'đang diễn ra':
         statusColor = AppColors.warning;
         statusIcon = Icons.play_circle;
         break;
       case 'completed':
-      case 'hoàn thành':
         statusColor = AppColors.success;
         statusIcon = Icons.check_circle;
         break;
       case 'cancelled':
-      case 'đã hủy':
         statusColor = AppColors.error;
         statusIcon = Icons.cancel;
         break;
@@ -457,7 +458,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
           Icon(statusIcon, size: 16, color: statusColor),
           const SizedBox(width: 6),
           Text(
-            statusText,
+            label,
             style: TextStyle(
               color: statusColor,
               fontWeight: FontWeight.w600,
@@ -545,7 +546,8 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
 
   Widget _buildMetaCard({
     required ThemeData theme,
-    required PlanStatus status,
+    required String statusCode,
+    required String statusLabel,
     required String planType,
     required bool isPublic,
     required String durationDisplay,
@@ -589,7 +591,11 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildStatusChip(planStatusLabel(status), theme),
+                _buildStatusChip(
+                  code: statusCode,
+                  label: statusLabel,
+                  theme: theme,
+                ),
                 _buildChip(
                   label: planType == 'group'
                       ? 'Kế hoạch nhóm'

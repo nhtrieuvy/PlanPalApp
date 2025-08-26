@@ -36,7 +36,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         isLoading = true;
         error = null;
       });
-  final data = await repo.getGroupDetail(widget.id);
+      final data = await repo.getGroupDetail(widget.id);
       setState(() {
         groupData = data;
         isLoading = false;
@@ -72,7 +72,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         );
 
         // Update group with new cover image
-  await repo.updateGroup(widget.id, {}, coverImage: coverFile);
+        await repo.updateGroup(widget.id, {}, coverImage: coverFile);
 
         // Close loading dialog
         if (!mounted) return;
@@ -186,21 +186,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     final name = g.name;
     final desc = g.description;
     final membersCount = g.memberCount;
-  final members = g.members;
-  final UserSummary? admin = g.admin;
-  final adminName = admin?.displayName.isNotEmpty == true
-    ? admin!.displayName
-    : (admin?.username ?? '');
-  final adminAvatar = admin?.avatarUrl ?? '';
-  final adminInitials = (admin?.initials.isNotEmpty == true)
-    ? admin!.initials.toUpperCase()
-    : (adminName.isNotEmpty
-      ? (adminName.trim().split(RegExp(r'\s+')).first[0] +
-        (adminName.trim().split(RegExp(r'\s+')).length > 1
-          ? adminName.trim().split(RegExp(r'\s+')).last[0]
-          : (adminName.length > 1 ? adminName[1] : '?')))
-        .toUpperCase()
-      : '?');
+    final members = g.members;
+    final UserSummary? admin = g.admin;
+    final adminName = admin?.displayName ?? '';
+    final adminAvatar = admin?.avatarThumb ?? '';
+    final adminInitials = admin?.initials ?? '';
     final coverUrl = g.coverImageUrl ?? '';
 
     return NestedScrollView(
@@ -223,12 +213,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
             ),
           ],
           flexibleSpace: FlexibleSpaceBar(
-            centerTitle: true,
-            title: Text(
-              name.isNotEmpty ? name : 'Nhóm không tên',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
             background: Container(
               decoration: coverUrl.isNotEmpty
                   ? BoxDecoration(
@@ -267,14 +251,33 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                           backgroundColor: Colors.white,
                           child: Builder(
                             builder: (context) {
-                final groupAvatarUrl = g.avatarThumb ?? '';
-                final groupInitials = name.isNotEmpty
-                  ? (name.trim().split(RegExp(r'\s+')).first[0] +
-                      (name.trim().split(RegExp(r'\s+')).length > 1
-                        ? name.trim().split(RegExp(r'\s+')).last[0]
-                        : (name.length > 1 ? name[1] : '?')))
-                    .toUpperCase()
-                  : '?';
+                              final groupAvatarUrl = g.avatarUrl ?? '';
+                              final groupInitials =
+                                  (g.initials?.isNotEmpty ?? false)
+                                  ? g.initials!
+                                  : (name.isNotEmpty
+                                        ? ((name
+                                                      .trim()
+                                                      .split(RegExp(r'\s+'))
+                                                      .first[0] +
+                                                  (name
+                                                              .trim()
+                                                              .split(
+                                                                RegExp(r'\s+'),
+                                                              )
+                                                              .length >
+                                                          1
+                                                      ? name
+                                                            .trim()
+                                                            .split(
+                                                              RegExp(r'\s+'),
+                                                            )
+                                                            .last[0]
+                                                      : (name.length > 1
+                                                            ? name[1]
+                                                            : '?')))
+                                              .toUpperCase())
+                                        : '?');
 
                               if (groupAvatarUrl.isNotEmpty) {
                                 return CircleAvatar(
@@ -389,7 +392,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  Widget _buildMembersCard(int membersCount, List<dynamic> members) {
+  Widget _buildMembersCard(int membersCount, List<UserSummary> members) {
     return Card(
       elevation: 2,
       shadowColor: Colors.black26,
@@ -447,27 +450,29 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-        children: members.take(12).map((member) {
-          // members already parsed to User objects
-          final display = member.displayName?.isNotEmpty == true
-            ? member.displayName!
-            : (member.username ?? '');
-          final initials = (member.initials?.isNotEmpty == true)
-            ? member.initials!.toUpperCase()
-            : (display.isNotEmpty
-              ? (display.trim().split(RegExp(r'\s+')).first[0] +
-                (display.trim().split(RegExp(r'\s+')).length > 1
-                  ? display
-                    .trim()
-                    .split(RegExp(r'\s+'))
-                    .last[0]
-                  : (display.length > 1
-                    ? display[1]
-                    : '?')))
-                .toUpperCase()
-              : '?');
-          final avatar = member.avatarUrl ?? '';
-          return Column(
+                children: members.take(12).map((member) {
+                  // members already parsed to UserSummary objects
+                  final display = member.displayName;
+                  final initials = member.initials.isNotEmpty
+                      ? member.initials.toUpperCase()
+                      : (display.isNotEmpty
+                            ? ((display.trim().split(RegExp(r'\s+')).first[0] +
+                                      (display
+                                                  .trim()
+                                                  .split(RegExp(r'\s+'))
+                                                  .length >
+                                              1
+                                          ? display
+                                                .trim()
+                                                .split(RegExp(r'\s+'))
+                                                .last[0]
+                                          : (display.length > 1
+                                                ? display[1]
+                                                : '?')))
+                                  .toUpperCase())
+                            : '?');
+                  final avatar = member.avatarThumb ?? '';
+                  return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircleAvatar(
@@ -583,14 +588,17 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         Expanded(
           child: FloatingActionButton.extended(
             onPressed: () {
-              Navigator.of(context).pop({'action': 'edit', 'group': {
-                'id': g.id,
-                'name': g.name,
-                'description': g.description,
-                'avatar_thumb': g.avatarThumb,
-                'cover_image_url': g.coverImageUrl,
-                'members_count': g.memberCount,
-              }});
+              Navigator.of(context).pop({
+                'action': 'edit',
+                'group': {
+                  'id': g.id,
+                  'name': g.name,
+                  'description': g.description,
+                  'avatar_url': g.avatarUrl,
+                  'cover_image_url': g.coverImageUrl,
+                  'member_count': g.memberCount,
+                },
+              });
             },
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,

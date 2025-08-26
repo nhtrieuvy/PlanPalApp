@@ -13,6 +13,7 @@ import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
+import 'package:planpal_flutter/presentation/pages/friends/friend_search_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -508,7 +509,13 @@ class _HomeContentState extends State<_HomeContent> {
           children: [
             Expanded(
               child: GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const FriendSearchPage(),
+                    ),
+                  );
+                },
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -521,10 +528,14 @@ class _HomeContentState extends State<_HomeContent> {
                   ),
                   child: Column(
                     children: const [
-                      Icon(Icons.explore, color: AppColors.success, size: 32),
+                      Icon(
+                        Icons.person_search,
+                        color: AppColors.success,
+                        size: 32,
+                      ),
                       SizedBox(height: 8),
                       Text(
-                        'Khám phá',
+                        'Tìm bạn bè',
                         style: TextStyle(
                           color: AppColors.success,
                           fontWeight: FontWeight.w600,

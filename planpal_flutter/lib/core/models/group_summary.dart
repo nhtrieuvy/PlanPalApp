@@ -5,6 +5,7 @@ class GroupSummary {
   final int memberCount;
   final bool isActive;
   final String? avatarThumb;
+  final String? initials;
 
   const GroupSummary({
     required this.id,
@@ -13,20 +14,21 @@ class GroupSummary {
     required this.memberCount,
     required this.isActive,
     this.avatarThumb,
+    this.initials,
   });
 
-  factory GroupSummary.fromJson(Map<String, dynamic> j) {
+  // factory là constructor đặc biệt cho phép chạy logic trước khi trả về một instance; nó không nhất thiết phải tạo object mới
+  factory GroupSummary.fromJson(Map<String, dynamic> gs) {
     return GroupSummary(
-      id: j['id']?.toString() ?? '',
-      name: j['name']?.toString() ?? '',
-      description: j['description']?.toString() ?? '',
-      memberCount: j['members_count'] is int
-          ? j['members_count']
-          : j['member_count'] is int
-              ? j['member_count']
-              : int.tryParse('${j['members_count'] ?? j['member_count']}') ?? 0,
-      isActive: j['is_active'] == true,
-      avatarThumb: j['avatar_thumb']?.toString(),
+      id: gs['id']?.toString() ?? '',
+      name: gs['name']?.toString() ?? '',
+      description: gs['description']?.toString() ?? '',
+      memberCount: gs['member_count'] is int
+          ? gs['member_count'] as int
+          : int.tryParse('${gs['member_count']}') ?? 0,
+      isActive: gs['is_active'] == true,
+      avatarThumb: gs['avatar_thumb']?.toString(),
+      initials: gs['initials']?.toString(),
     );
   }
 }

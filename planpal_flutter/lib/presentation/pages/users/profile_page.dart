@@ -8,6 +8,7 @@ import 'package:getwidget/getwidget.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:planpal_flutter/core/repositories/user_repository.dart';
+import 'package:planpal_flutter/presentation/pages/friends/friends_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -195,39 +196,55 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     ];
 
-    return statisticsData.map((stat) {
+    return statisticsData.asMap().entries.map((entry) {
+      final index = entry.key;
+      final stat = entry.value;
+      final isFriendsCard = stat['label'] == 'Bạn bè';
+
+      Widget cardWidget = GFCard(
+        color: stat['containerColor'] as Color,
+        elevation: 1,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        content: Row(
+          children: [
+            Icon(
+              stat['icon'] as IconData,
+              color: stat['color'] as Color,
+              size: 28,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                stat['label'] as String,
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+            Text(
+              '${stat['count']}',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: stat['color'] as Color,
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (isFriendsCard) {
+        cardWidget = GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const FriendsPage()),
+            );
+          },
+          child: cardWidget,
+        );
+      }
+
       return Column(
         children: [
-          GFCard(
-            color: stat['containerColor'] as Color,
-            elevation: 1,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            content: Row(
-              children: [
-                Icon(
-                  stat['icon'] as IconData,
-                  color: stat['color'] as Color,
-                  size: 28,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    stat['label'] as String,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                ),
-                Text(
-                  '${stat['count']}',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: stat['color'] as Color,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (statisticsData.indexOf(stat) < statisticsData.length - 1)
-            const SizedBox(height: 12),
+          cardWidget,
+          if (index < statisticsData.length - 1) const SizedBox(height: 12),
         ],
       );
     }).toList();

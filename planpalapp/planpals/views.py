@@ -105,10 +105,10 @@ class UserViewSet(viewsets.GenericViewSet,
             'message': 'Use specific endpoints for user search'
         })
     
-    # ✅ SECURE USER SEARCH
+    # ✅ OPTIMIZED USER SEARCH
     @action(detail=False, methods=['get'])
     def search(self, request):
-        """Search users for friend requests (limited results)"""
+        """Search users for friend requests (optimized with select_related)"""
         query = request.query_params.get('q')
         if not query:
             return Response(
@@ -116,31 +116,25 @@ class UserViewSet(viewsets.GenericViewSet,
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Limited search - only basic info, max 20 results
+        # OPTIMIZED: Use only() for performance + exclude current user
         users = User.objects.filter(
             models.Q(username__icontains=query) |
             models.Q(email__icontains=query) |
             models.Q(first_name__icontains=query) |
             models.Q(last_name__icontains=query)
         ).exclude(
-            id=request.user.id  # Exclude self
+            id=request.user.id
         ).only(
-            'id', 'username', 'first_name', 'last_name', 'avatar'
-        )[:20]  # Limit to 20 results
+            'id', 'username', 'first_name', 'last_name', 
+            'avatar', 'is_online', 'last_seen'
+        )[:20]  # Limit results for performance
         
-        # Use basic serializer for search results
-        users_data = []
-        for user in users:
-            users_data.append({
-                'id': user.id,
-                'username': user.username,
-                'full_name': f"{user.first_name} {user.last_name}".strip(),
-                'avatar': user.avatar_url  # Dùng property để có URL đầy đủ
-            })
+        # Use optimized serializer
+        serializer = UserSummarySerializer(users, many=True, context={'request': request})
         
         return Response({
-            'users': users_data,
-            'count': len(users_data),
+            'users': serializer.data,
+            'count': users.count(),  # More efficient than len(serializer.data)
             'query': query
         })
     
@@ -212,6 +206,70 @@ class UserViewSet(viewsets.GenericViewSet,
             'unread_count': request.user.unread_messages_count,  # Using property
             'timestamp': timezone.now().isoformat()
         })
+    
+    # OPTIMIZED API lấy thông tin user profile theo ID
+    def retrieve(self, request, pk=None):
+        """Get user profile by ID - Optimized with get_object_or_404"""
+        # Use Django's built-in get_object_or_404 for cleaner code
+        user = get_object_or_404(User, id=pk)
+        
+        # Check permission using built-in permission system
+        self.check_object_permissions(request, user)
+        
+        # Use optimized serializer with only needed fields
+        serializer = UserSummarySerializer(user, context={'request': request})
+        return Response(serializer.data)
+    #             )
+            
+    #         # Serialize user data
+    #         serializer = UserSummarySerializer(user, context={'request': request})
+    #         return Response(serializer.data)
+            
+    #     except User.DoesNotExist:
+    #         return Response(
+    #             {'error': 'User not found'}, 
+    #             status=status.HTTP_404_NOT_FOUND
+    #         )
+    
+    # OPTIMIZED API lấy trạng thái friendship với user
+    @action(detail=True, methods=['get'])
+    def friendship_status(self, request, pk=None):
+        """Get friendship status with a user - Optimized"""
+        # Use Django's built-in get_object_or_404
+        target_user = get_object_or_404(User, id=pk)
+        current_user = request.user
+        
+        if current_user == target_user:
+            return Response({'status': 'self'})
+        
+        # OPTIMIZED: Use select_related và only để giảm database queries
+        from .models import Friendship
+        friendship = Friendship.objects.filter(
+            models.Q(user=current_user, friend=target_user) |
+            models.Q(user=target_user, friend=current_user)
+        ).only('status', 'id', 'created_at').first()
+        
+        if friendship:
+            return Response({
+                'status': friendship.status,
+                'friendship_id': friendship.id,
+                'created_at': friendship.created_at
+            })
+        
+        return Response({'status': 'none'})
+    
+    def _can_view_profile(self, current_user, target_user):
+        """Check if current user can view target user profile"""
+        if current_user == target_user:
+            return True
+        
+        # Check if profile is public (default True)
+        if getattr(target_user, 'is_profile_public', True):
+            return True
+        
+        # Check if they are friends
+        from .models import Friendship
+        return Friendship.are_friends(current_user, target_user)
         
 
 class GroupViewSet(viewsets.GenericViewSet,
@@ -254,7 +312,7 @@ class GroupViewSet(viewsets.GenericViewSet,
     def perform_create(self, serializer):
         """Auto-add creator as admin and member"""
         group = serializer.save(admin=self.request.user)
-        group.members.add(self.request.user)
+        # group.members.add(self.request.user)
         return group
     
     # ✅ SECURE JOIN GROUP
@@ -513,7 +571,6 @@ class PlanViewSet(viewsets.ModelViewSet):
     #API lấy tóm tắt kế hoạch
     @action(detail=True, methods=['get'])
     def summary(self, request, pk=None):
-        """Get plan summary with all key metrics - OPTIMIZED using properties"""
         plan = self.get_object()
         
         return Response({
@@ -549,7 +606,6 @@ class PlanViewSet(viewsets.ModelViewSet):
         
 
 
-# 1. Send friend request - OPTIMIZED
 class FriendRequestView(generics.CreateAPIView):
     serializer_class = FriendRequestSerializer
     permission_classes = [IsAuthenticated]
@@ -567,11 +623,15 @@ class FriendRequestView(generics.CreateAPIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            # ✅ OPTIMIZED - Use model method with get_or_create
             try:
                 friendship, created = Friendship.create_friend_request(request.user, friend)
                 
                 if created:
+                    notification_service.notify_friend_request(
+                        friend_id, 
+                        request.user.display_name
+                    )
+                    
                     return Response({
                         'message': 'Friend request sent successfully',
                         'friendship': FriendshipSerializer(friendship).data
@@ -587,32 +647,32 @@ class FriendRequestView(generics.CreateAPIView):
                 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# 2. List pending requests - OPTIMIZED  
 class FriendRequestListView(generics.ListAPIView):
     serializer_class = FriendshipSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        # ✅ OPTIMIZED - Single query with select_related
+        # OPTIMIZED: Use select_related để tránh N+1 queries
         return Friendship.objects.filter(
             friend=self.request.user,
             status=Friendship.PENDING
         ).select_related('user', 'friend').order_by('-created_at')
 
-# 3. Accept/Reject requests - OPTIMIZED
 class FriendRequestActionView(APIView):
     permission_classes = [IsAuthenticated, FriendshipPermission]
     
     def post(self, request, request_id):
+        # CLEANER: Use choices validation
         action = request.data.get('action')
+        allowed_actions = ['accept', 'reject']
         
-        if action not in ['accept', 'reject']:
+        if action not in allowed_actions:
             return Response(
-                {'error': 'Invalid action. Use "accept" or "reject"'}, 
+                {'error': f'Invalid action. Use one of: {", ".join(allowed_actions)}'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
             
-        # ✅ OPTIMIZED - Single query with select_related
+        # OPTIMIZED: Use select_related cho performance
         friendship = get_object_or_404(
             Friendship.objects.select_related('user', 'friend'),
             id=request_id,
@@ -620,33 +680,40 @@ class FriendRequestActionView(APIView):
             status=Friendship.PENDING
         )
         
-        # ✅ FriendshipPermission sẽ check quyền ở đây
+        # Django built-in permission check
         self.check_object_permissions(request, friendship)
         
-        success = False
-        if action == 'accept':
-            success = friendship.accept()
-        elif action == 'reject':
-            success = friendship.reject()
+        # CLEANER: Use method mapping
+        action_methods = {
+            'accept': friendship.accept,
+            'reject': friendship.reject
+        }
+        
+        success = action_methods[action]()
+        
+        if success and action == 'accept':
+            # Only notify on accept
+            notification_service.notify_friend_request_accepted(
+                friendship.user.id, 
+                request.user.display_name
+            )
             
         if success:
             return Response({
                 'message': f'Request {action}ed successfully',
                 'friendship': FriendshipSerializer(friendship).data
             })
-        else:
-            return Response(
-                {'error': f'Could not {action} request'}, 
+        
+        return Response(
+            {'error': f'Could not {action} request'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-# 4. List friends - OPTIMIZED with single query
 class FriendsListView(generics.ListAPIView):
-    serializer_class = UserSerializer
+    serializer_class = UserSummarySerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        # ✅ OPTIMIZED - Use model method for single query
         return Friendship.get_friends_queryset(self.request.user)
 
 class ChatMessageViewSet(viewsets.GenericViewSet,

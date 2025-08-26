@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 import '../../../core/models/plan_summary.dart';
-import '../../../core/models/plan_status.dart';
+// Removed local PlanStatus mapping; use backend status + status_display
 
 class PlanPage extends StatefulWidget {
   const PlanPage({super.key});
@@ -23,16 +23,15 @@ class _PlanPageState extends State<PlanPage> {
   List<PlanSummary> _plans = const [];
   final DateFormat _dateFmt = DateFormat('dd/MM/yyyy HH:mm');
 
-  static const Map<PlanStatus, Color> _statusColorMap = {
-    PlanStatus.upcoming: AppColors.info,
-    PlanStatus.ongoing: AppColors.warning,
-    PlanStatus.completed: AppColors.success,
-    PlanStatus.cancelled: AppColors.error,
-    PlanStatus.unknown: Colors.grey,
+  static const Map<String, Color> _statusColorMap = {
+    'upcoming': AppColors.info,
+    'ongoing': AppColors.warning,
+    'completed': AppColors.success,
+    'cancelled': AppColors.error,
   };
 
-  Color _statusColor(PlanStatus status) =>
-      _statusColorMap[status] ?? Colors.grey;
+  Color _statusColor(String status) =>
+      _statusColorMap[status.toLowerCase()] ?? Colors.grey;
 
   @override
   void initState() {
@@ -285,7 +284,7 @@ class _PlanPageState extends State<PlanPage> {
                       p.planType == 'group' ? AppColors.secondary : Colors.grey,
                     ),
                     const SizedBox(width: 8),
-                    _badge(planStatusLabel(p.status), _statusColor(p.status)),
+                    _badge((p.statusDisplay), _statusColor(p.status)),
                     if (p.activitiesCount > 0) ...[
                       const SizedBox(width: 8),
                       _badge(

@@ -70,14 +70,17 @@ class _GroupFormPageState extends State<GroupFormPage> {
           }
         } catch (_) {}
 
-        Navigator.of(context).pop({'action': 'created', 'group': {
-          'id': result.id,
-          'name': result.name,
-          'description': result.description,
-          'avatar_thumb': result.avatarThumb,
-          'cover_image_url': result.coverImageUrl,
-          'members_count': result.memberCount,
-        }});
+        Navigator.of(context).pop({
+          'action': 'created',
+          'group': {
+            'id': result.id,
+            'name': result.name,
+            'description': result.description,
+            'avatar_thumb': result.avatarThumb,
+            'cover_image_url': result.coverImageUrl,
+            'member_count': result.memberCount,
+          },
+        });
       } else {
         final id = widget.initial!['id']; // id là String
         result = await _repo.updateGroup(
@@ -100,14 +103,17 @@ class _GroupFormPageState extends State<GroupFormPage> {
           }
         } catch (_) {}
 
-        Navigator.of(context).pop({'action': 'updated', 'group': {
-          'id': result.id,
-          'name': result.name,
-          'description': result.description,
-          'avatar_thumb': result.avatarThumb,
-          'cover_image_url': result.coverImageUrl,
-          'members_count': result.memberCount,
-        }});
+        Navigator.of(context).pop({
+          'action': 'updated',
+          'group': {
+            'id': result.id,
+            'name': result.name,
+            'description': result.description,
+            'avatar_thumb': result.avatarThumb,
+            'cover_image_url': result.coverImageUrl,
+            'member_count': result.memberCount,
+          },
+        });
       }
     } catch (e) {
       if (!mounted) return;
