@@ -1,7 +1,3 @@
-# ============================================================================
-# PLANPAL OAUTH2 UTILITIES - Token Management Helpers
-# ============================================================================
-
 from django.utils import timezone
 from oauth2_provider.models import Application, AccessToken
 from oauth2_provider import settings as oauth2_settings
@@ -55,7 +51,6 @@ class OAuth2TokenManager:
         """Clean up expired access tokens (Refresh tokens managed by DOT)."""
         now = timezone.now()
         
-        # Delete expired access tokens
         expired_access_tokens = AccessToken.objects.filter(expires__lt=now).count()
         AccessToken.objects.filter(expires__lt=now).delete()
         logger.info(f"Cleaned up {expired_access_tokens} expired access tokens")

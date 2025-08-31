@@ -4,9 +4,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:getwidget/getwidget.dart';
 import '../../../core/providers/theme_provider.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
-import 'package:planpal_flutter/core/models/user.dart';
-import 'package:planpal_flutter/core/models/plan_summary.dart';
-import 'package:planpal_flutter/core/models/group_summary.dart';
+import 'package:planpal_flutter/core/dtos/user.dart';
+import 'package:planpal_flutter/core/dtos/plan_summary.dart';
+import 'package:planpal_flutter/core/dtos/group_summary.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
@@ -308,7 +308,7 @@ class _HomeContentState extends State<_HomeContent> {
               ),
               const SizedBox(height: 12),
               Text(
-                user?.displayName ?? 'Chưa đăng nhập',
+                user?.fullName ?? 'Chưa đăng nhập',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,

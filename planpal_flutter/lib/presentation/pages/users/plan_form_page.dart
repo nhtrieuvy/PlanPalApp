@@ -4,9 +4,10 @@ import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:provider/provider.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
+import 'package:planpal_flutter/core/dtos/plan_requests.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import '../../../core/models/group_summary.dart';
-import '../../../core/models/plan_detail.dart';
+import '../../../core/dtos/group_summary.dart';
+import '../../../core/dtos/plan_detail.dart';
 
 class PlanFormPage extends StatefulWidget {
   final Map<String, dynamic>? initial;
@@ -64,7 +65,7 @@ class _PlanFormPageState extends State<PlanFormPage> {
     try {
       final repo = context.read<AuthProvider>();
       final groupRepo = GroupRepository(repo);
-  final groups = await groupRepo.getGroups();
+      final groups = await groupRepo.getGroups();
       if (!mounted) return;
       setState(() => _groups = groups);
     } catch (e) {
@@ -125,44 +126,54 @@ class _PlanFormPageState extends State<PlanFormPage> {
     }
     setState(() => _submitting = true);
     try {
-      final payload = <String, dynamic>{
-        'title': _titleCtrl.text.trim(),
-        'description': _descriptionCtrl.text.trim(),
-        if (_startDate != null) 'start_date': _startDate!.toIso8601String(),
-        if (_endDate != null) 'end_date': _endDate!.toIso8601String(),
-        'is_public': _isPublic,
-        'plan_type': _planType,
-        if (_planType == 'group' &&
-            _selectedGroupId != null &&
-            _selectedGroupId!.isNotEmpty)
-          'group_id': _selectedGroupId,
-      };
       PlanDetail result;
       if (widget.initial == null) {
-        result = await _repo.createPlan(payload);
+        final request = CreatePlanRequest(
+          title: _titleCtrl.text.trim(),
+          description: _descriptionCtrl.text.trim(),
+          startDate: _startDate?.toIso8601String() ?? '',
+          endDate: _endDate?.toIso8601String() ?? '',
+          isPublic: _isPublic,
+          planType: _planType,
+        );
+        result = await _repo.createPlan(request);
         if (!mounted) return;
-        Navigator.of(context).pop({'action': 'created', 'plan': {
-          'id': result.id,
-          'title': result.title,
-          'start_date': result.startDate?.toIso8601String(),
-          'end_date': result.endDate?.toIso8601String(),
-          'is_public': result.isPublic,
-          'plan_type': result.planType,
-          'group_id': result.groupId,
-        }});
+        Navigator.of(context).pop({
+          'action': 'created',
+          'plan': {
+            'id': result.id,
+            'title': result.title,
+            'start_date': result.startDate?.toIso8601String(),
+            'end_date': result.endDate?.toIso8601String(),
+            'is_public': result.isPublic,
+            'plan_type': result.planType,
+            'group_id': result.groupId,
+          },
+        });
       } else {
         final id = widget.initial!['id'];
-        result = await _repo.updatePlan(id, payload);
+        final request = UpdatePlanRequest(
+          title: _titleCtrl.text.trim(),
+          description: _descriptionCtrl.text.trim(),
+          startDate: _startDate?.toIso8601String(),
+          endDate: _endDate?.toIso8601String(),
+          isPublic: _isPublic,
+          planType: _planType,
+        );
+        result = await _repo.updatePlan(id, request);
         if (!mounted) return;
-        Navigator.of(context).pop({'action': 'updated', 'plan': {
-          'id': result.id,
-          'title': result.title,
-          'start_date': result.startDate?.toIso8601String(),
-          'end_date': result.endDate?.toIso8601String(),
-          'is_public': result.isPublic,
-          'plan_type': result.planType,
-          'group_id': result.groupId,
-        }});
+        Navigator.of(context).pop({
+          'action': 'updated',
+          'plan': {
+            'id': result.id,
+            'title': result.title,
+            'start_date': result.startDate?.toIso8601String(),
+            'end_date': result.endDate?.toIso8601String(),
+            'is_public': result.isPublic,
+            'plan_type': result.planType,
+            'group_id': result.groupId,
+          },
+        });
       }
     } catch (e) {
       if (!mounted) return;
@@ -243,10 +254,10 @@ class _PlanFormPageState extends State<PlanFormPage> {
                     border: OutlineInputBorder(),
                   ),
                   items: _groups
-                      .map((g) => DropdownMenuItem(
-                            value: g.id,
-                            child: Text(g.name),
-                          ))
+                      .map(
+                        (g) =>
+                            DropdownMenuItem(value: g.id, child: Text(g.name)),
+                      )
                       .toList(),
                   validator: (v) {
                     if (_planType == 'group' && (v == null || v.isEmpty)) {

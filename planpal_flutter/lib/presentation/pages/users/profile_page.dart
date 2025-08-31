@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
-import 'package:planpal_flutter/core/models/user.dart';
+import 'package:planpal_flutter/core/dtos/user.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:getwidget/getwidget.dart';
 import 'dart:io';
@@ -156,8 +156,8 @@ class _ProfilePageState extends State<ProfilePage> {
     ColorScheme colorScheme,
   ) {
     return Text(
-      user.displayName.isNotEmpty
-          ? user.displayName
+      user.fullName.isNotEmpty
+          ? user.fullName
           : (user.username.isNotEmpty ? user.username : ''),
       style: theme.textTheme.headlineSmall?.copyWith(
         fontWeight: FontWeight.bold,
@@ -271,7 +271,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 12),
           _buildInfoRow('Tên đăng nhập', user.username),
-          _buildInfoRow('Họ tên', user.displayName),
+          _buildInfoRow('Họ tên', user.fullName),
           _buildInfoRow('Email', user.email ?? ''),
           _buildInfoRow('Số điện thoại', user.phoneNumber ?? ''),
           _buildInfoRow('Ngày sinh', user.dateOfBirth ?? ''),

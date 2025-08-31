@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import '../services/apis.dart';
-import '../models/user.dart';
+import '../dtos/user.dart';
 import '../services/api_error.dart';
 
 class UserRepository {

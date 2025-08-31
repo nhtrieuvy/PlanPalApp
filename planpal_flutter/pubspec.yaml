@@ -46,6 +46,7 @@ dependencies:
   
   # Networking
   dio: ^5.3.2
+  http: ^1.1.0
   
   # Image Picker
   image_picker: ^1.0.4

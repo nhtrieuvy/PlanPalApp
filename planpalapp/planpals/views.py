@@ -1,6 +1,3 @@
-# ============================================================================
-# PLANPAL API VIEWS - OAuth2 Authentication
-# ============================================================================
 
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status, generics, mixins
@@ -14,7 +11,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from datetime import datetime
 
-from .models import User, Group, Plan, Friendship, ChatMessage, PlanActivity
+from .models import User, Group, Plan, Friendship, ChatMessage, PlanActivity, GroupMembership
 from .serializers import (
     GroupCreateSerializer, GroupSummarySerializer, PlanSummarySerializer, UserSerializer, UserCreateSerializer, GroupSerializer, 
     PlanSerializer, PlanCreateSerializer, FriendshipSerializer, FriendRequestSerializer, ChatMessageSerializer,
@@ -74,7 +71,6 @@ class UserViewSet(viewsets.GenericViewSet,
                   mixins.CreateModelMixin,
                   mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin):
-    """SECURE User operations - Fixed dangerous ModelViewSet"""
     serializer_class = UserSerializer
     
     def get_permissions(self):
@@ -258,6 +254,78 @@ class UserViewSet(viewsets.GenericViewSet,
         
         return Response({'status': 'none'})
     
+    # OPTIMIZED API hủy kết bạn
+    @action(detail=True, methods=['delete'])
+    def unfriend(self, request, pk=None):
+        """Unfriend/Remove friendship - SECURE"""
+        target_user = get_object_or_404(User, id=pk)
+        current_user = request.user
+        
+        if current_user == target_user:
+            return Response({'error': 'Cannot unfriend yourself'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        from .models import Friendship
+        friendship = Friendship.objects.filter(
+            models.Q(user=current_user, friend=target_user) |
+            models.Q(user=target_user, friend=current_user),
+            status=Friendship.ACCEPTED
+        ).first()
+        
+        if not friendship:
+            return Response({'error': 'Not friends'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        friendship.unfriend()
+        return Response({'message': 'Unfriended successfully'})
+    
+    # OPTIMIZED API block user
+    @action(detail=True, methods=['post'])
+    def block(self, request, pk=None):
+        """Block user - SECURE"""
+        target_user = get_object_or_404(User, id=pk)
+        current_user = request.user
+        
+        if current_user == target_user:
+            return Response({'error': 'Cannot block yourself'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        friendship, created = Friendship.objects.get_or_create(
+            user=current_user,
+            friend=target_user,
+            defaults={'status': Friendship.BLOCKED}
+        )
+        
+        if not created:
+            friendship.block()
+        
+        return Response({'message': 'User blocked successfully'})
+    
+    # OPTIMIZED API unblock user
+    @action(detail=True, methods=['delete'])
+    def unblock(self, request, pk=None):
+        """Unblock user - SECURE"""
+        target_user = get_object_or_404(User, id=pk)
+        current_user = request.user
+        
+        if current_user == target_user:
+            return Response({'error': 'Cannot unblock yourself'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        friendship = Friendship.objects.filter(
+            user=current_user,
+            friend=target_user,
+            status=Friendship.BLOCKED
+        ).first()
+        
+        if not friendship:
+            return Response({'error': 'User is not blocked'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        # Remove the block by deleting the friendship
+        friendship.delete()
+        return Response({'message': 'User unblocked successfully'})
+    
     def _can_view_profile(self, current_user, target_user):
         """Check if current user can view target user profile"""
         if current_user == target_user:
@@ -397,6 +465,45 @@ class GroupViewSet(viewsets.GenericViewSet,
             'count': len(serializer.data)
         })
     
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupAdmin])
+    def add_member(self, request, pk=None):
+        """Admin adds friend to group - SECURE"""
+        group = self.get_object()
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            return Response({'error': 'user_id required'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            target_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, 
+                          status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if already member
+        if group.is_member(target_user):
+            return Response({'error': 'User is already a member'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if admin and target user are friends
+        from .models import Friendship
+        if not Friendship.are_friends(request.user, target_user):
+            return Response({'error': 'Can only add friends to group'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        # Add to group
+        from .models import GroupMembership
+        GroupMembership.objects.create(
+            group=group,
+            user=target_user,
+            role=GroupMembership.MEMBER
+        )
+        
+        return Response({
+            'message': f'Added {target_user.username} to group successfully'
+        })
+    
     #API gửi tin nhắn đến nhóm
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupMember])
     def send_message(self, request, pk=None):
@@ -457,10 +564,46 @@ class GroupViewSet(viewsets.GenericViewSet,
         serializer = UserSerializer(admins, many=True)
         return Response(serializer.data)
 
+    #API lấy danh sách kế hoạch của nhóm
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsGroupMember])
+    def plans(self, request, pk=None):
+        """Get group plans - OPTIMIZED"""
+        group = self.get_object()
+        
+        # Get all plans for this group with optimizations
+        plans = Plan.objects.filter(group=group).select_related(
+            'creator', 'group'
+        ).prefetch_related('activities').order_by('-created_at')
+        
+        serializer = PlanSummarySerializer(plans, many=True, context={'request': request})
+        
+        return Response({
+            'plans': serializer.data,
+            'group_id': str(group.id),
+            'group_name': group.name,
+            'count': len(serializer.data),
+            'can_create_plan': group.is_admin(request.user)  # Only admins can create
+        })
+
 class PlanViewSet(viewsets.ModelViewSet):
     """Plan CRUD operations - SECURITY FIXED"""
     serializer_class = PlanSerializer
     permission_classes = [IsAuthenticated, PlanPermission]
+    
+    def _can_user_edit_plan(self, plan, user):
+        """Helper method to check if user can edit plan - matches serializer logic"""
+        if not user.is_authenticated:
+            return False
+        
+        # Creator luôn edit được
+        if plan.creator == user:
+            return True
+        
+        # Group plans: admins có thể edit
+        if plan.is_group_plan() and plan.group:
+            return plan.group.is_admin(user)
+        
+        return False
     
     def get_serializer_class(self):
         """Use optimized serializer for create operations"""
@@ -496,6 +639,17 @@ class PlanViewSet(viewsets.ModelViewSet):
             pass  # Don't fail plan creation if notification fails
         
         return plan
+
+    # def create(self, request, *args, **kwargs):
+    #     """Override create to return consistent data format"""
+    #     serializer = self.get_serializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
+    #     plan = self.perform_create(serializer)
+        
+    #     # Return data using PlanSummarySerializer for consistency
+    #     response_serializer = PlanSummarySerializer(plan, context={'request': request})
+    #     headers = self.get_success_headers(response_serializer.data)
+    #     return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     def list(self, request):
         """Enhanced list with metadata"""
@@ -603,6 +757,320 @@ class PlanViewSet(viewsets.ModelViewSet):
                 'updated': plan.updated_at
             }
         })
+    
+    @action(detail=True, methods=['get'])
+    def schedule(self, request, pk=None):
+        """Get plan activities schedule/timeline - OPTIMIZED"""
+        plan = self.get_object()
+        
+        # Get activities with optimized query
+        activities = plan.activities.order_by('start_time')
+        
+        # Group activities by date
+        schedule_by_date = {}
+        for activity in activities:
+            if activity.start_time:
+                date_key = activity.start_time.date().isoformat()
+                if date_key not in schedule_by_date:
+                    schedule_by_date[date_key] = []
+                
+                # Calculate duration in minutes
+                duration_minutes = 0
+                if activity.start_time and activity.end_time:
+                    duration_delta = activity.end_time - activity.start_time
+                    duration_minutes = int(duration_delta.total_seconds() / 60)
+                
+                schedule_by_date[date_key].append({
+                    'id': str(activity.id),
+                    'title': activity.title,
+                    'description': activity.description,
+                    'activity_type': activity.activity_type,
+                    'start_time': activity.start_time,
+                    'end_time': activity.end_time,
+                    'duration_minutes': duration_minutes,
+                    'estimated_cost': float(activity.estimated_cost) if activity.estimated_cost else 0,
+                    'location_name': activity.location_name,
+                    'location_address': activity.location_address,
+                    'notes': activity.notes,
+                    'is_completed': activity.is_completed
+                })
+        
+        # Calculate timeline statistics
+        total_activities = activities.count()
+        completed_activities = activities.filter(is_completed=True).count()
+        
+        # Calculate total duration in minutes
+        total_duration = 0
+        for activity in activities:
+            if activity.start_time and activity.end_time:
+                duration_delta = activity.end_time - activity.start_time
+                total_duration += int(duration_delta.total_seconds() / 60)
+        
+        return Response({
+            'plan_id': str(plan.id),
+            'plan_title': plan.title,
+            'schedule_by_date': schedule_by_date,
+            'statistics': {
+                'total_activities': total_activities,
+                'completed_activities': completed_activities,
+                'completion_rate': (completed_activities / total_activities * 100) if total_activities > 0 else 0,
+                'total_duration_minutes': total_duration,
+                'total_duration_display': f"{total_duration // 60}h {total_duration % 60}m" if total_duration > 0 else "0m",
+                'date_range': {
+                    'start_date': plan.start_date,
+                    'end_date': plan.end_date,
+                    'duration_days': plan.duration_days
+                }
+            },
+            'permissions': {
+                'can_edit': self._can_user_edit_plan(plan, request.user),
+                'can_add_activity': self._can_user_edit_plan(plan, request.user)
+            }
+        })
+    
+    @action(detail=True, methods=['post'])
+    def create_activity(self, request, pk=None):
+        """Create new activity in plan - ADMIN ONLY for group plans"""
+        plan = self.get_object()
+        
+        # Check if user can add activities to this plan
+        if plan.plan_type == 'group' and plan.group and not plan.group.is_admin(request.user):
+            return Response(
+                {'error': 'Only group admins can add activities to group plans'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        elif plan.plan_type == 'personal' and plan.user != request.user:
+            return Response(
+                {'error': 'You can only add activities to your own plans'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Create activity in plan
+        activity_data = request.data.copy()
+        activity_data['plan'] = plan.id
+        
+        activity_serializer = PlanActivitySerializer(data=activity_data)
+        
+        if activity_serializer.is_valid():
+            activity = activity_serializer.save()
+            
+            return Response({
+                'message': 'Activity created successfully',
+                'activity': PlanActivitySerializer(activity).data
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(activity_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['put', 'patch'], url_path='activities/(?P<activity_id>[^/.]+)')
+    def update_activity(self, request, pk=None, activity_id=None):
+        """Update activity in plan - ADMIN ONLY for group plans"""
+        plan = self.get_object()
+        
+        # Check permissions
+        if plan.plan_type == 'group' and plan.group and not plan.group.is_admin(request.user):
+            return Response(
+                {'error': 'Only group admins can modify activities in group plans'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        elif plan.plan_type == 'personal' and plan.user != request.user:
+            return Response(
+                {'error': 'You can only modify activities in your own plans'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            plan_activity = plan.activities.get(id=activity_id)
+        except PlanActivity.DoesNotExist:
+            return Response(
+                {'error': 'Activity not found in this plan'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Update activity
+        activity_serializer = PlanActivitySerializer(
+            plan_activity, 
+            data=request.data, 
+            partial=True
+        )
+        
+        if activity_serializer.is_valid():
+            activity_serializer.save()
+            return Response({
+                'message': 'Activity updated successfully',
+                'activity': activity_serializer.data
+            })
+        
+        return Response(activity_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['delete'], url_path='activities/(?P<activity_id>[^/.]+)')
+    def remove_activity(self, request, pk=None, activity_id=None):
+        """Remove activity from plan - ADMIN ONLY for group plans"""
+        plan = self.get_object()
+        
+        # Check permissions
+        if plan.plan_type == 'group' and plan.group and not plan.group.is_admin(request.user):
+            return Response(
+                {'error': 'Only group admins can remove activities from group plans'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        elif plan.plan_type == 'personal' and plan.user != request.user:
+            return Response(
+                {'error': 'You can only remove activities from your own plans'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            plan_activity = plan.activities.get(id=activity_id)
+        except PlanActivity.DoesNotExist:
+            return Response(
+                {'error': 'Activity not found in this plan'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Delete the activity
+        activity_title = plan_activity.title
+        plan_activity.delete()
+        
+        return Response({
+            'message': f'Activity "{activity_title}" removed from plan'
+        })
+    
+    @action(detail=True, methods=['post'], url_path='activities/(?P<activity_id>[^/.]+)/complete')
+    def toggle_activity_completion(self, request, pk=None, activity_id=None):
+        """Toggle activity completion status"""
+        plan = self.get_object()
+        
+        # Check if user can modify this plan
+        if not self._can_user_edit_plan(plan, request.user):
+            return Response(
+                {'error': 'You do not have permission to modify this plan'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            plan_activity = plan.activities.get(id=activity_id)
+        except PlanActivity.DoesNotExist:
+            return Response(
+                {'error': 'Activity not found in this plan'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Toggle completion status
+        plan_activity.is_completed = not plan_activity.is_completed
+        plan_activity.completed_at = timezone.now() if plan_activity.is_completed else None
+        plan_activity.save()
+        
+        return Response({
+            'message': f'Activity marked as {"completed" if plan_activity.is_completed else "incomplete"}',
+            'activity': PlanActivitySerializer(plan_activity).data
+        })
+
+    @action(detail=False, methods=['get'])
+    def joined(self, request):
+        """Get plans that the user has joined (excluding their own plans)"""
+        user = request.user
+        
+        # Get group plans where user is a member but not the creator
+        group_plans = Plan.objects.filter(
+            plan_type='group',
+            group__members=user
+        ).exclude(creator=user).distinct()
+        
+        # Apply search filter if provided
+        search = request.query_params.get('search', None)
+        if search:
+            group_plans = group_plans.filter(
+                models.Q(title__icontains=search) |
+                models.Q(description__icontains=search)
+            )
+        
+        # Serialize and return
+        serializer = PlanSummarySerializer(group_plans, many=True, context={'request': request})
+        return Response({
+            'results': serializer.data,
+            'count': group_plans.count()
+        })
+    
+    @action(detail=False, methods=['get'])
+    def public(self, request):
+        """Get public plans that user can discover and join"""
+        user = request.user
+        
+        # Get public plans excluding user's own plans
+        public_plans = Plan.objects.filter(
+            is_public=True,
+            status__in=['planning', 'active']
+        ).exclude(creator=user)
+        
+        # Exclude plans where user is already a member
+        public_plans = public_plans.exclude(
+            plan_type='group',
+            group__members=user
+        )
+        
+        # Apply search filter if provided
+        search = request.query_params.get('search', None)
+        if search:
+            public_plans = public_plans.filter(
+                models.Q(title__icontains=search) |
+                models.Q(description__icontains=search)
+            )
+        
+        # Order by created date (newest first)
+        public_plans = public_plans.order_by('-created_at')
+        
+        # Serialize and return
+        serializer = PlanSummarySerializer(public_plans, many=True, context={'request': request})
+        return Response({
+            'results': serializer.data,
+            'count': public_plans.count()
+        })
+
+    @action(detail=True, methods=['post'])
+    def join(self, request, pk=None):
+        """Join a public plan"""
+        plan = self.get_object()
+        user = request.user
+        
+        # Check if plan is public
+        if not plan.is_public:
+            return Response(
+                {'error': 'This plan is not public'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Check if user is the creator
+        if plan.creator == user:
+            return Response(
+                {'error': 'You cannot join your own plan'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # For group plans, add user to the group
+        if plan.plan_type == 'group' and plan.group:
+            # Check if user is already a member
+            if plan.group.members.filter(id=user.id).exists():
+                return Response(
+                    {'error': 'You are already a member of this plan'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Add user to group
+            GroupMembership.objects.create(
+                group=plan.group,
+                user=user,
+                role='member'
+            )
+            
+            return Response({
+                'message': f'Successfully joined plan "{plan.title}"',
+                'plan': PlanSerializer(plan, context={'request': request}).data
+            })
+        else:
+            return Response(
+                {'error': 'Can only join group plans'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
 
 
@@ -629,7 +1097,7 @@ class FriendRequestView(generics.CreateAPIView):
                 if created:
                     notification_service.notify_friend_request(
                         friend_id, 
-                        request.user.display_name
+                        request.user.get_full_name()
                     )
                     
                     return Response({
@@ -659,7 +1127,7 @@ class FriendRequestListView(generics.ListAPIView):
         ).select_related('user', 'friend').order_by('-created_at')
 
 class FriendRequestActionView(APIView):
-    permission_classes = [IsAuthenticated, FriendshipPermission]
+    permission_classes = [IsAuthenticated]
     
     def post(self, request, request_id):
         # CLEANER: Use choices validation
@@ -695,7 +1163,7 @@ class FriendRequestActionView(APIView):
             # Only notify on accept
             notification_service.notify_friend_request_accepted(
                 friendship.user.id, 
-                request.user.display_name
+                request.user.get_full_name()
             )
             
         if success:
@@ -1111,7 +1579,7 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
                         models.Q(group__members=request.user) | 
                         models.Q(creator=request.user)
                     )
-                ).first()
+                ).get()  # Validate access
                 queryset = queryset.filter(plan_id=plan_id)
             except Plan.DoesNotExist:
                 return Response(
@@ -1120,7 +1588,7 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
                 )
         
         # Limit search results for performance
-        activities = queryset.order_by('start_time')[:30]
+        activities = queryset.order_by('-created_at')[:50]
         serializer = self.get_serializer(activities, many=True)
         
         return Response({
@@ -1128,6 +1596,144 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
             'count': len(activities),
             'query': query
         })
+
+
+# ============================================================================
+# Places/Location API Views (Goong Map Integration)
+# ============================================================================
+
+class PlacesSearchView(APIView):
+    """Search for places using Goong Map API"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        query = request.query_params.get('query')
+        if not query:
+            return Response(
+                {'error': 'query parameter required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            results = goong_service.search_places(query)
+            return Response({
+                'places': results,
+                'query': query,
+                'count': len(results)
+            })
+        except Exception as e:
+            return Response(
+                {'error': f'Search failed: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PlaceDetailsView(APIView):
+    """Get detailed information about a place"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, place_id):
+        try:
+            place_details = goong_service.get_place_details(place_id)
+            return Response(place_details)
+        except Exception as e:
+            return Response(
+                {'error': f'Place details failed: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class NearbyPlacesView(APIView):
+    """Get nearby places for a location"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        lat = request.query_params.get('lat')
+        lng = request.query_params.get('lng')
+        place_type = request.query_params.get('type', 'restaurant')
+        radius = request.query_params.get('radius', 1000)
+        
+        if not lat or not lng:
+            return Response(
+                {'error': 'lat and lng parameters required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            results = goong_service.get_nearby_places(
+                lat=float(lat), 
+                lng=float(lng), 
+                place_type=place_type,
+                radius=int(radius)
+            )
+            return Response({
+                'places': results,
+                'location': {'lat': lat, 'lng': lng},
+                'type': place_type,
+                'count': len(results)
+            })
+        except Exception as e:
+            return Response(
+                {'error': f'Nearby search failed: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PlaceAutocompleteView(APIView):
+    """Autocomplete places search"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        input_text = request.query_params.get('input')
+        if not input_text:
+            return Response(
+                {'error': 'input parameter required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            suggestions = goong_service.autocomplete_places(input_text)
+            return Response({
+                'suggestions': suggestions,
+                'input': input_text,
+                'count': len(suggestions)
+            })
+        except Exception as e:
+            return Response(
+                {'error': f'Autocomplete failed: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class GeocodeView(APIView):
+    """Convert address to coordinates and vice versa"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        address = request.query_params.get('address')
+        lat = request.query_params.get('lat')
+        lng = request.query_params.get('lng')
+        
+        if not address and (not lat or not lng):
+            return Response(
+                {'error': 'Either address or lat+lng parameters required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            if address:
+                # Forward geocoding (address to coordinates)
+                result = goong_service.geocode_address(address)
+            else:
+                # Reverse geocoding (coordinates to address)
+                result = goong_service.reverse_geocode(float(lat), float(lng))
+            
+            return Response(result)
+        except Exception as e:
+            return Response(
+                {'error': f'Geocoding failed: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 

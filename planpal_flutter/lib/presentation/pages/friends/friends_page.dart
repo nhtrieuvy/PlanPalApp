@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/repositories/friend_repository.dart';
-import '../../../core/models/user_summary.dart';
-import '../../../core/models/friend_request.dart';
+import '../../../core/dtos/user_summary.dart';
+import '../../../core/dtos/friend_request.dart';
 import '../../../core/theme/app_colors.dart';
 import 'user_profile_page.dart';
 
@@ -131,8 +131,6 @@ class _FriendsPageState extends State<FriendsPage>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bạn bè'),
@@ -280,7 +278,7 @@ class _FriendsPageState extends State<FriendsPage>
         contentPadding: const EdgeInsets.all(12),
         leading: _buildAvatar(friend),
         title: Text(
-          friend.displayName,
+          friend.fullName,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
         ),
         subtitle: Column(
@@ -339,7 +337,7 @@ class _FriendsPageState extends State<FriendsPage>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        request.user.displayName,
+                        request.user.fullName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/repositories/friend_repository.dart';
-import '../../../core/models/user_summary.dart';
+import '../../../core/dtos/user_summary.dart';
 import '../../../core/theme/app_colors.dart';
 
 class UserProfilePage extends StatefulWidget {
@@ -52,12 +52,154 @@ class _UserProfilePageState extends State<UserProfilePage> {
         _friendshipStatus = 'pending';
         _actionLoading = false;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đã gửi lời mời kết bạn')));
     } catch (e) {
       if (!mounted) return;
       setState(() => _actionLoading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
+  }
+
+  Future<void> _unfriend() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận'),
+        content: Text(
+          'Bạn có chắc muốn hủy kết bạn với ${widget.user.fullName}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _actionLoading = true);
+    try {
+      await _friendRepo.unfriend(widget.user.id);
+      if (!mounted) return;
+      setState(() {
+        _friendshipStatus = 'none';
+        _actionLoading = false;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã hủy kết bạn')));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _actionLoading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
+  }
+
+  Future<void> _blockUser() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận chặn'),
+        content: Text(
+          'Bạn có chắc muốn chặn ${widget.user.fullName}? Họ sẽ không thể gửi tin nhắn hoặc lời mời kết bạn cho bạn nữa.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Chặn'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _actionLoading = true);
+    try {
+      await _friendRepo.blockUser(widget.user.id);
+      if (!mounted) return;
+      setState(() {
+        _friendshipStatus = 'blocked';
+        _actionLoading = false;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã chặn người dùng')));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _actionLoading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
+  }
+
+  Future<void> _unblockUser() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bỏ chặn'),
+        content: Text('Bạn có muốn bỏ chặn ${widget.user.fullName}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Bỏ chặn'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _actionLoading = true);
+    try {
+      await _friendRepo.unblockUser(widget.user.id);
+      if (!mounted) return;
+
+      // Refresh status from server instead of hardcoding
+      await _loadFriendshipStatus();
+      if (!mounted) return;
+
+      setState(() => _actionLoading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã bỏ chặn người dùng')));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _actionLoading = false);
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
@@ -72,9 +214,49 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.user.displayName),
+        title: Text(widget.user.fullName),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: !isOwnProfile
+            ? [
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'block':
+                        _blockUser();
+                        break;
+                      case 'unblock':
+                        _unblockUser();
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    if (_friendshipStatus != 'blocked')
+                      const PopupMenuItem(
+                        value: 'block',
+                        child: Row(
+                          children: [
+                            Icon(Icons.block, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Chặn người dùng'),
+                          ],
+                        ),
+                      ),
+                    if (_friendshipStatus == 'blocked')
+                      const PopupMenuItem(
+                        value: 'unblock',
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text('Bỏ chặn'),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ]
+            : null,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -101,7 +283,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   const SizedBox(height: 16),
                   // Name
                   Text(
-                    widget.user.displayName,
+                    widget.user.fullName,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -228,71 +410,122 @@ class _UserProfilePageState extends State<UserProfilePage> {
       return const CircularProgressIndicator();
     }
 
-    Widget button;
-    String text;
-    Color color;
-    VoidCallback? onPressed;
-
     switch (_friendshipStatus) {
       case 'accepted':
-        text = 'Đã là bạn bè';
-        color = Colors.green;
-        onPressed = null; // Disabled
-        break;
-      case 'pending':
-        text = 'Đã gửi lời mời';
-        color = Colors.orange;
-        onPressed = null; // Disabled
-        break;
-      case 'blocked':
-        text = 'Đã chặn';
-        color = Colors.red;
-        onPressed = null; // Disabled
-        break;
-      default:
-        text = 'Kết bạn';
-        color = AppColors.primary;
-        onPressed = _actionLoading ? null : _sendFriendRequest;
-    }
-
-    button = ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: _actionLoading
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        // Hiển thị "Bạn bè" và nút "Hủy kết bạn" kế bên
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Nút "Bạn bè" (chỉ hiển thị, không có action)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(24),
               ),
-            )
-          : Icon(_getButtonIcon()),
-      label: Text(text),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 2,
-      ),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: button,
-    );
-  }
-
-  IconData _getButtonIcon() {
-    switch (_friendshipStatus) {
-      case 'accepted':
-        return Icons.check;
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Bạn bè',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Nút "Hủy kết bạn"
+            ElevatedButton.icon(
+              onPressed: _actionLoading ? null : _unfriend,
+              icon: _actionLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.person_remove),
+              label: const Text('Hủy kết bạn'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                elevation: 2,
+              ),
+            ),
+          ],
+        );
       case 'pending':
-        return Icons.schedule;
+        return ElevatedButton.icon(
+          onPressed: null,
+          icon: const Icon(Icons.schedule),
+          label: const Text('Đã gửi lời mời'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.orange,
+            disabledForegroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            elevation: 2,
+          ),
+        );
       case 'blocked':
-        return Icons.block;
+        return ElevatedButton.icon(
+          onPressed: null,
+          icon: const Icon(Icons.block),
+          label: const Text('Đã chặn'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.grey,
+            disabledForegroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            elevation: 2,
+          ),
+        );
       default:
-        return Icons.person_add;
+        return ElevatedButton.icon(
+          onPressed: _actionLoading ? null : _sendFriendRequest,
+          icon: _actionLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.person_add),
+          label: const Text('Kết bạn'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            elevation: 2,
+          ),
+        );
     }
   }
 
@@ -321,7 +554,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   _buildInfoRow(
                     Icons.person,
                     'Tên hiển thị',
-                    widget.user.displayName,
+                    widget.user.fullName,
                   ),
                   const Divider(),
                   _buildInfoRow(
