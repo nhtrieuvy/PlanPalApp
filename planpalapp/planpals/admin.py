@@ -8,7 +8,7 @@ from django.forms import Textarea
 
 from .models import (
     User, Group, GroupMembership, Plan, PlanActivity, 
-    ChatMessage, Friendship, MessageReadStatus
+    ChatMessage, Friendship, FriendshipRejection, MessageReadStatus
 )
 
 # ============================================================================
@@ -89,10 +89,32 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(Friendship)
 class FriendshipAdmin(admin.ModelAdmin):
-    list_display = ['user', 'friend', 'status', 'created_at']
+    list_display = ['get_friendship_display', 'initiator', 'status', 'created_at']
     list_filter = ['status', 'created_at']
-    search_fields = ['user__username', 'friend__username']
-    readonly_fields = ['id', 'created_at', 'updated_at']
+    search_fields = ['user_a__username', 'user_b__username', 'initiator__username']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'canonical_display']
+    
+    fieldsets = (
+        ('Friendship Details', {
+            'fields': ('id', 'canonical_display', 'user_a', 'user_b', 'initiator', 'status')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_friendship_display(self, obj):
+        """Display friendship with direction indicator"""
+        direction = "→" if obj.initiator == obj.user_a else "←"
+        return f"{obj.user_a.username} {direction} {obj.user_b.username}"
+    get_friendship_display.short_description = "Friendship"
+    get_friendship_display.admin_order_field = 'user_a__username'
+    
+    def canonical_display(self, obj):
+        """Show canonical ordering explanation"""
+        return f"Canonical: {obj.user_a.username} < {obj.user_b.username}"
+    canonical_display.short_description = "Canonical Order"
     
     # Custom actions
     actions = ['accept_friendships', 'reject_friendships']
@@ -106,6 +128,40 @@ class FriendshipAdmin(admin.ModelAdmin):
         updated = queryset.filter(status='pending').update(status='rejected')
         self.message_user(request, f'Đã từ chối {updated} lời mời kết bạn.')
     reject_friendships.short_description = "Từ chối các lời mời kết bạn đã chọn"
+
+
+@admin.register(FriendshipRejection)
+class FriendshipRejectionAdmin(admin.ModelAdmin):
+    list_display = ['get_friendship_display', 'rejected_by']
+    list_filter = ['created_at']
+    search_fields = [
+        'friendship__user_a__username', 
+        'friendship__user_b__username', 
+        'rejected_by__username'
+    ]
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Rejection Details', {
+            'fields': ('id', 'friendship', 'rejected_by')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_friendship_display(self, obj):
+        """Display the friendship being rejected"""
+        friendship = obj.friendship
+        direction = "→" if friendship.initiator == friendship.user_a else "←"
+        return f"{friendship.user_a.username} {direction} {friendship.user_b.username}"
+    get_friendship_display.short_description = "Friendship"
+    get_friendship_display.admin_order_field = 'friendship__user_a__username'
+    
+    def has_add_permission(self, request):
+        """Prevent manual creation - rejections should be created through model logic"""
+        return False
 
 # ============================================================================
 # GROUP ADMIN
