@@ -1,39 +1,42 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from .models import Friendship
+from .models import Friendship, Group, Plan, Conversation
 
 User = get_user_model()
 
+
 class IsAuthenticatedAndActive(BasePermission):
     """
-    Authenticated + Active check
-    Chỉ dùng khi cần check is_active
+    Optimized authentication + active check
+    Clean and efficient permission base class
     """
     
     def has_permission(self, request, view):
+        """Check if user is authenticated and active"""
         return (
             request.user and 
             request.user.is_authenticated and 
             request.user.is_active
         )
-        
+
+
 class PlanPermission(BasePermission):
     """
-    Permission cho Plan model - CHỈ BUSINESS LOGIC
-    Dùng với IsAuthenticated: permission_classes = [IsAuthenticated, PlanPermission]
+    Optimized Plan permission using model methods
+    Delegates business logic to model layer
     """
     
     def has_permission(self, request, view):
-        """Check permission cho việc tạo plan mới - CHỈ ADMIN NHÓM"""
+        """Check permission for plan creation - only group admins can create group plans"""
         if request.method == 'POST':
-            # For creating group plans, check if user is group ADMIN
-            group_id = request.data.get('group')
-            if group_id:
-                from .models import Group
+            plan_type = request.data.get('plan_type', 'personal')
+            group_id = request.data.get('group_id')
+            
+            if plan_type == 'group' and group_id:
                 try:
                     group = Group.objects.get(id=group_id)
-                    # CHỈ ADMIN nhóm mới được tạo kế hoạch
+                    # Use model method for admin check
                     return group.is_admin(request.user)
                 except Group.DoesNotExist:
                     return False
@@ -42,18 +45,20 @@ class PlanPermission(BasePermission):
         return True  # For other methods, check object permission
     
     def has_object_permission(self, request, view, obj):
-        """Chỉ kiểm tra business logic, auth đã được IsAuthenticated handle"""
+        """Use model methods for permission checking"""
         user = request.user
         
+        # Creator always has access
         if obj.creator == user:
             return True
         
-        if request.method in SAFE_METHODS: # [GET, HEAD, OPTIONS] các hàm đọc
+        if request.method in SAFE_METHODS:
             return self._can_view_plan(user, obj)
         else:
             return self._can_edit_plan(user, obj)
     
-    def _can_view_plan(self, user, plan): # dấu gạch chân ở đầu là private method chỉ dùng trong class này support cho hàm public
+    def _can_view_plan(self, user, plan):
+        """Delegate view permission to model logic"""
         if plan.is_public:
             return True
         if plan.is_group_plan() and plan.group:
@@ -61,6 +66,7 @@ class PlanPermission(BasePermission):
         return plan.creator == user
     
     def _can_edit_plan(self, user, plan):
+        """Delegate edit permission to model logic"""
         if plan.creator == user:
             return True
         if plan.is_group_plan() and plan.group:
@@ -69,29 +75,42 @@ class PlanPermission(BasePermission):
 
 
 class GroupPermission(BasePermission):
-    """Permission cho Group model"""
+    """
+    Optimized Group permission using model methods
+    Clean separation of view/edit/delete permissions
+    """
     
     def has_object_permission(self, request, view, obj):
+        """Use model methods for permission checking"""
         user = request.user
         
         if request.method in SAFE_METHODS:
             return self._can_view_group(user, obj)
         elif request.method in ['PUT', 'PATCH']:
-            return obj.is_admin(user)  # Cho phép multiple admins to edit
+            # Use model method for admin check
+            return obj.is_admin(user)
         elif request.method == 'DELETE':
-            return obj.admin == user # Chỉ có primary admin can delete
+            # Only primary admin can delete group
+            return obj.admin == user
         return False
     
     def _can_view_group(self, user, group):
-        if getattr(group, 'is_public', True): #Trả về True nếu không có field is_public
+        """Delegate view permission to model logic"""
+        # Groups are generally viewable by members
+        # Add is_public field support if needed in future
+        if getattr(group, 'is_public', True):
             return True
         return group.is_member(user)
 
 
 class GroupMembershipPermission(BasePermission):
-    """Permission cho membership actions"""
+    """
+    Optimized GroupMembership permission
+    Uses model methods for friend and membership checks
+    """
     
     def has_object_permission(self, request, view, obj):
+        """Handle membership actions using model methods"""
         user = request.user
         action = getattr(view, 'action', None)
         group = getattr(obj, 'group', obj)
@@ -105,46 +124,69 @@ class GroupMembershipPermission(BasePermission):
         elif action == 'add_member':
             return self._can_add_member(user, group)
         elif action in ['promote', 'demote']:
+            # Only primary admin can promote/demote
             return group.admin == user
         
+        # Default: admin access for other actions
         return group.is_admin(user)
     
     def _can_join_group(self, user, group):
+        """Check if user can join group"""
         if group.is_member(user):
             return False
         if getattr(group, 'is_public', True):
             return True
+        # Use canonical friendship model method
         return Friendship.are_friends(user, group.admin)
     
     def _can_leave_group(self, user, group):
+        """Check if user can leave group"""
         return group.is_member(user)
     
     def _can_add_member(self, user, group):
-        """Admin can add members, but only friends"""
+        """Admin can add members - friendship validation in serializer"""
         return group.is_admin(user)
 
 
 class ChatMessagePermission(BasePermission):
-    """Permission cho chat messages"""
+    """
+    Optimized ChatMessage permission 
+    Supports both group and conversation-based messaging
+    """
     
     def has_permission(self, request, view):
-        """Check nếu user có thể gửi message vào group"""
+        """Check if user can send message to group/conversation"""
         if request.method == 'POST':
-            # For creating messages, check if user is group member
+            # Support both group and conversation messaging
             group_id = request.data.get('group') or view.kwargs.get('group_id')
+            conversation_id = request.data.get('conversation') or view.kwargs.get('conversation_id')
+            
             if group_id:
-                from .models import Group
                 try:
                     group = Group.objects.get(id=group_id)
                     return group.is_member(request.user)
                 except Group.DoesNotExist:
                     return False
+            elif conversation_id:
+                try:
+                    conversation = Conversation.objects.get(id=conversation_id)
+                    return conversation.participants.filter(id=request.user.id).exists()
+                except Conversation.DoesNotExist:
+                    return False
         return True  # For other methods, check object permission
     
     def has_object_permission(self, request, view, obj):
+        """Check message access permissions"""
         user = request.user
         
-        if not obj.group.is_member(user):
+        # Check if user has access to the conversation/group
+        if obj.conversation:
+            if not obj.conversation.participants.filter(id=user.id).exists():
+                return False
+        elif obj.group:  # Legacy group support
+            if not obj.group.is_member(user):
+                return False
+        else:
             return False
         
         if request.method in SAFE_METHODS:
@@ -156,27 +198,42 @@ class ChatMessagePermission(BasePermission):
         return False
     
     def _can_edit_message(self, user, message):
+        """Check if user can edit message - use model properties"""
         if message.sender != user or message.message_type == 'system':
+            return False
+        # Only text messages can be edited within time limit
+        if message.message_type != 'text':
             return False
         time_limit = timezone.timedelta(minutes=15)
         return timezone.now() - message.created_at <= time_limit
     
     def _can_delete_message(self, user, message):
-        return message.sender == user or message.group.is_admin(user)
+        """Check if user can delete message"""
+        # Sender can always delete their own messages
+        if message.sender == user:
+            return True
+        # Group admin can delete messages in group
+        if message.conversation and message.conversation.group:
+            return message.conversation.group.is_admin(user)
+        elif message.group:  # Legacy support
+            return message.group.is_admin(user)
+        return False
 
 
 class PlanActivityPermission(BasePermission):
-    """Permission cho PlanActivity model - CHỈ ADMIN NHÓM"""
+    """
+    Optimized PlanActivity permission using model methods
+    Supports both personal and group plan activities
+    """
     
     def has_permission(self, request, view):
-        """Check permission cho việc tạo activity mới - CHỈ ADMIN NHÓM"""
+        """Check permission for activity creation"""
         if request.method == 'POST':
             plan_id = request.data.get('plan')
             if plan_id:
-                from .models import Plan
                 try:
                     plan = Plan.objects.select_related('group').get(id=plan_id)
-                    # CHỈ admin nhóm hoặc creator plan mới được thêm activity
+                    # Use model methods for permission checking
                     if plan.is_group_plan():
                         return plan.group.is_admin(request.user)
                     else:
@@ -186,7 +243,7 @@ class PlanActivityPermission(BasePermission):
         return True  # For other methods, check object permission
     
     def has_object_permission(self, request, view, obj):
-        """Check if user can access plan activity"""
+        """Check activity access permissions using model methods"""
         user = request.user
         plan = obj.plan
         
@@ -202,8 +259,8 @@ class PlanActivityPermission(BasePermission):
         return False
     
     def _can_access_plan(self, user, plan):
-        """Check if user can access the plan"""
-        if plan.creator == user:  # Updated from created_by to creator
+        """Check if user can access the plan - delegate to model"""
+        if plan.creator == user:
             return True
         
         if plan.is_group_plan() and plan.group:
@@ -212,8 +269,8 @@ class PlanActivityPermission(BasePermission):
         return False
     
     def _can_modify_activity(self, user, plan):
-        """Check if user can modify activities in plan"""
-        if plan.creator == user:  # Updated from created_by to creator
+        """Check if user can modify activities - use model methods"""
+        if plan.creator == user:
             return True
         
         if plan.is_group_plan() and plan.group:
@@ -223,78 +280,160 @@ class PlanActivityPermission(BasePermission):
 
 
 class FriendshipPermission(BasePermission):
-    """Permission cho friendships - Updated for user/friend fields"""
+    """
+    Optimized Friendship permission for canonical model
+    Uses model methods for efficient permission checking
+    """
     
     def has_object_permission(self, request, view, obj):
+        """Handle friendship actions using canonical model"""
         user = request.user
         action = getattr(view, 'action', None)
         
-        # ✅ UPDATED - use user/friend instead of sender/receiver
-        if user not in [obj.user, obj.friend]:
+        # Check if user is part of this friendship using model method
+        if user not in [obj.user_a, obj.user_b]:
             return False
         
         if action == 'accept':
-            # ✅ UPDATED - friend receives and can accept
-            return obj.friend == user and obj.status == 'pending'
+            # Only the receiver (non-initiator) can accept
+            return obj.can_be_accepted_by(user)
         elif action == 'reject':
-            # ✅ UPDATED - friend receives and can reject  
-            return obj.friend == user and obj.status == 'pending'
+            # Only the receiver can reject
+            return obj.can_be_accepted_by(user) and obj.status == 'pending'
         elif action == 'cancel':
-            # ✅ UPDATED - user sent and can cancel
-            return obj.user == user and obj.status == 'pending'
+            # Only the initiator can cancel
+            return obj.is_initiated_by(user) and obj.status == 'pending'
         elif action in ['block', 'unblock']:
+            # Either user can block/unblock
             return True
         
+        # Default: read access for involved users
         return request.method in SAFE_METHODS
 
 
-class UserProfilePermission(BasePermission):
-    """Permission cho user profiles"""
+class ConversationPermission(BasePermission):
+    """
+    New permission class for Conversation model
+    Supports both direct and group conversations
+    """
     
     def has_object_permission(self, request, view, obj):
+        """Check conversation access permissions"""
+        user = request.user
+        
+        # Check if user is participant in conversation
+        if not obj.participants.filter(id=user.id).exists():
+            return False
+        
+        if request.method in SAFE_METHODS:
+            return True
+        elif request.method in ['PUT', 'PATCH']:
+            # For group conversations, only group admins can edit
+            if obj.conversation_type == 'group' and obj.group:
+                return obj.group.is_admin(user)
+            # For direct conversations, any participant can edit (limited fields)
+            return True
+        elif request.method == 'DELETE':
+            # Only group admin can delete group conversations
+            if obj.conversation_type == 'group' and obj.group:
+                return obj.group.admin == user
+            # Direct conversations can be "left" by any participant
+            return True
+        
+        return False
+
+
+class UserProfilePermission(BasePermission):
+    """
+    Optimized User profile permission
+    Uses canonical friendship model for access control
+    """
+    
+    def has_object_permission(self, request, view, obj):
+        """Check profile access permissions"""
         user = request.user
         target_user = obj
         
+        # Users can always access their own profile
         if user == target_user:
             return True
         
         if request.method in SAFE_METHODS:
             return self._can_view_profile(user, target_user)
         else:
+            # Only own profile can be edited
             return user == target_user
     
     def _can_view_profile(self, user, target_user):
+        """Check if user can view target profile"""
+        # Check if profile is public (future feature)
         if getattr(target_user, 'is_profile_public', True):
             return True
+        # Use canonical friendship model method
         return Friendship.are_friends(user, target_user)
 
 
-# Utility permissions
+# Utility permissions - Optimized and clean
 class IsOwnerOrReadOnly(BasePermission):
-    """Owner full access, others read-only"""
+    """
+    Owner has full access, others have read-only access
+    Flexible owner field detection
+    """
     
     def has_object_permission(self, request, view, obj):
+        """Check owner permissions with flexible field detection"""
         if request.method in SAFE_METHODS:
             return True
         
-        owner_field = getattr(obj, 'creator', getattr(obj, 'user', None))
+        # Try multiple common owner field names
+        owner_field = getattr(obj, 'creator', 
+                            getattr(obj, 'user', 
+                                   getattr(obj, 'owner', None)))
         return owner_field == request.user
 
 
 class IsGroupMember(BasePermission):
-    """Must be group member"""
+    """
+    Must be group member - uses model method
+    """
     
     def has_object_permission(self, request, view, obj):
+        """Check group membership using model method"""
         group = getattr(obj, 'group', obj)
         return group.is_member(request.user)
 
 
 class IsGroupAdmin(BasePermission):
-    """Must be group admin"""
+    """
+    Must be group admin - uses model method
+    """
     
     def has_object_permission(self, request, view, obj):
+        """Check group admin status using model method"""
         group = getattr(obj, 'group', obj)
         return group.is_admin(request.user)
+
+
+class IsFriend(BasePermission):
+    """
+    Must be friends - uses canonical friendship model
+    """
+    
+    def has_object_permission(self, request, view, obj):
+        """Check friendship using canonical model method"""
+        target_user = getattr(obj, 'user', obj)
+        return Friendship.are_friends(request.user, target_user)
+
+
+class IsConversationParticipant(BasePermission):
+    """
+    Must be conversation participant - new permission for conversation model
+    """
+    
+    def has_object_permission(self, request, view, obj):
+        """Check if user is conversation participant"""
+        conversation = getattr(obj, 'conversation', obj)
+        return conversation.participants.filter(id=request.user.id).exists()
 
 
 

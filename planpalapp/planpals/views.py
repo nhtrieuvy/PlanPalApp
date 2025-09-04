@@ -1,92 +1,126 @@
 
 from django.shortcuts import get_object_or_404
+from django.contrib.auth import authenticate, get_user_model
+from django.utils import timezone
+from django.db import models, transaction
+from django.core.exceptions import ValidationError
+from django.db.models import Prefetch
+from datetime import datetime
+
 from rest_framework import viewsets, status, generics, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
-from django.contrib.auth import authenticate, get_user_model
-from django.utils import timezone
-from django.db import models
-from django.core.exceptions import ValidationError
-from datetime import datetime
 
-from .models import User, Group, Plan, Friendship, ChatMessage, PlanActivity, GroupMembership
+from .models import (
+    User, Group, Plan, Friendship, ChatMessage, PlanActivity, 
+    GroupMembership, Conversation
+)
 from .serializers import (
-    GroupCreateSerializer, GroupSummarySerializer, PlanSummarySerializer, UserSerializer, UserCreateSerializer, GroupSerializer, 
-    PlanSerializer, PlanCreateSerializer, FriendshipSerializer, FriendRequestSerializer, ChatMessageSerializer,
-    PlanActivitySerializer, UserSummarySerializer
+    GroupCreateSerializer, GroupSummarySerializer, PlanSummarySerializer, 
+    UserSerializer, UserCreateSerializer, UserSummarySerializer, GroupSerializer, 
+    PlanSerializer, PlanCreateSerializer, FriendshipSerializer, FriendRequestSerializer, 
+    ChatMessageSerializer, PlanActivitySerializer, ConversationSerializer
 )
 from .permissions import (
     IsAuthenticatedAndActive, PlanPermission, GroupPermission,
     ChatMessagePermission, FriendshipPermission, UserProfilePermission,
-    IsGroupMember, IsGroupAdmin, PlanActivityPermission
+    IsGroupMember, IsGroupAdmin, PlanActivityPermission, ConversationPermission
 )
 from .services import notification_service
 from .services.goong_service import goong_service
-
-from django.utils import timezone
 from .oauth2_utils import OAuth2ResponseFormatter
+
 from oauth2_provider.models import AccessToken, RefreshToken
+
 User = get_user_model()
 
-# ============================================================================
-# OAuth2 Authentication Views (Simplified for now)
-# ============================================================================
 
+# ============================================================================
+# OAuth2 Authentication Views (Optimized)
+# ============================================================================
 
 class OAuth2LogoutView(APIView):
-    """Standard OAuth2 logout: revoke current access token (and its refresh)."""
+    """
+    Optimized OAuth2 logout with proper token cleanup
+    Sets user offline status and revokes tokens
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        """Handle logout with token revocation and status update"""
         user = request.user
         token_string = getattr(request.auth, 'token', None) if hasattr(request.auth, 'token') else request.auth
         revoked = False
+        
         try:
             if token_string:
-                at_qs = AccessToken.objects.filter(token=token_string, user=user)
+                # Use efficient query with select_for_update for atomicity
+                at_qs = AccessToken.objects.select_for_update().filter(
+                    token=token_string, user=user
+                )
                 if at_qs.exists():
                     at = at_qs.first()
                     # Delete linked refresh tokens first
                     RefreshToken.objects.filter(access_token=at).delete()
                     at.delete()
                     revoked = True
+            
+            # Use model method for status update
             user.set_online_status(False)
+            
             return Response({
                 'message': 'Logged out successfully',
                 'timestamp': timezone.now().isoformat(),
                 'token_revoked': revoked
             })
         except Exception as e:
-            data, code = OAuth2ResponseFormatter.error_response('server_error', f'Logout failed: {e}', 500)
+            data, code = OAuth2ResponseFormatter.error_response(
+                'server_error', f'Logout failed: {e}', 500
+            )
             return Response(data, status=code)
 
 
 # ============================================================================
-# Core API ViewSets
+# Core API ViewSets (Optimized)
 # ============================================================================
 
 class UserViewSet(viewsets.GenericViewSet,
                   mixins.CreateModelMixin,
                   mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin):
+    """
+    Optimized UserViewSet with proper queryset optimization
+    Uses model methods and cached counts for performance
+    """
     serializer_class = UserSerializer
     
     def get_permissions(self):
+        """Dynamic permission assignment based on action"""
         if self.action == 'create':
             permission_classes = [AllowAny]
-        elif self.action in ['update', 'destroy']:
+        elif self.action in ['update', 'partial_update', 'destroy']:
             permission_classes = [IsAuthenticated, UserProfilePermission]
         else:
             permission_classes = [IsAuthenticatedAndActive]
         return [permission() for permission in permission_classes]
     
     def get_queryset(self):
-        """SECURE - Only current user for profile operations"""
-        return User.objects.filter(id=self.request.user.id)
+        """
+        Optimized queryset with cached counts
+        Only returns current user for security
+        """
+        if not self.request.user.is_authenticated:
+            return User.objects.none()
+        
+        # Use optimized queryset with cached counts
+        return User.objects.filter(
+            id=self.request.user.id
+        ).with_cached_counts()
     
     def get_serializer_class(self):
+        """Dynamic serializer selection"""
         if self.action == 'create':
             return UserCreateSerializer
         if self.action == "list":
@@ -94,25 +128,32 @@ class UserViewSet(viewsets.GenericViewSet,
         return UserSerializer
     
     def list(self, request):
-        """Custom list - only return current user profile"""
-        user_serializer = self.get_serializer(request.user)
+        """
+        Optimized user profile endpoint
+        Returns current user with all computed fields
+        """
+        # Get user with all counts annotated for better performance
+        user = User.objects.with_cached_counts().get(id=request.user.id)
+        user_serializer = self.get_serializer(user)
         return Response({
             'user': user_serializer.data,
-            'message': 'Use specific endpoints for user search'
+            'message': 'User profile retrieved successfully'
         })
     
-    # ✅ OPTIMIZED USER SEARCH
     @action(detail=False, methods=['get'])
     def search(self, request):
-        """Search users for friend requests (optimized with select_related)"""
+        """
+        Optimized user search for friend requests
+        Uses efficient queries and pagination
+        """
         query = request.query_params.get('q')
-        if not query:
+        if not query or len(query) < 2:
             return Response(
-                {'error': 'Search query (q) parameter required'}, 
+                {'error': 'Search query (q) parameter required (min 2 characters)'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # OPTIMIZED: Use only() for performance + exclude current user
+        # Optimized query with select_related and only necessary fields
         users = User.objects.filter(
             models.Q(username__icontains=query) |
             models.Q(email__icontains=query) |
@@ -130,83 +171,174 @@ class UserViewSet(viewsets.GenericViewSet,
         
         return Response({
             'users': serializer.data,
-            'count': users.count(),  # More efficient than len(serializer.data)
+            'count': len(serializer.data),
             'query': query
         })
     
-    #API trả về thông tin người dùng hiện tại
     @action(detail=False, methods=['get'])
     def profile(self, request):
-        """Get current user profile"""
-        serializer = self.get_serializer(request.user) 
+        """
+        Get current user profile with optimized counts
+        Uses cached counts for better performance
+        """
+        # Get user with cached counts for performance
+        user = User.objects.with_cached_counts().get(id=request.user.id)
+        serializer = self.get_serializer(user) 
         return Response(serializer.data)
     
-    #API cập nhật thông tin người dùng hiện tại
     @action(detail=False, methods=['put', 'patch'])
     def update_profile(self, request):
-        """Update current user profile"""
-        serializer = self.get_serializer(
-            request.user, 
-            data=request.data, 
-            partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        """
+        Update current user profile
+        Uses atomic transaction for data consistency
+        """
+        with transaction.atomic():
+            serializer = self.get_serializer(
+                request.user, 
+                data=request.data, 
+                partial=True
+            )
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
+            
+            # Update last seen on profile updates
+            user.update_last_seen()
+            
         return Response(serializer.data)
     
-    #API lấy danh sách kế hoạch của người dùng hiện tại
     @action(detail=False, methods=['get'])
     def my_plans(self, request):
-        """Get user's plans - OPTIMIZED using properties"""
+        """
+        Get user's plans with optimized queries
+        Uses model methods and efficient filtering
+        """
         user = request.user
         plan_type = request.query_params.get('type', 'all')
         
-        if plan_type == 'personal':
-            plans = user.personal_plans  # Using property
-        elif plan_type == 'group':
-            plans = user.group_plans    # Using property
-        else:
-            plans = user.all_plans      # Using property
+        # Use optimized queryset from model
+        queryset = Plan.objects.for_user(user).with_stats()
         
-        serializer = PlanSerializer(plans[:20], many=True, context={'request': request})
+        if plan_type == 'personal':
+            queryset = queryset.filter(plan_type='personal')
+        elif plan_type == 'group':
+            queryset = queryset.filter(plan_type='group')
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = PlanSummarySerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = PlanSummarySerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def my_groups(self, request):
+        """
+        Get user's groups with optimized queries
+        Uses model properties for efficient filtering
+        """
+        user = request.user
+        
+        # Use model property for optimized query
+        groups = user.joined_groups.with_full_stats()
+        
+        page = self.paginate_queryset(groups)
+        if page is not None:
+            serializer = GroupSummarySerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = GroupSummarySerializer(groups, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def my_activities(self, request):
+        """
+        Get user's plan activities with optimized filtering
+        Uses model methods for efficient queries
+        """
+        user = request.user
+        activity_type = request.query_params.get('type', 'all')
+        
+        # Use optimized queryset from model
+        queryset = PlanActivity.objects.filter(
+            plan__created_by=user
+        ).select_related('plan', 'location').prefetch_related('plan__group')
+        
+        if activity_type == 'personal':
+            queryset = queryset.filter(plan__group__isnull=True)
+        elif activity_type == 'group':
+            queryset = queryset.filter(plan__group__isnull=False)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = PlanActivitySerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = PlanActivitySerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def set_online_status(self, request):
+        """
+        Update user online status efficiently
+        Uses atomic transaction for consistency
+        """
+        is_online = request.data.get('is_online', True)
+        
+        with transaction.atomic():
+            request.user.set_online_status(is_online)
         
         return Response({
-            'plans': serializer.data,
-            'counts': {
-                'total': user.plans_count,           # Using property
-                'personal': user.personal_plans_count, # Using property
-                'group': user.group_plans_count       # Using property
-            },
-            'type': plan_type
+            'is_online': request.user.is_online,
+            'last_seen': request.user.last_seen
         })
-        
     
-    #API lấy danh sách chat gần đây hình như trong 5ph
+    @action(detail=False, methods=['get'])
+    def friendship_stats(self, request):
+        """
+        Get user's friendship statistics
+        Uses cached counts for performance
+        """
+        # Get user with all counts annotated to avoid N+1 queries
+        user = User.objects.with_cached_counts().get(id=request.user.id)
+        
+        return Response({
+            'friends_count': user.friends_count,
+            'pending_sent_count': user.pending_sent_count,
+            'pending_received_count': user.pending_received_count,
+            'blocked_count': user.blocked_count
+        })
+    
     @action(detail=False, methods=['get'])
     def recent_conversations(self, request):
-        """Get recent conversations - OPTIMIZED using property"""
-        conversations = request.user.recent_conversations[:10]  # Using property
+        """
+        Get recent conversations with optimized queries
+        Uses model property for efficient filtering
+        """
+        conversations = request.user.recent_conversations[:10]
         serializer = GroupSerializer(conversations, many=True, context={'request': request})
         
         return Response({
             'conversations': serializer.data,
             'timestamp': timezone.now().isoformat()
         })
-       
     
-    #API lấy tin nhắn chưa đọc
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
-        """Get unread messages count - OPTIMIZED using property"""
+        """
+        Get unread messages count efficiently
+        Uses cached property for performance
+        """
         return Response({
-            'unread_count': request.user.unread_messages_count,  # Using property
+            'unread_count': request.user.unread_messages_count,
             'timestamp': timezone.now().isoformat()
         })
     
-    # OPTIMIZED API lấy thông tin user profile theo ID
     def retrieve(self, request, pk=None):
-        """Get user profile by ID - Optimized with get_object_or_404"""
-        # Use Django's built-in get_object_or_404 for cleaner code
+        """
+        Get user profile by ID with optimized queries
+        Uses Django built-in functions for cleaner code
+        """
         user = get_object_or_404(User, id=pk)
         
         # Check permission using built-in permission system
@@ -215,49 +347,30 @@ class UserViewSet(viewsets.GenericViewSet,
         # Use optimized serializer with only needed fields
         serializer = UserSummarySerializer(user, context={'request': request})
         return Response(serializer.data)
-    #             )
-            
-    #         # Serialize user data
-    #         serializer = UserSummarySerializer(user, context={'request': request})
-    #         return Response(serializer.data)
-            
-    #     except User.DoesNotExist:
-    #         return Response(
-    #             {'error': 'User not found'}, 
-    #             status=status.HTTP_404_NOT_FOUND
-    #         )
     
-    # OPTIMIZED API lấy trạng thái friendship với user
     @action(detail=True, methods=['get'])
     def friendship_status(self, request, pk=None):
-        """Get friendship status with a user - Optimized"""
-        # Use Django's built-in get_object_or_404
+        """
+        Get friendship status with a user using canonical model
+        Uses optimized queries with model methods
+        """
         target_user = get_object_or_404(User, id=pk)
         current_user = request.user
         
         if current_user == target_user:
             return Response({'status': 'self'})
         
-        # OPTIMIZED: Use select_related và only để giảm database queries
-        from .models import Friendship
-        friendship = Friendship.objects.filter(
-            models.Q(user=current_user, friend=target_user) |
-            models.Q(user=target_user, friend=current_user)
-        ).only('status', 'id', 'created_at').first()
+        # Use canonical friendship model method
+        status_info = current_user.get_friendship_status(target_user)
         
-        if friendship:
-            return Response({
-                'status': friendship.status,
-                'friendship_id': friendship.id,
-                'created_at': friendship.created_at
-            })
-        
-        return Response({'status': 'none'})
+        return Response(status_info)
     
-    # OPTIMIZED API hủy kết bạn
     @action(detail=True, methods=['delete'])
     def unfriend(self, request, pk=None):
-        """Unfriend/Remove friendship - SECURE"""
+        """
+        Unfriend/Remove friendship with enhanced security
+        Uses atomic transaction and model methods
+        """
         target_user = get_object_or_404(User, id=pk)
         current_user = request.user
         
@@ -345,12 +458,18 @@ class GroupViewSet(viewsets.GenericViewSet,
                    mixins.RetrieveModelMixin,
                    mixins.UpdateModelMixin,
                    mixins.DestroyModelMixin):
-    """SECURE Group operations - Fixed dangerous ModelViewSet"""
+    """
+    Optimized Group operations with enhanced security
+    Uses Django best practices and efficient queries
+    """
     serializer_class = GroupSerializer
     permission_classes = [IsAuthenticated, GroupPermission]
     
     def get_serializer_class(self):
-        """Use optimized serializer for create operations"""
+        """
+        Use optimized serializer for different operations
+        Reduces payload size and improves performance
+        """
         if self.action == 'create':
             return GroupCreateSerializer
         elif self.action == 'list':
@@ -358,35 +477,50 @@ class GroupViewSet(viewsets.GenericViewSet,
         return self.serializer_class
 
     def get_queryset(self):
-        """SECURE - Only groups user is member of with correct field references"""
+        """
+        Secure queryset with optimized database queries
+        Only groups user is member of with proper prefetching
+        """
         return Group.objects.filter(
             members=self.request.user
-        ).select_related('admin').prefetch_related(
-            'members',
+        ).select_related(
+            'admin'
+        ).prefetch_related(
+            'members__profile',
             'memberships__user'
-        )
+        ).with_full_stats()
     
     def list(self, request):
-        """Custom secure list implementation - user's groups only"""
+        """
+        Custom secure list with optimized queries
+        Uses cached counts for better performance
+        """
         queryset = self.get_queryset().order_by('-created_at')
-        serializer = self.get_serializer(queryset, many=True)
         
-        return Response({
-            'groups': serializer.data,
-            'count': len(serializer.data),
-            'timestamp': timezone.now().isoformat()
-        })
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     def perform_create(self, serializer):
-        """Auto-add creator as admin and member"""
-        group = serializer.save(admin=self.request.user)
-        # group.members.add(self.request.user)
+        """
+        Auto-add creator as admin with atomic transaction
+        Ensures data consistency and proper membership
+        """
+        with transaction.atomic():
+            group = serializer.save(admin=self.request.user)
+            # Membership is handled in model's save method
         return group
     
-    # ✅ SECURE JOIN GROUP
     @action(detail=False, methods=['post'])
     def join(self, request):
-        """Join group by invite code or ID"""
+        """
+        Join group by invite code or ID with enhanced security
+        Uses atomic transactions and proper validation
+        """
         group_id = request.data.get('group_id')
         invite_code = request.data.get('invite_code')
         
@@ -397,25 +531,26 @@ class GroupViewSet(viewsets.GenericViewSet,
             )
         
         try:
-            if invite_code:
-                group = Group.objects.get(invite_code=invite_code)
-            else:
-                # Only allow joining public groups
-                group = Group.objects.get(
-                    id=group_id, 
-                    is_public=True  # Assuming you have this field
-                )
-            
-            if request.user in group.members.all():
-                return Response({'message': 'Already a member'})
-            
-            group.members.add(request.user)
-            
-            return Response({
-                'message': 'Joined group successfully',
-                'group': self.get_serializer(group).data
-            })
-            
+            with transaction.atomic():
+                if invite_code:
+                    group = Group.objects.select_for_update().get(invite_code=invite_code)
+                else:
+                    group = Group.objects.select_for_update().get(
+                        id=group_id, 
+                        is_public=True
+                    )
+                
+                # Use model method for joining
+                success, message = group.add_member(request.user)
+                
+                if not success:
+                    return Response({'message': message})
+                
+                return Response({
+                    'message': message,
+                    'group': GroupSummarySerializer(group, context={'request': request}).data
+                })
+                
         except Group.DoesNotExist:
             return Response(
                 {'error': 'Group not found or not accessible'}, 
@@ -424,20 +559,35 @@ class GroupViewSet(viewsets.GenericViewSet,
     
     @action(detail=False, methods=['get'])
     def my_groups(self, request):
-        """Get user's joined groups"""
-        groups = self.get_queryset()
-        serializer = self.get_serializer(groups, many=True)
-        return Response({
-            'groups': serializer.data,
-            'count': len(serializer.data)
-        })
+        """
+        Get user's joined groups with efficient pagination
+        Uses optimized queryset and serializer
+        """
+        queryset = self.get_queryset()
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def created_by_me(self, request):
-        """Get groups created by user"""
-        # Group model dùng field 'admin' thay vì 'created_by'
-        groups = self.get_queryset().filter(admin=request.user)
-        serializer = self.get_serializer(groups, many=True)
+        """
+        Get groups created by user with optimized queries
+        Uses admin field for filtering
+        """
+        queryset = self.get_queryset().filter(admin=request.user)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
         return Response({
             'groups': serializer.data,
             'count': len(serializer.data)
@@ -586,27 +736,18 @@ class GroupViewSet(viewsets.GenericViewSet,
         })
 
 class PlanViewSet(viewsets.ModelViewSet):
-    """Plan CRUD operations - SECURITY FIXED"""
+    """
+    Optimized Plan CRUD operations with enhanced security
+    Uses Django best practices and efficient queries
+    """
     serializer_class = PlanSerializer
     permission_classes = [IsAuthenticated, PlanPermission]
     
-    def _can_user_edit_plan(self, plan, user):
-        """Helper method to check if user can edit plan - matches serializer logic"""
-        if not user.is_authenticated:
-            return False
-        
-        # Creator luôn edit được
-        if plan.creator == user:
-            return True
-        
-        # Group plans: admins có thể edit
-        if plan.is_group_plan() and plan.group:
-            return plan.group.is_admin(user)
-        
-        return False
-    
     def get_serializer_class(self):
-        """Use optimized serializer for create operations"""
+        """
+        Use optimized serializer for different operations
+        Reduces payload size and improves performance
+        """
         if self.action == 'create':
             return PlanCreateSerializer
         elif self.action == 'list':
@@ -614,29 +755,38 @@ class PlanViewSet(viewsets.ModelViewSet):
         return self.serializer_class
     
     def get_queryset(self):
-        """SECURE - Only user's accessible plans with full optimizations"""
+        """
+        Secure queryset with comprehensive optimizations
+        Only user's accessible plans with proper prefetching
+        """
         return Plan.objects.filter(
             models.Q(group__members=self.request.user) |
-            models.Q(creator=self.request.user)  # Updated from created_by to creator
-        ).select_related('creator', 'group').prefetch_related(
+            models.Q(creator=self.request.user)
+        ).select_related(
+            'creator', 'group'
+        ).prefetch_related(
             'group__members',
-            'activities'
-        ).distinct().order_by('-created_at')
+            'activities__location'
+        ).with_stats().distinct().order_by('-created_at')
     
     def perform_create(self, serializer):
-        """Auto-set creator and handle notifications"""
-        plan = serializer.save(creator=self.request.user)  # Fixed: use creator instead of created_by
-        
-        # Optional: Send notification if service available
-        try:
-            if hasattr(notification_service, 'notify_plan_created'):
-                notification_service.notify_plan_created(
-                    plan_id=str(plan.id),
-                    creator_name=self.request.user.username,
-                    group_id=str(plan.group.id) if plan.group else None
-                )
-        except Exception:
-            pass  # Don't fail plan creation if notification fails
+        """
+        Auto-set creator with atomic transaction
+        Handles notifications and ensures data consistency
+        """
+        with transaction.atomic():
+            plan = serializer.save(creator=self.request.user)
+            
+            # Send notification asynchronously if service available
+            try:
+                if hasattr(notification_service, 'notify_plan_created'):
+                    notification_service.notify_plan_created(
+                        plan_id=str(plan.id),
+                        creator_name=self.request.user.username,
+                        group_id=str(plan.group.id) if plan.group else None
+                    )
+            except Exception:
+                pass  # Don't fail plan creation if notification fails
         
         return plan
 
@@ -652,16 +802,41 @@ class PlanViewSet(viewsets.ModelViewSet):
     #     return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
     def list(self, request):
-        """Enhanced list with metadata"""
+        """
+        Enhanced list with optimized metadata
+        Uses proper pagination and efficient queries
+        """
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
         
-        return Response({
-            'plans': serializer.data,
-            'count': len(serializer.data),
-            'user_id': request.user.id,
-            'timestamp': timezone.now().isoformat()
-        })
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def my_plans(self, request):
+        """
+        Get user's plans with optimized filtering
+        Uses efficient queries and proper pagination
+        """
+        queryset = self.get_queryset()
+        plan_type = request.query_params.get('type', 'all')
+        
+        if plan_type == 'personal':
+            queryset = queryset.filter(group__isnull=True)
+        elif plan_type == 'group':
+            queryset = queryset.filter(group__isnull=False)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     #API lấy kế hoạch theo ngày
     @action(detail=True, methods=['get'])
@@ -1075,62 +1250,84 @@ class PlanViewSet(viewsets.ModelViewSet):
 
 
 class FriendRequestView(generics.CreateAPIView):
+    """
+    Optimized Friend Request creation with enhanced validation
+    Uses atomic transactions and proper error handling
+    """
     serializer_class = FriendRequestSerializer
     permission_classes = [IsAuthenticated]
     
     def create(self, request):
+        """Create friend request with comprehensive validation"""
         serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            friend_id = serializer.validated_data['friend_id']
-            
-            try:
-                friend = User.objects.get(id=friend_id)
-            except User.DoesNotExist:
-                return Response(
-                    {'error': 'User not found'}, 
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            
-            try:
+        serializer.is_valid(raise_exception=True)
+        
+        friend_id = serializer.validated_data['friend_id']
+        
+        try:
+            friend = User.objects.get(id=friend_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            with transaction.atomic():
                 friendship, created = Friendship.create_friend_request(request.user, friend)
                 
                 if created:
-                    notification_service.notify_friend_request(
-                        friend_id, 
-                        request.user.get_full_name()
-                    )
+                    # Send notification asynchronously
+                    try:
+                        notification_service.notify_friend_request(
+                            friend_id, 
+                            request.user.get_full_name()
+                        )
+                    except Exception:
+                        pass  # Don't fail request if notification fails
                     
                     return Response({
                         'message': 'Friend request sent successfully',
-                        'friendship': FriendshipSerializer(friendship).data
+                        'friendship': FriendshipSerializer(friendship, context={'request': request}).data
                     }, status=status.HTTP_201_CREATED)
                 else:
                     return Response({
                         'message': 'Friend request already exists or updated',
-                        'friendship': FriendshipSerializer(friendship).data
+                        'friendship': FriendshipSerializer(friendship, context={'request': request}).data
                     })
                     
-            except ValidationError as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-                
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class FriendRequestListView(generics.ListAPIView):
+    """
+    Optimized Friend Request listing with efficient queries
+    Uses select_related for performance optimization
+    """
     serializer_class = FriendshipSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        # OPTIMIZED: Use select_related để tránh N+1 queries
+        """
+        Get pending friend requests with optimized queries
+        Uses canonical friendship model methods
+        """
         return Friendship.objects.filter(
             friend=self.request.user,
             status=Friendship.PENDING
         ).select_related('user', 'friend').order_by('-created_at')
 
+
 class FriendRequestActionView(APIView):
+    """
+    Optimized Friend Request action handling
+    Uses atomic transactions and proper validation
+    """
     permission_classes = [IsAuthenticated]
     
     def post(self, request, request_id):
-        # CLEANER: Use choices validation
+        """Handle friend request actions (accept/reject)"""
         action = request.data.get('action')
         allowed_actions = ['accept', 'reject']
         
@@ -1139,8 +1336,8 @@ class FriendRequestActionView(APIView):
                 {'error': f'Invalid action. Use one of: {", ".join(allowed_actions)}'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
-        # OPTIMIZED: Use select_related cho performance
+        
+        # Get friendship with optimized query
         friendship = get_object_or_404(
             Friendship.objects.select_related('user', 'friend'),
             id=request_id,
@@ -1148,41 +1345,57 @@ class FriendRequestActionView(APIView):
             status=Friendship.PENDING
         )
         
-        # Django built-in permission check
-        self.check_object_permissions(request, friendship)
-        
-        # CLEANER: Use method mapping
-        action_methods = {
-            'accept': friendship.accept,
-            'reject': friendship.reject
-        }
-        
-        success = action_methods[action]()
-        
-        if success and action == 'accept':
-            # Only notify on accept
-            notification_service.notify_friend_request_accepted(
-                friendship.user.id, 
-                request.user.get_full_name()
-            )
-            
-        if success:
-            return Response({
-                'message': f'Request {action}ed successfully',
-                'friendship': FriendshipSerializer(friendship).data
-            })
-        
-        return Response(
-            {'error': f'Could not {action} request'}, 
-                status=status.HTTP_400_BAD_REQUEST
+        try:
+            with transaction.atomic():
+                # Use model methods for actions
+                action_methods = {
+                    'accept': friendship.accept,
+                    'reject': friendship.reject
+                }
+                
+                success = action_methods[action]()
+                
+                if success and action == 'accept':
+                    # Send notification for acceptance
+                    try:
+                        notification_service.notify_friend_request_accepted(
+                            friendship.user.id, 
+                            request.user.get_full_name()
+                        )
+                    except Exception:
+                        pass  # Don't fail action if notification fails
+                
+                if success:
+                    return Response({
+                        'message': f'Request {action}ed successfully',
+                        'friendship': FriendshipSerializer(friendship, context={'request': request}).data
+                    })
+                else:
+                    return Response(
+                        {'error': f'Failed to {action} request'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                    
+        except Exception as e:
+            return Response(
+                {'error': f'Action failed: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
 class FriendsListView(generics.ListAPIView):
+    """
+    Optimized Friends listing with efficient queries
+    Uses canonical friendship model methods
+    """
     serializer_class = UserSummarySerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return Friendship.get_friends_queryset(self.request.user)
+        """Get user's friends using optimized canonical model method with counts"""
+        # Get friends with potential counts annotation for serializer
+        friend_ids = Friendship.objects.get_friends_ids(self.request.user)
+        return User.objects.filter(id__in=friend_ids).with_cached_counts()
 
 class ChatMessageViewSet(viewsets.GenericViewSet,
                          mixins.CreateModelMixin,
