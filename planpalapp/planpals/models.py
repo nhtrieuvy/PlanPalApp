@@ -1,13 +1,15 @@
+import uuid
+from collections import defaultdict
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import Q, F, Case, When, Count, Max, Sum
+
 from cloudinary.models import CloudinaryField
 from cloudinary import CloudinaryImage
-from collections import defaultdict
-import uuid
 
 class BaseModel(models.Model):
     """
@@ -37,36 +39,27 @@ class BaseModel(models.Model):
 
     class Meta:
         abstract = True  # Không tạo table riêng
-        ordering = ['-created_at']  # Default ordering
+        ordering = ['-created_at']
         
-        # Base indexes cho timestamps
         indexes = [
             models.Index(fields=['created_at']),
             models.Index(fields=['updated_at']),
         ]
 
     def save(self, *args, **kwargs):
-        """Override save để chạy validation"""
         self.full_clean()  # Chạy tất cả validations
         super().save(*args, **kwargs)
 
     def __str__(self):
-        """Default string representation"""
         return f"{self.__class__.__name__}({self.id})"
 
 
 class User(AbstractUser, BaseModel):
-    """
-    Custom User model kế thừa từ AbstractUser và BaseModel
-    """
-    
-    # Remove id field vì đã có trong BaseModel
-    
-    # Phone number với validation
     phone_regex = RegexValidator(
-        regex=r'^\+?1?\d{9,15}$', # Có thể có dấu +, số 1 ở đầu và từ 9 đến 15 số
+        regex=r'^\+?1?\d{9,15}$',  # Có thể có dấu +, số 1 ở đầu và từ 9 đến 15 số
         message="Phone number phải có format: '+999999999'. Tối đa 15 số."
     )
+    
     phone_number = models.CharField(
         validators=[phone_regex], 
         max_length=17, 
@@ -74,7 +67,6 @@ class User(AbstractUser, BaseModel):
         help_text="Số điện thoại với mã quốc gia"
     )
     
-    # Avatar với Cloudinary
     avatar = CloudinaryField(
         'image',
         blank=True, 
@@ -127,7 +119,6 @@ class User(AbstractUser, BaseModel):
 
     class Meta:
         db_table = 'planpal_users' 
-        ordering = ['-created_at']  # Override BaseModel ordering
         indexes = [
             # Kế thừa base indexes từ BaseModel và thêm custom
             *BaseModel.Meta.indexes,
@@ -138,58 +129,29 @@ class User(AbstractUser, BaseModel):
     def __str__(self):
         return f"{self.username} ({self.get_full_name()})"
 
-    @property
-    def display_name(self):
-        """Tên hiển thị ưu tiên full name, fallback username"""
-        full_name = f"{self.first_name} {self.last_name}".strip()
-        return full_name if full_name else self.username
-
-    @property
-    def initials(self):
-        """Lấy chữ cái đầu của tên để hiển thị avatar"""
-        if self.first_name and self.last_name:
-            return f"{self.first_name[0]}{self.last_name[0]}".upper()
-        elif self.first_name:
-            return self.first_name[0].upper()
-        return self.username[0].upper() if self.username else "U"
-
-
     def update_last_seen(self):
-        """Update last_seen timestamp"""
         self.last_seen = timezone.now()
         self.save(update_fields=['last_seen'])
 
     def set_online_status(self, status):
-        """Set online status và update last_seen"""
         self.is_online = status
         if not status:  # Khi offline, update last_seen
             self.last_seen = timezone.now()
         self.save(update_fields=['is_online', 'last_seen'])
 
     def create_personal_plan(self, title, start_date, end_date, **kwargs):
-        """
-        Tạo kế hoạch cá nhân
-        
-        Args:
-            title: Tiêu đề kế hoạch
-            start_date, end_date: Thời gian chuyến đi
-            **kwargs: Các field khác
-        """
         plan = Plan.objects.create(
             creator=self,
             title=title,
             start_date=start_date,
             end_date=end_date,
-            group=None,  # Personal plan không có group
+            group=None,
             plan_type='personal',
             **kwargs
         )
         return plan
 
     def create_group_plan(self, group, title, start_date, end_date, **kwargs):
-        """
-        Tạo kế hoạch nhóm
-        """
         return Plan.objects.create(
         group=group,
         creator=self,
@@ -203,9 +165,6 @@ class User(AbstractUser, BaseModel):
     
         
     def send_group_message(self, group, content, message_type='text', **kwargs):
-        """
-        Gửi tin nhắn vào group
-        """
         return group.send_message(
             sender=self,
             content=content,
@@ -213,91 +172,71 @@ class User(AbstractUser, BaseModel):
             **kwargs
         )
 
-    # ✅ QUERY PROPERTIES - Trả về QuerySet để truy vấn
     @property
     def recent_conversations(self):
-        """Lấy danh sách conversations gần đây - OPTIMIZED"""
-        return Group.objects.filter(
-            members=self,
-            is_active=True
-        ).annotate(
-            last_message_time=models.Max('messages__created_at')
-        ).order_by('-last_message_time').select_related('admin')
+        return Conversation.objects.for_user(self).with_last_message().active().order_by('-last_message_at')
         
     @property
     def personal_plans(self):
-        """Lấy tất cả personal plans của user"""
         return self.created_plans.filter(
             plan_type='personal'
         ).order_by('-created_at')
 
     @property
     def group_plans(self):
-        """Lấy tất cả group plans mà user tham gia"""
         return Plan.objects.filter(
             group__members=self,
             plan_type='group'
-        ).order_by('-created_at')
+        ).select_related('group').order_by('-created_at')
 
     @property
     def all_plans(self):
-        """Lấy tất cả plans (personal + group)"""
         return Plan.objects.filter(
             Q(creator=self, plan_type='personal') |
             Q(group__members=self, plan_type='group')
-        ).order_by('-created_at')
+        ).select_related('group', 'creator').order_by('-created_at')
 
     @property
     def viewable_plans(self):
-        """Lấy tất cả plans mà user có thể xem (bao gồm public)"""
         return Plan.objects.filter(
             Q(creator=self) |  # Own plans
             Q(group__members=self) |  # Group plans
             Q(is_public=True)  # Public plans
-        ).distinct().order_by('-created_at')
-
+        # distinct trả về các bản ghi duy nhất
+        ).select_related('group', 'creator').distinct().order_by('-created_at')
+    
     @property
     def friends(self):
-        """Lấy danh sách bạn bè của user"""
         return Friendship.get_friends_queryset(self)
 
-    # ✅ COUNT PROPERTIES - Tính toán và đếm
     @property
     def plans_count(self):
-        """Tổng số kế hoạch (personal + group)"""
         return self.all_plans.count()
 
     @property
     def personal_plans_count(self):
-        """Số lượng kế hoạch cá nhân"""
         return self.personal_plans.count()
 
     @property
     def group_plans_count(self):
-        """Số lượng kế hoạch nhóm"""
         return self.group_plans.count()
 
     @property
     def groups_count(self):
-        """Tổng số nhóm mà user tham gia"""
         return self.joined_groups.filter(is_active=True).count()
 
     @property
     def friends_count(self):
-        """Tổng số bạn bè của user"""
         return self.friends.count()
         
-    # ✅ STATUS AND VALIDATION PROPERTIES
-    @property
-    def is_recently_online(self):
-        """Check xem user có online trong 5 phút gần đây không"""
-        if self.is_online:
-            return True
-        return timezone.now() - self.last_seen < timezone.timedelta(minutes=5)
+    # @property
+    # def is_recently_online(self):
+    #     if self.is_online:
+    #         return True
+    #     return timezone.now() - self.last_seen < timezone.timedelta(minutes=5)
     
     @property
     def online_status(self):
-        """Trả về trạng thái online: 'online', 'recently_online', 'offline'"""
         if self.is_online:
             return 'online'
         elif self.is_recently_online:
@@ -306,17 +245,12 @@ class User(AbstractUser, BaseModel):
 
     @property
     def has_avatar(self):
-        """Check xem user có avatar không"""
         return bool(self.avatar)
 
     @property
     def avatar_url(self):
-        """Lấy URL avatar đầy đủ Cloudinary, fallback về initials nếu không có"""
-        # If user does not have an avatar, return None so frontend can
-        # render initials/text fallback instead of treating the value as a URL.
         if not self.has_avatar:
             return None
-        # Sử dụng CloudinaryImage để tạo URL đầy đủ
         if self.avatar:
             cloudinary_image = CloudinaryImage(str(self.avatar))
             return cloudinary_image.build_url(secure=True)
@@ -324,35 +258,97 @@ class User(AbstractUser, BaseModel):
 
     @property
     def avatar_thumb(self):
-        """Thumbnail cho avatar (dùng trong summary/list)"""
         if not self.avatar:
             return None
-        # Sử dụng CloudinaryImage để tạo thumbnail
         cloudinary_image = CloudinaryImage(str(self.avatar))
         return cloudinary_image.build_url(width=100, height=100, crop='fill', gravity='face', secure=True)
 
     @property
     def unread_messages_count(self):
-        """Tổng số tin nhắn chưa đọc trong tất cả groups - OPTIMIZED"""
-        from django.db.models import Count, Q
-        
-        # Single query to count unread messages across all groups
         return ChatMessage.objects.filter(
-            group__members=self,
-            group__is_active=True,
+            conversation__in=Conversation.objects.for_user(self).active(),
             is_deleted=False
         ).exclude(
             Q(sender=self) | Q(read_statuses__user=self)
         ).count()
     
+    # === Conversation Management Methods ===
+    
+    def get_or_create_direct_conversation(self, other_user):
+        if self == other_user:
+            raise ValueError("Không thể tạo cuộc trò chuyện với chính mình")
+        
+        # Check if they are friends
+        if not Friendship.are_friends(self, other_user):
+            raise ValidationError("Chỉ có thể chat với bạn bè")
+        
+        return Conversation.get_or_create_direct_conversation(self, other_user)
+    
+    def send_direct_message(self, recipient, content, message_type='text', **kwargs):
+        """Gửi tin nhắn trực tiếp tới user khác"""
+        conversation, created = self.get_or_create_direct_conversation(recipient)
+        return conversation.send_message(
+            sender=self,
+            content=content,
+            message_type=message_type,
+            **kwargs
+        )
+    
+
+class FriendshipQuerySet(models.QuerySet):
+    """Custom QuerySet for Friendship with optimized methods"""
+    
+    def accepted(self):
+        """Get accepted friendships"""
+        return self.filter(status=self.model.ACCEPTED)
+    
+    def pending(self):
+        """Get pending friendships"""
+        return self.filter(status=self.model.PENDING)
+    
+    def rejected(self):
+        """Get rejected friendships"""
+        return self.filter(status=self.model.REJECTED)
+    
+    def blocked(self):
+        """Get blocked friendships"""
+        return self.filter(status=self.model.BLOCKED)
+    
+    def for_user(self, user):
+        """Get friendships involving specific user (sent or received)"""
+        return self.filter(Q(user=user) | Q(friend=user))
+    
+    def friends_of(self, user):
+        """Get accepted friendships for user"""
+        return self.accepted().for_user(user)
+    
+    def pending_for(self, user):
+        """Get pending requests received by user"""
+        return self.pending().filter(friend=user)
+    
+    def sent_by(self, user):
+        """Get pending requests sent by user"""
+        return self.pending().filter(user=user)
+    
+    def between_users(self, user1, user2):
+        """Get friendship between two specific users"""
+        return self.filter(
+            Q(user=user1, friend=user2) | Q(user=user2, friend=user1)
+        )
+    
+    def get_friends_ids(self, user):
+        """Get friend IDs for user - optimized for User.friends property"""
+        return self.accepted().for_user(user).values_list(
+            Case(
+                When(user=user, then='friend_id'),
+                default='user_id',
+                output_field=models.UUIDField()
+            ),
+            flat=True
+        )
+
 
 class Friendship(BaseModel):
-    """
-    Optimized Friendship model với consistent naming
-    Sử dụng pattern: user -> friend với status
-    """
-    
-    # Các trạng thái của lời mời kết bạn
     PENDING = 'pending'
     ACCEPTED = 'accepted'
     REJECTED = 'rejected'
@@ -365,7 +361,6 @@ class Friendship(BaseModel):
         (BLOCKED, 'Đã chặn'),
     ]
     
-    # ✅ CONSISTENT NAMING - user/friend instead of sender/receiver
     user = models.ForeignKey(
         User, 
         on_delete=models.CASCADE,
@@ -388,16 +383,17 @@ class Friendship(BaseModel):
         help_text="Trạng thái lời mời kết bạn"
     )
 
+    # Custom manager using QuerySet
+    objects = FriendshipQuerySet.as_manager()
+
     class Meta:
         db_table = 'planpal_friendships'
         unique_together = ('user', 'friend')
         indexes = [
             *BaseModel.Meta.indexes,
-            # ✅ OPTIMIZED INDEXES for common queries
             models.Index(fields=['user', 'status']),
             models.Index(fields=['friend', 'status']),
             models.Index(fields=['status', 'created_at']),
-            # ✅ COMPOSITE INDEX for friendship checks
             models.Index(fields=['user', 'friend', 'status']),
         ]
 
@@ -409,72 +405,12 @@ class Friendship(BaseModel):
         if self.user == self.friend:
             raise ValidationError("Không thể gửi lời mời kết bạn cho chính mình")
 
-    @classmethod
-    def _validate_friend_request(cls, user, friend):
-        """Private method for friend request validation"""
-        if user == friend:
-            raise ValidationError("Không thể gửi lời mời kết bạn cho chính mình")
-
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
 
-    # ✅ OPTIMIZED CLASS METHODS
-    @classmethod
-    def get_friendship_status(cls, user1, user2):
-        """Get friendship status between two users - SINGLE QUERY"""
-        try:
-            friendship = cls.objects.select_related('user', 'friend').get(
-                models.Q(user=user1, friend=user2) | 
-                models.Q(user=user2, friend=user1)
-            )
-            return friendship.status
-        except cls.DoesNotExist:
-            return None
-    
-    @classmethod
-    def are_friends(cls, user1, user2):
-        """Check if users are friends - OPTIMIZED SINGLE QUERY"""
-        return cls.objects.filter(
-            models.Q(user=user1, friend=user2) | 
-            models.Q(user=user2, friend=user1),
-            status=cls.ACCEPTED
-        ).exists()
-    
-    @classmethod
-    def get_friends_queryset(cls, user):
-        """Get friends queryset - OPTIMIZED with single query"""
-        # Use EXISTS subquery instead of subquery with values_list for better performance
-        friend_ids = cls.objects.filter(
-            Q(user=user, status=cls.ACCEPTED) | Q(friend=user, status=cls.ACCEPTED)
-        ).values_list(
-            models.Case(
-                models.When(user=user, then='friend_id'),
-                default='user_id',
-                output_field=models.UUIDField()
-            ),
-            flat=True
-        )
-        
-        return User.objects.filter(id__in=friend_ids)
+    # === Instance Methods ===
 
-    @classmethod
-    def get_pending_requests(cls, user):
-        """Lấy các lời mời kết bạn đang chờ - OPTIMIZED"""
-        return cls.objects.filter(
-            friend=user,
-            status=cls.PENDING
-        ).select_related('user').order_by('-created_at')
-
-    @classmethod
-    def get_sent_requests(cls, user):
-        """Lấy các lời mời đã gửi - OPTIMIZED"""
-        return cls.objects.filter(
-            user=user,
-            status=cls.PENDING
-        ).select_related('friend').order_by('-created_at')
-
-    # ✅ OPTIMIZED INSTANCE METHODS
     def accept(self):
         """Accept friend request"""
         if self.status == self.PENDING:
@@ -496,27 +432,63 @@ class Friendship(BaseModel):
         self.status = self.BLOCKED
         self.save(update_fields=['status', 'updated_at'])
 
+    def unfriend(self):
+        """Unfriend/Remove friendship - DELETE the relationship"""
+        if self.status == self.ACCEPTED:
+            self.delete()
+            return True
+        return False
+
+    # === Class Methods (kept for backward compatibility) ===
+
+    @classmethod
+    def get_friendship_status(cls, user1, user2):
+        """Get friendship status between two users"""
+        friendship = cls.objects.between_users(user1, user2).first()
+        return friendship.status if friendship else None
+    
+    @classmethod
+    def are_friends(cls, user1, user2):
+        """Check if users are friends"""
+        return cls.objects.friends_of(user1).between_users(user1, user2).exists()
+    
+    @classmethod
+    def is_blocked(cls, user1, user2):
+        """Check if user1 has blocked user2"""
+        return cls.objects.blocked().filter(user=user1, friend=user2).exists()
+    
+    @classmethod
+    def get_friends_queryset(cls, user):
+        """Get friends queryset - using new QuerySet method"""
+        friend_ids = cls.objects.get_friends_ids(user)
+        return User.objects.filter(id__in=friend_ids)
+
+    @classmethod
+    def get_pending_requests(cls, user):
+        """Get pending requests for user"""
+        return cls.objects.pending_for(user).select_related('user').order_by('-created_at')
+
+    @classmethod
+    def get_sent_requests(cls, user):
+        """Get sent requests by user"""
+        return cls.objects.sent_by(user).select_related('friend').order_by('-created_at')
+
     @classmethod
     def create_friend_request(cls, user, friend):
-        """Create friend request - FIXED duplicate logic"""
-        # Use centralized validation
-        cls._validate_friend_request(user, friend)
+        """Create friend request with validation"""
+        if user == friend:
+            raise ValidationError("Không thể gửi lời mời kết bạn cho chính mình")
         
-        # FIXED: Check existing friendship in both directions first
-        existing_friendship = cls.get_friendship(user, friend)
+        existing_friendship = cls.objects.between_users(user, friend).first()
         
         if existing_friendship:
-            # Handle existing friendship
             if existing_friendship.status == cls.REJECTED:
-                # Allow re-sending after rejection
                 existing_friendship.status = cls.PENDING
                 existing_friendship.save(update_fields=['status', 'updated_at'])
                 return existing_friendship, False
             else:
-                # Return existing friendship
                 return existing_friendship, False
         
-        # Create new friendship request (user -> friend direction)
         friendship = cls.objects.create(
             user=user,
             friend=friend,
@@ -527,19 +499,8 @@ class Friendship(BaseModel):
 
     @classmethod
     def get_friendship(cls, user1, user2):
-        """
-        Get friendship object between 2 users - OPTIMIZED SINGLE QUERY
-        
-        Returns:
-            Friendship object or None
-        """
-        try:
-            return cls.objects.select_related('user', 'friend').get(
-                models.Q(user=user1, friend=user2) | 
-                models.Q(user=user2, friend=user1)
-            )
-        except cls.DoesNotExist:
-            return None
+        """Get friendship object between 2 users"""
+        return cls.objects.between_users(user1, user2).select_related('user', 'friend').first()
 
 class GroupQuerySet(models.QuerySet):
     """Custom QuerySet for Group with optimized methods"""
@@ -547,15 +508,15 @@ class GroupQuerySet(models.QuerySet):
     def with_member_count(self):
         """Annotate with member count"""
         return self.annotate(
-            member_count_annotated=models.Count('members', distinct=True)
+            member_count_annotated=Count('members', distinct=True)
         )
     
     def with_admin_count(self):
         """Annotate with admin count"""
         return self.annotate(
-            admin_count_annotated=models.Count(
+            admin_count_annotated=Count(
                 'memberships', 
-                filter=models.Q(memberships__role=GroupMembership.ADMIN),
+                filter=Q(memberships__role=GroupMembership.ADMIN),
                 distinct=True
             )
         )
@@ -569,34 +530,13 @@ class GroupQuerySet(models.QuerySet):
         return self.filter(members=user)
 
 
-class GroupManager(models.Manager):
-    """Custom Manager for Group"""
-    
-    def get_queryset(self):
-        return GroupQuerySet(self.model, using=self._db)
-    
-    def with_member_count(self):
-        return self.get_queryset().with_member_count()
-    
-    def with_admin_count(self):
-        return self.get_queryset().with_admin_count()
-    
-    def active(self):
-        return self.get_queryset().active()
-    
-    def for_user(self, user):
-        return self.get_queryset().for_user(user)
-
-
 class Group(BaseModel):
     """
     Model quản lý nhóm du lịch
     Một nhóm có thể có nhiều thành viên và nhiều kế hoạch
     """
     
-    # Remove id field vì đã có trong BaseModel
     
-    # Thông tin cơ bản của nhóm
     name = models.CharField(
         max_length=100,
         help_text="Tên nhóm du lịch"
@@ -607,7 +547,6 @@ class Group(BaseModel):
         help_text="Mô tả về nhóm"
     )
     
-    # Avatar cho nhóm với Cloudinary (display nhỏ)
     avatar = CloudinaryField(
         'image',
         blank=True, 
@@ -623,7 +562,6 @@ class Group(BaseModel):
         help_text="Ảnh đại diện nhóm"
     )
     
-    # Cover image cho nhóm với Cloudinary (header lớn)
     cover_image = CloudinaryField(
         'image',
         blank=True, 
@@ -640,7 +578,6 @@ class Group(BaseModel):
     )
 
     
-    # Admin của nhóm (người tạo)
     admin = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -648,7 +585,6 @@ class Group(BaseModel):
         help_text="Người quản trị nhóm"
     )
     
-    # Many-to-Many relationship với User thông qua GroupMembership
     members = models.ManyToManyField(
         User,
         through='GroupMembership',
@@ -656,26 +592,21 @@ class Group(BaseModel):
         help_text="Các thành viên trong nhóm"
     )
     
-    # Trạng thái nhóm
     is_active = models.BooleanField(
         default=True,
         db_index=True,
         help_text="Nhóm có đang hoạt động không"
     )
     
-    # Remove timestamps vì đã có trong BaseModel
-    
-    # Custom manager
-    objects = GroupManager()
+    # Use QuerySet.as_manager() to reduce boilerplate
+    objects = GroupQuerySet.as_manager()
 
     class Meta:
         db_table = 'planpal_groups'
         
         indexes = [
             *BaseModel.Meta.indexes,
-            # Index cho tìm kiếm groups của admin
             models.Index(fields=['admin', 'is_active']),
-            # Index cho tìm kiếm groups theo thời gian
             models.Index(fields=['is_active', 'created_at']),
         ]
 
@@ -683,21 +614,22 @@ class Group(BaseModel):
         return f"{self.name} (Admin: {self.admin.username})"
 
     def save(self, *args, **kwargs):
-        """Override save để auto-add admin membership và validate"""
-        # Check if this is a new instance by looking at _state.adding
+        """Override save để auto-add admin membership và tạo conversation"""
         is_new = self._state.adding
         
         super().save(*args, **kwargs)
         
-        # Auto-add admin as member on create
         if is_new and self.admin:
+            # Create admin membership
             GroupMembership.objects.get_or_create(
                 group=self,
                 user=self.admin,
                 defaults={'role': GroupMembership.ADMIN}
             )
+            
+            # Create conversation for group
+            Conversation.get_or_create_for_group(self)
 
-    # -------- AVATAR PROPERTIES --------
     @property
     def has_avatar(self):
         return bool(self.avatar)
@@ -718,7 +650,6 @@ class Group(BaseModel):
         cloudinary_image = CloudinaryImage(str(self.avatar))
         return cloudinary_image.build_url(width=100, height=100, crop='fill', gravity='face', secure=True)
 
-    # -------- COVER IMAGE PROPERTIES --------
     @property
     def has_cover_image(self):
         return bool(self.cover_image)
@@ -728,33 +659,12 @@ class Group(BaseModel):
         """Cover image URL đầy đủ (chất lượng bình thường)"""
         if not self.cover_image:
             return None
-        # Sử dụng CloudinaryImage để tạo URL đầy đủ
         cloudinary_image = CloudinaryImage(str(self.cover_image))
         return cloudinary_image.build_url(width=1200, height=600, crop='fill', gravity='center', secure=True)
 
-    
-    @property
-    def initials(self):
-        """Lấy chữ cái viết tắt (initials) từ tên nhóm để hiển thị avatar.
-
-        - Nếu tên nhóm có >= 2 từ thì lấy chữ cái đầu của hai từ đầu.
-        - Nếu chỉ có 1 từ thì lấy hai ký tự đầu của từ đó (hoặc 1 ký tự nếu tên chỉ có 1 ký tự).
-        - Nếu không có tên, trả về 'G' làm fallback.
-        """
-        if not self.name:
-            return 'G'
-
-        parts = [p for p in self.name.split() if p]
-        if len(parts) >= 2:
-            return (parts[0][0] + parts[1][0]).upper()
-
-        # Single word: take up to first two characters
-        return self.name[:2].upper()
-    
     @property
     def member_count(self):
         """Đếm số thành viên trong nhóm - OPTIMIZED"""
-        # Use annotated value if available, fallback to count()
         if hasattr(self, 'member_count_annotated'):
             return self.member_count_annotated
         return self.members.count()
@@ -771,7 +681,7 @@ class Group(BaseModel):
 
     def add_member(self, user, role='member'):
         """
-        Thêm thành viên vào nhóm
+        Thêm thành viên vào nhóm và sync conversation
         
         Args:
             user: User instance
@@ -782,17 +692,21 @@ class Group(BaseModel):
             group=self,
             defaults={'role': role}
         )
+        
+        # Sync conversation participants
+        if hasattr(self, 'conversation'):
+            self.conversation.sync_group_participants()
+        
         return membership, created
 
     def remove_member(self, user):
         """
-        Xóa thành viên khỏi nhóm
+        Xóa thành viên khỏi nhóm và sync conversation
         Kiểm tra không để nhóm không có admin
         """
         try:
             membership = GroupMembership.objects.get(user=user, group=self)
             
-            # If removing an admin, check if there will be at least one admin left
             if membership.role == GroupMembership.ADMIN:
                 admin_count = GroupMembership.objects.filter(
                     group=self,
@@ -803,6 +717,11 @@ class Group(BaseModel):
                     raise ValueError("Không thể xóa admin cuối cùng. Nhóm phải có ít nhất một admin.")
             
             membership.delete()
+            
+            # Sync conversation participants
+            if hasattr(self, 'conversation'):
+                self.conversation.sync_group_participants()
+            
             return True
         except GroupMembership.DoesNotExist:
             return False
@@ -968,20 +887,20 @@ class Group(BaseModel):
         return self.messages.active().select_related('sender').order_by('-created_at')[:limit]
 
     def get_unread_messages_count(self, user):
-        """Đếm số tin nhắn chưa đọc của user - OPTIMIZED"""
+        """Đếm số tin nhắn chưa đọc của user - OPTIMIZED với single query"""
         if not self.is_member(user):
             return 0
         
-        # Single query to count unread messages
+        # Single optimized query using exists subquery
         return self.messages.filter(
             is_deleted=False
         ).exclude(
-            models.Q(sender=user) | models.Q(read_statuses__user=user)
+            Q(sender=user) | Q(read_statuses__user=user)
         ).count()
 
     def mark_messages_as_read(self, user, up_to_message=None):
         """
-        Đánh dấu tin nhắn đã đọc
+        Đánh dấu tin nhắn đã đọc - OPTIMIZED với bulk_create
         
         Args:
             user: User đọc tin nhắn
@@ -990,55 +909,39 @@ class Group(BaseModel):
         if not self.is_member(user):
             return
         
-        messages = self.messages.filter(is_deleted=False)
+        messages = self.messages.filter(is_deleted=False).exclude(sender=user)
         if up_to_message:
             messages = messages.filter(created_at__lte=up_to_message.created_at)
         
-        # Tạo read status cho các message chưa đọc
-        for message in messages.exclude(sender=user):
-            MessageReadStatus.objects.get_or_create(
-                message=message,
-                user=user
-            )
+        # Get messages that don't have read status yet
+        unread_message_ids = messages.exclude(
+            read_statuses__user=user
+        ).values_list('id', flat=True)
+        
+        # Bulk create read statuses
+        if unread_message_ids:
+            from . import MessageReadStatus  # Import here to avoid circular import
+            read_statuses = [
+                MessageReadStatus(message_id=msg_id, user=user)
+                for msg_id in unread_message_ids
+            ]
+            MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
 
 
 class GroupMembershipQuerySet(models.QuerySet):
     """Custom QuerySet for GroupMembership"""
     
     def admins(self):
-        """Filter admin memberships"""
         return self.filter(role=GroupMembership.ADMIN)
     
     def members(self):
-        """Filter member memberships"""
         return self.filter(role=GroupMembership.MEMBER)
     
     def for_group(self, group):
-        """Filter memberships for specific group"""
         return self.filter(group=group)
     
     def for_user(self, user):
-        """Filter memberships for specific user"""
         return self.filter(user=user)
-
-
-class GroupMembershipManager(models.Manager):
-    """Custom Manager for GroupMembership"""
-    
-    def get_queryset(self):
-        return GroupMembershipQuerySet(self.model, using=self._db)
-    
-    def admins(self):
-        return self.get_queryset().admins()
-    
-    def members(self):
-        return self.get_queryset().members()
-    
-    def for_group(self, group):
-        return self.get_queryset().for_group(group)
-    
-    def for_user(self, user):
-        return self.get_queryset().for_user(user)
 
 
 class GroupMembership(BaseModel):
@@ -1056,9 +959,7 @@ class GroupMembership(BaseModel):
         (MEMBER, 'Thành viên'),
     ]
     
-    # Remove id field vì đã có trong BaseModel
     
-    # Foreign keys
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -1087,8 +988,7 @@ class GroupMembership(BaseModel):
         help_text="Thời gian tham gia nhóm"
     )
     
-    # Custom manager
-    objects = GroupMembershipManager()
+    objects = GroupMembershipQuerySet.as_manager()
 
     class Meta:
         db_table = 'planpal_group_memberships'
@@ -1112,9 +1012,7 @@ class GroupMembership(BaseModel):
         """Validate membership rules"""
         super().clean()
         
-        # If demoting to MEMBER, ensure at least one admin remains
         if self.pk and self.role == self.MEMBER:
-            # Count current admins excluding this membership
             admin_count = GroupMembership.objects.filter(
                 group=self.group,
                 role=self.ADMIN
@@ -1125,7 +1023,6 @@ class GroupMembership(BaseModel):
 
     def save(self, *args, **kwargs):
         """Override save to enforce business rules"""
-        # Ensure at least one admin remains when demoting
         if self.pk and self.role == self.MEMBER:
             admin_count = GroupMembership.objects.filter(
                 group=self.group,
@@ -1151,7 +1048,6 @@ class GroupMembership(BaseModel):
         Hạ cấp xuống member
         Chỉ kiểm tra không để nhóm không có admin
         """
-        # Prevent demoting last admin
         admin_count = GroupMembership.objects.filter(
             group=self.group,
             role=self.ADMIN
@@ -1170,89 +1066,42 @@ class PlanQuerySet(models.QuerySet):
     """Custom QuerySet for Plan with optimized methods"""
     
     def personal(self):
-        """Filter personal plans"""
         return self.filter(plan_type='personal')
     
     def group_plans(self):
-        """Filter group plans"""
         return self.filter(plan_type='group')
     
     def public(self):
-        """Filter public plans"""
         return self.filter(is_public=True)
     
     def upcoming(self):
-        """Filter upcoming plans"""
         return self.filter(status='upcoming')
     
     def ongoing(self):
-        """Filter ongoing plans"""
         return self.filter(status='ongoing')
     
     def completed(self):
-        """Filter completed plans"""
         return self.filter(status='completed')
     
     def active(self):
-        """Filter active plans (not cancelled or completed)"""
         return self.exclude(status__in=['cancelled', 'completed'])
     
     def for_user(self, user):
-        """Filter plans accessible by user"""
         return self.filter(
-            models.Q(creator=user) |  # Own plans
-            models.Q(group__members=user) |  # Group plans
-            models.Q(is_public=True)  # Public plans
+            Q(creator=user) |  # Own plans
+            Q(group__members=user) |  # Group plans
+            Q(is_public=True)  # Public plans
         ).distinct()
     
     def with_activity_count(self):
-        """Annotate with activity count"""
         return self.annotate(
-            activity_count_annotated=models.Count('activities', distinct=True)
+            activity_count_annotated=Count('activities', distinct=True)
         )
     
     def with_total_cost(self):
-        """Annotate with total estimated cost"""
         return self.annotate(
-            total_cost_annotated=models.Sum('activities__estimated_cost')
+            total_cost_annotated=Sum('activities__estimated_cost')
         )
-
-
-class PlanManager(models.Manager):
-    """Custom Manager for Plan"""
-    
-    def get_queryset(self):
-        return PlanQuerySet(self.model, using=self._db)
-    
-    def personal(self):
-        return self.get_queryset().personal()
-    
-    def group_plans(self):
-        return self.get_queryset().group_plans()
-    
-    def public(self):
-        return self.get_queryset().public()
-    
-    def upcoming(self):
-        return self.get_queryset().upcoming()
-    
-    def ongoing(self):
-        return self.get_queryset().ongoing()
-    
-    def completed(self):
-        return self.get_queryset().completed()
-    
-    def active(self):
-        return self.get_queryset().active()
-    
-    def for_user(self, user):
-        return self.get_queryset().for_user(user)
-    
-    def with_activity_count(self):
-        return self.get_queryset().with_activity_count()
-    
-    def with_total_cost(self):
-        return self.get_queryset().with_total_cost()
 
 
 class Plan(BaseModel):
@@ -1261,7 +1110,6 @@ class Plan(BaseModel):
     Hỗ trợ cả Personal Plan (group=null) và Group Plan
     """
     
-    # Remove id field vì đã có trong BaseModel
     
     # Thông tin cơ bản của kế hoạch
     title = models.CharField(
@@ -1349,8 +1197,8 @@ class Plan(BaseModel):
     
     # Remove timestamps vì đã có trong BaseModel
     
-    # Custom manager
-    objects = PlanManager()
+    # Custom manager - use QuerySet.as_manager()
+    objects = PlanQuerySet.as_manager()
 
     class Meta:
         db_table = 'planpal_plans'
@@ -1434,17 +1282,6 @@ class Plan(BaseModel):
         return 0
 
     @property
-    def duration_display(self):
-        """Hiển thị thời lượng chuyến đi dễ đọc"""
-        days = self.duration_days
-        if days == 0:
-            return "Chưa xác định"
-        elif days == 1:
-            return "1 ngày"
-        else:
-            return f"{days} ngày"
-
-    @property
     def activities_count(self):
         """Đếm số hoạt động trong kế hoạch - OPTIMIZED"""
         # Use annotated value if available, fallback to count()
@@ -1460,22 +1297,9 @@ class Plan(BaseModel):
             return self.total_cost_annotated or 0
         
         result = self.activities.aggregate(
-            total=models.Sum('estimated_cost')
+            total=Sum('estimated_cost')
         )['total']
         return result or 0
-
-    
-
-    @property
-    def status_display(self):
-        """Hiển thị trạng thái plan dễ đọc"""
-        status_map = {
-            'upcoming': '⏳ Sắp bắt đầu',
-            'ongoing': '🏃 Đang diễn ra',
-            'completed': '✅ Đã hoàn thành',
-            'cancelled': '❌ Đã hủy',
-        }
-        return status_map.get(self.status, self.status)
 
     def get_members(self):
         """Trả về queryset các user tham gia kế hoạch - OPTIMIZED"""
@@ -1746,6 +1570,12 @@ class PlanActivity(BaseModel):
         help_text="Thứ tự hoạt động trong ngày"
     )
     
+    # Trạng thái hoàn thành
+    is_completed = models.BooleanField(
+        default=False,
+        help_text="Hoạt động đã hoàn thành chưa"
+    )
+    
     # Remove timestamps vì đã có trong BaseModel
 
     class Meta:
@@ -1785,127 +1615,355 @@ class PlanActivity(BaseModel):
         self.clean()
         super().save(*args, **kwargs)
 
-    @property
-    def duration_hours(self):
-        """Tính thời lượng hoạt động (giờ)"""
-        if self.start_time and self.end_time:
-            duration = self.end_time - self.start_time
-            return duration.total_seconds() / 3600
-        return 0
 
-    @property
-    def duration_display(self):
-        """Hiển thị thời lượng dễ đọc"""
-        hours = self.duration_hours
-        if hours == 0:
-            return "Chưa xác định"
-        elif hours < 1:
-            minutes = int(hours * 60)
-            return f"{minutes} phút"
-        elif hours < 24:
-            return f"{hours:.1f} giờ"
-        else:
-            days = int(hours / 24)
-            remaining_hours = hours % 24
-            if remaining_hours == 0:
-                return f"{days} ngày"
-            return f"{days} ngày {remaining_hours:.1f} giờ"
+class ConversationQuerySet(models.QuerySet):
+    """Custom QuerySet for Conversation with optimized methods"""
+    
+    def active(self):
+        """Get active conversations"""
+        return self.filter(is_active=True)
+    
+    def for_user(self, user):
+        """Get conversations for specific user (both direct and group)"""
+        return self.filter(
+            Q(conversation_type='direct', participants=user) |
+            Q(conversation_type='group', group__members=user)
+        ).distinct()
+    
+    def direct_chats(self):
+        """Get only direct (1-1) conversations"""
+        return self.filter(conversation_type='direct')
+    
+    def group_chats(self):
+        """Get only group conversations"""
+        return self.filter(conversation_type='group')
+    
+    def with_last_message(self):
+        """Annotate with last message info - OPTIMIZED"""
+        from django.db.models import Subquery, OuterRef
+        
+        # Subquery to get the latest message for each conversation
+        last_message_subquery = ChatMessage.objects.filter(
+            conversation=OuterRef('pk'),
+            is_deleted=False
+        ).order_by('-created_at')
+        
+        return self.annotate(
+            last_message_time=Subquery(last_message_subquery.values('created_at')[:1]),
+            last_message_content=Subquery(last_message_subquery.values('content')[:1]),
+            last_message_sender_id=Subquery(last_message_subquery.values('sender_id')[:1]),
+            last_message_sender_name=Subquery(last_message_subquery.values('sender__username')[:1])
+        ).select_related('group').prefetch_related('participants')
+    
+    def get_direct_conversation(self, user1, user2):
+        """Get direct conversation between two users"""
+        return self.direct_chats().filter(
+            participants=user1
+        ).filter(
+            participants=user2
+        ).first()
 
-    @property
-    def activity_type_display(self):
-        """Hiển thị loại hoạt động với icon"""
-        type_icons = {
-            'eating': '🍽️ Ăn uống',
-            'resting': '🛏️ Nghỉ ngơi',
-            'moving': '🚗 Di chuyển',
-            'sightseeing': '🏛️ Tham quan',
-            'shopping': '🛍️ Mua sắm',
-            'entertainment': '🎭 Giải trí',
-            'event': '🎉 Sự kiện',
-            'sport': '🏅 Thể thao',
-            'study': '📚 Học tập',
-            'work': '💼 Công việc',
-            'other': '📝 Khác',
-        }
-        return type_icons.get(self.activity_type, self.activity_type)
 
-    @property
-    def has_location(self):
-        """Check xem có thông tin địa điểm không"""
-        return bool(self.latitude and self.longitude)
+class Conversation(BaseModel):
+    """
+    Model quản lý cuộc trò chuyện - hỗ trợ cả chat 1-1 và group chat
+    Tương tự như Messenger/Zalo conversation list
+    """
+    
+    CONVERSATION_TYPES = [
+        ('direct', 'Chat 1-1'),
+        ('group', 'Chat nhóm'),
+    ]
+    
+    conversation_type = models.CharField(
+        max_length=10,
+        choices=CONVERSATION_TYPES,
+        db_index=True,
+        help_text="Loại cuộc trò chuyện"
+    )
+    
+    # For group conversations
+    group = models.OneToOneField(
+        Group,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='conversation',
+        help_text="Nhóm (chỉ cho group chat)"
+    )
+    
+    # For direct conversations (many-to-many for flexibility)
+    participants = models.ManyToManyField(
+        User,
+        related_name='conversations',
+        help_text="Người tham gia (cho chat 1-1: 2 users, group: auto sync từ group members)"
+    )
+    
+    # Conversation metadata
+    name = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Tên cuộc trò chuyện (auto-generate nếu để trống)"
+    )
+    
+    avatar = CloudinaryField(
+        'image',
+        blank=True,
+        null=True,
+        folder='planpal/conversations/avatars',
+        transformation={
+            'width': 200,
+            'height': 200,
+            'crop': 'fill',
+            'gravity': 'face',
+            'quality': 'auto:good'
+        },
+        help_text="Avatar cuộc trò chuyện"
+    )
+    
+    # Denormalized fields for performance
+    last_message_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Thời gian tin nhắn cuối cùng (denormalized)"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Cuộc trò chuyện có đang hoạt động không"
+    )
+    
+    # Custom manager
+    objects = ConversationQuerySet.as_manager()
 
+    class Meta:
+        db_table = 'planpal_conversations'
+        indexes = [
+            *BaseModel.Meta.indexes,
+            models.Index(fields=['conversation_type', 'is_active']),
+            models.Index(fields=['last_message_at']),
+            models.Index(fields=['is_active', 'last_message_at']),
+        ]
+
+    def __str__(self):
+        if self.conversation_type == 'group' and self.group:
+            return f"Group: {self.group.name}"
+        elif self.conversation_type == 'direct':
+            participants = list(self.participants.all()[:2])
+            if len(participants) == 2:
+                return f"Direct: {participants[0].username} & {participants[1].username}"
+        return f"Conversation {self.id}"
+
+    def clean(self):
+        """Validation for conversation"""
+        if self.conversation_type == 'group' and not self.group:
+            raise ValidationError("Group conversation phải có group")
+        
+        if self.conversation_type == 'direct' and self.group:
+            raise ValidationError("Direct conversation không được có group")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+        
+        # Auto-generate name if empty
+        if not self.name:
+            self._auto_generate_name()
+
+    def _auto_generate_name(self):
+        """Auto-generate conversation name"""
+        if self.conversation_type == 'group' and self.group:
+            self.name = self.group.name
+        elif self.conversation_type == 'direct':
+            participants = list(self.participants.all()[:2])
+            if len(participants) == 2:
+                self.name = f"{participants[0].get_full_name()} & {participants[1].get_full_name()}"
+        
+        if self.name and self.pk:
+            Conversation.objects.filter(pk=self.pk).update(name=self.name)
+
+    # === Properties ===
+    
     @property
-    def maps_url(self):
-        """Tạo URL Google Maps cho địa điểm"""
-        if self.has_location:
-            return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
-        elif self.location_name:
-            return f"https://www.google.com/maps/search/{self.location_name}"
+    def avatar_url(self):
+        """Get conversation avatar URL"""
+        if self.avatar:
+            cloudinary_image = CloudinaryImage(str(self.avatar))
+            return cloudinary_image.build_url(secure=True)
+        
+        # Fallback to group avatar for group conversations
+        if self.conversation_type == 'group' and self.group and self.group.avatar:
+            return self.group.avatar_url
+        
         return None
+
+    @property
+    def display_name(self):
+        """Get display name for conversation"""
+        if self.name:
+            return self.name
+        
+        if self.conversation_type == 'group' and self.group:
+            return self.group.name
+        
+        # For direct chat, show other participant's name
+        participants = list(self.participants.all()[:2])
+        if len(participants) == 2:
+            return f"{participants[0].get_full_name()} & {participants[1].get_full_name()}"
+        
+        return "Cuộc trò chuyện"
+
+    def get_other_participant(self, user):
+        """Get the other participant in direct conversation"""
+        if self.conversation_type != 'direct':
+            return None
+        
+        participants = self.participants.exclude(id=user.id)
+        return participants.first()
+
+    @property
+    def participant_count(self):
+        """Get number of participants"""
+        if self.conversation_type == 'group' and self.group:
+            return self.group.member_count
+        return self.participants.count()
+
+    # === Methods ===
+    
+    def send_message(self, sender, content, message_type='text', **kwargs):
+        """Send message to conversation"""
+        message = ChatMessage.objects.create(
+            conversation=self,
+            sender=sender,
+            content=content,
+            message_type=message_type,
+            **kwargs
+        )
+        
+        # Update last_message_at automatically handled in ChatMessage.save()
+        return message
+
+    def update_last_message_time(self, timestamp=None):
+        """Update denormalized last_message_at field"""
+        if timestamp is None:
+            timestamp = timezone.now()
+        
+        self.last_message_at = timestamp
+        self.save(update_fields=['last_message_at'])
+
+    def get_unread_count_for_user(self, user):
+        """Get unread message count for specific user"""
+        return self.messages.active().exclude(
+            Q(sender=user) | Q(read_statuses__user=user)
+        ).count()
+
+    def mark_as_read_for_user(self, user, up_to_message=None):
+        """Mark messages as read for user"""
+        messages = self.messages.active().exclude(sender=user)
+        
+        if up_to_message:
+            messages = messages.filter(created_at__lte=up_to_message.created_at)
+        
+        # Get unread message IDs
+        unread_message_ids = messages.exclude(
+            read_statuses__user=user
+        ).values_list('id', flat=True)
+        
+        # Bulk create read statuses
+        if unread_message_ids:
+            read_statuses = [
+                MessageReadStatus(message_id=msg_id, user=user)
+                for msg_id in unread_message_ids
+            ]
+            MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
+
+    # === Class Methods ===
+    
+    @classmethod
+    def get_or_create_direct_conversation(cls, user1, user2):
+        """Get or create direct conversation between two users"""
+        if user1 == user2:
+            raise ValueError("Cannot create conversation with yourself")
+        
+        # Try to find existing conversation
+        conversation = cls.objects.get_direct_conversation(user1, user2)
+        
+        if conversation:
+            return conversation, False
+        
+        # Create new direct conversation
+        conversation = cls.objects.create(conversation_type='direct')
+        conversation.participants.add(user1, user2)
+        conversation._auto_generate_name()
+        
+        return conversation, True
+
+    @classmethod
+    def create_group_conversation(cls, group):
+        """Create conversation for group"""
+        conversation = cls.objects.create(
+            conversation_type='group',
+            group=group,
+            name=group.name
+        )
+        
+        # Sync participants with group members
+        conversation.sync_group_participants()
+        
+        return conversation
+
+    @classmethod
+    def get_or_create_for_group(cls, group):
+        """Get or create conversation for existing group (migration helper)"""
+        try:
+            return group.conversation, False
+        except cls.DoesNotExist:
+            return cls.create_group_conversation(group), True
+
+    def sync_group_participants(self):
+        """Sync participants with group members (for group conversations)"""
+        if self.conversation_type != 'group' or not self.group:
+            return
+        
+        # Clear and re-add all group members
+        self.participants.clear()
+        self.participants.add(*self.group.members.all())
+
 
 class ChatMessageQuerySet(models.QuerySet):
     """Custom QuerySet for ChatMessage"""
     
     def active(self):
-        """Filter non-deleted messages"""
         return self.filter(is_deleted=False)
     
+    def for_conversation(self, conversation):
+        return self.filter(conversation=conversation)
+    
     def for_group(self, group):
-        """Filter messages for specific group"""
+        """DEPRECATED: Use for_conversation instead"""
         return self.filter(group=group)
     
     def by_user(self, user):
-        """Filter messages by specific user"""
         return self.filter(sender=user)
     
     def text_messages(self):
-        """Filter text messages"""
         return self.filter(message_type='text')
     
     def system_messages(self):
-        """Filter system messages"""
         return self.filter(message_type='system')
     
     def with_attachments(self):
-        """Filter messages with attachments"""
         return self.exclude(attachment='')
     
     def recent(self, limit=50):
-        """Get recent messages"""
         return self.order_by('-created_at')[:limit]
-
-
-class ChatMessageManager(models.Manager):
-    """Custom Manager for ChatMessage"""
-    
-    def get_queryset(self):
-        return ChatMessageQuerySet(self.model, using=self._db)
-    
-    def active(self):
-        return self.get_queryset().active()
-    
-    def for_group(self, group):
-        return self.get_queryset().for_group(group)
-    
-    def by_user(self, user):
-        return self.get_queryset().by_user(user)
-    
-    def text_messages(self):
-        return self.get_queryset().text_messages()
-    
-    def system_messages(self):
-        return self.get_queryset().system_messages()
-    
-    def with_attachments(self):
-        return self.get_queryset().with_attachments()
-    
-    def recent(self, limit=50):
-        return self.get_queryset().recent(limit)
 
 
 class ChatMessage(BaseModel):
     """
-    Model quản lý tin nhắn trong group chat
+    Model quản lý tin nhắn trong conversation (cả 1-1 và group chat)
     Hỗ trợ text, image, file attachments
     """
     
@@ -1918,14 +1976,22 @@ class ChatMessage(BaseModel):
         ('system', 'Thông báo hệ thống'),
     ]
     
-    # Remove id field vì đã có trong BaseModel
+    # Thuộc về conversation nào
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name='messages',
+        help_text="Cuộc trò chuyện chứa tin nhắn này"
+    )
     
-    # Thuộc về group nào
+    # DEPRECATED: Keep for backward compatibility, will be removed later
     group = models.ForeignKey(
         Group,
         on_delete=models.CASCADE,
-        related_name='messages',
-        help_text="Nhóm chứa tin nhắn này"
+        related_name='legacy_messages',
+        null=True,
+        blank=True,
+        help_text="DEPRECATED: Sử dụng conversation thay thế"
     )
     
     # Người gửi tin nhắn
@@ -2022,8 +2088,8 @@ class ChatMessage(BaseModel):
     
     # Remove timestamps vì đã có trong BaseModel
     
-    # Custom manager
-    objects = ChatMessageManager()
+    # Custom manager - use QuerySet.as_manager()
+    objects = ChatMessageQuerySet.as_manager()
 
     class Meta:
         db_table = 'planpal_chat_messages'
@@ -2031,20 +2097,29 @@ class ChatMessage(BaseModel):
         
         indexes = [
             *BaseModel.Meta.indexes,
-            # Index cho query messages của group
+            # NEW: Index cho conversation (primary)
+            models.Index(fields=['conversation', 'created_at']),
+            models.Index(fields=['conversation', 'is_deleted', 'created_at']),
+            # LEGACY: Index cho group (backward compatibility)
             models.Index(fields=['group', 'created_at']),
+            models.Index(fields=['group', 'is_deleted', 'created_at']),
             # Index cho query messages của user
             models.Index(fields=['sender', 'created_at']),
             # Index cho query theo type
             models.Index(fields=['message_type', 'created_at']),
-            # Index cho active messages
-            models.Index(fields=['group', 'is_deleted', 'created_at']),
         ]
 
     def __str__(self):
+        if self.conversation:
+            location = f"in {self.conversation.display_name}"
+        elif self.group:
+            location = f"in {self.group.name} (legacy)"
+        else:
+            location = "unknown location"
+            
         if self.sender:
-            return f"{self.sender.username} in {self.group.name}: {self.content[:50]}..."
-        return f"System message in {self.group.name}: {self.content[:50]}..."
+            return f"{self.sender.username} {location}: {self.content[:50]}..."
+        return f"System message {location}: {self.content[:50]}..."
 
     def clean(self):
         """Validation cho message"""
@@ -2061,11 +2136,6 @@ class ChatMessage(BaseModel):
         if self.message_type == 'location':
             if not (self.latitude and self.longitude):
                 raise ValidationError("Location message cần có coordinates")
-
-    def save(self, *args, **kwargs):
-        """Override save để chạy validation"""
-        self.clean()
-        super().save(*args, **kwargs)
 
     @property
     def is_text_message(self):
@@ -2092,56 +2162,58 @@ class ChatMessage(BaseModel):
         """Check xem có attachment không"""
         return bool(self.attachment)
 
-    @property
-    def attachment_url(self):
-        """Lấy URL của attachment"""
-        if self.attachment:
-            return self.attachment.url
-        return None
-
-    @property
-    def attachment_size_display(self):
-        """Format kích thước file cho display"""
-        if not self.attachment_size:
-            return None
-        
-        # Convert bytes to human readable format
-        size = self.attachment_size
-        for unit in ['B', 'KB', 'MB', 'GB']:
-            if size < 1024:
-                return f"{size:.1f} {unit}"
-            size /= 1024
-        return f"{size:.1f} TB"
-
-    @property
-    def location_url(self):
-        """Tạo Google Maps URL cho location"""
-        if self.is_location_message and self.latitude and self.longitude:
-            return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
-        return None
-
-
     def soft_delete(self):
         """Soft delete message"""
         self.is_deleted = True
         self.content = "[Tin nhắn đã bị xóa]"
         self.save(update_fields=['is_deleted', 'content', 'updated_at'])
 
+    def save(self, *args, **kwargs):
+        """Override save để update conversation last_message_at"""
+        # First call clean if not called yet
+        if not hasattr(self, '_clean_called'):
+            self.clean()
+            self._clean_called = True
+            
+        super().save(*args, **kwargs)
+        
+        # Update conversation's last_message_at (denormalized field)
+        if self.conversation and not self.is_deleted:
+            self.conversation.update_last_message_time(self.created_at)
+        
+        # Update conversation's last_message_at
+        if self.conversation and not self.is_deleted:
+            self.conversation.update_last_message_time(self.created_at)
+
     @classmethod
-    def create_system_message(cls, group, content):
+    def create_system_message(cls, conversation=None, group=None, content=""):
         """
-        Tạo system message
+        Tạo system message cho conversation hoặc group (legacy)
         
         Args:
-            group: Group instance
+            conversation: Conversation instance (preferred)
+            group: Group instance (legacy, for backward compatibility)
             content: Nội dung thông báo
         """
-        return cls.objects.create(
-            group=group,
-            sender=None,
-            message_type='system',
-            content=content
-        )
+        if conversation:
+            return cls.objects.create(
+                conversation=conversation,
+                sender=None,
+                message_type='system',
+                content=content
+            )
+        elif group:
+            # Legacy support - find or create conversation for group
+            group_conversation, _ = Conversation.get_or_create_for_group(group)
+            return cls.objects.create(
+                conversation=group_conversation,
+                group=group,  # Keep for backward compatibility
+                sender=None,
+                message_type='system',
+                content=content
+            )
+        else:
+            raise ValueError("Either conversation or group must be provided")
 
 
 class MessageReadStatus(BaseModel):

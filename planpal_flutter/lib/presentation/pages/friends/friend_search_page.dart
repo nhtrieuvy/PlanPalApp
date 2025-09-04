@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/repositories/friend_repository.dart';
-import '../../../core/models/user_summary.dart';
+import '../../../core/dtos/user_summary.dart';
 import '../../../core/theme/app_colors.dart';
 import 'user_profile_page.dart';
 
@@ -212,7 +212,7 @@ class _FriendSearchPageState extends State<FriendSearchPage> {
         contentPadding: const EdgeInsets.all(12),
         leading: _buildAvatar(user),
         title: Text(
-          user.fullName.isNotEmpty ? user.fullName : user.displayName,
+          user.fullName,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
         ),
         subtitle: Column(

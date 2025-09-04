@@ -6,7 +6,9 @@ import 'package:getwidget/getwidget.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import '../../../core/models/plan_detail.dart';
+import '../../../core/dtos/plan_detail.dart';
+import '../plans/activity_form_page.dart';
+import '../plans/plan_schedule_page.dart';
 // Removed local PlanStatus mapping; rely on backend-provided status strings
 
 class PlanDetailsPage extends StatefulWidget {
@@ -37,7 +39,8 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
       _error = null;
     });
     try {
-      final d = await _repo.getPlanDetail(widget.id, forceRefresh: refresh);
+      if (refresh) _repo.clearCacheEntry(widget.id);
+      final d = await _repo.getPlanDetail(widget.id);
       if (!mounted) return;
       setState(() {
         _detail = d;
@@ -201,8 +204,8 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
             children: [
               _buildCreatorCard(
                 p.creator?.avatarThumb ?? '',
-                (p.creator?.displayName.isNotEmpty == true
-                    ? p.creator!.displayName
+                (p.creator?.fullName.isNotEmpty == true
+                    ? p.creator!.fullName
                     : (p.creator?.username ?? 'Không rõ')),
               ),
               const SizedBox(height: 16),
@@ -338,6 +341,57 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
               const SizedBox(height: 20),
             ],
           ),
+        ),
+      ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            onPressed: () => _navigateToSchedule(p.id),
+            backgroundColor: AppColors.info,
+            foregroundColor: Colors.white,
+            heroTag: "schedule",
+            tooltip: 'Xem thời khóa biểu',
+            child: const Icon(Icons.calendar_view_day),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: () => _navigateToCreateActivity(p.id),
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            heroTag: "add_activity",
+            tooltip: 'Thêm hoạt động',
+            child: const Icon(Icons.add),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToCreateActivity(String planId) {
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => ActivityFormPage(
+              planId: planId,
+              planTitle: _detail?.title ?? 'Kế hoạch',
+            ),
+          ),
+        )
+        .then((result) {
+          // Refresh plan details if activity was created successfully
+          if (result == true) {
+            _load(refresh: true);
+          }
+        });
+  }
+
+  void _navigateToSchedule(String planId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PlanSchedulePage(
+          planId: planId,
+          planTitle: _detail?.title ?? 'Thời khóa biểu',
         ),
       ),
     );

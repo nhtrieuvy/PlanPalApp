@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
-import '../models/user.dart';
+import '../dtos/user.dart';
 import '../repositories/user_repository.dart';
 
 // ChangeNotifier cho phép lắng nghe khi dữ liệu thay đổi

@@ -5,7 +5,6 @@ from .models import Friendship
 
 User = get_user_model()
 
-# Đặc biệt: Permission cho users cần thêm active check
 class IsAuthenticatedAndActive(BasePermission):
     """
     Authenticated + Active check
@@ -26,17 +25,20 @@ class PlanPermission(BasePermission):
     """
     
     def has_permission(self, request, view):
-        """Check permission cho việc tạo plan mới"""
+        """Check permission cho việc tạo plan mới - CHỈ ADMIN NHÓM"""
         if request.method == 'POST':
-            # For creating group plans, check if user is group member
+            # For creating group plans, check if user is group ADMIN
             group_id = request.data.get('group')
             if group_id:
                 from .models import Group
                 try:
                     group = Group.objects.get(id=group_id)
-                    return group.is_member(request.user)
+                    # CHỈ ADMIN nhóm mới được tạo kế hoạch
+                    return group.is_admin(request.user)
                 except Group.DoesNotExist:
                     return False
+            # Personal plans - anyone can create
+            return True
         return True  # For other methods, check object permission
     
     def has_object_permission(self, request, view, obj):
@@ -100,6 +102,8 @@ class GroupMembershipPermission(BasePermission):
             return self._can_leave_group(user, group)
         elif action in ['kick', 'remove_member']:
             return group.is_admin(user)
+        elif action == 'add_member':
+            return self._can_add_member(user, group)
         elif action in ['promote', 'demote']:
             return group.admin == user
         
@@ -114,6 +118,10 @@ class GroupMembershipPermission(BasePermission):
     
     def _can_leave_group(self, user, group):
         return group.is_member(user)
+    
+    def _can_add_member(self, user, group):
+        """Admin can add members, but only friends"""
+        return group.is_admin(user)
 
 
 class ChatMessagePermission(BasePermission):
@@ -158,7 +166,24 @@ class ChatMessagePermission(BasePermission):
 
 
 class PlanActivityPermission(BasePermission):
-    """Permission cho PlanActivity model - OPTIMIZED"""
+    """Permission cho PlanActivity model - CHỈ ADMIN NHÓM"""
+    
+    def has_permission(self, request, view):
+        """Check permission cho việc tạo activity mới - CHỈ ADMIN NHÓM"""
+        if request.method == 'POST':
+            plan_id = request.data.get('plan')
+            if plan_id:
+                from .models import Plan
+                try:
+                    plan = Plan.objects.select_related('group').get(id=plan_id)
+                    # CHỈ admin nhóm hoặc creator plan mới được thêm activity
+                    if plan.is_group_plan():
+                        return plan.group.is_admin(request.user)
+                    else:
+                        return plan.creator == request.user
+                except Plan.DoesNotExist:
+                    return False
+        return True  # For other methods, check object permission
     
     def has_object_permission(self, request, view, obj):
         """Check if user can access plan activity"""

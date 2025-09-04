@@ -6,7 +6,7 @@ import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_form_page.dart';
-import '../../../core/models/group_summary.dart';
+import '../../../core/dtos/group_summary.dart';
 
 class GroupPage extends StatefulWidget {
   const GroupPage({super.key});

@@ -2,63 +2,71 @@ import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
-import '../models/plan_summary.dart';
-import '../models/plan_detail.dart';
+import 'package:planpal_flutter/core/dtos/plan_requests.dart';
+import '../dtos/plan_summary.dart';
+import '../dtos/plan_detail.dart';
 
 class PlanRepository {
-  final AuthProvider auth;
-  PlanRepository(this.auth);
-
-  // Simple in-memory cache for plan details to avoid redundant network calls
+  final AuthProvider _auth;
   final Map<String, PlanDetail> _detailCache = {};
 
-  Never _throwApiError(Response res) => throw buildApiException(res);
+  PlanRepository(this._auth);
 
-  Future<List<PlanSummary>> getPlans({int? page}) async {
+  // Plan CRUD operations
+  Future<PlanDetail> createPlan(CreatePlanRequest request) async {
     try {
-      final Response res = await auth.requestWithAutoRefresh(
-        (c) => c.dio.get(
-          Endpoints.plans,
-          queryParameters: {if (page != null) 'page': page},
-        ),
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.post(Endpoints.plans, data: request.toJson()),
       );
+
+      if (res.statusCode == 201 && res.data is Map) {
+        return PlanDetail.fromJson(Map<String, dynamic>.from(res.data as Map));
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<List<PlanSummary>> getPlans() async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.plans),
+      );
+
       if (res.statusCode == 200) {
         final data = res.data;
         final List<dynamic> rawList = (data is Map && data['plans'] is List)
             ? List<dynamic>.from(data['plans'] as List)
             : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
-        if (rawList.isEmpty) return const <PlanSummary>[]; // fast path
+
+        if (rawList.isEmpty) return const <PlanSummary>[];
         final parsed = <PlanSummary>[];
         for (final m in rawList) {
           if (m is Map) {
-            try {
-              parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(m)));
-            } catch (_) {
-              /* skip malformed item */
-            }
+            parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(m)));
           }
         }
         return parsed;
       }
-      return _throwApiError(res);
+      throw buildApiException(res);
     } on DioException catch (e) {
-      final r = e.response;
-      if (r != null) return _throwApiError(r);
+      if (e.response != null) throw buildApiException(e.response!);
       rethrow;
     }
   }
 
-  Future<PlanDetail> getPlanDetail(
-    String id, {
-    bool forceRefresh = false,
-  }) async {
-    if (!forceRefresh && _detailCache.containsKey(id)) {
+  Future<PlanDetail> getPlanDetail(String id) async {
+    if (_detailCache.containsKey(id)) {
       return _detailCache[id]!;
     }
+
     try {
-      final Response res = await auth.requestWithAutoRefresh(
+      final Response res = await _auth.requestWithAutoRefresh(
         (c) => c.dio.get(Endpoints.planDetails(id)),
       );
+
       if (res.statusCode == 200 && res.data is Map) {
         final detail = PlanDetail.fromJson(
           Map<String, dynamic>.from(res.data as Map),
@@ -66,67 +74,321 @@ class PlanRepository {
         _detailCache[id] = detail;
         return detail;
       }
-      return _throwApiError(res);
+      throw buildApiException(res);
     } on DioException catch (e) {
-      final r = e.response;
-      if (r != null) return _throwApiError(r);
+      if (e.response != null) throw buildApiException(e.response!);
       rethrow;
     }
   }
 
-  Future<PlanDetail> createPlan(Map<String, dynamic> payload) async {
+  Future<PlanDetail> updatePlan(
+    String planId,
+    UpdatePlanRequest request,
+  ) async {
     try {
-      final Response res = await auth.requestWithAutoRefresh(
-        (c) => c.dio.post(Endpoints.plans, data: payload),
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.put(Endpoints.planDetails(planId), data: request.toJson()),
       );
-      if ((res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300) {
-        final detail = PlanDetail.fromJson(
-          Map<String, dynamic>.from(res.data as Map),
-        );
-        _detailCache[detail.id] = detail;
-        return detail;
-      }
-      return _throwApiError(res);
-    } on DioException catch (e) {
-      final r = e.response;
-      if (r != null) return _throwApiError(r);
-      rethrow;
-    }
-  }
 
-  Future<PlanDetail> updatePlan(String id, Map<String, dynamic> payload) async {
-    try {
-      final Response res = await auth.requestWithAutoRefresh(
-        (c) => c.dio.patch(Endpoints.planDetails(id), data: payload),
-      );
       if (res.statusCode == 200 && res.data is Map) {
         final detail = PlanDetail.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
-        _detailCache[id] = detail;
+        _detailCache[planId] = detail;
         return detail;
       }
-      return _throwApiError(res);
+      throw buildApiException(res);
     } on DioException catch (e) {
-      final r = e.response;
-      if (r != null) return _throwApiError(r);
+      if (e.response != null) throw buildApiException(e.response!);
       rethrow;
     }
   }
 
-  Future<void> deletePlan(String id) async {
+  Future<void> deletePlan(String planId) async {
     try {
-      final Response res = await auth.requestWithAutoRefresh(
-        (c) => c.dio.delete(Endpoints.planDetails(id)),
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.delete(Endpoints.planDetails(planId)),
       );
-      if ((res.statusCode ?? 0) == 204 || (res.statusCode ?? 0) == 200) return;
-      _throwApiError(res);
+
+      if (res.statusCode == 204 || res.statusCode == 200) {
+        _detailCache.remove(planId);
+        return;
+      }
+      throw buildApiException(res);
     } on DioException catch (e) {
-      final r = e.response;
-      if (r != null) _throwApiError(r);
+      if (e.response != null) throw buildApiException(e.response!);
       rethrow;
-    } finally {
-      _detailCache.remove(id);
     }
   }
+
+  // Plan activities operations
+  Future<List<dynamic>> getPlanActivitiesByDate(
+    String planId,
+    String date,
+  ) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.planActivitiesByDate(planId, date)),
+      );
+
+      if (res.statusCode == 200) {
+        // Activities by date might return different structure, check if it's activities array
+        if (res.data is List) {
+          return res.data;
+        } else if (res.data is Map<String, dynamic>) {
+          return res.data['activities'] ?? res.data['results'] ?? [];
+        }
+        return [];
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getPlanSchedule(String planId) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.planSchedule(planId)),
+      );
+
+      if (res.statusCode == 200) {
+        return res.data;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<PlanDetail> joinPlan(String planId) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.post(Endpoints.planJoin(planId)),
+      );
+
+      if (res.statusCode == 200 && res.data is Map) {
+        final detail = PlanDetail.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+        _detailCache[planId] = detail;
+        return detail;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<List<PlanSummary>> getGroupPlans(String groupId) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.groupPlans(groupId)),
+      );
+
+      if (res.statusCode == 200) {
+        final data = res.data;
+        final List<dynamic> rawList = (data is Map && data['plans'] is List)
+            ? List<dynamic>.from(data['plans'] as List)
+            : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
+
+        if (rawList.isEmpty) return const <PlanSummary>[];
+        final parsed = <PlanSummary>[];
+        for (final m in rawList) {
+          if (m is Map) {
+            parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(m)));
+          }
+        }
+        return parsed;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<List<PlanSummary>> getJoinedPlans() async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.joinedPlans),
+      );
+
+      if (res.statusCode == 200) {
+        final data = res.data;
+        final List<dynamic> rawList = (data is Map && data['plans'] is List)
+            ? List<dynamic>.from(data['plans'] as List)
+            : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
+
+        if (rawList.isEmpty) return const <PlanSummary>[];
+        final parsed = <PlanSummary>[];
+        for (final m in rawList) {
+          if (m is Map) {
+            parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(m)));
+          }
+        }
+        return parsed;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<List<PlanSummary>> searchPublicPlans(String query) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(
+          Endpoints.publicPlans,
+          queryParameters: {'search': query},
+        ),
+      );
+
+      if (res.statusCode == 200) {
+        final data = res.data;
+        final List<dynamic> rawList = (data is Map && data['plans'] is List)
+            ? List<dynamic>.from(data['plans'] as List)
+            : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
+
+        if (rawList.isEmpty) return const <PlanSummary>[];
+        final parsed = <PlanSummary>[];
+        for (final m in rawList) {
+          if (m is Map) {
+            parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(m)));
+          }
+        }
+        return parsed;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  // Activity CRUD operations
+  Future<Map<String, dynamic>> createActivity(
+    CreateActivityRequest request,
+  ) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.post(Endpoints.activities, data: request.toJson()),
+      );
+
+      if (res.statusCode == 201) {
+        return res.data;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> updateActivity(
+    String activityId,
+    UpdateActivityRequest request,
+  ) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.put(
+          Endpoints.activityDetails(activityId),
+          data: request.toJson(),
+        ),
+      );
+
+      if (res.statusCode == 200) {
+        return res.data;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<void> deleteActivity(String activityId) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.delete(Endpoints.activityDetails(activityId)),
+      );
+
+      if (res.statusCode != 204) {
+        throw buildApiException(res);
+      }
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> toggleActivityCompletion(
+    String planId,
+    String activityId,
+  ) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) =>
+            c.dio.post(Endpoints.activityToggleCompletion(planId, activityId)),
+      );
+
+      if (res.statusCode == 200) {
+        return res.data;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  // // Additional methods from PlanService
+  // Future<Map<String, dynamic>> getPlanSummary(String planId) async {
+  //   try {
+  //     final Response res = await _auth.requestWithAutoRefresh(
+  //       (c) => c.dio.get(Endpoints.planSummary(planId)),
+  //     );
+
+  //     if (res.statusCode == 200) {
+  //       return Map<String, dynamic>.from(res.data);
+  //     }
+  //     throw buildApiException(res);
+  //   } on DioException catch (e) {
+  //     if (e.response != null) throw buildApiException(e.response!);
+  //     rethrow;
+  //   }
+  // }
+
+  // Future<List<Map<String, dynamic>>> getPlanCollaborators(String planId) async {
+  //   try {
+  //     final Response res = await _auth.requestWithAutoRefresh(
+  //       (c) => c.dio.get(Endpoints.planCollaborators(planId)),
+  //     );
+
+  //     if (res.statusCode == 200) {
+  //       final data = res.data;
+  //       final List<dynamic> rawList =
+  //           (data is Map && data['collaborators'] is List)
+  //           ? List<dynamic>.from(data['collaborators'] as List)
+  //           : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
+
+  //       return rawList
+  //           .map((item) => Map<String, dynamic>.from(item as Map))
+  //           .toList();
+  //     }
+  //     throw buildApiException(res);
+  //   } on DioException catch (e) {
+  //     if (e.response != null) throw buildApiException(e.response!);
+  //     rethrow;
+  //   }
+  // }
+
+  // Cache management
+  void clearCache() => _detailCache.clear();
+
+  void clearCacheEntry(String id) => _detailCache.remove(id);
 }

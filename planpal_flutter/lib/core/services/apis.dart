@@ -17,10 +17,28 @@ class Endpoints {
   // Core API endpoints
   static const String plans = '/plans/';
   static const String groups = '/groups/';
+  static const String activities = '/activities/';
+
+  // Plan-related endpoints
+  static const String joinedPlans = '/plans/joined/';
+  static const String publicPlans = '/plans/public/';
 
   // Dynamic endpoints
   static String planDetails(String planId) => '/plans/$planId/';
+  static String planActivitiesByDate(String planId, String date) =>
+      '/plans/$planId/activities_by_date/?date=$date';
+  static String planSchedule(String planId) => '/plans/$planId/schedule/';
+  static String planJoin(String planId) => '/plans/$planId/join/';
+
   static String groupDetails(String groupId) => '/groups/$groupId/';
+  static String groupPlans(String groupId) => '/groups/$groupId/plans/';
+  static String groupAddMember(String groupId) =>
+      '/groups/$groupId/add_member/';
+
+  static String activityDetails(String activityId) =>
+      '/activities/$activityId/';
+  static String activityToggleCompletion(String planId, String activityId) =>
+      '/plans/$planId/activities/$activityId/complete/';
 
   // Friendship endpoints
   static const String friendRequest = '/friends/request/';
@@ -32,7 +50,10 @@ class Endpoints {
   // User profile endpoints
   static String userProfile(String userId) => '/users/$userId/';
   static String userFriendshipStatus(String userId) =>
-      '/users/$userId/friendship-status/';
+      '/users/$userId/friendship_status/';
+  static String userUnfriend(String userId) => '/users/$userId/unfriend/';
+  static String userBlock(String userId) => '/users/$userId/block/';
+  static String userUnblock(String userId) => '/users/$userId/unblock/';
 }
 
 class ApiClient {

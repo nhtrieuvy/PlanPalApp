@@ -1,11 +1,3 @@
-"""
-Serializers for PlanPal app
-
-Handle data serialization/deserialization for API endpoints.
-Includes validation, nested relationships, and computed fields.
-Support for Cloudinary image/file uploads.
-"""
-
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -19,9 +11,7 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Full User serializer - dùng trực tiếp model properties (zero extra queries)."""
-    full_name = serializers.CharField(source='display_name', read_only=True)
-    initials = serializers.CharField(read_only=True)
+    """Full User serializer - dùng to_representation cho computed fields."""
     online_status = serializers.CharField(read_only=True)
     avatar_url = serializers.CharField(read_only=True)
     has_avatar = serializers.BooleanField(read_only=True)
@@ -37,13 +27,27 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'display_name', 'full_name', 'initials', 'phone_number',
-            'avatar', 'avatar_url', 'has_avatar',
+            'phone_number',
+            'avatar_url', 'has_avatar',
             'date_of_birth', 'bio', 'is_online', 'last_seen', 'is_recently_online', 'online_status',
             'plans_count', 'personal_plans_count', 'group_plans_count', 'groups_count',
             'friends_count', 'unread_messages_count', 'date_joined', 'is_active'
         ]
         read_only_fields = ['id', 'date_joined', 'last_seen', 'is_online']
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['full_name'] = instance.get_full_name() or instance.username
+        data['initials'] = self._get_initials(instance)
+        return data
+    
+    def _get_initials(self, instance):
+        """Helper method để tính initials"""
+        if instance.first_name and instance.last_name:
+            return f"{instance.first_name[0]}{instance.last_name[0]}".upper()
+        elif instance.first_name:
+            return instance.first_name[0].upper()
+        return instance.username[0].upper() if instance.username else "U"
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -80,25 +84,31 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserSummarySerializer(serializers.ModelSerializer):
-    """Enhanced user summary with optimized performance"""
-    # Use properties instead of SerializerMethodField for better performance
     avatar_thumb = serializers.CharField(read_only=True)
     avatar_url = serializers.CharField(read_only=True)
     
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'display_name', 'initials', 'is_online', 
+            'id', 'username', 'is_online',
             'avatar_thumb', 'avatar_url', 'first_name', 
             'last_name', 'email', 'date_joined', 'last_seen'
         ]
     
     def to_representation(self, instance):
-        """OPTIMIZED: Add computed fields in to_representation for better caching"""
         data = super().to_representation(instance)
-        # Add full_name without using SerializerMethodField
-        data['full_name'] = f"{instance.first_name} {instance.last_name}".strip() or instance.username
+        # Computed fields using to_representation for better performance
+        data['full_name'] = instance.get_full_name() or instance.username
+        data['initials'] = self._get_initials(instance)
         return data
+    
+    def _get_initials(self, instance):
+        """Helper method để tính initials"""
+        if instance.first_name and instance.last_name:
+            return f"{instance.first_name[0]}{instance.last_name[0]}".upper()
+        elif instance.first_name:
+            return instance.first_name[0].upper()
+        return instance.username[0].upper() if instance.username else "U"
 
 
 class GroupMembershipSerializer(serializers.ModelSerializer):
@@ -130,7 +140,6 @@ class GroupSerializer(serializers.ModelSerializer):
     cover_image_url = serializers.CharField(read_only=True)
     # has_cover_image = serializers.BooleanField(read_only=True)
     
-    initials = serializers.CharField(read_only=True)
     is_member = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
@@ -142,11 +151,27 @@ class GroupSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 
             'avatar_url',
             'cover_image', 'cover_image_url',
-            'initials',
             'admin', 'memberships', 'member_count', 'plans_count', 'active_plans_count',
             'is_active', 'is_member', 'user_role', 'can_edit', 'can_delete', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'admin', 'created_at', 'updated_at']
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Computed field using to_representation for better performance
+        data['initials'] = self._get_group_initials(instance)
+        return data
+    
+    def _get_group_initials(self, instance):
+        """Helper method để tính initials cho group"""
+        if not instance.name:
+            return 'G'
+        
+        parts = [p for p in instance.name.split() if p]
+        if len(parts) >= 2:
+            return (parts[0][0] + parts[1][0]).upper()
+        
+        return instance.name[:2].upper()
     
     def get_is_member(self, obj):
         request = self.context.get('request')
@@ -202,36 +227,97 @@ class GroupCreateSerializer(serializers.ModelSerializer):
     cover_image_url = serializers.CharField(read_only=True)
     has_cover_image = serializers.BooleanField(read_only=True)
     
-    initials = serializers.CharField(read_only=True)
     member_count = serializers.IntegerField(read_only=True)
     admin = UserSummarySerializer(read_only=True)
+    
+    # Field for initial members (friends to add)
+    initial_members = serializers.ListField(
+        child=serializers.UUIDField(),
+        write_only=True,
+        required=True,
+        help_text="List of friend IDs to add to group (minimum 2 required)"
+    )
     
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description', 
+            'id', 'name', 'description', 'initial_members',
             'avatar', 'avatar_thumb', 'avatar_url', 'has_avatar', 'cover_image_url', 'has_cover_image',
-            'initials', 'member_count', 'admin', 'created_at', 'updated_at'
+            'member_count', 'admin', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'admin', 'created_at', 'updated_at']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Computed field using to_representation for better performance
+        data['initials'] = self._get_group_initials(instance)
+        return data
+    
+    def _get_group_initials(self, instance):
+        """Helper method để tính initials cho group"""
+        if not instance.name:
+            return 'G'
+        
+        parts = [p for p in instance.name.split() if p]
+        if len(parts) >= 2:
+            return (parts[0][0] + parts[1][0]).upper()
+        
+        return instance.name[:2].upper()
 
     def validate_name(self, value):
         if len(value.strip()) < 3:
             raise serializers.ValidationError("Tên nhóm phải có ít nhất 3 ký tự")
         return value.strip()
     
+    def validate_initial_members(self, value):
+        """Validate initial members list"""
+        if len(value) < 2:
+            raise serializers.ValidationError("Cần ít nhất 2 bạn bè để tạo nhóm")
+        
+        # Check for duplicates
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError("Không thể thêm cùng một người nhiều lần")
+        
+        request = self.context.get('request')
+        if not request:
+            raise serializers.ValidationError("Invalid context")
+        
+        current_user = request.user
+        
+        # Check if current user is in the list (shouldn't be)
+        if str(current_user.id) in [str(uid) for uid in value]:
+            raise serializers.ValidationError("Không thể thêm chính mình vào nhóm")
+        
+        # Validate all users exist and are friends
+        from .models import Friendship
+        for user_id in value:
+            try:
+                target_user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                raise serializers.ValidationError(f"User với ID {user_id} không tồn tại")
+            
+            if not Friendship.are_friends(current_user, target_user):
+                raise serializers.ValidationError(f"Chỉ có thể thêm bạn bè vào nhóm. {target_user.username} chưa phải là bạn bè")
+        return value
+    
     def create(self, validated_data):
         """Create group và auto-add creator thành admin member"""
         request = self.context.get('request')
+        initial_members = validated_data.pop('initial_members')
         validated_data['admin'] = request.user
+        
         group = super().create(validated_data)
         
-        # # Auto-add creator as admin member
-        # GroupMembership.objects.create(
-        #     group=group,
-        #     user=request.user,
-        #     role=GroupMembership.ADMIN
-        # )
+        # Add initial members
+        from .models import GroupMembership
+        for user_id in initial_members:
+            user = User.objects.get(id=user_id)
+            GroupMembership.objects.create(
+                group=group,
+                user=user,
+                role=GroupMembership.MEMBER
+            )
+        
         return group
 
 
@@ -239,31 +325,104 @@ class GroupSummarySerializer(serializers.ModelSerializer):
     """Lightweight group summary (list views)."""
     member_count = serializers.IntegerField(read_only=True)
     avatar_thumb = serializers.CharField(read_only=True)
-    initials = serializers.CharField(read_only=True)
+    
     class Meta:
         model = Group
-        fields = ['id', 'name', 'description', 'member_count', 'avatar_thumb', 'initials']
+        fields = ['id', 'name', 'description', 'member_count', 'avatar_thumb']
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Computed field using to_representation for better performance
+        data['initials'] = self._get_group_initials(instance)
+        return data
+    
+    def _get_group_initials(self, instance):
+        """Helper method để tính initials cho group"""
+        if not instance.name:
+            return 'G'
+        
+        parts = [p for p in instance.name.split() if p]
+        if len(parts) >= 2:
+            return (parts[0][0] + parts[1][0]).upper()
+        
+        return instance.name[:2].upper()
 
 
 class PlanActivitySerializer(serializers.ModelSerializer):
     """Serializer cho PlanActivity - OPTIMIZED"""
-    # ✅ Use properties directly
-    duration_hours = serializers.FloatField(read_only=True)
-    duration_display = serializers.CharField(read_only=True)
-    activity_type_display = serializers.CharField(read_only=True)
-    has_location = serializers.BooleanField(read_only=True)
-    maps_url = serializers.CharField(read_only=True)
 
     class Meta:
         model = PlanActivity
         fields = [
-            'id', 'plan', 'title', 'description', 'activity_type', 'activity_type_display',
-            'start_time', 'end_time', 'duration_hours', 'duration_display',
-            'location_name', 'location_address', 'latitude', 'longitude', 'goong_place_id', 
-            'has_location', 'maps_url', 'estimated_cost', 'notes', 'order', 
-            'created_at', 'updated_at'
+            'id', 'plan', 'title', 'description', 'activity_type',
+            'start_time', 'end_time', 'location_name', 'location_address', 
+            'latitude', 'longitude', 'goong_place_id', 'estimated_cost', 
+            'notes', 'order', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Computed fields using to_representation for better performance
+        data['duration_hours'] = self._get_duration_hours(instance)
+        data['duration_display'] = self._get_duration_display(instance)
+        data['activity_type_display'] = self._get_activity_type_display(instance)
+        data['has_location'] = self._get_has_location(instance)
+        data['maps_url'] = self._get_maps_url(instance)
+        return data
+    
+    def _get_duration_hours(self, instance):
+        """Helper method để tính duration hours"""
+        if instance.start_time and instance.end_time:
+            duration = instance.end_time - instance.start_time
+            return duration.total_seconds() / 3600
+        return 0
+    
+    def _get_duration_display(self, instance):
+        """Helper method để hiển thị duration"""
+        hours = self._get_duration_hours(instance)
+        if hours == 0:
+            return "Chưa xác định"
+        elif hours < 1:
+            minutes = int(hours * 60)
+            return f"{minutes} phút"
+        elif hours < 24:
+            return f"{hours:.1f} giờ"
+        else:
+            days = int(hours / 24)
+            remaining_hours = hours % 24
+            if remaining_hours == 0:
+                return f"{days} ngày"
+            return f"{days} ngày {remaining_hours:.1f} giờ"
+    
+    def _get_activity_type_display(self, instance):
+        """Helper method để hiển thị activity type với icon"""
+        type_icons = {
+            'eating': '🍽️ Ăn uống',
+            'resting': '🛏️ Nghỉ ngơi',
+            'moving': '🚗 Di chuyển',
+            'sightseeing': '🏛️ Tham quan',
+            'shopping': '🛍️ Mua sắm',
+            'entertainment': '🎭 Giải trí',
+            'event': '🎉 Sự kiện',
+            'sport': '🏅 Thể thao',
+            'study': '📚 Học tập',
+            'work': '💼 Công việc',
+            'other': '📝 Khác',
+        }
+        return type_icons.get(instance.activity_type, instance.activity_type)
+    
+    def _get_has_location(self, instance):
+        """Helper method để check has location"""
+        return bool(instance.latitude and instance.longitude)
+    
+    def _get_maps_url(self, instance):
+        """Helper method để tạo Google Maps URL"""
+        if self._get_has_location(instance):
+            return f"https://www.google.com/maps?q={instance.latitude},{instance.longitude}"
+        elif instance.location_name:
+            return f"https://www.google.com/maps/search/{instance.location_name}"
+        return None
     
     def validate(self, attrs):
         """Enhanced validation with overlap checking - FAT SERIALIZER"""
@@ -305,10 +464,8 @@ class PlanSerializer(serializers.ModelSerializer):
     
     # ✅ Use properties directly
     duration_days = serializers.IntegerField(read_only=True)
-    duration_display = serializers.CharField( read_only=True)
     activities_count = serializers.IntegerField( read_only=True)
     total_estimated_cost = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-    status_display = serializers.CharField(read_only=True)
 
     # Computed fields that need context
     can_view = serializers.SerializerMethodField()
@@ -319,12 +476,39 @@ class PlanSerializer(serializers.ModelSerializer):
         model = Plan
         fields = [
             'id', 'title', 'description', 'start_date', 'end_date',
-            'is_public', 'status', 'status_display', 'plan_type', 'creator', 'group', 'group_id', 'group_name',
-            'activities', 'duration_days', 'duration_display', 'activities_count', 
+            'is_public', 'status', 'plan_type', 'creator', 'group', 'group_id', 'group_name',
+            'activities', 'duration_days', 'activities_count', 
             'total_estimated_cost', 'can_view', 'can_edit', 'collaborators',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'creator', 'plan_type', 'created_at', 'updated_at']
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Computed fields using to_representation for better performance
+        data['duration_display'] = self._get_duration_display(instance)
+        data['status_display'] = self._get_status_display(instance)
+        return data
+    
+    def _get_duration_display(self, instance):
+        """Helper method để tính duration display"""
+        days = instance.duration_days
+        if days == 0:
+            return "Chưa xác định"
+        elif days == 1:
+            return "1 ngày"
+        else:
+            return f"{days} ngày"
+    
+    def _get_status_display(self, instance):
+        """Helper method để hiển thị status với icon"""
+        status_map = {
+            'upcoming': '⏳ Sắp bắt đầu',
+            'ongoing': '🏃 Đang diễn ra',
+            'completed': '✅ Đã hoàn thành',
+            'cancelled': '❌ Đã hủy',
+        }
+        return status_map.get(instance.status, instance.status)
     
     def get_duration_days(self, obj):
         # Using property directly
@@ -502,29 +686,48 @@ class PlanSummarySerializer(serializers.ModelSerializer):
     """Serializer tóm tắt cho Plan list view"""
     creator = UserSummarySerializer(read_only=True)
     group_name = serializers.CharField(source='group.name', read_only=True)
-    duration_days = serializers.SerializerMethodField()
-    status_display = serializers.CharField(read_only=True)
     
     class Meta:
         model = Plan
         fields = [
             'id', 'title', 'start_date', 'end_date', 'is_public', 'status',
-            'status_display', 'creator', 'group_name', 'duration_days', 'created_at'
+            'plan_type', 'creator', 'group_name', 'created_at'
         ]
     
-    def get_duration_days(self, obj):
-        return obj.duration_days
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Computed fields using to_representation for better performance
+        data['duration_days'] = instance.duration_days
+        data['activities_count'] = instance.activities_count
+        data['status_display'] = self._get_status_display(instance)
+        data['duration_display'] = self._get_duration_display(instance)
+        return data
+    
+    def _get_duration_display(self, instance):
+        """Helper method để tính duration display"""
+        days = instance.duration_days
+        if days == 0:
+            return "Chưa xác định"
+        elif days == 1:
+            return "1 ngày"
+        else:
+            return f"{days} ngày"
+    
+    def _get_status_display(self, instance):
+        """Helper method để hiển thị status với icon"""
+        status_map = {
+            'upcoming': '⏳ Sắp bắt đầu',
+            'ongoing': '🏃 Đang diễn ra',
+            'completed': '✅ Đã hoàn thành',
+            'cancelled': '❌ Đã hủy',
+        }
+        return status_map.get(instance.status, instance.status)
     
     
 class ChatMessageSerializer(serializers.ModelSerializer):
     """Serializer cho ChatMessage với Cloudinary attachment support - OPTIMIZED"""
     sender = UserSerializer(read_only=True)
     reply_to = serializers.SerializerMethodField()
-    
-    # ✅ Use properties directly
-    attachment_size_display = serializers.CharField( read_only=True)
-    attachment_url = serializers.CharField(read_only=True)
-    location_url = serializers.CharField(read_only=True)
     
     # Computed fields that need context
     can_edit = serializers.SerializerMethodField()
@@ -545,6 +748,41 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             'id', 'sender', 'is_edited', 'is_deleted', 
             'created_at', 'updated_at'
         ]
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Computed fields using to_representation for better performance
+        data['attachment_size_display'] = self._get_attachment_size_display(instance)
+        data['attachment_url'] = self._get_attachment_url(instance)
+        data['location_url'] = self._get_location_url(instance)
+        return data
+    
+    def _get_attachment_size_display(self, instance):
+        """Helper method để format attachment size"""
+        if not instance.attachment_size:
+            return None
+        
+        # Convert bytes to human readable format
+        size = instance.attachment_size
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024:
+                return f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{size:.1f} TB"
+    
+    def _get_attachment_url(self, instance):
+        """Helper method để get Cloudinary attachment URL"""
+        if instance.attachment:
+            if hasattr(instance.attachment, 'build_url'):
+                return instance.attachment.build_url()
+            return instance.attachment.url
+        return None
+    
+    def _get_location_url(self, instance):
+        """Helper method để tạo Google Maps URL cho location"""
+        if instance.message_type == 'location' and instance.latitude and instance.longitude:
+            return f"https://www.google.com/maps?q={instance.latitude},{instance.longitude}"
+        return None
     
     def get_reply_to(self, obj):
         if obj.reply_to:
@@ -589,17 +827,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             return False
         return False
     
-    def get_attachment_size_display(self, obj):
-        return obj.get_attachment_size_display()
-    
-    def get_attachment_url(self, obj):
-        """Get Cloudinary attachment URL"""
-        if obj.attachment:
-            if hasattr(obj.attachment, 'build_url'):
-                return obj.attachment.build_url()
-            return obj.attachment.url
-        return None
-    
     def get_attachment_thumbnail(self, obj):
         """Get attachment thumbnail for images"""
         if obj.attachment and obj.message_type == 'image':
@@ -609,9 +836,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
                 )
             return obj.attachment.url
         return None
-    
-    def get_location_url(self, obj):
-        return obj.get_location_url()
     
     def validate(self, attrs):
         # Location messages cần coordinates
@@ -653,7 +877,7 @@ class FriendshipSerializer(serializers.ModelSerializer):
             data['friend_info'] = {
                 'id': friend_user.id,
                 'username': friend_user.username,
-                'display_name': friend_user.display_name,
+                'display_name': friend_user.get_full_name() or friend_user.username,
                 'avatar_url': friend_user.avatar_url,
                 'is_online': friend_user.is_online,
                 'last_seen': friend_user.last_seen

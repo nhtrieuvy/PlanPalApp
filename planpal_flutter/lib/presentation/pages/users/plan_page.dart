@@ -6,7 +6,7 @@ import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:intl/intl.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
-import '../../../core/models/plan_summary.dart';
+import '../../../core/dtos/plan_summary.dart';
 // Removed local PlanStatus mapping; use backend status + status_display
 
 class PlanPage extends StatefulWidget {

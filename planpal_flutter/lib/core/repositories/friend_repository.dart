@@ -2,9 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
-import '../models/user_summary.dart';
-import '../models/friendship.dart';
-import '../models/friend_request.dart';
+import '../dtos/user_summary.dart';
+import '../dtos/friendship.dart';
+import '../dtos/friend_request.dart';
 
 class FriendRepository {
   final AuthProvider auth;
@@ -103,6 +103,51 @@ class FriendRepository {
   /// Reject friend request
   Future<bool> rejectFriendRequest(String requestId) async {
     return _handleFriendRequestAction(requestId, 'reject');
+  }
+
+  /// Unfriend/Remove friendship
+  Future<bool> unfriend(String friendId) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.delete(Endpoints.userUnfriend(friendId)),
+      );
+
+      return res.statusCode == 200;
+    } on DioException catch (e) {
+      final res = e.response;
+      if (res != null) return _throwApiError(res);
+      rethrow;
+    }
+  }
+
+  /// Block user
+  Future<bool> blockUser(String userId) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(Endpoints.userBlock(userId)),
+      );
+
+      return res.statusCode == 200;
+    } on DioException catch (e) {
+      final res = e.response;
+      if (res != null) return _throwApiError(res);
+      rethrow;
+    }
+  }
+
+  /// Unblock user
+  Future<bool> unblockUser(String userId) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.delete(Endpoints.userUnblock(userId)),
+      );
+
+      return res.statusCode == 200;
+    } on DioException catch (e) {
+      final res = e.response;
+      if (res != null) return _throwApiError(res);
+      rethrow;
+    }
   }
 
   Future<bool> _handleFriendRequestAction(
