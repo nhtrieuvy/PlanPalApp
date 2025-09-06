@@ -16,16 +16,7 @@ from django.db import models
 from django.db.migrations.operations.base import Operation
 from django.db.migrations.utils import COMPILED_REGEX_TYPE, RegexObject
 from django.utils.functional import LazyObject, Promise
-from django.utils.version import PY311, get_docs_version
-
-FUNCTION_TYPES = (types.FunctionType, types.BuiltinFunctionType, types.MethodType)
-
-if isinstance(functools._lru_cache_wrapper, type):
-    # When using CPython's _functools C module, LRU cache function decorators
-    # present as a class and not a function, so add that class to the list of
-    # function types. In the pure Python implementation and PyPy they present
-    # as normal functions which are already handled.
-    FUNCTION_TYPES += (functools._lru_cache_wrapper,)
+from django.utils.version import get_docs_version
 
 
 class BaseSerializer:
@@ -53,11 +44,6 @@ class BaseSequenceSerializer(BaseSerializer):
             strings.append(item_string)
         value = self._format()
         return value % (", ".join(strings)), imports
-
-
-class BaseUnorderedSequenceSerializer(BaseSequenceSerializer):
-    def __init__(self, value):
-        super().__init__(sorted(value, key=repr))
 
 
 class BaseSimpleSerializer(BaseSerializer):
@@ -139,21 +125,8 @@ class EnumSerializer(BaseSerializer):
     def serialize(self):
         enum_class = self.value.__class__
         module = enum_class.__module__
-        if issubclass(enum_class, enum.Flag):
-            if PY311:
-                members = list(self.value)
-            else:
-                members, _ = enum._decompose(enum_class, self.value)
-                members = reversed(members)
-        else:
-            members = (self.value,)
         return (
-            " | ".join(
-                [
-                    f"{module}.{enum_class.__qualname__}[{item.name!r}]"
-                    for item in members
-                ]
-            ),
+            "%s.%s[%r]" % (module, enum_class.__qualname__, self.value.name),
             {"import %s" % module},
         )
 
@@ -165,7 +138,7 @@ class FloatSerializer(BaseSimpleSerializer):
         return super().serialize()
 
 
-class FrozensetSerializer(BaseUnorderedSequenceSerializer):
+class FrozensetSerializer(BaseSequenceSerializer):
     def _format(self):
         return "frozenset([%s])"
 
@@ -177,7 +150,7 @@ class FunctionTypeSerializer(BaseSerializer):
         ):
             klass = self.value.__self__
             module = klass.__module__
-            return "%s.%s.%s" % (module, klass.__qualname__, self.value.__name__), {
+            return "%s.%s.%s" % (module, klass.__name__, self.value.__name__), {
                 "import %s" % module
             }
         # Further error checking
@@ -293,7 +266,7 @@ class SequenceSerializer(BaseSequenceSerializer):
         return "[%s]"
 
 
-class SetSerializer(BaseUnorderedSequenceSerializer):
+class SetSerializer(BaseSequenceSerializer):
     def _format(self):
         # Serialize as a set literal except when value is empty because {}
         # is an empty dict.
@@ -318,7 +291,7 @@ class TypeSerializer(BaseSerializer):
     def serialize(self):
         special_cases = [
             (models.Model, "models.Model", ["from django.db import models"]),
-            (types.NoneType, "types.NoneType", ["import types"]),
+            (type(None), "type(None)", []),
         ]
         for case, string, imports in special_cases:
             if case is self.value:
@@ -352,10 +325,14 @@ class Serializer:
         (datetime.date, datetime.timedelta, datetime.time): DateTimeSerializer,
         SettingsReference: SettingsReferenceSerializer,
         float: FloatSerializer,
-        (bool, int, types.NoneType, bytes, str, range): BaseSimpleSerializer,
+        (bool, int, type(None), bytes, str, range): BaseSimpleSerializer,
         decimal.Decimal: DecimalSerializer,
         (functools.partial, functools.partialmethod): FunctoolsPartialSerializer,
-        FUNCTION_TYPES: FunctionTypeSerializer,
+        (
+            types.FunctionType,
+            types.BuiltinFunctionType,
+            types.MethodType,
+        ): FunctionTypeSerializer,
         collections.abc.Iterable: IterableSerializer,
         (COMPILED_REGEX_TYPE, RegexObject): RegexSerializer,
         uuid.UUID: UUIDSerializer,

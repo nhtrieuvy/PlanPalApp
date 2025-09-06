@@ -14,12 +14,17 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import cloudinary
-
-# Load environment variables
-load_dotenv()
+from urllib.parse import quote_plus
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file with explicit path
+# .env is in the same directory as manage.py (BASE_DIR)
+load_dotenv()
+
+
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -191,11 +196,15 @@ CLOUDINARY_STORAGE = {
 }
 
 # Configure Cloudinary for image uploads
-cloudinary.config(
-    cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
-    api_key=CLOUDINARY_STORAGE['API_KEY'],
-    api_secret=CLOUDINARY_STORAGE['API_SECRET']
-)
+_cloud_name = CLOUDINARY_STORAGE.get('CLOUD_NAME')
+_api_key = CLOUDINARY_STORAGE.get('API_KEY')
+_api_secret = CLOUDINARY_STORAGE.get('API_SECRET')
+if _cloud_name and _api_key and _api_secret:
+    cloudinary.config(
+        cloud_name=_cloud_name,
+        api_key=_api_key,
+        api_secret=_api_secret
+    )
 
 # Use Cloudinary for default file storage
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
@@ -222,6 +231,10 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+# Ensure logs directory exists so FileHandler won't fail at import time
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Logging configuration
 LOGGING = {
@@ -317,3 +330,32 @@ CKEDITOR_CONFIGS = {
 
 CLIENT_ID = os.getenv('CLIENT_ID')
 # CLIENT_SECRET = os.getenv('CLIENT_SECRET')
+
+# ============================================================================
+# CELERY SETTINGS
+# ============================================================================
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+REDIS_PORT = os.getenv('REDIS_PORT', '6379')
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
+
+# Celery Configuration Options
+CELERY_TIMEZONE = 'UTC'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+# Build Redis URL for Celery (handles optional password and special characters)
+
+CELERY_REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
+
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+CELERY_BROKER_URL = CELERY_REDIS_URL
+CELERY_RESULT_BACKEND = CELERY_REDIS_URL
+
+# Optional: Task routing for specific queues
+CELERY_TASK_ROUTES = {
+    'planpals.tasks.start_plan_task': {'queue': 'plan_status'},
+    'planpals.tasks.complete_plan_task': {'queue': 'plan_status'},
+}

@@ -170,8 +170,8 @@ class FriendshipRejectionAdmin(admin.ModelAdmin):
 class GroupMembershipInline(admin.TabularInline):
     model = GroupMembership
     extra = 1
-    fields = ['user', 'role', 'joined_at']
-    readonly_fields = ['joined_at']
+    fields = ['user', 'role']
+    readonly_fields = ['created_at', 'updated_at']
     
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "user":
@@ -235,8 +235,8 @@ class GroupAdmin(admin.ModelAdmin):
 
 @admin.register(GroupMembership)
 class GroupMembershipAdmin(admin.ModelAdmin):
-    list_display = ['user', 'group', 'role', 'joined_at']
-    list_filter = ['role', 'joined_at']
+    list_display = ['user', 'group', 'role']
+    list_filter = ['role']
     search_fields = ['user__username', 'group__name']
     readonly_fields = ['id', 'created_at', 'updated_at']
 

@@ -1,7 +1,6 @@
 """
 Management utility to create superusers.
 """
-
 import getpass
 import os
 import sys
@@ -11,7 +10,7 @@ from django.contrib.auth.management import get_default_username
 from django.contrib.auth.password_validation import validate_password
 from django.core import exceptions
 from django.core.management.base import BaseCommand, CommandError
-from django.db import DEFAULT_DB_ALIAS, connections
+from django.db import DEFAULT_DB_ALIAS
 from django.utils.functional import cached_property
 from django.utils.text import capfirst
 
@@ -56,7 +55,6 @@ class Command(BaseCommand):
         parser.add_argument(
             "--database",
             default=DEFAULT_DB_ALIAS,
-            choices=tuple(connections),
             help='Specifies the database to use. Default is "default".',
         )
         for field_name in self.UserModel.REQUIRED_FIELDS:
@@ -221,15 +219,11 @@ class Command(BaseCommand):
                 for field_name in self.UserModel.REQUIRED_FIELDS:
                     env_var = "DJANGO_SUPERUSER_" + field_name.upper()
                     value = options[field_name] or os.environ.get(env_var)
-                    field = self.UserModel._meta.get_field(field_name)
                     if not value:
-                        if field.blank and (
-                            options[field_name] == "" or os.environ.get(env_var) == ""
-                        ):
-                            continue
                         raise CommandError(
                             "You must use --%s with --noinput." % field_name
                         )
+                    field = self.UserModel._meta.get_field(field_name)
                     user_data[field_name] = field.clean(value, None)
                     if field.many_to_many and isinstance(user_data[field_name], str):
                         user_data[field_name] = [
@@ -273,30 +267,28 @@ class Command(BaseCommand):
         return "%s%s%s: " % (
             capfirst(field.verbose_name),
             " (leave blank to use '%s')" % default if default else "",
-            (
-                " (%s.%s)"
-                % (
-                    field.remote_field.model._meta.object_name,
-                    (
-                        field.m2m_target_field_name()
-                        if field.many_to_many
-                        else field.remote_field.field_name
-                    ),
-                )
-                if field.remote_field
-                else ""
-            ),
+            " (%s.%s)"
+            % (
+                field.remote_field.model._meta.object_name,
+                field.m2m_target_field_name()
+                if field.many_to_many
+                else field.remote_field.field_name,
+            )
+            if field.remote_field
+            else "",
         )
 
     @cached_property
     def username_is_unique(self):
         if self.username_field.unique:
             return True
-        return any(
-            len(unique_constraint.fields) == 1
-            and unique_constraint.fields[0] == self.username_field.name
-            for unique_constraint in self.UserModel._meta.total_unique_constraints
-        )
+        for unique_constraint in self.UserModel._meta.total_unique_constraints:
+            if (
+                len(unique_constraint.fields) == 1
+                and unique_constraint.fields[0] == self.username_field.name
+            ):
+                return True
+        return False
 
     def _validate_username(self, username, verbose_field_name, database):
         """Validate username. If invalid, return a string error message."""

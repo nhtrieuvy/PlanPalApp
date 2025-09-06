@@ -1971,3 +1971,623 @@ Traceback (most recent call last):
   File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\connections.py", line 280, in query
     _mysql.connection.query(self, query)
 django.db.utils.ProgrammingError: (1146, "Table 'planpaldb.planpal_friendship_rejections' doesn't exist")
+DEBUG 2025-09-05 20:38:25,394 functional 31204 17148 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-05 20:38:25,395 functional 31204 17148 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-05 20:38:25,395 functional 31204 17148 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-05 20:38:25,396 functional 31204 17148 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-05 20:38:25,396 functional 31204 17148 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-05 20:38:25,396 functional 31204 17148 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-05 20:38:25,397 functional 31204 17148 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-05 20:38:25,397 functional 31204 17148 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-05 20:38:25,398 functional 31204 17148 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-05 20:38:25,398 functional 31204 17148 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-05 20:38:25,399 functional 31204 17148 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-05 20:38:25,401 functional 31204 17148 
+def chain(*args, **kwargs):
+    return 1
+
+INFO 2025-09-06 22:19:52,798 autoreload 22668 30048 Watching for file changes with StatReloader
+DEBUG 2025-09-06 22:23:25,275 functional 22740 26356 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 22:23:25,275 functional 22740 26356 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 22:23:25,276 functional 22740 26356 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-06 22:23:25,276 functional 22740 26356 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 22:23:25,277 functional 22740 26356 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:23:25,277 functional 22740 26356 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 22:23:25,277 functional 22740 26356 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 22:23:25,278 functional 22740 26356 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:23:25,278 functional 22740 26356 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 22:23:25,278 functional 22740 26356 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:23:25,279 functional 22740 26356 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 22:23:25,279 functional 22740 26356 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+INFO 2025-09-06 22:29:52,078 autoreload 31232 23436 Watching for file changes with StatReloader
+INFO 2025-09-06 22:30:42,670 autoreload 31232 23436 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\migrations\0001_initial.py changed, reloading.
+INFO 2025-09-06 22:30:43,747 autoreload 5760 4916 Watching for file changes with StatReloader
+INFO 2025-09-06 22:32:37,488 autoreload 29628 18800 Watching for file changes with StatReloader
+DEBUG 2025-09-06 22:33:55,098 functional 25364 25436 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 22:33:55,099 functional 25364 25436 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 22:33:55,099 functional 25364 25436 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-06 22:33:55,099 functional 25364 25436 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 22:33:55,100 functional 25364 25436 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:33:55,100 functional 25364 25436 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 22:33:55,100 functional 25364 25436 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 22:33:55,100 functional 25364 25436 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:33:55,101 functional 25364 25436 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 22:33:55,101 functional 25364 25436 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:33:55,101 functional 25364 25436 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 22:33:55,101 functional 25364 25436 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,159 functional 20448 22660 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,160 functional 20448 22660 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,160 functional 20448 22660 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,160 functional 20448 22660 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 22:34:26,161 functional 20448 22660 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,161 functional 20448 22660 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,161 functional 20448 22660 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,162 functional 20448 22660 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,162 functional 20448 22660 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,162 functional 20448 22660 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,162 functional 20448 22660 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 22:34:26,164 functional 20448 22660 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+INFO 2025-09-06 22:35:55,459 autoreload 29628 18800 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:35:56,790 autoreload 13620 27824 Watching for file changes with StatReloader
+INFO 2025-09-06 22:36:10,509 autoreload 13620 27824 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:36:11,553 autoreload 24460 20076 Watching for file changes with StatReloader
+DEBUG 2025-09-06 22:36:54,970 functional 21572 8884 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 22:36:54,970 functional 21572 8884 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 22:36:54,971 functional 21572 8884 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-06 22:36:54,971 functional 21572 8884 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 22:36:54,971 functional 21572 8884 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:36:54,972 functional 21572 8884 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 22:36:54,972 functional 21572 8884 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 22:36:54,981 functional 21572 8884 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:36:54,981 functional 21572 8884 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 22:36:54,982 functional 21572 8884 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:36:54,982 functional 21572 8884 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 22:36:54,983 functional 21572 8884 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+INFO 2025-09-06 22:37:49,042 autoreload 24460 20076 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:37:50,171 autoreload 26952 27092 Watching for file changes with StatReloader
+INFO 2025-09-06 22:38:05,952 autoreload 26952 27092 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:38:07,188 autoreload 1652 15524 Watching for file changes with StatReloader
+INFO 2025-09-06 22:40:24,843 autoreload 1652 15524 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:40:26,016 autoreload 12320 11436 Watching for file changes with StatReloader
+INFO 2025-09-06 22:40:32,551 autoreload 12320 11436 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:40:33,671 autoreload 31400 31820 Watching for file changes with StatReloader
+DEBUG 2025-09-06 22:40:38,804 functional 14248 3972 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 22:40:38,805 functional 14248 3972 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 22:40:38,806 functional 14248 3972 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-06 22:40:38,806 functional 14248 3972 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 22:40:38,806 functional 14248 3972 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 22:40:38,806 functional 14248 3972 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:40:38,807 functional 14248 3972 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 22:40:38,807 functional 14248 3972 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:40:38,807 functional 14248 3972 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:40:38,808 functional 14248 3972 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 22:40:38,808 functional 14248 3972 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 22:40:38,809 functional 14248 3972 
+def start_plan_task(self, plan_id):
+    return 1
+
+INFO 2025-09-06 22:42:30,230 autoreload 31400 31820 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:42:31,851 autoreload 13060 23332 Watching for file changes with StatReloader
+INFO 2025-09-06 22:42:40,508 autoreload 13060 23332 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:42:41,636 autoreload 7420 12076 Watching for file changes with StatReloader
+INFO 2025-09-06 22:55:22,698 autoreload 7420 12076 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:55:23,866 autoreload 12852 22712 Watching for file changes with StatReloader
+INFO 2025-09-06 22:55:51,936 autoreload 12852 22712 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:55:53,017 autoreload 28804 29384 Watching for file changes with StatReloader
+INFO 2025-09-06 22:56:00,539 autoreload 28804 29384 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 22:56:01,537 autoreload 12364 9588 Watching for file changes with StatReloader
+INFO 2025-09-06 22:56:25,903 autoreload 31816 15832 Watching for file changes with StatReloader
+INFO 2025-09-06 23:03:26,296 autoreload 31816 15832 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+DEBUG 2025-09-06 23:05:42,123 functional 20904 12892 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 23:05:42,123 functional 20904 12892 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:05:42,124 functional 20904 12892 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-06 23:05:42,124 functional 20904 12892 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 23:05:42,124 functional 20904 12892 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 23:05:42,124 functional 20904 12892 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:05:42,125 functional 20904 12892 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:05:42,125 functional 20904 12892 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:05:42,125 functional 20904 12892 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:05:42,125 functional 20904 12892 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 23:05:42,126 functional 20904 12892 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:05:42,126 functional 20904 12892 
+def start_plan_task(self, plan_id):
+    return 1
+
+INFO 2025-09-06 23:06:16,585 autoreload 19808 14428 Watching for file changes with StatReloader
+DEBUG 2025-09-06 23:06:27,514 functional 20564 29040 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 23:06:27,514 functional 20564 29040 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:06:27,515 functional 20564 29040 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-06 23:06:27,515 functional 20564 29040 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 23:06:27,515 functional 20564 29040 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:06:27,515 functional 20564 29040 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:06:27,516 functional 20564 29040 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:06:27,516 functional 20564 29040 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:06:27,516 functional 20564 29040 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 23:06:27,516 functional 20564 29040 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 23:06:27,517 functional 20564 29040 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:06:27,517 functional 20564 29040 
+def complete_plan_task(self, plan_id):
+    return 1
+
+INFO 2025-09-06 23:08:46,063 autoreload 19808 14428 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 23:09:47,224 autoreload 13376 15040 Watching for file changes with StatReloader
+INFO 2025-09-06 23:10:02,975 autoreload 13376 15040 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 23:10:04,079 autoreload 18932 24444 Watching for file changes with StatReloader
+INFO 2025-09-06 23:10:09,596 autoreload 18932 24444 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 23:10:10,615 autoreload 31840 28668 Watching for file changes with StatReloader
+INFO 2025-09-06 23:10:12,076 autoreload 31840 28668 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 23:10:13,270 autoreload 21552 17728 Watching for file changes with StatReloader
+INFO 2025-09-06 23:10:22,962 autoreload 30340 29276 Watching for file changes with StatReloader
+DEBUG 2025-09-06 23:13:33,151 functional 21068 19064 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:13:33,152 functional 21068 19064 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 23:13:33,152 functional 21068 19064 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:13:33,152 functional 21068 19064 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 23:13:33,153 functional 21068 19064 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:13:33,153 functional 21068 19064 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 23:13:33,153 functional 21068 19064 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 23:13:33,153 functional 21068 19064 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:13:33,154 functional 21068 19064 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 23:13:33,154 functional 21068 19064 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:13:33,154 functional 21068 19064 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:13:33,155 functional 21068 19064 
+def debug_task(self):
+    return 1
+
+INFO 2025-09-06 23:14:22,670 autoreload 30340 29276 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 23:17:31,484 autoreload 18308 27628 Watching for file changes with StatReloader
+DEBUG 2025-09-06 23:17:39,585 functional 31628 276 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 23:17:39,586 functional 31628 276 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:17:39,586 functional 31628 276 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-06 23:17:39,586 functional 31628 276 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 23:17:39,587 functional 31628 276 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:17:39,587 functional 31628 276 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:17:39,588 functional 31628 276 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:17:39,588 functional 31628 276 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:17:39,588 functional 31628 276 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 23:17:39,589 functional 31628 276 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 23:17:39,589 functional 31628 276 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:17:39,590 functional 31628 276 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,256 functional 24440 8020 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,257 functional 24440 8020 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,257 functional 24440 8020 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,257 functional 24440 8020 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 23:22:49,257 functional 24440 8020 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,258 functional 24440 8020 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,258 functional 24440 8020 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,258 functional 24440 8020 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,258 functional 24440 8020 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,260 functional 24440 8020 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,260 functional 24440 8020 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 23:22:49,260 functional 24440 8020 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+INFO 2025-09-06 23:23:41,775 autoreload 18308 27628 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+INFO 2025-09-06 23:23:43,019 autoreload 7300 21312 Watching for file changes with StatReloader
+INFO 2025-09-06 23:23:44,439 autoreload 7300 21312 D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\settings.py changed, reloading.
+DEBUG 2025-09-06 23:24:38,454 functional 4616 23200 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-06 23:24:38,455 functional 4616 23200 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:24:38,455 functional 4616 23200 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-06 23:24:38,456 functional 4616 23200 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-06 23:24:38,456 functional 4616 23200 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 23:24:38,456 functional 4616 23200 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:24:38,457 functional 4616 23200 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-06 23:24:38,457 functional 4616 23200 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:24:38,457 functional 4616 23200 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-06 23:24:38,457 functional 4616 23200 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-06 23:24:38,458 functional 4616 23200 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-06 23:24:38,458 functional 4616 23200 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+

@@ -18,6 +18,8 @@ class BaseGeometryWidget(Widget):
 
     geom_type = "GEOMETRY"
     map_srid = 4326
+    map_width = 600
+    map_height = 400
     display_raw = False
 
     supports_3d = False
@@ -25,7 +27,7 @@ class BaseGeometryWidget(Widget):
 
     def __init__(self, attrs=None):
         self.attrs = {}
-        for key in ("geom_type", "map_srid", "display_raw"):
+        for key in ("geom_type", "map_srid", "map_width", "map_height", "display_raw"):
             self.attrs[key] = getattr(self, key)
         if attrs:
             self.attrs.update(attrs)
@@ -87,12 +89,12 @@ class OpenLayersWidget(BaseGeometryWidget):
     class Media:
         css = {
             "all": (
-                "https://cdn.jsdelivr.net/npm/ol@v7.2.2/ol.css",
+                "https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.css",
                 "gis/css/ol3.css",
             )
         }
         js = (
-            "https://cdn.jsdelivr.net/npm/ol@v7.2.2/dist/ol.js",
+            "https://cdnjs.cloudflare.com/ajax/libs/ol3/4.6.5/ol.js",
             "gis/js/OLMapWidget.js",
         )
 
