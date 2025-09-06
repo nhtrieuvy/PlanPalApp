@@ -14,6 +14,10 @@ from django.core.cache import cache
 from cloudinary.models import CloudinaryField
 from cloudinary import CloudinaryImage
 
+from .services.goong_service import goong_service
+from .services.notification_service import NotificationService
+
+
 class BaseModel(models.Model):
     
     id = models.UUIDField(
@@ -1196,28 +1200,8 @@ class Group(BaseModel):
             Q(sender=user) | Q(read_statuses__user=user)
         ).count()
 
-    def mark_messages_as_read(self, user, up_to_message=None):
-        if not self.is_member(user):
-            return
-        
-        messages = self.messages.filter(is_deleted=False).exclude(sender=user)
-        if up_to_message:
-            messages = messages.filter(created_at__lte=up_to_message.created_at)
-        
-        unread_message_ids = messages.exclude(
-            read_statuses__user=user
-        ).values_list('id', flat=True)
-        
-        if unread_message_ids: 
-            read_statuses = [
-                MessageReadStatus(message_id=msg_id, user=user)
-                for msg_id in unread_message_ids
-            ]
-            MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
-
 
 class GroupMembershipQuerySet(models.QuerySet):
-    """Custom QuerySet for GroupMembership"""
     
     def admins(self):
         return self.filter(role=GroupMembership.ADMIN)
@@ -1233,11 +1217,6 @@ class GroupMembershipQuerySet(models.QuerySet):
 
 
 class GroupMembership(BaseModel):
-    """
-    Through model cho relationship User-Group
-    Lưu thêm thông tin về role và thời gian join
-    """
-    
     # Các role trong nhóm
     ADMIN = 'admin'
     MEMBER = 'member'
@@ -1251,29 +1230,22 @@ class GroupMembership(BaseModel):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        help_text="User trong nhóm"
+        help_text="Member user"
     )
     
     group = models.ForeignKey(
         Group,
         on_delete=models.CASCADE,
         related_name='memberships',
-        help_text="Nhóm"
+        help_text="Group"
     )
     
-    # Role của user trong nhóm
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
         default=MEMBER,
         db_index=True,
-        help_text="Vai trò trong nhóm"
-    )
-    
-    # Thời gian join
-    joined_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="Thời gian tham gia nhóm"
+        help_text="Role"
     )
     
     objects = GroupMembershipQuerySet.as_manager()
@@ -1291,13 +1263,11 @@ class GroupMembership(BaseModel):
             models.Index(fields=['user', 'role']),
         ]
         
-        ordering = ['joined_at']
 
     def __str__(self):
         return f"{self.user.username} in {self.group.name} ({self.get_role_display()})"
 
     def clean(self):
-        """Validate membership rules"""
         super().clean()
         
         if self.pk and self.role == self.MEMBER:
@@ -1307,10 +1277,9 @@ class GroupMembership(BaseModel):
             ).exclude(pk=self.pk).count()
             
             if admin_count == 0:
-                raise ValidationError("Nhóm phải có ít nhất một admin. Không thể hạ cấp admin cuối cùng.")
+                raise ValidationError("Group must have at least one admin")
 
     def save(self, *args, **kwargs):
-        """Override save to enforce business rules"""
         if self.pk and self.role == self.MEMBER:
             admin_count = GroupMembership.objects.filter(
                 group=self.group,
@@ -1318,13 +1287,12 @@ class GroupMembership(BaseModel):
             ).exclude(pk=self.pk).count()
             
             if admin_count == 0:
-                raise ValueError("Nhóm phải có ít nhất một admin")
-        
+                raise ValueError("Group must have at least one admin")
+
         self.clean()
         super().save(*args, **kwargs)
 
     def promote_to_admin(self):
-        """Thăng cấp thành admin"""
         if self.role == self.MEMBER:
             self.role = self.ADMIN
             self.save(update_fields=['role'])
@@ -1333,22 +1301,17 @@ class GroupMembership(BaseModel):
 
     @transaction.atomic
     def demote_to_member(self):
-        """
-        Hạ cấp xuống member với row-level locking để tránh race condition
-        khi nhiều admin bị demote cùng lúc
-        """
-        # Lock tất cả admin records của group để đảm bảo count chính xác
+    
         admin_memberships = GroupMembership.objects.select_for_update().filter(
             group=self.group,
             role=self.ADMIN
         )
         
-        # Đếm admin khác ngoài membership hiện tại
         other_admin_count = admin_memberships.exclude(pk=self.pk).count()
         
         if other_admin_count == 0:
-            raise ValueError("Không thể hạ cấp admin cuối cùng. Nhóm phải có ít nhất một admin.")
-        
+            raise ValueError("Cannot demote the last admin. Group must have at least one admin.")
+
         if self.role == self.ADMIN:
             self.role = self.MEMBER
             self.save(update_fields=['role'])
@@ -1356,38 +1319,29 @@ class GroupMembership(BaseModel):
         return False
 
 class PlanQuerySet(models.QuerySet):
-    """Custom QuerySet for Plan with optimized methods"""
     
     def personal(self):
-        """Filter personal plans"""
         return self.filter(plan_type='personal')
     
     def group_plans(self):
-        """Filter group plans"""
         return self.filter(plan_type='group')
     
     def public(self):
-        """Filter public plans"""
         return self.filter(is_public=True)
     
     def upcoming(self):
-        """Filter upcoming plans"""
         return self.filter(status='upcoming')
     
     def ongoing(self):
-        """Filter ongoing plans"""
         return self.filter(status='ongoing')
     
     def completed(self):
-        """Filter completed plans"""
         return self.filter(status='completed')
     
     def active(self):
-        """Filter active plans (not cancelled/completed)"""
         return self.exclude(status__in=['cancelled', 'completed'])
     
     def for_user(self, user):
-        """Filter plans viewable by user"""
         return self.filter(
             Q(creator=user) |  # Own plans
             Q(group__members=user) |  # Group plans
@@ -1395,23 +1349,19 @@ class PlanQuerySet(models.QuerySet):
         ).distinct()
     
     def with_activity_count(self):
-        """Annotate with activity count"""
         return self.annotate(
             activity_count_annotated=Count('activities', distinct=True)
         )
     
     def with_total_cost(self):
-        """Annotate with total estimated cost"""
         return self.annotate(
             total_cost_annotated=Sum('activities__estimated_cost')
         )
     
     def with_stats(self):
-        """Annotate with full statistics"""
         return self.with_activity_count().with_total_cost()
     
     def in_date_range(self, start_date=None, end_date=None):
-        """Filter plans within date range"""
         queryset = self
         if start_date:
             queryset = queryset.filter(start_date__gte=start_date)
@@ -1419,43 +1369,53 @@ class PlanQuerySet(models.QuerySet):
             queryset = queryset.filter(end_date__lte=end_date)
         return queryset
     
-    def overlapping_with(self, start_date, end_date):
-        """Filter plans that overlap with given date range"""
+    def needs_status_update(self):
+        now = timezone.now()
         return self.filter(
-            start_date__lt=end_date,
-            end_date__gt=start_date
+            Q(
+                status='upcoming',
+                start_date__lte=now
+            ) | Q(
+                status='ongoing',
+                end_date__lt=now
+            )
         )
     
     @transaction.atomic
-    def create_plan_safe(self, creator, title, start_date, end_date, **kwargs):
-        """
-        Create plan với validation và conflict checking
+    def update_statuses_bulk(self):
+        now = timezone.now()
         
-        Args:
-            creator: User tạo plan
-            title: Tiêu đề plan
-            start_date: Ngày bắt đầu
-            end_date: Ngày kết thúc
-            **kwargs: Các fields khác
-            
-        Returns:
-            Plan: Created plan
-            
-        Raises:
-            ValueError: Nếu có validation errors hoặc conflicts
-        """
+        upcoming_to_ongoing = self.filter(
+            status='upcoming',
+            start_date__lte=now
+        ).update(
+            status='ongoing',
+            updated_at=now
+        )
+        
+        ongoing_to_completed = self.filter(
+            status='ongoing',
+            end_date__lt=now
+        ).update(
+            status='completed', 
+            updated_at=now
+        )
+        
+        return {
+            'upcoming_to_ongoing': upcoming_to_ongoing,
+            'ongoing_to_completed': ongoing_to_completed,
+            'total_updated': upcoming_to_ongoing + ongoing_to_completed
+        }
+    
+    @transaction.atomic
+    def create_plan_safe(self, creator, title, start_date, end_date, **kwargs):
         group = kwargs.get('group')
         
         # Validate dates
         if end_date <= start_date:
-            raise ValueError("Ngày kết thúc phải sau ngày bắt đầu")
+            raise ValueError("End date must be after start date")
         
-        # Validate group permissions
         if group:
-            if not group.is_member(creator):
-                raise ValueError("Bạn không phải thành viên của nhóm này")
-            
-            # Check conflicting plans trong group (optional business rule)
             overlapping = self.filter(
                 group=group,
                 start_date__lt=end_date,
@@ -1463,9 +1423,8 @@ class PlanQuerySet(models.QuerySet):
                 status__in=['upcoming', 'ongoing']
             )
             if overlapping.exists():
-                raise ValueError("Nhóm đã có plan khác trong khoảng thời gian này")
-        
-        # Set plan_type automatically
+                raise ValueError("Group already has another plan in this time frame")
+
         kwargs['plan_type'] = 'group' if group else 'personal'
         
         # Create plan
@@ -1481,21 +1440,16 @@ class PlanQuerySet(models.QuerySet):
 
 
 class Plan(BaseModel):
-    """
-    Model quản lý kế hoạch du lịch
-    Hỗ trợ cả Personal Plan (group=null) và Group Plan
-    """
-    
-    
+
     # Thông tin cơ bản của kế hoạch
     title = models.CharField(
         max_length=200,
-        help_text="Tiêu đề kế hoạch du lịch"
+        help_text="Title of the plan"
     )
     
     description = models.TextField(
         blank=True,
-        help_text="Mô tả chi tiết về kế hoạch"
+        help_text="Detailed description of the plan"
     )
     
     # Group có thể null cho personal plan
@@ -1505,7 +1459,7 @@ class Plan(BaseModel):
         related_name='plans',
         blank=True,
         null=True,  # Cho phép null cho personal plan
-        help_text="Nhóm sở hữu kế hoạch này (null nếu là personal plan)"
+        help_text="Group associated with the plan (null for personal plans)"
     )
     
     # Người tạo/sở hữu kế hoạch
@@ -1513,7 +1467,7 @@ class Plan(BaseModel):
         User,
         on_delete=models.CASCADE,
         related_name='created_plans',
-        help_text="Người tạo/sở hữu kế hoạch"
+        help_text="Creator/owner of the plan"
     )
     
     # Loại kế hoạch
@@ -1527,16 +1481,16 @@ class Plan(BaseModel):
         choices=PLAN_TYPES,
         default='personal',
         db_index=True,
-        help_text="Loại kế hoạch: cá nhân hoặc nhóm"
+        help_text="Type of plan: personal or group"
     )
     
     # Thời gian của chuyến đi
     start_date = models.DateTimeField(
-        help_text="Thời gian bắt đầu chuyến đi"
+        help_text="Start date of the trip"
     )
     
     end_date = models.DateTimeField(
-        help_text="Thời gian kết thúc chuyến đi"
+        help_text="End date of the trip"
     )
     
     # # Ngân sách dự kiến
@@ -1552,7 +1506,7 @@ class Plan(BaseModel):
     is_public = models.BooleanField(
         default=False,
         db_index=True,
-        help_text="Có thể xem công khai không"
+        help_text="Is the plan public?"
     )
     
     # Trạng thái kế hoạch
@@ -1568,12 +1522,24 @@ class Plan(BaseModel):
         choices=STATUS_CHOICES,
         default='upcoming',  # đồng bộ với STATUS_CHOICES hiện tại
         db_index=True,
-        help_text="Trạng thái kế hoạch"
+        help_text="Current status of the plan"
+    )
+
+    # Celery scheduled task ids for realtime scheduling (store broker task ids)
+    scheduled_start_task_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Celery task id scheduled to start this plan"
+    )
+
+    scheduled_end_task_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Celery task id scheduled to complete this plan"
     )
     
-    # Remove timestamps vì đã có trong BaseModel
-    
-    # Custom manager - use QuerySet.as_manager()
     objects = PlanQuerySet.as_manager()
 
     class Meta:
@@ -1581,13 +1547,9 @@ class Plan(BaseModel):
         
         indexes = [
             *BaseModel.Meta.indexes,
-            # Index cho personal plans
             models.Index(fields=['creator', 'plan_type', 'status']),
-            # Index cho group plans
             models.Index(fields=['group', 'status']),
-            # Index cho tìm kiếm theo thời gian
             models.Index(fields=['start_date', 'end_date']),
-            # Index cho public plans
             models.Index(fields=['is_public', 'plan_type', 'status']),
         ]
 
@@ -1596,53 +1558,59 @@ class Plan(BaseModel):
             return f"{self.title} (Personal - {self.creator.username})"
         return f"{self.title} ({self.group.name})"
 
-    def clean(self):
-        """Validation cho plan"""
-        
+    def clean(self):   
         # Validate date
         if self.start_date and self.end_date:
             if self.end_date <= self.start_date:
-                raise ValidationError("Ngày kết thúc phải sau ngày bắt đầu")
-        
+                raise ValidationError("End date must be after start date")
+
         # Validate plan type consistency
         if self.plan_type == 'personal' and self.group is not None:
-            raise ValidationError("Personal plan không thể có group")
-        
+            raise ValidationError("Personal plan cannot have a group")
+
         if self.plan_type == 'group' and self.group is None:
-            raise ValidationError("Group plan phải có group")
+            raise ValidationError("Group plan must have a group")
 
     def _auto_status(self):
-        """Chuẩn hoá & tự động cập nhật status dựa vào thời gian.
-
-        Chuyển trạng thái theo timeline nếu chưa bị cancelled/completed.
         """
+        Auto-update status based on current time - OPTIMIZED
+        Returns True if status was changed, False otherwise
+        """
+        if not (self.start_date and self.end_date):
+            return False
+            
         now = timezone.now()
-        if self.start_date and self.end_date:
-            if self.status == 'upcoming' and now >= self.start_date:
-                self.status = 'ongoing'
-            if self.status == 'ongoing' and now > self.end_date:
-                self.status = 'completed'
+        original_status = self.status
+        
+        # upcoming -> ongoing: when start_date is reached
+        if self.status == 'upcoming' and now >= self.start_date:
+            self.status = 'ongoing'
+            
+        # ongoing -> completed: when end_date is passed
+        elif self.status == 'ongoing' and now > self.end_date:
+            self.status = 'completed'
+        
+        return self.status != original_status
 
     def save(self, *args, **kwargs):
-        """Override save để auto-set plan_type & auto status"""
         self.plan_type = 'personal' if self.group is None else 'group'
-        self._auto_status()
+        status_changed = self._auto_status()
         self.clean()
         super().save(*args, **kwargs)
+        
+        # Log status change if needed (optional)
+        if status_changed:
+            pass  # Could add logging/notifications here
 
-    # Helper methods
     def is_personal(self):
-        """Check xem có phải personal plan không"""
         return self.plan_type == 'personal'
 
     def is_group_plan(self):
-        """Check xem có phải group plan không"""
         return self.plan_type == 'group'
 
 
     @property
     def collaborators(self):
-        """Lấy danh sách những người có thể xem/edit plan"""
         if self.is_personal():
             return [self.creator]
         elif self.is_group_plan() and self.group:
@@ -1659,16 +1627,12 @@ class Plan(BaseModel):
 
     @property
     def activities_count(self):
-        """Đếm số hoạt động trong kế hoạch - OPTIMIZED"""
-        # Use annotated value if available, fallback to count()
         if hasattr(self, 'activity_count_annotated'):
             return self.activity_count_annotated
         return self.activities.count()
 
     @property
     def total_estimated_cost(self):
-        """Tính tổng chi phí dự kiến từ các activities - OPTIMIZED"""
-        # Use annotated value if available, fallback to aggregation
         if hasattr(self, 'total_cost_annotated'):
             return self.total_cost_annotated or 0
         
@@ -1678,7 +1642,6 @@ class Plan(BaseModel):
         return result or 0
 
     def get_members(self):
-        """Trả về queryset các user tham gia kế hoạch - OPTIMIZED"""
         if self.is_personal():
             return User.objects.filter(id=self.creator_id).select_related()
         if self.group_id:
@@ -1686,19 +1649,7 @@ class Plan(BaseModel):
         return User.objects.none()
 
     def add_activity_with_place(self, title, start_time, end_time, place_id=None, **extra_data):
-        """
-        Add activity to plan with place lookup using Goong Map API - FAT MODEL
-        
-        Args:
-            title: Activity title
-            start_time: datetime object
-            end_time: datetime object  
-            place_id: Goong Map API place ID
-            **extra_data: Other activity fields
-        """
-        # Get place details if place_id provided
         if place_id:
-            from .services.goong_service import goong_service
             place_details = goong_service.get_place_details(place_id)
             if place_details:
                 extra_data.update({
@@ -1711,8 +1662,7 @@ class Plan(BaseModel):
         return self.add_activity(title, start_time, end_time, **extra_data)
 
     def notify_activity_added(self, updater):
-        """Notify plan members about new activity - FAT MODEL"""
-        from .services.notification_service import notification_service
+        notification_service = NotificationService()
         notification_service.notify_plan_update(
             plan_id=str(self.id),
             updater_name=updater.username,
@@ -1722,50 +1672,24 @@ class Plan(BaseModel):
 
     @transaction.atomic
     def add_activity(self, title, start_time, end_time, **kwargs):
-        """
-        Thêm hoạt động vào kế hoạch với conflict detection
-        
-        Args:
-            title: Tên hoạt động
-            start_time: Thời gian bắt đầu
-            end_time: Thời gian kết thúc
-            **kwargs: Các field khác của PlanActivity
-            
-        Raises:
-            ValueError: Nếu thời gian không hợp lệ hoặc conflict
-            Plan.DoesNotExist: Nếu plan bị xóa
-        """
-        # Lock plan để tránh concurrent modifications
         plan = Plan.objects.select_for_update().get(pk=self.pk)
         
         # Validate plan vẫn tồn tại và editable
         if plan.status in ['cancelled', 'completed']:
-            raise ValueError(f"Không thể thêm activity vào plan đã {plan.get_status_display().lower()}")
+            raise ValueError(f"Cannot add activity to plan {plan.get_status_display().lower()}")
         
         # Validate thời gian nằm trong khoảng của plan
         if start_time.date() < plan.start_date.date() or end_time.date() > plan.end_date.date():
-            raise ValueError("Hoạt động phải nằm trong thời gian của kế hoạch")
-        
+            raise ValueError("Activity must be within the plan's duration")
+
         # Check time conflicts với activities hiện tại
         conflicting_activity = plan.check_activity_overlap(start_time, end_time)
         if conflicting_activity:
             raise ValueError(
-                f"Xung đột thời gian với activity '{conflicting_activity.title}' "
+                f"Time conflict with activity '{conflicting_activity.title}' "
                 f"({conflicting_activity.start_time} - {conflicting_activity.end_time})"
             )
         
-        # Auto-assign order nếu chưa có
-        if 'order' not in kwargs:
-            # Get max order cho ngày này, atomic increment
-            same_date_activities = plan.activities.filter(
-                start_time__date=start_time.date()
-            )
-            max_order = same_date_activities.aggregate(
-                max_order=models.Max('order')
-            )['max_order'] or 0
-            kwargs['order'] = max_order + 1
-        
-        # Tạo activity
         activity = PlanActivity.objects.create(
             plan=plan,
             title=title,
@@ -1774,14 +1698,12 @@ class Plan(BaseModel):
             **kwargs
         )
         
-        # Update plan updated_at để invalidate cache/notify clients
         plan.save(update_fields=['updated_at'])
         
         return activity
 
     @property
     def activities_by_date(self):
-        """Lấy activities nhóm theo ngày - Dictionary - OPTIMIZED"""
         activities = self.activities.order_by('start_time').select_related()
         result = defaultdict(list)
         
@@ -1792,23 +1714,11 @@ class Plan(BaseModel):
         return dict(result)
 
     def get_activities_by_date(self, date):
-        """Lấy các hoạt động trong ngày cụ thể"""
         return self.activities.filter(
             start_time__date=date
         ).order_by('start_time')
 
     def check_activity_overlap(self, start_time, end_time, exclude_id=None):
-        """
-        Check and return overlapping activity - FAT MODEL
-        
-        Args:
-            start_time: Thời gian bắt đầu
-            end_time: Thời gian kết thúc  
-            exclude_id: Loại trừ activity ID này (khi update)
-            
-        Returns:
-            PlanActivity object if overlap found, None otherwise
-        """
         queryset = self.activities.filter(
             start_time__lt=end_time,
             end_time__gt=start_time
@@ -1817,20 +1727,12 @@ class Plan(BaseModel):
         if exclude_id:
             queryset = queryset.exclude(id=exclude_id)
             
-        return queryset.first()  # Return first overlapping activity
+        return queryset.first()
 
     def has_time_conflict(self, start_time, end_time, exclude_activity=None):
-        """
-        Check xem có xung đột thời gian với activities khác không
-        
-        Args:
-            start_time: Thời gian bắt đầu
-            end_time: Thời gian kết thúc  
-            exclude_activity: Loại trừ activity này (khi update)
-        """
         queryset = self.activities.filter(
-            start_time__lt=end_time, #less than để tạo truy vấn <
-            end_time__gt=start_time #greater than để tạo truy vấn >
+            start_time__lt=end_time,
+            end_time__gt=start_time 
         )
         
         if exclude_activity:
@@ -1840,103 +1742,230 @@ class Plan(BaseModel):
 
 
     @transaction.atomic
-    def start_trip(self, user=None):
-        """
-        Bắt đầu chuyến đi với conflict detection
-        
-        Args:
-            user: User thực hiện action (để log/permission check)
-            
-        Returns:
-            bool: True nếu thành công, False nếu không thể start
-            
-        Raises:
-            ValueError: Nếu plan không thể start (wrong status, conflicts)
-        """
-        # Lock plan để tránh concurrent status changes
+    def start_trip(self, user=None, force=False):
         plan = Plan.objects.select_for_update().get(pk=self.pk)
         
-        # Validate current status
         if plan.status != 'upcoming':
-            raise ValueError(f"Không thể bắt đầu chuyến đi từ trạng thái '{plan.get_status_display()}'")
-        
-        # Business validation
+            raise ValueError(f"Cannot start trip from status '{plan.get_status_display()}'")
+
         if not plan.activities.exists():
-            raise ValueError("Không thể bắt đầu chuyến đi không có hoạt động nào")
-        
-        # Check date validity (optional - could be auto-status logic)
+            raise ValueError("Cannot start trip without any activities")
+
         now = timezone.now()
-        if plan.start_date > now:
-            raise ValueError("Chưa đến thời gian bắt đầu chuyến đi")
-        
-        # Update status atomically
+        if not force and plan.start_date > now:
+            raise ValueError("It's not time to start the trip yet")
+
+        if user and plan.is_group_plan():
+            if not plan.group.is_admin(user):
+                raise ValueError("Only group admins can start group trips")
+
         updated_count = Plan.objects.filter(
             pk=plan.pk,
-            status='upcoming'  # Double-check trước khi update
+            status='upcoming' 
         ).update(
             status='ongoing',
-            updated_at=timezone.now()
+            updated_at=now
         )
         
         if updated_count == 0:
-            raise ValueError("Plan đã bị thay đổi bởi user khác")
+            raise ValueError("Plan status was changed by another user")
         
-        # Refresh instance
         self.refresh_from_db()
-        return True
+        return self
+
+    def revoke_scheduled_tasks(self):
+        """Revoke stored scheduled Celery tasks (if any). Safe to call multiple times."""
+        try:
+            from celery import current_app
+        except Exception:
+            return
+
+        for task_id in (self.scheduled_start_task_id, self.scheduled_end_task_id):
+            if not task_id:
+                continue
+            try:
+                current_app.control.revoke(task_id, terminate=False)
+            except Exception:
+                # best-effort revoke; ignore failures
+                pass
+
+        # Clear stored ids
+        Plan.objects.filter(pk=self.pk).update(
+            scheduled_start_task_id=None,
+            scheduled_end_task_id=None
+        )
+
+    def schedule_celery_tasks(self):
+        """Schedule start and end tasks via Celery apply_async with ETA and store task ids.
+        This is best-effort: if Celery isn't configured, it silently no-ops.
+        """
+        try:
+            from .tasks import start_plan_task, complete_plan_task
+            from celery import current_app
+        except Exception:
+            return
+
+        now = timezone.now()
+        start_task_id = None
+        end_task_id = None
+
+        # Revoke existing first
+        self.revoke_scheduled_tasks()
+
+        if self.start_date and self.start_date > now:
+            res = start_plan_task.apply_async(args=[str(self.pk)], eta=self.start_date)
+            start_task_id = res.id
+
+        if self.end_date and self.end_date > now:
+            res = complete_plan_task.apply_async(args=[str(self.pk)], eta=self.end_date)
+            end_task_id = res.id
+
+        # Persist ids
+        Plan.objects.filter(pk=self.pk).update(
+            scheduled_start_task_id=start_task_id,
+            scheduled_end_task_id=end_task_id
+        )
 
     @transaction.atomic
-    def complete_trip(self, user=None):
+    def complete_trip(self, user=None, force=False):
         """
-        Hoàn thành chuyến đi với validation
+        Complete trip manually or validate automatic transition
+        
+        Args:
+            user: User performing the action  
+            force: Skip time validation
+            
+        Returns:
+            Plan: The updated plan instance
         """
         plan = Plan.objects.select_for_update().get(pk=self.pk)
         
         if plan.status != 'ongoing':
-            raise ValueError(f"Không thể hoàn thành từ trạng thái '{plan.get_status_display()}'")
+            raise ValueError(f"Cannot complete trip from status '{plan.get_status_display()}'")
         
+        # Time validation (optional)
+        now = timezone.now()
+        if not force and plan.end_date > now:
+            # Allow early completion but log it
+            pass  # Could add warning log here
+            
+        # Permission check for group plans
+        if user and plan.is_group_plan():
+            if not plan.group.is_admin(user):
+                raise ValueError("Only group admins can complete group trips")
+        
+        # Atomic update
         updated_count = Plan.objects.filter(
             pk=plan.pk,
             status='ongoing'
         ).update(
             status='completed',
-            updated_at=timezone.now()
+            updated_at=now
         )
         
         if updated_count == 0:
-            raise ValueError("Plan đã bị thay đổi bởi user khác")
+            raise ValueError("Plan status was changed by another user")
         
         self.refresh_from_db()
-        return True
+        return self
     
     @transaction.atomic
     def cancel_trip(self, user=None, reason=None):
         """
-        Hủy chuyến đi với validation và cleanup
+        Cancel trip with proper validation and cleanup
+        
+        Args:
+            user: User performing the action
+            reason: Optional cancellation reason
+            
+        Returns:
+            Plan: The updated plan instance
         """
         plan = Plan.objects.select_for_update().get(pk=self.pk)
         
+        # Validate current status
         if plan.status in ['cancelled', 'completed']:
-            raise ValueError(f"Không thể hủy plan đã {plan.get_status_display().lower()}")
+            raise ValueError(f"Cannot cancel plan that is already {plan.get_status_display().lower()}")
         
-        # Permission check (nếu cần)
+        # Permission check for group plans
         if user and plan.is_group_plan():
             if not plan.group.is_admin(user):
-                raise ValueError("Chỉ admin mới có thể hủy group plan")
+                raise ValueError("Only group admins can cancel group plans")
         
+        # Atomic update
+        now = timezone.now()
         updated_count = Plan.objects.filter(
             pk=plan.pk,
             status__in=['upcoming', 'ongoing']
         ).update(
             status='cancelled',
-            updated_at=timezone.now()
+            updated_at=now
         )
         
         if updated_count == 0:
-            raise ValueError("Plan đã bị thay đổi bởi user khác")
+            raise ValueError("Plan status was changed by another user")
+        
+        # TODO: Add cancellation reason logging if needed
+        # if reason:
+        #     PlanCancellation.objects.create(plan=plan, reason=reason, cancelled_by=user)
         
         self.refresh_from_db()
-        return True
+        return self
+
+    @property
+    def needs_status_update(self):
+        """Check if this plan needs automatic status update"""
+        if not (self.start_date and self.end_date):
+            return False
+            
+        now = timezone.now()
+        return (
+            (self.status == 'upcoming' and now >= self.start_date) or
+            (self.status == 'ongoing' and now > self.end_date)
+        )
+    
+    @property 
+    def expected_status(self):
+        """Get the expected status based on current time"""
+        if not (self.start_date and self.end_date):
+            return self.status
+            
+        now = timezone.now()
+        if now < self.start_date:
+            return 'upcoming'
+        elif now <= self.end_date:
+            return 'ongoing'
+        else:
+            return 'completed'
+    
+    def refresh_status(self):
+        """
+        Force refresh status based on current time
+        Returns True if status was updated, False otherwise
+        """
+        if not self.needs_status_update:
+            return False
+            
+        old_status = self.status
+        self._auto_status()
+        
+        if self.status != old_status:
+            self.save(update_fields=['status', 'updated_at'])
+            return True
+        return False
+    
+    @classmethod
+    def update_all_statuses(cls):
+        """
+        Class method to update all plan statuses - for management command
+        Returns update statistics
+        """
+        return cls.objects.update_statuses_bulk()
+    
+    @classmethod
+    def get_plans_needing_updates(cls):
+        """Get all plans that need status updates"""
+        return cls.objects.needs_status_update()
 
     @transaction.atomic
     def reorder_activities(self, activity_id_order_pairs, date=None):
@@ -2214,7 +2243,7 @@ class PlanActivity(BaseModel):
 
     class Meta:
         db_table = 'planpal_plan_activities'
-        ordering = ['start_time', 'order']
+        ordering = ['start_time']  # Đơn giản, chỉ theo thời gian
         
         indexes = [
             *BaseModel.Meta.indexes,
@@ -2222,8 +2251,6 @@ class PlanActivity(BaseModel):
             models.Index(fields=['plan', 'start_time']),
             # Index cho query theo loại hoạt động
             models.Index(fields=['activity_type', 'start_time']),
-            # Index cho query theo ngày + order
-            models.Index(fields=['plan', 'start_time', 'order']),
             # Index cho time conflict detection
             models.Index(fields=['plan', 'start_time', 'end_time']),
         ]
@@ -2405,6 +2432,32 @@ class Conversation(BaseModel):
         related_name='conversations',
         help_text="Người tham gia (cho chat 1-1: 2 users, group: auto sync từ group members)"
     )
+
+
+# --- Post-save hook for Plan scheduling (imported lazily to avoid startup cycles)
+try:
+    from django.db.models.signals import post_save
+    from django.dispatch import receiver
+
+    @receiver(post_save, sender=Plan)
+    def _plan_post_save_schedule(sender, instance, created, **kwargs):
+        """Schedule/re-schedule Celery tasks for plan start/end on save.
+        This is best-effort: if Celery isn't available, it silently no-ops.
+        """
+        try:
+            # Only schedule if plan has valid datetimes and isn't cancelled/completed
+            if instance.status in ['cancelled', 'completed']:
+                # Revoke any previously scheduled tasks
+                instance.revoke_scheduled_tasks()
+                return
+
+            instance.schedule_celery_tasks()
+        except Exception:
+            # Avoid breaking save if scheduling fails
+            pass
+except Exception:
+    # If signals aren't available at import time, skip wiring
+    pass
     
     # Conversation metadata
     name = models.CharField(

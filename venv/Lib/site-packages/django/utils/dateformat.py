@@ -3,16 +3,15 @@ PHP date() style date formatting
 See https://www.php.net/date for format strings
 
 Usage:
->>> from datetime import datetime
->>> d = datetime.now()
+>>> import datetime
+>>> d = datetime.datetime.now()
 >>> df = DateFormat(d)
 >>> print(df.format('jS F Y H:i'))
 7th October 2003 11:39
 >>>
 """
-
 import calendar
-from datetime import date, datetime, time
+import datetime
 from email.utils import format_datetime as format_datetime_rfc5322
 
 from django.utils.dates import (
@@ -41,7 +40,7 @@ class Formatter:
         pieces = []
         for i, piece in enumerate(re_formatchars.split(str(formatstr))):
             if i % 2:
-                if type(self.data) is date and hasattr(TimeFormat, piece):
+                if type(self.data) is datetime.date and hasattr(TimeFormat, piece):
                     raise TypeError(
                         "The format for date objects may not contain "
                         "time-related format specifiers (found '%s')." % piece
@@ -57,16 +56,20 @@ class TimeFormat(Formatter):
         self.data = obj
         self.timezone = None
 
-        if isinstance(obj, datetime):
-            # Timezone is only supported when formatting datetime objects, not
-            # date objects (timezone information not appropriate), or time
-            # objects (against established django policy).
+        # We only support timezone when formatting datetime objects,
+        # not date objects (timezone information not appropriate),
+        # or time objects (against established django policy).
+        if isinstance(obj, datetime.datetime):
             if is_naive(obj):
-                timezone = get_default_timezone()
+                self.timezone = get_default_timezone()
             else:
-                timezone = obj.tzinfo
-            if not _datetime_ambiguous_or_imaginary(obj, timezone):
-                self.timezone = timezone
+                self.timezone = obj.tzinfo
+
+    @property
+    def _no_timezone_or_datetime_is_ambiguous_or_imaginary(self):
+        return not self.timezone or _datetime_ambiguous_or_imaginary(
+            self.data, self.timezone
+        )
 
     def a(self):
         "'a.m.' or 'p.m.'"
@@ -90,7 +93,7 @@ class TimeFormat(Formatter):
             return ""
 
         try:
-            if getattr(self.data, "tzinfo", None):
+            if hasattr(self.data, "tzinfo") and self.data.tzinfo:
                 return self.data.tzname() or ""
         except NotImplementedError:
             pass
@@ -133,11 +136,10 @@ class TimeFormat(Formatter):
 
         If timezone information is not available, return an empty string.
         """
-        if self.timezone is None:
+        if self._no_timezone_or_datetime_is_ambiguous_or_imaginary:
             return ""
 
-        offset = self.timezone.utcoffset(self.data)
-        seconds = offset.days * 86400 + offset.seconds
+        seconds = self.Z()
         sign = "-" if seconds < 0 else "+"
         seconds = abs(seconds)
         return "%s%02d%02d" % (sign, seconds // 3600, (seconds // 60) % 60)
@@ -165,7 +167,7 @@ class TimeFormat(Formatter):
 
         If timezone information is not available, return an empty string.
         """
-        if self.timezone is None:
+        if self._no_timezone_or_datetime_is_ambiguous_or_imaginary:
             return ""
 
         return str(self.timezone.tzname(self.data))
@@ -182,7 +184,7 @@ class TimeFormat(Formatter):
 
         If timezone information is not available, return an empty string.
         """
-        if self.timezone is None:
+        if self._no_timezone_or_datetime_is_ambiguous_or_imaginary:
             return ""
 
         offset = self.timezone.utcoffset(self.data)
@@ -224,7 +226,7 @@ class DateFormat(TimeFormat):
 
     def I(self):  # NOQA: E743, E741
         "'1' if daylight saving time, '0' otherwise."
-        if self.timezone is None:
+        if self._no_timezone_or_datetime_is_ambiguous_or_imaginary:
             return ""
         return "1" if self.timezone.dst(self.data) else "0"
 
@@ -258,18 +260,20 @@ class DateFormat(TimeFormat):
 
     def o(self):
         "ISO 8601 year number matching the ISO week number (W)"
-        return self.data.isocalendar().year
+        return self.data.isocalendar()[0]
 
     def r(self):
         "RFC 5322 formatted date; e.g. 'Thu, 21 Dec 2000 16:01:07 +0200'"
-        value = self.data
-        if not isinstance(value, datetime):
-            # Assume midnight in default timezone if datetime.date provided.
-            default_timezone = get_default_timezone()
-            value = datetime.combine(value, time.min).replace(tzinfo=default_timezone)
-        elif is_naive(value):
-            value = make_aware(value, timezone=self.timezone)
-        return format_datetime_rfc5322(value)
+        if type(self.data) is datetime.date:
+            raise TypeError(
+                "The format for date objects may not contain time-related "
+                "format specifiers (found 'r')."
+            )
+        if is_naive(self.data):
+            dt = make_aware(self.data, timezone=self.timezone)
+        else:
+            dt = self.data
+        return format_datetime_rfc5322(dt)
 
     def S(self):
         """
@@ -289,13 +293,13 @@ class DateFormat(TimeFormat):
 
     def t(self):
         "Number of days in the given month; i.e. '28' to '31'"
-        return calendar.monthrange(self.data.year, self.data.month)[1]
+        return "%02d" % calendar.monthrange(self.data.year, self.data.month)[1]
 
     def U(self):
         "Seconds since the Unix epoch (January 1 1970 00:00:00 GMT)"
         value = self.data
-        if not isinstance(value, datetime):
-            value = datetime.combine(value, time.min)
+        if not isinstance(value, datetime.datetime):
+            value = datetime.datetime.combine(value, datetime.time.min)
         return int(value.timestamp())
 
     def w(self):
@@ -304,7 +308,7 @@ class DateFormat(TimeFormat):
 
     def W(self):
         "ISO-8601 week number of year, weeks starting on Monday"
-        return self.data.isocalendar().week
+        return self.data.isocalendar()[1]
 
     def y(self):
         """Year, 2 digits with leading zeros; e.g. '99'."""

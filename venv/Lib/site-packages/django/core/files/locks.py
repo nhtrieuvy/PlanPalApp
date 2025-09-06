@@ -16,7 +16,6 @@ Example Usage::
     ...     locks.lock(f, locks.LOCK_EX)
     ...     f.write('Django')
 """
-
 import os
 
 __all__ = ("LOCK_EX", "LOCK_SH", "LOCK_NB", "lock", "unlock")
@@ -33,12 +32,12 @@ if os.name == "nt":
         POINTER,
         Structure,
         Union,
-        WinDLL,
         byref,
         c_int64,
         c_ulong,
         c_void_p,
         sizeof,
+        windll,
     )
     from ctypes.wintypes import BOOL, DWORD, HANDLE
 
@@ -74,11 +73,10 @@ if os.name == "nt":
     LPOVERLAPPED = POINTER(OVERLAPPED)
 
     # --- Define function prototypes for extra safety ---
-    kernel32 = WinDLL("kernel32")
-    LockFileEx = kernel32.LockFileEx
+    LockFileEx = windll.kernel32.LockFileEx
     LockFileEx.restype = BOOL
     LockFileEx.argtypes = [HANDLE, DWORD, DWORD, DWORD, DWORD, LPOVERLAPPED]
-    UnlockFileEx = kernel32.UnlockFileEx
+    UnlockFileEx = windll.kernel32.UnlockFileEx
     UnlockFileEx.restype = BOOL
     UnlockFileEx.argtypes = [HANDLE, DWORD, DWORD, DWORD, LPOVERLAPPED]
 

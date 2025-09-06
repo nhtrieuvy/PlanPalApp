@@ -5,21 +5,18 @@ from MySQLdb.constants import FIELD_TYPE
 
 from django.db.backends.base.introspection import BaseDatabaseIntrospection
 from django.db.backends.base.introspection import FieldInfo as BaseFieldInfo
-from django.db.backends.base.introspection import TableInfo as BaseTableInfo
+from django.db.backends.base.introspection import TableInfo
 from django.db.models import Index
 from django.utils.datastructures import OrderedSet
 
 FieldInfo = namedtuple(
-    "FieldInfo",
-    BaseFieldInfo._fields
-    + ("extra", "is_unsigned", "has_json_constraint", "comment", "data_type"),
+    "FieldInfo", BaseFieldInfo._fields + ("extra", "is_unsigned", "has_json_constraint")
 )
 InfoLine = namedtuple(
     "InfoLine",
     "col_name data_type max_len num_prec num_scale extra column_default "
-    "collation is_unsigned comment",
+    "collation is_unsigned",
 )
-TableInfo = namedtuple("TableInfo", BaseTableInfo._fields + ("comment",))
 
 
 class DatabaseIntrospection(BaseDatabaseIntrospection):
@@ -63,8 +60,6 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
                 return "PositiveIntegerField"
             elif field_type == "SmallIntegerField":
                 return "PositiveSmallIntegerField"
-        if description.data_type.upper() == "UUID":
-            return "UUIDField"
         # JSON data type is an alias for LONGTEXT in MariaDB, use check
         # constraints clauses to introspect JSONField.
         if description.has_json_constraint:
@@ -73,18 +68,9 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
 
     def get_table_list(self, cursor):
         """Return a list of table and view names in the current database."""
-        cursor.execute(
-            """
-            SELECT
-                table_name,
-                table_type,
-                table_comment
-            FROM information_schema.tables
-            WHERE table_schema = DATABASE()
-            """
-        )
+        cursor.execute("SHOW FULL TABLES")
         return [
-            TableInfo(row[0], {"BASE TABLE": "t", "VIEW": "v"}.get(row[1]), row[2])
+            TableInfo(row[0], {"BASE TABLE": "t", "VIEW": "v"}.get(row[1]))
             for row in cursor.fetchall()
         ]
 
@@ -142,8 +128,7 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
                 CASE
                     WHEN column_type LIKE '%% unsigned' THEN 1
                     ELSE 0
-                END AS is_unsigned,
-                column_comment
+                END AS is_unsigned
             FROM information_schema.columns
             WHERE table_name = %s AND table_schema = DATABASE()
             """,
@@ -163,8 +148,7 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             info = field_info[line[0]]
             fields.append(
                 FieldInfo(
-                    *line[:2],
-                    to_int(info.max_len) or line[2],
+                    *line[:3],
                     to_int(info.max_len) or line[3],
                     to_int(info.num_prec) or line[4],
                     to_int(info.num_scale) or line[5],
@@ -174,8 +158,6 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
                     info.extra,
                     info.is_unsigned,
                     line[0] in json_constraints,
-                    info.comment,
-                    info.data_type,
                 )
             )
         return fields
@@ -198,7 +180,6 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             FROM information_schema.key_column_usage
             WHERE table_name = %s
                 AND table_schema = DATABASE()
-                AND referenced_table_schema = DATABASE()
                 AND referenced_table_name IS NOT NULL
                 AND referenced_column_name IS NOT NULL
             """,
@@ -258,10 +239,6 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
                 information_schema.table_constraints AS c
             WHERE
                 kc.table_schema = DATABASE() AND
-                (
-                    kc.referenced_table_schema = DATABASE() OR
-                    kc.referenced_table_schema IS NULL
-                ) AND
                 c.table_schema = kc.table_schema AND
                 c.constraint_name = kc.constraint_name AND
                 c.constraint_type != 'CHECK' AND

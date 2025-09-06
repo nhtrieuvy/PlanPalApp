@@ -47,11 +47,9 @@ class ATan2(NumericOutputFieldMixin, Func):
         clone = self.copy()
         clone.set_source_expressions(
             [
-                (
-                    Cast(expression, FloatField())
-                    if isinstance(expression.output_field, IntegerField)
-                    else expression
-                )
+                Cast(expression, FloatField())
+                if isinstance(expression.output_field, IntegerField)
+                else expression
                 for expression in self.get_source_expressions()[::-1]
             ]
         )
@@ -171,7 +169,7 @@ class Random(NumericOutputFieldMixin, Func):
     def as_sqlite(self, compiler, connection, **extra_context):
         return super().as_sql(compiler, connection, function="RAND", **extra_context)
 
-    def get_group_by_cols(self):
+    def get_group_by_cols(self, alias=None):
         return []
 
 
