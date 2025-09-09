@@ -166,9 +166,6 @@ class DatabaseOperations(BaseDatabaseOperations):
         """
         return [(None, ("NULL", [], False))]
 
-    def adapt_decimalfield_value(self, value, max_digits=None, decimal_places=None):
-        return value
-
     def last_executed_query(self, cursor, sql, params):
         # With MySQLdb, cursor objects have an (undocumented) "_executed"
         # attribute where the exact query sent to the database is saved.
@@ -186,8 +183,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         return "`%s`" % name
 
     def return_insert_columns(self, fields):
-        # MySQL and MariaDB < 10.5.0 don't support an INSERT...RETURNING
-        # statement.
+        # MySQL doesn't support an INSERT...RETURNING statement.
         if not fields:
             return "", ()
         columns = [
@@ -291,11 +287,6 @@ class DatabaseOperations(BaseDatabaseOperations):
     def pk_default_value(self):
         return "NULL"
 
-    def bulk_insert_sql(self, fields, placeholder_rows):
-        placeholder_rows_sql = (", ".join(row) for row in placeholder_rows)
-        values_sql = ", ".join("(%s)" % sql for sql in placeholder_rows_sql)
-        return "VALUES " + values_sql
-
     def combine_expression(self, connector, sub_expressions):
         if connector == "^":
             return "POW(%s)" % ",".join(sub_expressions)
@@ -389,12 +380,8 @@ class DatabaseOperations(BaseDatabaseOperations):
         return prefix
 
     def regex_lookup(self, lookup_type):
-        # REGEXP BINARY doesn't work correctly in MySQL 8+ and REGEXP_LIKE
-        # doesn't exist in MySQL 5.x or in MariaDB.
-        if (
-            self.connection.mysql_version < (8, 0, 0)
-            or self.connection.mysql_is_mariadb
-        ):
+        # REGEXP_LIKE doesn't exist in MariaDB.
+        if self.connection.mysql_is_mariadb:
             if lookup_type == "regex":
                 return "%s REGEXP BINARY %s"
             return "%s REGEXP %s"
@@ -440,7 +427,6 @@ class DatabaseOperations(BaseDatabaseOperations):
     def on_conflict_suffix_sql(self, fields, on_conflict, update_fields, unique_fields):
         if on_conflict == OnConflict.UPDATE:
             conflict_suffix_sql = "ON DUPLICATE KEY UPDATE %(fields)s"
-            field_sql = "%(field)s = VALUES(%(field)s)"
             # The use of VALUES() is deprecated in MySQL 8.0.20+. Instead, use
             # aliases for the new row and its columns available in MySQL
             # 8.0.19+.
@@ -448,8 +434,10 @@ class DatabaseOperations(BaseDatabaseOperations):
                 if self.connection.mysql_version >= (8, 0, 19):
                     conflict_suffix_sql = f"AS new {conflict_suffix_sql}"
                     field_sql = "%(field)s = new.%(field)s"
-            # VALUES() was renamed to VALUE() in MariaDB 10.3.3+.
-            elif self.connection.mysql_version >= (10, 3, 3):
+                else:
+                    field_sql = "%(field)s = VALUES(%(field)s)"
+            # Use VALUE() on MariaDB.
+            else:
                 field_sql = "%(field)s = VALUE(%(field)s)"
 
             fields = ", ".join(

@@ -25,9 +25,11 @@ def format(
         module in locale.localeconv() LC_NUMERIC grouping (e.g. (3, 2, 0)).
     * thousand_sep: Thousand separator symbol (for example ",")
     """
-    use_grouping = (
-        use_l10n or (use_l10n is None and settings.USE_L10N)
-    ) and settings.USE_THOUSAND_SEPARATOR
+    if number is None or number == "":
+        return mark_safe(number)
+    if use_l10n is None:
+        use_l10n = True
+    use_grouping = use_l10n and settings.USE_THOUSAND_SEPARATOR
     use_grouping = use_grouping or force_grouping
     use_grouping = use_grouping and grouping != 0
     # Make the common case fast
@@ -78,7 +80,7 @@ def format(
     else:
         int_part, dec_part = str_number, ""
     if decimal_pos is not None:
-        dec_part = dec_part + ("0" * (decimal_pos - len(dec_part)))
+        dec_part += "0" * (decimal_pos - len(dec_part))
     dec_part = dec_part and decimal_sep + dec_part
     # grouping
     if use_grouping:

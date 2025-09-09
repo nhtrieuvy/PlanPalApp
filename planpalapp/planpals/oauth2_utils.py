@@ -9,13 +9,10 @@ User = get_user_model()
 
 
 class OAuth2TokenManager:
-    """
-    Centralized OAuth2 token management utility
-    """
+
     
     @staticmethod
     def get_or_create_application():
-        """Get or create OAuth2 application"""
         app, _ = Application.objects.get_or_create(
             name="PlanPalApp",
             defaults={
@@ -30,7 +27,6 @@ class OAuth2TokenManager:
 
     @staticmethod
     def revoke_user_tokens(user):
-        """Revoke all tokens for a user (logout from all devices)"""
         if not user:
             return False
         
@@ -48,7 +44,6 @@ class OAuth2TokenManager:
     
     @staticmethod
     def cleanup_expired_tokens():
-        """Clean up expired access tokens (Refresh tokens managed by DOT)."""
         now = timezone.now()
         
         expired_access_tokens = AccessToken.objects.filter(expires__lt=now).count()

@@ -42,6 +42,7 @@ ALLOWED_HOSTS = ['10.0.2.2', 'localhost', '127.0.0.1']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',  # ASGI server for Channels - must be first
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -57,6 +58,7 @@ INSTALLED_APPS = [
     'oauth2_provider',
     'ckeditor',
     'ckeditor_uploader',
+    'channels',  # Django Channels for WebSocket
     
     'planpals',
 ]
@@ -358,4 +360,21 @@ CELERY_RESULT_BACKEND = CELERY_REDIS_URL
 CELERY_TASK_ROUTES = {
     'planpals.tasks.start_plan_task': {'queue': 'plan_status'},
     'planpals.tasks.complete_plan_task': {'queue': 'plan_status'},
+}
+
+# ============================================================================
+# DJANGO CHANNELS SETTINGS (WebSocket Support)
+# ============================================================================
+ASGI_APPLICATION = 'planpalapp.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [CELERY_REDIS_URL],
+            'capacity': 1500,  # Maximum number of messages in queue
+            'expiry': 60,      # Message expiry time in seconds
+            'symmetric_encryption_keys': [SECRET_KEY],  # For message encryption
+        },
+    },
 }

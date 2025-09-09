@@ -390,11 +390,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='friendship',
-            constraint=models.CheckConstraint(check=models.Q(('user_a__isnull', False), ('user_b__isnull', False)), name='both_users_must_exist'),
+            constraint=models.CheckConstraint(condition=models.Q(('user_a__isnull', False), ('user_b__isnull', False)), name='both_users_must_exist'),
         ),
         migrations.AddConstraint(
             model_name='friendship',
-            constraint=models.CheckConstraint(check=models.Q(('user_a', models.F('user_b')), _negated=True), name='no_self_friendship'),
+            constraint=models.CheckConstraint(condition=models.Q(('user_a', models.F('user_b')), _negated=True), name='no_self_friendship'),
         ),
         migrations.AddIndex(
             model_name='conversation',

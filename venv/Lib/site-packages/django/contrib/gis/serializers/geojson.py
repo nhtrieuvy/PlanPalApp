@@ -13,6 +13,7 @@ class Serializer(JSONSerializer):
     def _init_options(self):
         super()._init_options()
         self.geometry_field = self.json_kwargs.pop("geometry_field", None)
+        self.id_field = self.json_kwargs.pop("id_field", None)
         self.srid = self.json_kwargs.pop("srid", 4326)
         if (
             self.selected_fields is not None
@@ -24,11 +25,7 @@ class Serializer(JSONSerializer):
     def start_serialization(self):
         self._init_options()
         self._cts = {}  # cache of CoordTransform's
-        self.stream.write(
-            '{"type": "FeatureCollection", '
-            '"crs": {"type": "name", "properties": {"name": "EPSG:%d"}},'
-            ' "features": [' % self.srid
-        )
+        self.stream.write('{"type": "FeatureCollection", "features": [')
 
     def end_serialization(self):
         self.stream.write("]}")
@@ -46,6 +43,7 @@ class Serializer(JSONSerializer):
     def get_dump_object(self, obj):
         data = {
             "type": "Feature",
+            "id": obj.pk if self.id_field is None else getattr(obj, self.id_field),
             "properties": self._current,
         }
         if (

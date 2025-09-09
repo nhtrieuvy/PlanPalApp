@@ -1,9 +1,9 @@
-
+from typing import Dict, List, Optional, Any, Union, TYPE_CHECKING
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, get_user_model
 from django.utils import timezone
 from django.db import models, transaction
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.db.models import Prefetch
 from datetime import datetime
 
@@ -12,6 +12,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
+from rest_framework.request import Request
+
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
 
 from .models import (
     User, Group, Plan, Friendship, ChatMessage, PlanActivity, 
@@ -28,9 +32,13 @@ from .permissions import (
     ChatMessagePermission, FriendshipPermission, UserProfilePermission,
     IsGroupMember, IsGroupAdmin, PlanActivityPermission, ConversationPermission
 )
-from .services import notification_service
-from .services.goong_service import goong_service
+
+from .services import UserService, GroupService, PlanService, ChatService
+from .integrations import GoongMapService, NotificationService
 from .oauth2_utils import OAuth2ResponseFormatter
+
+# Import services at the end to avoid circular imports
+# These will be imported lazily when needed
 
 from oauth2_provider.models import AccessToken, RefreshToken
 
@@ -48,7 +56,7 @@ class OAuth2LogoutView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         """Handle logout with token revocation and status update"""
         user = request.user
         token_string = getattr(request.auth, 'token', None) if hasattr(request.auth, 'token') else request.auth
@@ -56,7 +64,6 @@ class OAuth2LogoutView(APIView):
         
         try:
             if token_string:
-                # Use efficient query with select_for_update for atomicity
                 at_qs = AccessToken.objects.select_for_update().filter(
                     token=token_string, user=user
                 )
@@ -119,7 +126,7 @@ class UserViewSet(viewsets.GenericViewSet,
             id=self.request.user.id
         ).with_cached_counts()
     
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type:
         """Dynamic serializer selection"""
         if self.action == 'create':
             return UserCreateSerializer
@@ -127,7 +134,7 @@ class UserViewSet(viewsets.GenericViewSet,
             return UserSummarySerializer
         return UserSerializer
     
-    def list(self, request):
+    def list(self, request: Request) -> Response:
         """
         Optimized user profile endpoint
         Returns current user with all computed fields
@@ -176,7 +183,7 @@ class UserViewSet(viewsets.GenericViewSet,
         })
     
     @action(detail=False, methods=['get'])
-    def profile(self, request):
+    def profile(self, request: Request) -> Response:
         """
         Get current user profile with optimized counts
         Uses cached counts for better performance
@@ -187,7 +194,7 @@ class UserViewSet(viewsets.GenericViewSet,
         return Response(serializer.data)
     
     @action(detail=False, methods=['put', 'patch'])
-    def update_profile(self, request):
+    def update_profile(self, request: Request) -> Response:
         """
         Update current user profile
         Uses atomic transaction for data consistency
@@ -368,9 +375,10 @@ class UserViewSet(viewsets.GenericViewSet,
     @action(detail=True, methods=['delete'])
     def unfriend(self, request, pk=None):
         """
-        Unfriend/Remove friendship with enhanced security
-        Uses atomic transaction and model methods
+        Unfriend/Remove friendship - uses service layer
         """
+        from . import integrations as main_services
+        
         target_user = get_object_or_404(User, id=pk)
         current_user = request.user
         
@@ -378,24 +386,18 @@ class UserViewSet(viewsets.GenericViewSet,
             return Response({'error': 'Cannot unfriend yourself'}, 
                           status=status.HTTP_400_BAD_REQUEST)
         
-        from .models import Friendship
-        friendship = Friendship.objects.filter(
-            models.Q(user=current_user, friend=target_user) |
-            models.Q(user=target_user, friend=current_user),
-            status=Friendship.ACCEPTED
-        ).first()
+        success, message = UserService.unfriend_user(current_user, target_user)
         
-        if not friendship:
-            return Response({'error': 'Not friends'}, 
+        if not success:
+            return Response({'error': message}, 
                           status=status.HTTP_400_BAD_REQUEST)
         
-        friendship.unfriend()
-        return Response({'message': 'Unfriended successfully'})
+        return Response({'message': message})
     
     # OPTIMIZED API block user
     @action(detail=True, methods=['post'])
     def block(self, request, pk=None):
-        """Block user - SECURE"""
+        """Block user - uses service layer"""
         target_user = get_object_or_404(User, id=pk)
         current_user = request.user
         
@@ -403,16 +405,13 @@ class UserViewSet(viewsets.GenericViewSet,
             return Response({'error': 'Cannot block yourself'}, 
                           status=status.HTTP_400_BAD_REQUEST)
         
-        friendship, created = Friendship.objects.get_or_create(
-            user=current_user,
-            friend=target_user,
-            defaults={'status': Friendship.BLOCKED}
-        )
+        success, message = UserService.block_user(current_user, target_user)
         
-        if not created:
-            friendship.block()
+        if not success:
+            return Response({'error': message}, 
+                          status=status.HTTP_400_BAD_REQUEST)
         
-        return Response({'message': 'User blocked successfully'})
+        return Response({'message': message})
     
     # OPTIMIZED API unblock user
     @action(detail=True, methods=['delete'])
@@ -531,26 +530,25 @@ class GroupViewSet(viewsets.GenericViewSet,
             )
         
         try:
-            with transaction.atomic():
-                if invite_code:
-                    group = Group.objects.select_for_update().get(invite_code=invite_code)
-                else:
-                    group = Group.objects.select_for_update().get(
-                        id=group_id, 
-                        is_public=True
-                    )
-                
-                # Use model method for joining
-                success, message = group.add_member(request.user)
-                
-                if not success:
-                    return Response({'message': message})
-                
-                return Response({
-                    'message': message,
-                    'group': GroupSummarySerializer(group, context={'request': request}).data
-                })
-                
+            if invite_code:
+                group = Group.objects.get(invite_code=invite_code)
+            else:
+                group = Group.objects.get(
+                    id=group_id, 
+                    is_public=True
+                )
+            
+            # Use service layer for joining
+            success, message = GroupService.join_group_by_invite(group, request.user)
+            
+            if not success:
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({
+                'message': message,
+                'group': GroupSummarySerializer(group, context={'request': request}).data
+            })
+            
         except Group.DoesNotExist:
             return Response(
                 {'error': 'Group not found or not accessible'}, 
@@ -617,7 +615,7 @@ class GroupViewSet(viewsets.GenericViewSet,
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupAdmin])
     def add_member(self, request, pk=None):
-        """Admin adds friend to group - SECURE"""
+        """Admin adds friend to group - uses service layer"""
         group = self.get_object()
         user_id = request.data.get('user_id')
         
@@ -631,24 +629,12 @@ class GroupViewSet(viewsets.GenericViewSet,
             return Response({'error': 'User not found'}, 
                           status=status.HTTP_404_NOT_FOUND)
         
-        # Check if already member
-        if group.is_member(target_user):
-            return Response({'error': 'User is already a member'}, 
-                          status=status.HTTP_400_BAD_REQUEST)
+        # Use service layer for adding member
+        success, message = GroupService.add_member_to_group(group, target_user)
         
-        # Check if admin and target user are friends
-        from .models import Friendship
-        if not Friendship.are_friends(request.user, target_user):
-            return Response({'error': 'Can only add friends to group'}, 
+        if not success:
+            return Response({'error': message}, 
                           status=status.HTTP_400_BAD_REQUEST)
-        
-        # Add to group
-        from .models import GroupMembership
-        GroupMembership.objects.create(
-            group=group,
-            user=target_user,
-            role=GroupMembership.MEMBER
-        )
         
         return Response({
             'message': f'Added {target_user.username} to group successfully'
@@ -657,20 +643,21 @@ class GroupViewSet(viewsets.GenericViewSet,
     #API gửi tin nhắn đến nhóm
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupMember])
     def send_message(self, request, pk=None):
-        """Send message to group using model method"""
+        """Send message to group using service layer"""
         group = self.get_object()
         content = request.data.get('content')
         message_type = request.data.get('message_type', 'text')
         
         try:
-            message = group.send_message(
+            message = ChatService.send_message(
                 sender=request.user,
+                group=group,
                 content=content,
                 message_type=message_type
             )
             serializer = ChatMessageSerializer(message)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        except PermissionError as e:
+        except ValidationError as e:
             return Response(
                 {'error': str(e)}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -779,8 +766,8 @@ class PlanViewSet(viewsets.ModelViewSet):
             
             # Send notification asynchronously if service available
             try:
-                if hasattr(notification_service, 'notify_plan_created'):
-                    notification_service.notify_plan_created(
+                if hasattr(NotificationService, 'notify_plan_created'):
+                    NotificationService.notify_plan_created(
                         plan_id=str(plan.id),
                         creator_name=self.request.user.username,
                         group_id=str(plan.group.id) if plan.group else None
@@ -1036,20 +1023,20 @@ class PlanViewSet(viewsets.ModelViewSet):
         
         return Response(activity_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+    def _can_user_edit_plan(self, plan, user):
+        """Check if user can edit plan - delegates to service layer"""
+        from .integrations import plan_service
+        return plan_service.can_edit_plan(plan, user)
+    
     @action(detail=True, methods=['put', 'patch'], url_path='activities/(?P<activity_id>[^/.]+)')
     def update_activity(self, request, pk=None, activity_id=None):
-        """Update activity in plan - ADMIN ONLY for group plans"""
+        """Update activity in plan - uses service layer for permission checking"""
         plan = self.get_object()
         
-        # Check permissions
-        if plan.plan_type == 'group' and plan.group and not plan.group.is_admin(request.user):
+        # Check permissions using service layer
+        if not self._can_user_edit_plan(plan, request.user):
             return Response(
-                {'error': 'Only group admins can modify activities in group plans'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        elif plan.plan_type == 'personal' and plan.user != request.user:
-            return Response(
-                {'error': 'You can only modify activities in your own plans'}, 
+                {'error': 'You do not have permission to modify this plan'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -1079,18 +1066,13 @@ class PlanViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['delete'], url_path='activities/(?P<activity_id>[^/.]+)')
     def remove_activity(self, request, pk=None, activity_id=None):
-        """Remove activity from plan - ADMIN ONLY for group plans"""
+        """Remove activity from plan - uses service layer for permission checking"""
         plan = self.get_object()
         
-        # Check permissions
-        if plan.plan_type == 'group' and plan.group and not plan.group.is_admin(request.user):
+        # Check permissions using service layer
+        if not self._can_user_edit_plan(plan, request.user):
             return Response(
-                {'error': 'Only group admins can remove activities from group plans'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        elif plan.plan_type == 'personal' and plan.user != request.user:
-            return Response(
-                {'error': 'You can only remove activities from your own plans'}, 
+                {'error': 'You do not have permission to modify this plan'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -1274,27 +1256,25 @@ class FriendRequestView(generics.CreateAPIView):
         
         try:
             with transaction.atomic():
-                friendship, created = Friendship.create_friend_request(request.user, friend)
+                success, message = UserService.send_friend_request(request.user, friend)
                 
-                if created:
-                    # Send notification asynchronously
-                    try:
-                        notification_service.notify_friend_request(
-                            friend_id, 
-                            request.user.get_full_name()
-                        )
-                    except Exception:
-                        pass  # Don't fail request if notification fails
-                    
-                    return Response({
-                        'message': 'Friend request sent successfully',
-                        'friendship': FriendshipSerializer(friendship, context={'request': request}).data
-                    }, status=status.HTTP_201_CREATED)
-                else:
-                    return Response({
-                        'message': 'Friend request already exists or updated',
-                        'friendship': FriendshipSerializer(friendship, context={'request': request}).data
-                    })
+                if not success:
+                    return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Send notification asynchronously
+                try:
+                    NotificationService.notify_friend_request(
+                        friend_id, 
+                        request.user.get_full_name()
+                    )
+                except Exception:
+                    pass  # Don't fail request if notification fails
+                
+                friendship = Friendship.objects.between_users(request.user, friend).first()
+                return Response({
+                    'message': message,
+                    'friendship': FriendshipSerializer(friendship, context={'request': request}).data
+                }, status=status.HTTP_201_CREATED)
                     
         except ValidationError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -1347,34 +1327,34 @@ class FriendRequestActionView(APIView):
         
         try:
             with transaction.atomic():
-                # Use model methods for actions
-                action_methods = {
-                    'accept': friendship.accept,
-                    'reject': friendship.reject
-                }
-                
-                success = action_methods[action]()
-                
-                if success and action == 'accept':
+                if action == 'accept':
+                    success, message = UserService.accept_friend_request(request.user, friendship.user)
+                else:  # action == 'reject'
+                    success, message = UserService.reject_friend_request(request.user, friendship.user)
+
+                if not success:
+                    return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+                if action == 'accept':
                     # Send notification for acceptance
                     try:
-                        notification_service.notify_friend_request_accepted(
+                        NotificationService.notify_friend_request_accepted(
                             friendship.user.id, 
                             request.user.get_full_name()
                         )
                     except Exception:
                         pass  # Don't fail action if notification fails
                 
-                if success:
-                    return Response({
-                        'message': f'Request {action}ed successfully',
-                        'friendship': FriendshipSerializer(friendship, context={'request': request}).data
-                    })
-                else:
-                    return Response(
-                        {'error': f'Failed to {action} request'}, 
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                # Refresh friendship state from DB
+                friendship.refresh_from_db()
+                
+                return Response({
+                    'message': message,
+                    'friendship': FriendshipSerializer(friendship, context={'request': request}).data
+                })
+                    
+        except (ValidationError, PermissionDenied) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
                     
         except Exception as e:
             return Response(
@@ -1434,46 +1414,30 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
         serializer.save(sender=self.request.user)
     
     def update(self, request, *args, **kwargs):
-        """Override update to check message ownership and time limit"""
+        """Override update to check message ownership and time limit - uses service layer"""
         message = self.get_object()
         
-        # Only sender can edit message
-        if message.sender != request.user:
-            return Response(
-                {'error': 'Can only edit your own messages'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # Use service layer for edit validation
+        success, error_message = chat_service.edit_message(message, request.user, request.data.get('content', ''))
         
-        # Check edit time limit (15 minutes)
-        edit_deadline = message.created_at + timezone.timedelta(minutes=15)
-        if timezone.now() > edit_deadline:
+        if not success:
             return Response(
-                {'error': 'Message edit time expired (15 minutes limit)'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Don't allow editing system messages
-        if message.message_type == 'system':
-            return Response(
-                {'error': 'Cannot edit system messages'}, 
+                {'error': error_message}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         return super().update(request, *args, **kwargs)
     
     def destroy(self, request, *args, **kwargs):
-        """Override destroy to check permissions"""
+        """Override destroy to check permissions - uses service layer"""
         message = self.get_object()
         
-        # Sender or group admin can delete
-        can_delete = (
-            message.sender == request.user or 
-            message.group.is_admin(request.user)
-        )
+        # Use service layer for delete validation
+        success, error_message = chat_service.delete_message(message, request.user)
         
-        if not can_delete:
+        if not success:
             return Response(
-                {'error': 'Permission denied. Only sender or group admin can delete messages'}, 
+                {'error': error_message}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -1821,143 +1785,6 @@ class PlacesSearchView(APIView):
     
     def get(self, request):
         query = request.query_params.get('query')
-        if not query:
-            return Response(
-                {'error': 'query parameter required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            results = goong_service.search_places(query)
-            return Response({
-                'places': results,
-                'query': query,
-                'count': len(results)
-            })
-        except Exception as e:
-            return Response(
-                {'error': f'Search failed: {str(e)}'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-class PlaceDetailsView(APIView):
-    """Get detailed information about a place"""
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request, place_id):
-        try:
-            place_details = goong_service.get_place_details(place_id)
-            return Response(place_details)
-        except Exception as e:
-            return Response(
-                {'error': f'Place details failed: {str(e)}'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-class NearbyPlacesView(APIView):
-    """Get nearby places for a location"""
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request):
-        lat = request.query_params.get('lat')
-        lng = request.query_params.get('lng')
-        place_type = request.query_params.get('type', 'restaurant')
-        radius = request.query_params.get('radius', 1000)
-        
-        if not lat or not lng:
-            return Response(
-                {'error': 'lat and lng parameters required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            results = goong_service.get_nearby_places(
-                lat=float(lat), 
-                lng=float(lng), 
-                place_type=place_type,
-                radius=int(radius)
-            )
-            return Response({
-                'places': results,
-                'location': {'lat': lat, 'lng': lng},
-                'type': place_type,
-                'count': len(results)
-            })
-        except Exception as e:
-            return Response(
-                {'error': f'Nearby search failed: {str(e)}'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-class PlaceAutocompleteView(APIView):
-    """Autocomplete places search"""
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request):
-        input_text = request.query_params.get('input')
-        if not input_text:
-            return Response(
-                {'error': 'input parameter required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            suggestions = goong_service.autocomplete_places(input_text)
-            return Response({
-                'suggestions': suggestions,
-                'input': input_text,
-                'count': len(suggestions)
-            })
-        except Exception as e:
-            return Response(
-                {'error': f'Autocomplete failed: {str(e)}'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-class GeocodeView(APIView):
-    """Convert address to coordinates and vice versa"""
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request):
-        address = request.query_params.get('address')
-        lat = request.query_params.get('lat')
-        lng = request.query_params.get('lng')
-        
-        if not address and (not lat or not lng):
-            return Response(
-                {'error': 'Either address or lat+lng parameters required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            if address:
-                # Forward geocoding (address to coordinates)
-                result = goong_service.geocode_address(address)
-            else:
-                # Reverse geocoding (coordinates to address)
-                result = goong_service.reverse_geocode(float(lat), float(lng))
-            
-            return Response(result)
-        except Exception as e:
-            return Response(
-                {'error': f'Geocoding failed: {str(e)}'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-
-
-
-class PlacesSearchView(APIView):
-    """Search for places using Goong Map API"""
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request):
-        query = request.query_params.get('query')
         lat = request.query_params.get('lat')
         lng = request.query_params.get('lng')
         radius = int(request.query_params.get('radius', 5000))
@@ -1980,7 +1807,7 @@ class PlacesSearchView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
-        places = goong_service.search_places(
+        places = GoongMapService.search_places(
             query=query,
             location=location,
             radius=radius
@@ -1993,7 +1820,7 @@ class PlaceDetailsView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request, place_id):
-        place_details = goong_service.get_place_details(place_id)
+        place_details = GoongMapService.get_place_details(place_id)
         
         if place_details:
             return Response({'place': place_details})
@@ -2028,7 +1855,7 @@ class NearbyPlacesView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        places = goong_service.nearby_search(
+        places = GoongMapService.nearby_search(
             latitude=lat,
             longitude=lng,
             radius=radius,
@@ -2063,8 +1890,8 @@ class PlaceAutocompleteView(APIView):
                     {'error': 'Invalid lat/lng format'}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
-        suggestions = goong_service.autocomplete(
+
+        suggestions = GoongMapService.autocomplete(
             input_text=input_text,
             location=location,
             radius=radius
@@ -2083,7 +1910,7 @@ class GeocodeView(APIView):
         
         if address:
             # Forward geocoding: address to coordinates
-            result = goong_service.geocode(address)
+            result = GoongMapService.geocode(address)
             if result:
                 return Response({'result': result})
             else:
@@ -2097,7 +1924,7 @@ class GeocodeView(APIView):
             try:
                 lat = float(lat)
                 lng = float(lng)
-                result = goong_service.reverse_geocode(lat, lng)
+                result = GoongMapService.reverse_geocode(lat, lng)
                 if result:
                     return Response({'result': result})
                 else:
@@ -2136,7 +1963,7 @@ class SendNotificationView(APIView):
         try:
             recipient = User.objects.get(id=recipient_id)
             if hasattr(recipient, 'fcm_token') and recipient.fcm_token:
-                success = notification_service.send_push_notification(
+                success = NotificationService.send_push_notification(
                     fcm_tokens=[recipient.fcm_token],
                     title=title,
                     body=body,
@@ -2178,14 +2005,15 @@ class EnhancedGroupViewSet(GroupViewSet):
         message_type = request.data.get('message_type', 'text')
         
         try:
-            message = group.send_message(
+            message = ChatService.send_message(
                 sender=request.user,
+                group=group,
                 content=content,
                 message_type=message_type
             )
             
             # Send push notification to group members
-            notification_service.notify_new_message(
+            NotificationService.notify_new_message(
                 group_id=str(group.id),
                 sender_name=request.user.username,
                 message_preview=content[:100],
@@ -2195,7 +2023,7 @@ class EnhancedGroupViewSet(GroupViewSet):
             serializer = ChatMessageSerializer(message)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
             
-        except PermissionError as e:
+        except ValidationError as e:
             return Response(
                 {'error': str(e)}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -2230,18 +2058,15 @@ class EnhancedPlanViewSet(PlanViewSet):
             extra_fields = {k: v for k, v in request.data.items() 
                            if k not in ['title', 'start_time', 'end_time', 'place_id']}
             
-            # ✅ DELEGATE to FAT MODEL
-            activity = plan.add_activity_with_place(
+            # Use service layer for activity creation
+            activity = PlanService.add_activity_with_place(
+                plan=plan,
                 title=title,
                 start_time=start_time,
                 end_time=end_time,
                 place_id=place_id,
                 **extra_fields
             )
-            
-            # ✅ DELEGATE notifications to model
-            plan.notify_activity_added(request.user)
-            
             return Response(
                 PlanActivitySerializer(activity).data, 
                 status=status.HTTP_201_CREATED
@@ -2252,6 +2077,6 @@ class EnhancedPlanViewSet(PlanViewSet):
                 {'error': str(e)}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
 
 

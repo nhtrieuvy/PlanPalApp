@@ -23,8 +23,8 @@ class IsAuthenticatedAndActive(BasePermission):
 
 class PlanPermission(BasePermission):
     """
-    Optimized Plan permission using model methods
-    Delegates business logic to model layer
+    Optimized Plan permission using service layer
+    Delegates business logic to service layer
     """
     
     def has_permission(self, request, view):
@@ -36,8 +36,9 @@ class PlanPermission(BasePermission):
             if plan_type == 'group' and group_id:
                 try:
                     group = Group.objects.get(id=group_id)
-                    # Use model method for admin check
-                    return group.is_admin(request.user)
+                    # Use service layer for permission check
+                    from .integrations import group_service
+                    return group_service.can_edit_group(group, request.user)
                 except Group.DoesNotExist:
                     return False
             # Personal plans - anyone can create
@@ -45,33 +46,30 @@ class PlanPermission(BasePermission):
         return True  # For other methods, check object permission
     
     def has_object_permission(self, request, view, obj):
-        """Use model methods for permission checking"""
+        """Use service layer for permission checking"""
         user = request.user
+        
+        # Import service layer
+        from .integrations import plan_service
         
         # Creator always has access
         if obj.creator == user:
             return True
         
         if request.method in SAFE_METHODS:
-            return self._can_view_plan(user, obj)
+            return plan_service.can_view_plan(obj, user)
         else:
-            return self._can_edit_plan(user, obj)
+            return plan_service.can_edit_plan(obj, user)
     
     def _can_view_plan(self, user, plan):
-        """Delegate view permission to model logic"""
-        if plan.is_public:
-            return True
-        if plan.is_group_plan() and plan.group:
-            return plan.group.is_member(user)
-        return plan.creator == user
+        """Delegate view permission to service layer"""
+        from .integrations import plan_service
+        return plan_service.can_view_plan(plan, user)
     
     def _can_edit_plan(self, user, plan):
-        """Delegate edit permission to model logic"""
-        if plan.creator == user:
-            return True
-        if plan.is_group_plan() and plan.group:
-            return plan.group.is_admin(user)
-        return False
+        """Delegate edit permission to service layer"""
+        from .integrations import plan_service
+        return plan_service.can_edit_plan(plan, user)
 
 
 class GroupPermission(BasePermission):

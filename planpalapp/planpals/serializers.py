@@ -660,12 +660,13 @@ class PlanCreateSerializer(serializers.ModelSerializer):
             if not group_id:
                 raise serializers.ValidationError("Kế hoạch nhóm phải chọn nhóm")
             
-            # Validate group access using model methods
+            # Validate group access using service layer
             try:
                 group = Group.objects.get(id=group_id)
                 request = self.context.get('request')
                 if request and request.user.is_authenticated:
-                    if not group.is_member(request.user):
+                    from .integrations import group_service
+                    if not GroupMembership.objects.filter(group=group, user=request.user).exists():
                         raise serializers.ValidationError(
                             "Bạn không phải thành viên của nhóm này"
                         )
@@ -680,24 +681,28 @@ class PlanCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        """Create plan with proper setup"""
-        # Set default status
-        validated_data['status'] = 'upcoming'
-        
-        # Handle group assignment
-        plan_type = validated_data.get('plan_type')
+        """Create plan using service layer"""
+        plan_type = validated_data.get('plan_type', 'personal')
         group_id = validated_data.pop('group_id', None)
+        group = Group.objects.get(id=group_id) if group_id else None
         
-        if plan_type == 'group' and group_id:
-            validated_data['group'] = Group.objects.get(id=group_id)
-        else:
-            validated_data['group'] = None
-        
-        # Set creator
         request = self.context.get('request')
-        validated_data['creator'] = request.user
         
-        return super().create(validated_data)
+        # Use service layer to create plan
+        from .integrations import plan_service
+        plan = plan_service.create_plan(
+            creator=request.user,
+            title=validated_data['title'],
+            description=validated_data.get('description', ''),
+            plan_type=plan_type,
+            group=group,
+            start_date=validated_data.get('start_date'),
+            end_date=validated_data.get('end_date'),
+            budget=validated_data.get('budget'),
+            is_public=validated_data.get('is_public', False)
+        )
+        
+        return plan
 
 
 class PlanSummarySerializer(serializers.ModelSerializer):
