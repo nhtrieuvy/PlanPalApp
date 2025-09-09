@@ -2,6 +2,8 @@ import fnmatch
 import os
 import shutil
 import subprocess
+import sys
+import traceback
 from pathlib import Path
 from subprocess import run
 
@@ -135,7 +137,7 @@ def normalize_path_patterns(patterns):
     for pattern in patterns:
         for dir_suffix in dir_suffixes:
             if pattern.endswith(dir_suffix):
-                norm_patterns.append(pattern[: -len(dir_suffix)])
+                norm_patterns.append(pattern.removesuffix(dir_suffix))
                 break
         else:
             norm_patterns.append(pattern)
@@ -157,12 +159,23 @@ def is_ignored_path(path, ignore_patterns):
     return any(ignore(pattern) for pattern in normalize_path_patterns(ignore_patterns))
 
 
-def run_formatters(written_files):
+def find_formatters():
+    return {"black_path": shutil.which("black")}
+
+
+def run_formatters(written_files, black_path=(sentinel := object()), stderr=sys.stderr):
     """
     Run the black formatter on the specified files.
     """
-    if black_path := shutil.which("black"):
-        subprocess.run(
-            [black_path, "--fast", "--", *written_files],
-            capture_output=True,
-        )
+    # Use a sentinel rather than None, as which() returns None when not found.
+    if black_path is sentinel:
+        black_path = shutil.which("black")
+    if black_path:
+        try:
+            subprocess.run(
+                [black_path, "--fast", "--", *written_files],
+                capture_output=True,
+            )
+        except OSError:
+            stderr.write("Formatters failed to launch:")
+            traceback.print_exc(file=stderr)

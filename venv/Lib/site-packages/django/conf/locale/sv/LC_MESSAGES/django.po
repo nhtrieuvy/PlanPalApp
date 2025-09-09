@@ -3,12 +3,14 @@
 # Translators:
 # Albin Larsson <albin.post@gmail.com>, 2022
 # Alex Nordlund <deep.alexander@gmail.com>, 2012
+# Anders Hovmöller <boxed@killingar.net>, 2023
 # Anders Jonsson <transifex@norsjovallen.se>, 2022
 # Andreas Pelme <andreas@pelme.se>, 2014,2021
 # Elias Johnstone <eli87as@gmail.com>, 2022
 # Gustaf Hansen <gustaf.hansen@gmail.com>, 2015
 # Jannis Leidel <jannis@leidel.info>, 2011
 # Jonathan Lindén, 2015
+# Jörgen Olofsson, 2024
 # Ken Lewerentz, 2022
 # Jonathan Lindén, 2014
 # Mattias Hansson <mattias.gothenburg@gmail.com>, 2016
@@ -22,10 +24,10 @@ msgid ""
 msgstr ""
 "Project-Id-Version: django\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-05-17 05:23-0500\n"
-"PO-Revision-Date: 2022-07-25 06:49+0000\n"
-"Last-Translator: Elias Johnstone <eli87as@gmail.com>\n"
-"Language-Team: Swedish (http://www.transifex.com/django/django/language/"
+"POT-Creation-Date: 2024-05-22 11:46-0300\n"
+"PO-Revision-Date: 2024-08-07 06:49+0000\n"
+"Last-Translator: Jörgen Olofsson, 2024\n"
+"Language-Team: Swedish (http://app.transifex.com/django/django/language/"
 "sv/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -65,6 +67,9 @@ msgstr "Bosniska"
 
 msgid "Catalan"
 msgstr "Katalanska"
+
+msgid "Central Kurdish (Sorani)"
+msgstr "Kurdiska (Sorani)"
 
 msgid "Czech"
 msgstr "Tjeckiska"
@@ -306,6 +311,9 @@ msgstr "Tatariska"
 msgid "Udmurt"
 msgstr "Udmurtiska"
 
+msgid "Uyghur"
+msgstr "Uiguriska"
+
 msgid "Ukrainian"
 msgstr "Ukrainska"
 
@@ -353,6 +361,9 @@ msgstr "Sidan innehåller inga resultat"
 msgid "Enter a valid value."
 msgstr "Fyll i ett giltigt värde."
 
+msgid "Enter a valid domain name."
+msgstr "Fyll i ett giltigt domännamn."
+
 msgid "Enter a valid URL."
 msgstr "Fyll i en giltig URL."
 
@@ -376,14 +387,18 @@ msgstr ""
 "Fyll i en giltig 'slug', beståendes av bokstäver, siffror, understreck eller "
 "bindestreck i Unicode."
 
-msgid "Enter a valid IPv4 address."
-msgstr "Fyll i en giltig IPv4-adress."
+#, python-format
+msgid "Enter a valid %(protocol)s address."
+msgstr "Fyll i en giltig %(protocol)s adress."
 
-msgid "Enter a valid IPv6 address."
-msgstr "Ange en giltig IPv6-adress."
+msgid "IPv4"
+msgstr "IPv4"
 
-msgid "Enter a valid IPv4 or IPv6 address."
-msgstr "Ange en giltig IPv4- eller IPv6-adress."
+msgid "IPv6"
+msgstr "IPv6"
+
+msgid "IPv4 or IPv6"
+msgstr "IPv4 eller IPv6"
 
 msgid "Enter only digits separated by commas."
 msgstr "Fyll enbart i siffror separerade med kommatecken."
@@ -407,6 +422,15 @@ msgstr ""
 msgid "Ensure this value is a multiple of step size %(limit_value)s."
 msgstr ""
 "Kontrollera att detta värde är multipel av stegstorlek %(limit_value)s."
+
+#, python-format
+msgid ""
+"Ensure this value is a multiple of step size %(limit_value)s, starting from "
+"%(offset)s, e.g. %(offset)s, %(valid_value1)s, %(valid_value2)s, and so on."
+msgstr ""
+"Kontrollera att detta värde är en multipel med stegstorlek %(limit_value)s, "
+"med början från %(offset)s, t ex. %(offset)s, %(valid_value1)s, "
+"%(valid_value2)s och så vidare"
 
 #, python-format
 msgid ""
@@ -523,6 +547,9 @@ msgstr "Boolesk (antingen True eller False)"
 #, python-format
 msgid "String (up to %(max_length)s)"
 msgstr "Sträng (upp till %(max_length)s)"
+
+msgid "String (unlimited)"
+msgstr "Sträng (obegränsad)"
 
 msgid "Comma-separated integers"
 msgstr "Komma-separerade heltal"
@@ -1208,8 +1235,8 @@ msgid ""
 "If you are using the <meta name=\"referrer\" content=\"no-referrer\"> tag or "
 "including the “Referrer-Policy: no-referrer” header, please remove them. The "
 "CSRF protection requires the “Referer” header to do strict referer checking. "
-"If you’re concerned about privacy, use alternatives like <a rel=\"noreferrer"
-"\" …> for links to third-party sites."
+"If you’re concerned about privacy, use alternatives like <a "
+"rel=\"noreferrer\" …> for links to third-party sites."
 msgstr ""
 "Om du använder <meta name=\"referrer\" content=\"no-referrer\">-taggen eller "
 "har med ”Referrer-Policy: no-referrer”, ta bort dem. CSRF-skyddet kräver "
@@ -1307,14 +1334,14 @@ msgstr ""
 #, python-format
 msgid ""
 "You are seeing this page because <a href=\"https://docs.djangoproject.com/en/"
-"%(version)s/ref/settings/#debug\" target=\"_blank\" rel=\"noopener"
-"\">DEBUG=True</a> is in your settings file and you have not configured any "
-"URLs."
+"%(version)s/ref/settings/#debug\" target=\"_blank\" "
+"rel=\"noopener\">DEBUG=True</a> is in your settings file and you have not "
+"configured any URLs."
 msgstr ""
 "Du ser den här sidan eftersom <a href=\"https://docs.djangoproject.com/en/"
-"%(version)s/ref/settings/#debug\" target=\"_blank\" rel=\"noopener"
-"\">DEBUG=True</a> i din settings-fil och du har inte konfigurerat några URL:"
-"er."
+"%(version)s/ref/settings/#debug\" target=\"_blank\" "
+"rel=\"noopener\">DEBUG=True</a> i din settings-fil och du har inte "
+"konfigurerat några URL:er."
 
 msgid "Django Documentation"
 msgstr "Djangodokumentation"

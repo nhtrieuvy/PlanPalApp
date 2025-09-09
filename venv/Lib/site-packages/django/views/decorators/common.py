@@ -1,5 +1,7 @@
 from functools import wraps
 
+from asgiref.sync import iscoroutinefunction
+
 
 def no_append_slash(view_func):
     """
@@ -9,8 +11,17 @@ def no_append_slash(view_func):
 
     # view_func.should_append_slash = False would also work, but decorators are
     # nicer if they don't have side effects, so return a new function.
-    def wrapped_view(*args, **kwargs):
-        return view_func(*args, **kwargs)
 
-    wrapped_view.should_append_slash = False
-    return wraps(view_func)(wrapped_view)
+    if iscoroutinefunction(view_func):
+
+        async def _view_wrapper(request, *args, **kwargs):
+            return await view_func(request, *args, **kwargs)
+
+    else:
+
+        def _view_wrapper(request, *args, **kwargs):
+            return view_func(request, *args, **kwargs)
+
+    _view_wrapper.should_append_slash = False
+
+    return wraps(view_func)(_view_wrapper)

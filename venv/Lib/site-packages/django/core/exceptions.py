@@ -1,6 +1,7 @@
 """
-Global Django exception and warning classes.
+Global Django exception classes.
 """
+
 import operator
 
 from django.utils.hashable import make_hashable
@@ -238,6 +239,12 @@ class ValidationError(Exception):
 
 class EmptyResultSet(Exception):
     """A database query predicate is impossible."""
+
+    pass
+
+
+class FullResultSet(Exception):
+    """A database query predicate is matches everything."""
 
     pass
 

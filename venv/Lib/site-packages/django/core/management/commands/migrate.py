@@ -15,17 +15,12 @@ from django.utils.text import Truncator
 
 
 class Command(BaseCommand):
+    autodetector = MigrationAutodetector
     help = (
         "Updates database schema. Manages both apps with migrations and those without."
     )
-    requires_system_checks = []
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--skip-checks",
-            action="store_true",
-            help="Skip system checks.",
-        )
         parser.add_argument(
             "app_label",
             nargs="?",
@@ -47,6 +42,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--database",
             default=DEFAULT_DB_ALIAS,
+            choices=tuple(connections),
             help=(
                 'Nominates a database to synchronize. Defaults to the "default" '
                 "database."
@@ -81,7 +77,10 @@ class Command(BaseCommand):
             "--check",
             action="store_true",
             dest="check_unapplied",
-            help="Exits with a non-zero status if unapplied migrations exist.",
+            help=(
+                "Exits with a non-zero status if unapplied migrations exist and does "
+                "not actually apply migrations."
+            ),
         )
         parser.add_argument(
             "--prune",
@@ -90,12 +89,13 @@ class Command(BaseCommand):
             help="Delete nonexistent migrations from the django_migrations table.",
         )
 
+    def get_check_kwargs(self, options):
+        kwargs = super().get_check_kwargs(options)
+        return {**kwargs, "databases": [options["database"]]}
+
     @no_translations
     def handle(self, *args, **options):
         database = options["database"]
-        if not options["skip_checks"]:
-            self.check(databases=[database])
-
         self.verbosity = options["verbosity"]
         self.interactive = options["interactive"]
 
@@ -192,8 +192,11 @@ class Command(BaseCommand):
                 )
             if self.verbosity > 0:
                 self.stdout.write("Pruning migrations:", self.style.MIGRATE_HEADING)
-            to_prune = set(executor.loader.applied_migrations) - set(
-                executor.loader.disk_migrations
+            to_prune = sorted(
+                migration
+                for migration in set(executor.loader.applied_migrations)
+                - set(executor.loader.disk_migrations)
+                if migration[0] == app_label
             )
             squashed_migrations_with_deleted_replaced_migrations = [
                 migration_key
@@ -219,9 +222,6 @@ class Command(BaseCommand):
                     )
                 )
             else:
-                to_prune = sorted(
-                    migration for migration in to_prune if migration[0] == app_label
-                )
                 if to_prune:
                     for migration in to_prune:
                         app, name = migration
@@ -237,23 +237,27 @@ class Command(BaseCommand):
                     self.stdout.write("  No migrations to prune.")
 
         plan = executor.migration_plan(targets)
-        exit_dry = plan and options["check_unapplied"]
 
         if options["plan"]:
             self.stdout.write("Planned operations:", self.style.MIGRATE_LABEL)
             if not plan:
                 self.stdout.write("  No planned migration operations.")
-            for migration, backwards in plan:
-                self.stdout.write(str(migration), self.style.MIGRATE_HEADING)
-                for operation in migration.operations:
-                    message, is_error = self.describe_operation(operation, backwards)
-                    style = self.style.WARNING if is_error else None
-                    self.stdout.write("    " + message, style)
-            if exit_dry:
+            else:
+                for migration, backwards in plan:
+                    self.stdout.write(str(migration), self.style.MIGRATE_HEADING)
+                    for operation in migration.operations:
+                        message, is_error = self.describe_operation(
+                            operation, backwards
+                        )
+                        style = self.style.WARNING if is_error else None
+                        self.stdout.write("    " + message, style)
+                if options["check_unapplied"]:
+                    sys.exit(1)
+            return
+        if options["check_unapplied"]:
+            if plan:
                 sys.exit(1)
             return
-        if exit_dry:
-            sys.exit(1)
         if options["prune"]:
             return
 
@@ -321,7 +325,7 @@ class Command(BaseCommand):
                 self.stdout.write("  No migrations to apply.")
                 # If there's changes that aren't in migrations yet, tell them
                 # how to fix it.
-                autodetector = MigrationAutodetector(
+                autodetector = self.autodetector(
                     executor.loader.project_state(),
                     ProjectState.from_apps(apps),
                 )

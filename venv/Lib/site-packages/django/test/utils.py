@@ -1,5 +1,5 @@
-import asyncio
 import collections
+import gc
 import logging
 import os
 import re
@@ -14,6 +14,8 @@ from types import SimpleNamespace
 from unittest import TestCase, skipIf, skipUnless
 from xml.dom.minidom import Node, parseString
 
+from asgiref.sync import iscoroutinefunction
+
 from django.apps import apps
 from django.apps.registry import Apps
 from django.conf import UserSettingsHolder, settings
@@ -25,8 +27,8 @@ from django.db.models.options import Options
 from django.template import Template
 from django.test.signals import template_rendered
 from django.urls import get_script_prefix, set_script_prefix
-from django.utils.deprecation import RemovedInDjango50Warning
 from django.utils.translation import deactivate
+from django.utils.version import PYPY
 
 try:
     import jinja2
@@ -38,6 +40,7 @@ __all__ = (
     "Approximate",
     "ContextList",
     "isolate_lru_cache",
+    "garbage_collect",
     "get_runner",
     "CaptureQueriesContext",
     "ignore_warnings",
@@ -186,6 +189,7 @@ def setup_databases(
     test_databases, mirrored_aliases = get_unique_databases_and_mirrors(aliases)
 
     old_names = []
+    serialize_connections = []
 
     for db_name, aliases in test_databases.values():
         first_alias = None
@@ -197,32 +201,14 @@ def setup_databases(
             if first_alias is None:
                 first_alias = alias
                 with time_keeper.timed("  Creating '%s'" % alias):
-                    # RemovedInDjango50Warning: when the deprecation ends,
-                    # replace with:
-                    # serialize_alias = (
-                    #     serialized_aliases is None
-                    #     or alias in serialized_aliases
-                    # )
-                    try:
-                        serialize_alias = connection.settings_dict["TEST"]["SERIALIZE"]
-                    except KeyError:
-                        serialize_alias = (
-                            serialized_aliases is None or alias in serialized_aliases
-                        )
-                    else:
-                        warnings.warn(
-                            "The SERIALIZE test database setting is "
-                            "deprecated as it can be inferred from the "
-                            "TestCase/TransactionTestCase.databases that "
-                            "enable the serialized_rollback feature.",
-                            category=RemovedInDjango50Warning,
-                        )
                     connection.creation.create_test_db(
                         verbosity=verbosity,
                         autoclobber=not interactive,
                         keepdb=keepdb,
-                        serialize=serialize_alias,
+                        serialize=False,
                     )
+                    if serialized_aliases is None or alias in serialized_aliases:
+                        serialize_connections.append(connection)
                 if parallel > 1:
                     for index in range(parallel):
                         with time_keeper.timed("  Cloning '%s'" % alias):
@@ -241,6 +227,16 @@ def setup_databases(
     for alias, mirror_alias in mirrored_aliases.items():
         connections[alias].creation.set_as_test_mirror(
             connections[mirror_alias].settings_dict
+        )
+
+    # Serialize content of test databases only once all of them are setup to
+    # account for database mirroring and routing during serialization. This
+    # slightly horrific process is so people who are testing on databases
+    # without transactions or using TransactionTestCase still get a clean
+    # database on every test run.
+    for serialize_connection in serialize_connections:
+        serialize_connection._test_serialized_contents = (
+            serialize_connection.creation.serialize_db_to_string()
         )
 
     if debug_sql:
@@ -440,7 +436,7 @@ class TestContextDecorator:
         raise TypeError("Can only decorate subclasses of unittest.TestCase")
 
     def decorate_callable(self, func):
-        if asyncio.iscoroutinefunction(func):
+        if iscoroutinefunction(func):
             # If the inner function is an async function, we must execute async
             # as well so that the `with` statement executes at the right time.
             @wraps(func)
@@ -589,11 +585,11 @@ class modify_settings(override_settings):
             except KeyError:
                 value = list(getattr(settings, name, []))
             for action, items in operations.items():
-                # items my be a single value or an iterable.
+                # items may be a single value or an iterable.
                 if isinstance(items, str):
                     items = [items]
                 if action == "append":
-                    value = value + [item for item in items if item not in value]
+                    value += [item for item in items if item not in value]
                 elif action == "prepend":
                     value = [item for item in items if item not in value] + value
                 elif action == "remove":
@@ -999,3 +995,10 @@ def register_lookup(field, *lookups, lookup_name=None):
     finally:
         for lookup in lookups:
             field._unregister_lookup(lookup, lookup_name)
+
+
+def garbage_collect():
+    gc.collect()
+    if PYPY:
+        # Collecting weakreferences can take two collections on PyPy.
+        gc.collect()

@@ -1,21 +1,31 @@
 import uuid
 from collections import defaultdict
 from decimal import Decimal
+from datetime import datetime, timedelta, date
+from typing import Dict, List, Optional, Any, Union, TYPE_CHECKING, Tuple
 
 from django.db import models, transaction, IntegrityError
-from django.db.models import constraints
+from django.db.models import constraints, QuerySet
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 from django.db.models import Q, F, Case, When, Count, Max, Sum, Exists, OuterRef, Subquery
 from django.core.cache import cache
 
 from cloudinary.models import CloudinaryField
 from cloudinary import CloudinaryImage
 
-from .services.goong_service import goong_service
-from .services.notification_service import NotificationService
+from celery import current_app
+
+if TYPE_CHECKING:
+    from django.db.models.manager import Manager
+
+
+# Removed direct service imports to avoid circular dependencies
+# Services will be imported dynamically when needed
+
+
 
 
 class BaseModel(models.Model):
@@ -47,18 +57,17 @@ class BaseModel(models.Model):
             models.Index(fields=['updated_at']),
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         self.full_clean()  # Chạy tất cả validations
         super().save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__class__.__name__}({self.id})"
 
 
-class UserQuerySet(models.QuerySet):
+class UserQuerySet(models.QuerySet['User']):
 
-    def with_friends_count(self):
-        """Annotate users with their friends count"""
+    def with_friends_count(self) -> 'UserQuerySet':
         return self.annotate(
             friends_count_annotated=Count(
                 'friendships_as_a',
@@ -71,9 +80,10 @@ class UserQuerySet(models.QuerySet):
             )
         )
     
-    def with_plans_count(self):
-        """Annotate users with their plans counts"""
+    def with_plans_count(self) -> 'UserQuerySet':
         return self.annotate(
+            # Truy vấn ngược, sử dụng related_name 'created_plans'
+            # Tương tự count=Count('plan', filter=Q(plan__creator=F('id')))
             plans_count_annotated=Count('created_plans', distinct=True),
             personal_plans_count_annotated=Count(
                 'created_plans',
@@ -87,8 +97,7 @@ class UserQuerySet(models.QuerySet):
             )
         )
     
-    def with_groups_count(self):
-        """Annotate users with their active groups count"""
+    def with_groups_count(self) -> 'UserQuerySet':
         return self.annotate(
             groups_count_annotated=Count(
                 'joined_groups',
@@ -97,8 +106,7 @@ class UserQuerySet(models.QuerySet):
             )
         )
     
-    def with_friend_request_counts(self):
-        """Annotate users with friend request related counts"""
+    def with_friend_request_counts(self) -> 'UserQuerySet':
         return self.annotate(
             # Đếm số lượng yêu cầu kết bạn mà người dùng đã gửi đi
             pending_sent_count_annotated=Count(
@@ -125,17 +133,24 @@ class UserQuerySet(models.QuerySet):
                 + Count('friendships_as_b', filter=Q(friendships_as_b__status='blocked'), distinct=True)
             )
         )
+        
+    def friends_of(self, user: Union['User', str]) -> 'UserQuerySet':
+        user_id = getattr(user, 'id', user)
+        return self.filter(
+            Q(friendships_as_a__user_b_id=user_id, friendships_as_a__status=Friendship.ACCEPTED) |
+            Q(friendships_as_b__user_a_id=user_id, friendships_as_b__status=Friendship.ACCEPTED)
+        ).select_related().distinct()
     
-    def with_counts(self):
+    def with_counts(self) -> 'UserQuerySet':
         return self.with_friends_count().with_plans_count().with_groups_count().with_friend_request_counts()
     
-    def with_cached_counts(self, cache_timeout=300):
+    def with_cached_counts(self, cache_timeout: int = 300) -> 'UserQuerySet':
         return self.with_counts()
     
-    def active(self):
+    def active(self) -> 'UserQuerySet':
         return self.filter(is_active=True)
     
-    def online(self):
+    def online(self) -> 'UserQuerySet':
         return self.filter(is_online=True)
 
 
@@ -212,98 +227,47 @@ class User(AbstractUser, BaseModel):
             models.Index(fields=['is_online', 'last_seen']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.username} ({self.get_full_name()})"
 
-    def update_last_seen(self):
+    def update_last_seen(self) -> None:
         self.last_seen = timezone.now()
         self.save(update_fields=['last_seen'])
 
-    def set_online_status(self, status):
+    def set_online_status(self, status: bool) -> None:
         self.is_online = status
         if not status:
             self.last_seen = timezone.now()
         self.save(update_fields=['is_online', 'last_seen'])
 
-    
-    @transaction.atomic
-    def create_personal_plan(self, title, start_date, end_date, **kwargs):
-        return Plan.objects.create_plan_safe(
-            creator=self,
-            title=title,
-            start_date=start_date,
-            end_date=end_date,
-            group=None,
-            **kwargs
-        )
-
-    @transaction.atomic
-    def create_group_plan(self, group, title, start_date, end_date, **kwargs):
-        """Create group plan - permission validation should be in view layer"""
-        return Plan.objects.create_plan_safe(
-            creator=self,
-            title=title,
-            start_date=start_date,
-            end_date=end_date,
-            group=group,
-            **kwargs
-        )
-
-    # === Messaging Methods ===
-        
-    def send_group_message(self, group, content, message_type='text', **kwargs):
-        """Send group message - permission validation should be in view layer"""
-        return group.send_message(
-            sender=self,
-            content=content,
-            message_type=message_type,
-            **kwargs
-        )
-
-    def get_or_create_direct_conversation(self, other_user):
-        """Create direct conversation - permission validation should be in view layer"""
-        if self == other_user:
-            raise ValueError("Unable to create a conversation with yourself")
-        
-        return Conversation.get_or_create_direct_conversation(self, other_user)
-    
-    def send_direct_message(self, recipient, content, message_type='text', **kwargs):
-        conversation, created = self.get_or_create_direct_conversation(recipient)
-        return conversation.send_message(
-            sender=self,
-            content=content,
-            message_type=message_type,
-            **kwargs
-        )
-
-    # === Computed Properties - Plans ===
+   
         
     @property
-    def recent_conversations(self):
+    def recent_conversations(self) -> QuerySet['Conversation']:
         return Conversation.objects.for_user(self).with_last_message().active().order_by('-last_message_at')
         
     @property
-    def personal_plans(self):
+    def personal_plans(self) -> QuerySet['Plan']:
         return self.created_plans.filter(
             plan_type='personal'
         ).select_related().order_by('-created_at')
 
     @property
-    def group_plans(self):
+    def group_plans(self) -> QuerySet['Plan']:
         return Plan.objects.filter(
             group__members=self,
             plan_type='group'
         ).select_related('group', 'creator').order_by('-created_at')
 
     @property
-    def all_plans(self):
+    def all_plans(self) -> QuerySet['Plan']:
         return Plan.objects.filter(
             Q(creator=self, plan_type='personal') |
             Q(group__members=self, plan_type='group')
         ).select_related('group', 'creator').order_by('-created_at')
 
     @property
-    def viewable_plans(self):
+    def viewable_plans(self) -> QuerySet['Plan']:
         return Plan.objects.filter(
             Q(creator=self) |  # Own plans
             Q(group__members=self) |  # Group plans
@@ -311,78 +275,77 @@ class User(AbstractUser, BaseModel):
         ).select_related('group', 'creator').distinct().order_by('-created_at')
     
     @property
-    def friends(self):
-        return Friendship.get_friends_queryset(self)
+    def friends(self) -> UserQuerySet:
+        return self.objects.friends_of(self)
 
-    # === Computed Properties - Counts ===
 
     @property
-    def plans_count(self):
+    def plans_count(self) -> int:
         if hasattr(self, 'plans_count_annotated'):
             return self.plans_count_annotated
         return self.all_plans.count()
 
     @property
-    def personal_plans_count(self):
+    def personal_plans_count(self) -> int:
         if hasattr(self, 'personal_plans_count_annotated'):
             return self.personal_plans_count_annotated
         return self.personal_plans.count()
 
     @property
-    def group_plans_count(self):
+    def group_plans_count(self) -> int:
         if hasattr(self, 'group_plans_count_annotated'):
             return self.group_plans_count_annotated
         return self.group_plans.count()
 
     @property
-    def groups_count(self):
+    def groups_count(self) -> int:
         if hasattr(self, 'groups_count_annotated'):
             return self.groups_count_annotated
         return self.joined_groups.filter(is_active=True).count()
 
     @property
-    def friends_count(self):
+    def friends_count(self) -> int:
         if hasattr(self, 'friends_count_annotated'):
             return self.friends_count_annotated
         return Friendship.objects.for_user(self).accepted().count()
 
     @property
-    def pending_sent_count(self):
+    def pending_sent_count(self) -> int:
         if hasattr(self, 'pending_sent_count_annotated'):
             return self.pending_sent_count_annotated
         return Friendship.objects.sent_by(self).count()
 
     @property
-    def pending_received_count(self):
+    def pending_received_count(self) -> int:
         if hasattr(self, 'pending_received_count_annotated'):
             return self.pending_received_count_annotated
         return Friendship.objects.pending_for(self).count()
 
     @property
-    def blocked_count(self):
+    def blocked_count(self) -> int:
         if hasattr(self, 'blocked_count_annotated'):
             return self.blocked_count_annotated
         return Friendship.objects.for_user(self).blocked().count()
 
     @property
-    def user_groups(self):
+    def user_groups(self) -> QuerySet['Group']:
         return self.joined_groups
 
     # === Computed Properties - Status & Media ===
     
     
     @property
-    def online_status(self):
+    def online_status(self) -> str:
         if self.is_online:
             return 'online'
         return 'offline'
 
     @property
-    def has_avatar(self):
+    def has_avatar(self) -> bool:
         return bool(self.avatar)
 
     @property
-    def avatar_url(self):
+    def avatar_url(self) -> Optional[str]:
         if not self.has_avatar:
             return None
         if self.avatar:
@@ -391,14 +354,14 @@ class User(AbstractUser, BaseModel):
         return None
 
     @property
-    def avatar_thumb(self):
+    def avatar_thumb(self) -> Optional[str]:
         if not self.avatar:
             return None
         cloudinary_image = CloudinaryImage(str(self.avatar))
         return cloudinary_image.build_url(width=100, height=100, crop='fill', gravity='face', secure=True)
 
     @property
-    def unread_messages_count(self):
+    def unread_messages_count(self) -> int:
         cache_key = f"user_unread_count_{self.id}"
         cached_count = cache.get(cache_key)
         
@@ -427,73 +390,54 @@ class User(AbstractUser, BaseModel):
         cache.set(cache_key, count, 30)
         return count
     
-    
-    def get_or_create_direct_conversation(self, other_user):
-        if self == other_user:
-            raise ValueError("Unable to create a conversation with yourself")
-        
-        if not Friendship.are_friends(self, other_user):
-            raise ValidationError("You can only chat with friends")
-
-        return Conversation.get_or_create_direct_conversation(self, other_user)
-    
-    def send_direct_message(self, recipient, content, message_type='text', **kwargs):
-        conversation, created = self.get_or_create_direct_conversation(recipient)
-        return conversation.send_message(
-            sender=self,
-            content=content,
-            message_type=message_type,
-            **kwargs
-        )
-    
-    def clear_unread_cache(self):
+    def clear_unread_cache(self) -> None:
         cache_key = f"user_unread_count_{self.id}"
         cache.delete(cache_key)
     
     @classmethod
-    def clear_unread_cache_for_users(cls, user_ids):
+    def clear_unread_cache_for_users(cls, user_ids: List[str]) -> None:
         cache_keys = [f"user_unread_count_{uid}" for uid in user_ids]
         cache.delete_many(cache_keys)
     
 
-class FriendshipQuerySet(models.QuerySet):
+class FriendshipQuerySet(models.QuerySet['Friendship']):
 
-    def accepted(self):
+    def accepted(self) -> 'FriendshipQuerySet':
         return self.filter(status=self.model.ACCEPTED)
     
-    def pending(self):
+    def pending(self) -> 'FriendshipQuerySet':
         return self.filter(status=self.model.PENDING)
     
-    def rejected(self):
+    def rejected(self) -> 'FriendshipQuerySet':
         return self.filter(status=self.model.REJECTED)
     
-    def blocked(self):
+    def blocked(self) -> 'FriendshipQuerySet':
         return self.filter(status=self.model.BLOCKED)
     
-    def cleanup_old_rejected(self, days=180):
+    def cleanup_old_rejected(self, days: int = 180) -> tuple[int, Dict[str, int]]:
         cutoff = timezone.now() - timezone.timedelta(days=days)
         return self.rejected().exclude(
             rejections__created_at__gte=cutoff
         ).delete()
     
-    def for_user(self, user):
+    def for_user(self, user: Union['User', str]) -> 'FriendshipQuerySet':
         user_id = getattr(user, 'id', user)
         return self.filter(Q(user_a_id=user_id) | Q(user_b_id=user_id))
-    
-    def friends_of(self, user):
+
+    def friends_of(self, user: Union['User', str]) -> 'FriendshipQuerySet':
         return self.accepted().for_user(user)
-    
-    def pending_for(self, user):
+
+    def pending_for(self, user: Union['User', str]) -> 'FriendshipQuerySet':
         user_id = getattr(user, 'id', user)
         return self.pending().filter(
             Q(user_b_id=user_id) | Q(user_a_id=user_id)
         ).exclude(initiator_id=user_id)
-    
-    def sent_by(self, user):
+
+    def sent_by(self, user: Union['User', str]) -> 'FriendshipQuerySet':
         user_id = getattr(user, 'id', user)
         return self.pending().filter(initiator_id=user_id)
-    
-    def between_users(self, user1, user2):
+
+    def between_users(self, user1: Union['User', str], user2: Union['User', str]) -> 'FriendshipQuerySet':
         user1_id = getattr(user1, 'id', user1)
         user2_id = getattr(user2, 'id', user2)
         
@@ -501,9 +445,8 @@ class FriendshipQuerySet(models.QuerySet):
             return self.filter(user_a_id=user1_id, user_b_id=user2_id)
         else:
             return self.filter(user_a_id=user2_id, user_b_id=user1_id)
-    
-    def get_friends_ids(self, user):
-        """Get friend IDs - OPTIMIZED with database-level computation"""
+
+    def get_friends_ids(self, user: Union['User', str]) -> List[str]:
         user_id = getattr(user, 'id', user)
         
         # Use database CASE statement to avoid Python loop
@@ -517,62 +460,6 @@ class FriendshipQuerySet(models.QuerySet):
         
         return list(friend_ids)
     
-    @transaction.atomic
-    def create_friendship_safe(self, initiator, target, status=None):
-        if initiator == target:
-            raise ValidationError("Cannot create friendship with yourself")
-        
-        initiator_id = getattr(initiator, 'id', initiator)
-        target_id = getattr(target, 'id', target)
-        
-        if initiator_id < target_id:
-            user_a_id, user_b_id = initiator_id, target_id
-        else:
-            user_a_id, user_b_id = target_id, initiator_id
-        
-        status = status or self.model.PENDING
-        
-        try:
-            friendship, created = self.get_or_create(
-                user_a_id=user_a_id,
-                user_b_id=user_b_id,
-                defaults={
-                    'initiator_id': initiator_id,
-                    'status': status
-                }
-            )
-            
-            if not created and friendship.status == self.model.REJECTED and status == self.model.PENDING:
-                rejections = friendship.rejections.all()[:self.model.MAX_REJECTION_COUNT + 1]
-                
-                if rejections:
-                    last_rejection = rejections[0]
-                    time_since_rejection = timezone.now() - last_rejection.created_at
-                    rejection_count = len(rejections)
-                    
-                    # Determine cooldown period
-                    if rejection_count >= self.model.MAX_REJECTION_COUNT:
-                        cooldown_period = timezone.timedelta(days=self.model.EXTENDED_COOLDOWN_DAYS)
-                        cooldown_msg = f"Must wait {self.model.EXTENDED_COOLDOWN_DAYS} days after {rejection_count} rejections"
-                    else:
-                        cooldown_period = timezone.timedelta(hours=self.model.REJECTION_COOLDOWN_HOURS)
-                        cooldown_msg = f"Must wait {self.model.REJECTION_COOLDOWN_HOURS} hours after rejection"
-                    
-                    if time_since_rejection < cooldown_period:
-                        remaining_time = cooldown_period - time_since_rejection
-                        raise ValidationError(f"Cannot resend friend request yet. {cooldown_msg}. Time remaining: {remaining_time}")
-                
-                friendship.status = self.model.PENDING
-                friendship.initiator_id = initiator_id
-                friendship.save(update_fields=['status', 'initiator_id', 'updated_at'])
-                created = False  
-                
-            return friendship, created
-
-        # Bắt lỗi khi 2 request tạo cùng lúc
-        except IntegrityError:
-            return self.get(user_a_id=user_a_id, user_b_id=user_b_id), False
-
 
 class FriendshipRejection(BaseModel):
 
@@ -602,7 +489,7 @@ class FriendshipRejection(BaseModel):
         
         ordering = ['-created_at']
 
-    def clean(self):
+    def clean(self) -> None:
         super().clean()
         
         if self.friendship and self.rejected_by:
@@ -615,7 +502,7 @@ class FriendshipRejection(BaseModel):
             if self.friendship.status != Friendship.PENDING:
                 raise ValidationError("Can only reject pending friendship requests")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Rejection: {self.friendship} by {self.rejected_by.username} at {self.created_at}"
 
 
@@ -682,11 +569,11 @@ class Friendship(BaseModel):
                 name='unique_canonical_friendship'
             ),
             models.CheckConstraint(
-                check=Q(user_a__isnull=False) & Q(user_b__isnull=False),
+                condition=Q(user_a__isnull=False) & Q(user_b__isnull=False),
                 name='both_users_must_exist'
             ),
             models.CheckConstraint(
-                check=~Q(user_a=F('user_b')),
+                condition=~Q(user_a=F('user_b')),
                 name='no_self_friendship'
             ),
         ]
@@ -700,13 +587,13 @@ class Friendship(BaseModel):
             models.Index(fields=['user_a', 'user_b', 'status']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         if not (self.user_a and self.user_b and self.initiator):
             return f"Friendship({self.id}) - Incomplete"
         direction = "→" if self.initiator == self.user_a else "←"
         return f"{self.user_a.username} {direction} {self.user_b.username} ({self.get_status_display()})"
 
-    def clean(self):
+    def clean(self) -> None:
         super().clean()
         
         # Model-level validations
@@ -718,7 +605,7 @@ class Friendship(BaseModel):
             if self.initiator_id not in [self.user_a_id, self.user_b_id]:
                 raise ValidationError("Initiator must be one of the friendship participants")
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if self.user_a_id and self.user_b_id:
             if self.user_a_id > self.user_b_id:
                 self.user_a_id, self.user_b_id = self.user_b_id, self.user_a_id
@@ -728,7 +615,7 @@ class Friendship(BaseModel):
 
     # === Instance Methods ===
     
-    def get_other_user(self, user):
+    def get_other_user(self, user : Union['User', str]) -> 'User':
         user_id = getattr(user, 'id', user)
         if user_id == self.user_a_id:
             return self.user_b
@@ -737,132 +624,82 @@ class Friendship(BaseModel):
         else:
             raise ValueError("User is not a participant in this friendship")
     
-    def get_receiver(self):
+    def get_receiver(self) -> 'User':
         return self.user_b if self.initiator == self.user_a else self.user_a
     
-    def is_initiated_by(self, user):
+    def is_initiated_by(self, user : Union['User', str]) -> bool:
         user_id = getattr(user, 'id', user)
         return self.initiator_id == user_id
     
-    def can_be_accepted_by(self, user):
+    def can_be_accepted_by(self, user : Union['User', str]) -> bool:
         return (
             self.status == self.PENDING and 
             not self.is_initiated_by(user) and
             user in [self.user_a, self.user_b]
         )
-
-    @transaction.atomic
-    def accept(self):
-        self.status = self.ACCEPTED
-        self.save(update_fields=['status', 'updated_at'])
-        return True
-
-    @transaction.atomic
-    def reject(self, user=None):
-        self.status = self.REJECTED
-        self.save(update_fields=['status', 'updated_at'])
-        
-        # Create rejection record for cooldown tracking
-        FriendshipRejection.objects.create(
-            friendship=self,
-            rejected_by=user or self.get_receiver()
-        )
-        
-        return True
-
-    # === Instance Methods - Rejection History ===
     
-    def get_rejection_count(self):
+    def get_rejection_count(self) -> int:
         return self.rejections.count()
-    
-    def get_recent_rejection_count(self, days=30):
-        cutoff = timezone.now() - timezone.timedelta(days=days)
+
+    def get_recent_rejection_count(self, days: int = 30) -> int:
+        cutoff = timezone.now() - timedelta(days=days)
         return self.rejections.filter(created_at__gte=cutoff).count()
     
-    def get_last_rejection(self):
+    def get_last_rejection(self) -> Optional['FriendshipRejection']:
         return self.rejections.first()  # Already ordered by -created_at
     
-    def was_rejected_by(self, user):
+    def was_rejected_by(self, user : Union['User', str]) -> bool:
         user_id = getattr(user, 'id', user)
         return self.rejections.filter(rejected_by_id=user_id).exists()
     
 
-    @transaction.atomic
-    def block(self, blocking_user):
-        self.status = self.BLOCKED
-        self.initiator = blocking_user if hasattr(blocking_user, 'id') else User.objects.get(id=blocking_user)
-        self.save(update_fields=['status', 'initiator', 'updated_at'])
-
-    @transaction.atomic
-    def unfriend(self):
-        if self.status == self.ACCEPTED:
-            self.delete()
-            return True
-        return False
-
-    # === Class Methods ===
-
     @classmethod
-    def get_friendship_status(cls, user1, user2):
+    def get_friendship_status(cls, user1 : Union['User', str], user2 : Union['User', str]) -> Optional[str]:
         friendship = cls.objects.between_users(user1, user2).first()
         return friendship.status if friendship else None
     
+    # === Query Methods - Keep in Model ===
     @classmethod
-    def are_friends(cls, user1, user2):
+    def are_friends(cls, user1 : Union['User', str], user2 : Union['User', str]) -> bool:
         return cls.objects.between_users(user1, user2).accepted().exists()
     
     @classmethod
-    def is_blocked(cls, user1, user2):
+    def is_blocked(cls, user1 : Union['User', str], user2 : Union['User', str]) -> bool:
         return cls.objects.between_users(user1, user2).blocked().exists()
-    
-    @classmethod
-    def get_friends_queryset(cls, user):
-        user_id = getattr(user, 'id', user)
-        
-        return User.objects.filter(
-            Q(friendships_as_a__user_b_id=user_id, friendships_as_a__status=cls.ACCEPTED) |
-            Q(friendships_as_b__user_a_id=user_id, friendships_as_b__status=cls.ACCEPTED)
-        ).select_related().distinct()
 
     @classmethod
-    def get_pending_requests(cls, user):
+    def get_pending_requests(cls, user : Union['User', str]) -> 'FriendshipQuerySet':
         return cls.objects.pending_for(user).select_related(
             'initiator', 'user_a', 'user_b'
         ).order_by('-created_at')
 
     @classmethod
-    def get_sent_requests(cls, user):
+    def get_sent_requests(cls, user : Union['User', str]) -> 'FriendshipQuerySet':
         return cls.objects.sent_by(user).select_related(
             'user_a', 'user_b'
         ).order_by('-created_at')
 
-    @classmethod
-    @transaction.atomic
-    def create_friend_request(cls, initiator, target):
-        return cls.objects.create_friendship_safe(initiator, target, cls.PENDING)
 
     @classmethod
-    def get_friendship(cls, user1, user2):
+    def get_friendship(cls, user1 : Union['User', str], user2 : Union['User', str]) -> Optional['Friendship']:
         return cls.objects.between_users(user1, user2).select_related(
             'user_a', 'user_b', 'initiator'
         ).first()
-    
-    
 
     @classmethod
-    def cleanup_old_rejected_friendships(cls, days=180):
+    def cleanup_old_rejected_friendships(cls, days: int = 180) -> Tuple[int, Dict[str, int]]:
         return cls.objects.cleanup_old_rejected(days)
     
     
 
-class GroupQuerySet(models.QuerySet):
+class GroupQuerySet(models.QuerySet['Group']):
     
-    def with_member_count(self):
+    def with_member_count(self) -> 'GroupQuerySet':
         return self.annotate(
             member_count_annotated=Count('members', distinct=True)
         )
     
-    def with_admin_count(self):
+    def with_admin_count(self) -> 'GroupQuerySet':
         return self.annotate(
             admin_count_annotated=Count(
                 'memberships', 
@@ -871,7 +708,7 @@ class GroupQuerySet(models.QuerySet):
             )
         )
     
-    def with_plans_count(self):
+    def with_plans_count(self) -> 'GroupQuerySet':
         return self.annotate(
             plans_count_annotated=Count('plans', distinct=True),
             active_plans_count_annotated=Count(
@@ -881,16 +718,16 @@ class GroupQuerySet(models.QuerySet):
             )
         )
     
-    def with_full_stats(self):
+    def with_full_stats(self) -> 'GroupQuerySet':
         return self.with_member_count().with_admin_count().with_plans_count()
     
-    def active(self):
+    def active(self) -> 'GroupQuerySet':
         return self.filter(is_active=True)
     
-    def for_user(self, user):
+    def for_user(self, user: Union['User', int]) -> 'GroupQuerySet':
         return self.filter(members=user)
     
-    def administered_by(self, user):
+    def administered_by(self, user: Union['User', int]) -> 'GroupQuerySet':
         return self.filter(
             memberships__user=user,
             memberships__role=GroupMembership.ADMIN
@@ -971,10 +808,10 @@ class Group(BaseModel):
             models.Index(fields=['is_active', 'created_at']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name} (Admin: {self.admin.username})"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # Cờ kiểm tra nếu là nhóm mới
         is_new = self._state.adding
         
@@ -990,25 +827,25 @@ class Group(BaseModel):
             Conversation.get_or_create_for_group(self)
 
     @property
-    def has_avatar(self):
+    def has_avatar(self) -> bool: 
         return bool(self.avatar)
 
     @property
-    def avatar_url(self):
+    def avatar_url(self) -> Optional[str]:
         if not self.avatar:
             return None
         cloudinary_image = CloudinaryImage(str(self.avatar))
         return cloudinary_image.build_url(width=300, height=300, crop='fill', gravity='face', secure=True)
 
     @property
-    def avatar_thumb(self):
+    def avatar_thumb(self) -> Optional[str]:
         if not self.avatar:
             return None
         cloudinary_image = CloudinaryImage(str(self.avatar))
         return cloudinary_image.build_url(width=100, height=100, crop='fill', gravity='face', secure=True)
 
     @property
-    def has_cover_image(self):
+    def has_cover_image(self) -> bool:
         return bool(self.cover_image)
 
     @property
@@ -1043,68 +880,27 @@ class Group(BaseModel):
         return self.plans.exclude(status__in=['cancelled', 'completed']).count()
     
     
-    @transaction.atomic
-    def add_member(self, user, role='member'):
-        membership, created = GroupMembership.objects.get_or_create(
-            user=user,
-            group=self,
-            defaults={'role': role}
-        )
-        
-        if hasattr(self, 'conversation') and created:
-            self.conversation.sync_group_participants()
-        
-        return membership, created
-
-    @transaction.atomic
-    def remove_member(self, user):
-        try:
-            membership = GroupMembership.objects.select_for_update().get(
-                user=user, 
-                group=self
-            )
-            
-            if membership.role == GroupMembership.ADMIN:
-                admin_memberships = GroupMembership.objects.select_for_update().filter(
-                    group=self,
-                    role=GroupMembership.ADMIN
-                )
-                
-                other_admin_count = admin_memberships.exclude(user=user).count()
-                
-                if other_admin_count == 0:
-                    raise ValueError("Không thể xóa admin cuối cùng. Nhóm phải có ít nhất một admin.")
-            
-            membership.delete()
-            
-            if hasattr(self, 'conversation'):
-                self.conversation.sync_group_participants()
-            
-            return True
-            
-        except GroupMembership.DoesNotExist:
-            return False
-
-    def is_member(self, user):
+    
+    def is_member(self, user: 'User') -> bool:
         return GroupMembership.objects.filter(
             group=self,
             user=user
         ).exists()
 
-    def is_admin(self, user):
+    def is_admin(self, user: 'User') -> bool:
         return GroupMembership.objects.filter(
             group=self,
             user=user,
             role=GroupMembership.ADMIN
         ).exists()
 
-    def get_admins(self):
+    def get_admins(self) -> QuerySet['User']:
         return User.objects.filter(
             groupmembership__group=self,
             groupmembership__role=GroupMembership.ADMIN
         )
     
-    def get_admin_count(self):
+    def get_admin_count(self) -> int:
         if hasattr(self, 'admin_count_annotated'):
             return self.admin_count_annotated
         
@@ -1113,7 +909,7 @@ class Group(BaseModel):
             role=GroupMembership.ADMIN
         ).count()
     
-    def get_user_role(self, user):
+    def get_user_role(self, user: 'User') -> Optional[str]:
         try:
             membership = GroupMembership.objects.only('role').get(
                 group=self,
@@ -1123,7 +919,7 @@ class Group(BaseModel):
         except GroupMembership.DoesNotExist:
             return None
     
-    def get_user_membership(self, user):
+    def get_user_membership(self, user: 'User') -> Optional['GroupMembership']:
         try:
             return GroupMembership.objects.select_related('user').get(
                 group=self,
@@ -1132,87 +928,30 @@ class Group(BaseModel):
         except GroupMembership.DoesNotExist:
             return None
     
-    @transaction.atomic
-    def promote_to_admin(self, user):
-        try:
-            membership = GroupMembership.objects.select_for_update().get(
-                group=self, 
-                user=user
-            )
-            return membership.promote_to_admin()
-        except GroupMembership.DoesNotExist:
-            return False
-    
-    @transaction.atomic
-    def demote_from_admin(self, user):
-        try:
-            # Lock membership record
-            membership = GroupMembership.objects.select_for_update().get(
-                group=self, 
-                user=user
-            )
-            return membership.demote_to_member()
-        except GroupMembership.DoesNotExist:
-            return False
-    
-    def get_member_roles(self):
+
+
+    def get_member_roles(self) -> Dict[str, str]:
         return dict(
             GroupMembership.objects.filter(group=self)
             .values_list('user_id', 'role')
         )
-    
-    def can_demote_user(self, user):
-        user_role = self.get_user_role(user)
-        if user_role != GroupMembership.ADMIN:
-            return True
-        
-        return self.get_admin_count() > 1
-    
-    def can_remove_user(self, user):
-        user_role = self.get_user_role(user)
-        if user_role is None:
-            return False
-        if user_role != GroupMembership.ADMIN:
-            return True
-            
-        return self.get_admin_count() > 1
-        
-    def send_message(self, sender, content, message_type='text', **kwargs):
-        message = ChatMessage.objects.create(
-            group=self,
-            sender=sender,
-            content=content,
-            message_type=message_type,
-            **kwargs
-        )
-        return message
 
-    def get_recent_messages(self, limit=50):
+    def get_recent_messages(self, limit: int = 50) -> QuerySet['ChatMessage']:
         return self.messages.active().select_related('sender').order_by('-created_at')[:limit]
 
-    def get_unread_messages_count(self, user):
-        if not self.is_member(user):
-            return 0
-        
-        return self.messages.filter(
-            is_deleted=False
-        ).exclude(
-            Q(sender=user) | Q(read_statuses__user=user)
-        ).count()
 
-
-class GroupMembershipQuerySet(models.QuerySet):
+class GroupMembershipQuerySet(models.QuerySet['GroupMembership']):
     
-    def admins(self):
+    def admins(self) -> 'GroupMembershipQuerySet':
         return self.filter(role=GroupMembership.ADMIN)
     
-    def members(self):
+    def members(self) -> 'GroupMembershipQuerySet':
         return self.filter(role=GroupMembership.MEMBER)
     
-    def for_group(self, group):
+    def for_group(self, group: Union['Group', int]) -> 'GroupMembershipQuerySet':
         return self.filter(group=group)
     
-    def for_user(self, user):
+    def for_user(self, user: Union['User', int]) -> 'GroupMembershipQuerySet':
         return self.filter(user=user)
 
 
@@ -1264,10 +1003,10 @@ class GroupMembership(BaseModel):
         ]
         
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.username} in {self.group.name} ({self.get_role_display()})"
 
-    def clean(self):
+    def clean(self) -> None:
         super().clean()
         
         if self.pk and self.role == self.MEMBER:
@@ -1279,7 +1018,7 @@ class GroupMembership(BaseModel):
             if admin_count == 0:
                 raise ValidationError("Group must have at least one admin")
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if self.pk and self.role == self.MEMBER:
             admin_count = GroupMembership.objects.filter(
                 group=self.group,
@@ -1292,76 +1031,52 @@ class GroupMembership(BaseModel):
         self.clean()
         super().save(*args, **kwargs)
 
-    def promote_to_admin(self):
-        if self.role == self.MEMBER:
-            self.role = self.ADMIN
-            self.save(update_fields=['role'])
-            return True
-        return False
 
-    @transaction.atomic
-    def demote_to_member(self):
+
+class PlanQuerySet(models.QuerySet['Plan']):
     
-        admin_memberships = GroupMembership.objects.select_for_update().filter(
-            group=self.group,
-            role=self.ADMIN
-        )
-        
-        other_admin_count = admin_memberships.exclude(pk=self.pk).count()
-        
-        if other_admin_count == 0:
-            raise ValueError("Cannot demote the last admin. Group must have at least one admin.")
-
-        if self.role == self.ADMIN:
-            self.role = self.MEMBER
-            self.save(update_fields=['role'])
-            return True
-        return False
-
-class PlanQuerySet(models.QuerySet):
-    
-    def personal(self):
+    def personal(self) -> 'PlanQuerySet':
         return self.filter(plan_type='personal')
     
-    def group_plans(self):
+    def group_plans(self) -> 'PlanQuerySet':
         return self.filter(plan_type='group')
     
-    def public(self):
+    def public(self) -> 'PlanQuerySet':
         return self.filter(is_public=True)
     
-    def upcoming(self):
+    def upcoming(self) -> 'PlanQuerySet':
         return self.filter(status='upcoming')
     
-    def ongoing(self):
+    def ongoing(self) -> 'PlanQuerySet':
         return self.filter(status='ongoing')
     
-    def completed(self):
+    def completed(self) -> 'PlanQuerySet':
         return self.filter(status='completed')
     
-    def active(self):
+    def active(self) -> 'PlanQuerySet':
         return self.exclude(status__in=['cancelled', 'completed'])
     
-    def for_user(self, user):
+    def for_user(self, user: Union['User', int]) -> 'PlanQuerySet':
         return self.filter(
             Q(creator=user) |  # Own plans
             Q(group__members=user) |  # Group plans
             Q(is_public=True)  # Public plans
         ).distinct()
     
-    def with_activity_count(self):
+    def with_activity_count(self) -> 'PlanQuerySet':
         return self.annotate(
             activity_count_annotated=Count('activities', distinct=True)
         )
     
-    def with_total_cost(self):
+    def with_total_cost(self) -> 'PlanQuerySet':
         return self.annotate(
             total_cost_annotated=Sum('activities__estimated_cost')
         )
     
-    def with_stats(self):
+    def with_stats(self) -> 'PlanQuerySet':
         return self.with_activity_count().with_total_cost()
     
-    def in_date_range(self, start_date=None, end_date=None):
+    def in_date_range(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> 'PlanQuerySet':
         queryset = self
         if start_date:
             queryset = queryset.filter(start_date__gte=start_date)
@@ -1369,7 +1084,7 @@ class PlanQuerySet(models.QuerySet):
             queryset = queryset.filter(end_date__lte=end_date)
         return queryset
     
-    def needs_status_update(self):
+    def needs_status_update(self) -> 'PlanQuerySet':
         now = timezone.now()
         return self.filter(
             Q(
@@ -1381,67 +1096,7 @@ class PlanQuerySet(models.QuerySet):
             )
         )
     
-    @transaction.atomic
-    def update_statuses_bulk(self):
-        now = timezone.now()
-        
-        upcoming_to_ongoing = self.filter(
-            status='upcoming',
-            start_date__lte=now
-        ).update(
-            status='ongoing',
-            updated_at=now
-        )
-        
-        ongoing_to_completed = self.filter(
-            status='ongoing',
-            end_date__lt=now
-        ).update(
-            status='completed', 
-            updated_at=now
-        )
-        
-        return {
-            'upcoming_to_ongoing': upcoming_to_ongoing,
-            'ongoing_to_completed': ongoing_to_completed,
-            'total_updated': upcoming_to_ongoing + ongoing_to_completed
-        }
-    
-    @transaction.atomic
-    def create_plan_safe(self, creator, title, start_date, end_date, **kwargs):
-        group = kwargs.get('group')
-        
-        # Validate dates
-        if end_date <= start_date:
-            raise ValueError("End date must be after start date")
-        
-        if group:
-            overlapping = self.filter(
-                group=group,
-                start_date__lt=end_date,
-                end_date__gt=start_date,
-                status__in=['upcoming', 'ongoing']
-            )
-            if overlapping.exists():
-                raise ValueError("Group already has another plan in this time frame")
-
-        kwargs['plan_type'] = 'group' if group else 'personal'
-        
-        # Create plan
-        plan = Plan.objects.create(
-            creator=creator,
-            title=title,
-            start_date=start_date,
-            end_date=end_date,
-            **kwargs
-        )
-        
-        return plan
-
-
 class Plan(BaseModel):
-
-    # Thông tin cơ bản của kế hoạch
     title = models.CharField(
         max_length=200,
         help_text="Title of the plan"
@@ -1452,17 +1107,15 @@ class Plan(BaseModel):
         help_text="Detailed description of the plan"
     )
     
-    # Group có thể null cho personal plan
     group = models.ForeignKey(
         Group,
         on_delete=models.CASCADE,
         related_name='plans',
         blank=True,
-        null=True,  # Cho phép null cho personal plan
+        null=True,
         help_text="Group associated with the plan (null for personal plans)"
     )
     
-    # Người tạo/sở hữu kế hoạch
     creator = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -1470,7 +1123,6 @@ class Plan(BaseModel):
         help_text="Creator/owner of the plan"
     )
     
-    # Loại kế hoạch
     PLAN_TYPES = [
         ('personal', 'Cá nhân'),
         ('group', 'Nhóm'),
@@ -1484,7 +1136,6 @@ class Plan(BaseModel):
         help_text="Type of plan: personal or group"
     )
     
-    # Thời gian của chuyến đi
     start_date = models.DateTimeField(
         help_text="Start date of the trip"
     )
@@ -1493,15 +1144,6 @@ class Plan(BaseModel):
         help_text="End date of the trip"
     )
     
-    # # Ngân sách dự kiến
-    # budget = models.DecimalField(
-    #     max_digits=12,
-    #     decimal_places=2,
-    #     blank=True, 
-    #     null=True,
-    #     help_text="Ngân sách dự kiến (VND)"
-    # )
-    
     # Trạng thái công khai
     is_public = models.BooleanField(
         default=False,
@@ -1509,7 +1151,6 @@ class Plan(BaseModel):
         help_text="Is the plan public?"
     )
     
-    # Trạng thái kế hoạch
     STATUS_CHOICES = [
         ('upcoming', 'Sắp bắt đầu'),
         ('ongoing', 'Đang diễn ra'),
@@ -1520,12 +1161,11 @@ class Plan(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='upcoming',  # đồng bộ với STATUS_CHOICES hiện tại
+        default='upcoming',
         db_index=True,
         help_text="Current status of the plan"
     )
 
-    # Celery scheduled task ids for realtime scheduling (store broker task ids)
     scheduled_start_task_id = models.CharField(
         max_length=255,
         null=True,
@@ -1553,12 +1193,12 @@ class Plan(BaseModel):
             models.Index(fields=['is_public', 'plan_type', 'status']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.is_personal():
             return f"{self.title} (Personal - {self.creator.username})"
         return f"{self.title} ({self.group.name})"
 
-    def clean(self):   
+    def clean(self) -> None:   
         # Validate date
         if self.start_date and self.end_date:
             if self.end_date <= self.start_date:
@@ -1571,46 +1211,63 @@ class Plan(BaseModel):
         if self.plan_type == 'group' and self.group is None:
             raise ValidationError("Group plan must have a group")
 
-    def _auto_status(self):
-        """
-        Auto-update status based on current time - OPTIMIZED
-        Returns True if status was changed, False otherwise
-        """
+    def _auto_status(self) -> bool:
         if not (self.start_date and self.end_date):
             return False
             
         now = timezone.now()
         original_status = self.status
         
-        # upcoming -> ongoing: when start_date is reached
         if self.status == 'upcoming' and now >= self.start_date:
             self.status = 'ongoing'
             
-        # ongoing -> completed: when end_date is passed
         elif self.status == 'ongoing' and now > self.end_date:
             self.status = 'completed'
         
         return self.status != original_status
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         self.plan_type = 'personal' if self.group is None else 'group'
         status_changed = self._auto_status()
+        # True khi chưa được lưu vào DB, kiểm tra xem đang xử lý plan mới hay cập nhật plan cũ
+        is_new = self._state.adding
+        
+        dates_changed = False
+        if not is_new and self.pk:
+            update_fields = kwargs.get('update_fields', None)
+            if update_fields is None or 'start_date' in update_fields or 'end_date' in update_fields:
+                try:
+                    old_plan = Plan.objects.only('start_date', 'end_date').get(pk=self.pk)
+                    dates_changed = (
+                        old_plan.start_date != self.start_date or 
+                        old_plan.end_date != self.end_date
+                    )
+                except Plan.DoesNotExist:
+                    is_new = True
+                    dates_changed = False
+        
         self.clean()
         super().save(*args, **kwargs)
         
-        # Log status change if needed (optional)
+        if is_new or dates_changed:
+            if self.status == 'upcoming':
+                try:
+                    self.schedule_celery_tasks()
+                except Exception:
+                    pass
+        
         if status_changed:
             pass  # Could add logging/notifications here
 
-    def is_personal(self):
+    def is_personal(self) -> bool:
         return self.plan_type == 'personal'
 
-    def is_group_plan(self):
+    def is_group_plan(self) -> bool:
         return self.plan_type == 'group'
 
 
     @property
-    def collaborators(self):
+    def collaborators(self) -> List['User']:
         if self.is_personal():
             return [self.creator]
         elif self.is_group_plan() and self.group:
@@ -1619,106 +1276,52 @@ class Plan(BaseModel):
 
     
     @property
-    def duration_days(self):
-        """Tính số ngày của chuyến đi"""
+    def duration_days(self) -> int:
         if self.start_date and self.end_date:
             return (self.end_date.date() - self.start_date.date()).days + 1
         return 0
 
     @property
-    def activities_count(self):
+    def activities_count(self) -> int:
         if hasattr(self, 'activity_count_annotated'):
             return self.activity_count_annotated
         return self.activities.count()
 
     @property
-    def total_estimated_cost(self):
+    def total_estimated_cost(self) -> Decimal:
         if hasattr(self, 'total_cost_annotated'):
-            return self.total_cost_annotated or 0
+            return self.total_cost_annotated or Decimal('0')
         
         result = self.activities.aggregate(
             total=Sum('estimated_cost')
         )['total']
-        return result or 0
+        return result or Decimal('0')
 
-    def get_members(self):
+    def get_members(self) -> QuerySet['User']:
         if self.is_personal():
             return User.objects.filter(id=self.creator_id).select_related()
         if self.group_id:
             return self.group.members.select_related()
         return User.objects.none()
 
-    def add_activity_with_place(self, title, start_time, end_time, place_id=None, **extra_data):
-        if place_id:
-            place_details = goong_service.get_place_details(place_id)
-            if place_details:
-                extra_data.update({
-                    'location_name': place_details['name'],
-                    'location_address': place_details['formatted_address'],
-                    'latitude': place_details['latitude'],
-                    'longitude': place_details['longitude'],
-                })
-        
-        return self.add_activity(title, start_time, end_time, **extra_data)
-
-    def notify_activity_added(self, updater):
-        notification_service = NotificationService()
-        notification_service.notify_plan_update(
-            plan_id=str(self.id),
-            updater_name=updater.username,
-            update_type='activity_added',
-            updater_id=str(updater.id)
-        )
-
-    @transaction.atomic
-    def add_activity(self, title, start_time, end_time, **kwargs):
-        plan = Plan.objects.select_for_update().get(pk=self.pk)
-        
-        # Validate plan vẫn tồn tại và editable
-        if plan.status in ['cancelled', 'completed']:
-            raise ValueError(f"Cannot add activity to plan {plan.get_status_display().lower()}")
-        
-        # Validate thời gian nằm trong khoảng của plan
-        if start_time.date() < plan.start_date.date() or end_time.date() > plan.end_date.date():
-            raise ValueError("Activity must be within the plan's duration")
-
-        # Check time conflicts với activities hiện tại
-        conflicting_activity = plan.check_activity_overlap(start_time, end_time)
-        if conflicting_activity:
-            raise ValueError(
-                f"Time conflict with activity '{conflicting_activity.title}' "
-                f"({conflicting_activity.start_time} - {conflicting_activity.end_time})"
-            )
-        
-        activity = PlanActivity.objects.create(
-            plan=plan,
-            title=title,
-            start_time=start_time,
-            end_time=end_time,
-            **kwargs
-        )
-        
-        plan.save(update_fields=['updated_at'])
-        
-        return activity
 
     @property
-    def activities_by_date(self):
+    def activities_by_date(self) -> Dict[date, List['PlanActivity']]:
         activities = self.activities.order_by('start_time').select_related()
         result = defaultdict(list)
         
         for activity in activities:
-            date = activity.start_time.date()
-            result[date].append(activity)
+            date_key = activity.start_time.date()
+            result[date_key].append(activity)
         
         return dict(result)
 
-    def get_activities_by_date(self, date):
+    def get_activities_by_date(self, date: date) -> QuerySet['PlanActivity']:
         return self.activities.filter(
             start_time__date=date
         ).order_by('start_time')
 
-    def check_activity_overlap(self, start_time, end_time, exclude_id=None):
+    def check_activity_overlap(self, start_time: datetime, end_time: datetime, exclude_id: Optional[str] = None) -> Optional['PlanActivity']:
         queryset = self.activities.filter(
             start_time__lt=end_time,
             end_time__gt=start_time
@@ -1729,7 +1332,7 @@ class Plan(BaseModel):
             
         return queryset.first()
 
-    def has_time_conflict(self, start_time, end_time, exclude_activity=None):
+    def has_time_conflict(self, start_time: datetime, end_time: datetime, exclude_activity: Optional['PlanActivity'] = None) -> bool:
         queryset = self.activities.filter(
             start_time__lt=end_time,
             end_time__gt=start_time 
@@ -1740,181 +1343,34 @@ class Plan(BaseModel):
             
         return queryset.exists()
 
-
-    @transaction.atomic
-    def start_trip(self, user=None, force=False):
-        plan = Plan.objects.select_for_update().get(pk=self.pk)
+    def revoke_scheduled_tasks(self) -> None:
+        old_start_id = self.scheduled_start_task_id
+        old_end_id = self.scheduled_end_task_id
         
-        if plan.status != 'upcoming':
-            raise ValueError(f"Cannot start trip from status '{plan.get_status_display()}'")
-
-        if not plan.activities.exists():
-            raise ValueError("Cannot start trip without any activities")
-
-        now = timezone.now()
-        if not force and plan.start_date > now:
-            raise ValueError("It's not time to start the trip yet")
-
-        if user and plan.is_group_plan():
-            if not plan.group.is_admin(user):
-                raise ValueError("Only group admins can start group trips")
-
-        updated_count = Plan.objects.filter(
-            pk=plan.pk,
-            status='upcoming' 
-        ).update(
-            status='ongoing',
-            updated_at=now
-        )
-        
-        if updated_count == 0:
-            raise ValueError("Plan status was changed by another user")
-        
-        self.refresh_from_db()
-        return self
-
-    def revoke_scheduled_tasks(self):
-        """Revoke stored scheduled Celery tasks (if any). Safe to call multiple times."""
-        try:
-            from celery import current_app
-        except Exception:
-            return
-
-        for task_id in (self.scheduled_start_task_id, self.scheduled_end_task_id):
+        for task_id in (old_start_id, old_end_id):
             if not task_id:
                 continue
             try:
                 current_app.control.revoke(task_id, terminate=False)
             except Exception:
-                # best-effort revoke; ignore failures
                 pass
 
-        # Clear stored ids
-        Plan.objects.filter(pk=self.pk).update(
-            scheduled_start_task_id=None,
-            scheduled_end_task_id=None
-        )
-
-    def schedule_celery_tasks(self):
-        """Schedule start and end tasks via Celery apply_async with ETA and store task ids.
-        This is best-effort: if Celery isn't configured, it silently no-ops.
-        """
-        try:
-            from .tasks import start_plan_task, complete_plan_task
-            from celery import current_app
-        except Exception:
-            return
-
-        now = timezone.now()
-        start_task_id = None
-        end_task_id = None
-
-        # Revoke existing first
-        self.revoke_scheduled_tasks()
-
-        if self.start_date and self.start_date > now:
-            res = start_plan_task.apply_async(args=[str(self.pk)], eta=self.start_date)
-            start_task_id = res.id
-
-        if self.end_date and self.end_date > now:
-            res = complete_plan_task.apply_async(args=[str(self.pk)], eta=self.end_date)
-            end_task_id = res.id
-
-        # Persist ids
-        Plan.objects.filter(pk=self.pk).update(
-            scheduled_start_task_id=start_task_id,
-            scheduled_end_task_id=end_task_id
-        )
-
-    @transaction.atomic
-    def complete_trip(self, user=None, force=False):
-        """
-        Complete trip manually or validate automatic transition
-        
-        Args:
-            user: User performing the action  
-            force: Skip time validation
+        updates = {}
+        if old_start_id:
+            updates['scheduled_start_task_id'] = None
+        if old_end_id:
+            updates['scheduled_end_task_id'] = None
             
-        Returns:
-            Plan: The updated plan instance
-        """
-        plan = Plan.objects.select_for_update().get(pk=self.pk)
-        
-        if plan.status != 'ongoing':
-            raise ValueError(f"Cannot complete trip from status '{plan.get_status_display()}'")
-        
-        # Time validation (optional)
-        now = timezone.now()
-        if not force and plan.end_date > now:
-            # Allow early completion but log it
-            pass  # Could add warning log here
-            
-        # Permission check for group plans
-        if user and plan.is_group_plan():
-            if not plan.group.is_admin(user):
-                raise ValueError("Only group admins can complete group trips")
-        
-        # Atomic update
-        updated_count = Plan.objects.filter(
-            pk=plan.pk,
-            status='ongoing'
-        ).update(
-            status='completed',
-            updated_at=now
-        )
-        
-        if updated_count == 0:
-            raise ValueError("Plan status was changed by another user")
-        
-        self.refresh_from_db()
-        return self
-    
-    @transaction.atomic
-    def cancel_trip(self, user=None, reason=None):
-        """
-        Cancel trip with proper validation and cleanup
-        
-        Args:
-            user: User performing the action
-            reason: Optional cancellation reason
-            
-        Returns:
-            Plan: The updated plan instance
-        """
-        plan = Plan.objects.select_for_update().get(pk=self.pk)
-        
-        # Validate current status
-        if plan.status in ['cancelled', 'completed']:
-            raise ValueError(f"Cannot cancel plan that is already {plan.get_status_display().lower()}")
-        
-        # Permission check for group plans
-        if user and plan.is_group_plan():
-            if not plan.group.is_admin(user):
-                raise ValueError("Only group admins can cancel group plans")
-        
-        # Atomic update
-        now = timezone.now()
-        updated_count = Plan.objects.filter(
-            pk=plan.pk,
-            status__in=['upcoming', 'ongoing']
-        ).update(
-            status='cancelled',
-            updated_at=now
-        )
-        
-        if updated_count == 0:
-            raise ValueError("Plan status was changed by another user")
-        
-        # TODO: Add cancellation reason logging if needed
-        # if reason:
-        #     PlanCancellation.objects.create(plan=plan, reason=reason, cancelled_by=user)
-        
-        self.refresh_from_db()
-        return self
+        if updates:
+            Plan.objects.filter(
+                pk=self.pk,
+                scheduled_start_task_id=old_start_id,
+                scheduled_end_task_id=old_end_id
+            ).update(**updates)
+
 
     @property
-    def needs_status_update(self):
-        """Check if this plan needs automatic status update"""
+    def needs_status_update(self) -> bool:
         if not (self.start_date and self.end_date):
             return False
             
@@ -1925,8 +1381,7 @@ class Plan(BaseModel):
         )
     
     @property 
-    def expected_status(self):
-        """Get the expected status based on current time"""
+    def expected_status(self) -> str:
         if not (self.start_date and self.end_date):
             return self.status
             
@@ -1938,11 +1393,7 @@ class Plan(BaseModel):
         else:
             return 'completed'
     
-    def refresh_status(self):
-        """
-        Force refresh status based on current time
-        Returns True if status was updated, False otherwise
-        """
+    def refresh_status(self) -> bool:
         if not self.needs_status_update:
             return False
             
@@ -1955,33 +1406,16 @@ class Plan(BaseModel):
         return False
     
     @classmethod
-    def update_all_statuses(cls):
-        """
-        Class method to update all plan statuses - for management command
-        Returns update statistics
-        """
+    def update_all_statuses(cls) -> Any:
         return cls.objects.update_statuses_bulk()
     
     @classmethod
-    def get_plans_needing_updates(cls):
+    def get_plans_needing_updates(cls) -> QuerySet['Plan']:
         """Get all plans that need status updates"""
         return cls.objects.needs_status_update()
 
     @transaction.atomic
-    def reorder_activities(self, activity_id_order_pairs, date=None):
-        """
-        Reorder activities cho một ngày cụ thể, thread-safe
-        
-        Args:
-            activity_id_order_pairs: List of (activity_id, new_order) tuples
-            date: Date để reorder (None = reorder all)
-            
-        Returns:
-            int: Số activities được update
-            
-        Raises:
-            ValueError: Nếu có conflicts hoặc invalid data
-        """
+    def reorder_activities(self, activity_id_order_pairs: List[Tuple[str, int]], date: Optional[date] = None) -> None:
         # Lock plan để prevent concurrent reordering
         plan = Plan.objects.select_for_update().get(pk=self.pk)
         
@@ -2023,91 +1457,9 @@ class Plan(BaseModel):
         
         return len(updates)
 
-    @transaction.atomic  
-    def update_activity_safe(self, activity_id, **update_fields):
-        """
-        Update activity với conflict detection bằng updated_at
-        
-        Args:
-            activity_id: ID của activity
-            **update_fields: Fields để update (có thể có 'expected_updated_at')
-            
-        Returns:
-            PlanActivity: Updated activity
-            
-        Raises:
-            ValueError: Nếu có conflicts hoặc validation errors
-        """
-        # Expected updated_at để optimistic locking
-        expected_updated_at = update_fields.pop('expected_updated_at', None)
-        
-        # Lock cả plan và activity
-        plan = Plan.objects.select_for_update().get(pk=self.pk)
-        
-        try:
-            activity = plan.activities.select_for_update().get(id=activity_id)
-        except PlanActivity.DoesNotExist:
-            raise ValueError("Activity không tồn tại hoặc đã bị xóa")
-        
-        # Optimistic locking check
-        if expected_updated_at and activity.updated_at != expected_updated_at:
-            raise ValueError(
-                "Activity đã được thay đổi bởi user khác. "
-                "Vui lòng refresh và thử lại."
-            )
-        
-        # Validate plan status
-        if plan.status in ['cancelled', 'completed']:
-            raise ValueError("Không thể sửa activity của plan đã hoàn thành/hủy")
-        
-        # Time conflict checking (nếu update start/end time)
-        if 'start_time' in update_fields or 'end_time' in update_fields:
-            new_start = update_fields.get('start_time', activity.start_time)
-            new_end = update_fields.get('end_time', activity.end_time)
-            
-            conflicting = plan.check_activity_overlap(
-                new_start, new_end, exclude_id=activity.id
-            )
-            if conflicting:
-                raise ValueError(f"Xung đột thời gian với activity '{conflicting.title}'")
-        
-        # Apply updates
-        for field, value in update_fields.items():
-            setattr(activity, field, value)
-        
-        activity.save()
-        
-        # Touch plan updated_at
-        plan.save(update_fields=['updated_at'])
-        
-        return activity
-
-    @transaction.atomic
-    def delete_activity_safe(self, activity_id, user=None):
-        """
-        Xóa activity với permission và conflict checking
-        """
-        plan = Plan.objects.select_for_update().get(pk=self.pk)
-        
-        if plan.status in ['cancelled', 'completed']:
-            raise ValueError("Không thể xóa activity của plan đã hoàn thành/hủy")
-        
-        try:
-            activity = plan.activities.select_for_update().get(id=activity_id)
-        except PlanActivity.DoesNotExist:
-            raise ValueError("Activity không tồn tại hoặc đã bị xóa")
-        
-        # Permission check cho group plans
-        if user and plan.is_group_plan():
-            if not (plan.group.is_admin(user) or activity.created_by == user):
-                raise ValueError("Chỉ admin hoặc người tạo mới có thể xóa activity")
-        
-        activity.delete()
-        
-        # Touch plan updated_at
-        plan.save(update_fields=['updated_at'])
-        
-        return True
+    # === BUSINESS LOGIC REMOVED ===
+    # update_activity_safe, delete_activity_safe moved to PlanService  
+    # Views should call PlanService methods directly
 
 
 class PlanActivity(BaseModel):
@@ -2255,10 +1607,10 @@ class PlanActivity(BaseModel):
             models.Index(fields=['plan', 'start_time', 'end_time']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.plan.title} - {self.title} ({self.start_time.strftime('%H:%M')})"
 
-    def clean(self):
+    def clean(self) -> None:
         """Validation cho activity với business rules"""
         super().clean()
         
@@ -2291,7 +1643,7 @@ class PlanActivity(BaseModel):
         if self.estimated_cost is not None and self.estimated_cost < 0:
             raise ValidationError("Chi phí không được âm")
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Override save để auto-increment version và validate"""
         
         # Increment version cho optimistic locking (chỉ khi update)
@@ -2307,7 +1659,7 @@ class PlanActivity(BaseModel):
         if self.pk:
             self.refresh_from_db(fields=['version'])
 
-    def check_time_conflict(self, exclude_self=True):
+    def check_time_conflict(self, exclude_self: bool = True) -> QuerySet['PlanActivity']:
         """
         Check xung đột thời gian với activities khác trong plan
         
@@ -2325,57 +1677,49 @@ class PlanActivity(BaseModel):
         return conflicts
 
     @property
-    def duration_minutes(self):
+    def duration_minutes(self) -> int:
         """Tính thời lượng activity theo phút"""
         if self.start_time and self.end_time:
             return int((self.end_time - self.start_time).total_seconds() / 60)
         return 0
 
     @property
-    def is_today(self):
+    def is_today(self) -> bool:
         """Check xem activity có phải hôm nay không"""
         if self.start_time:
             return self.start_time.date() == timezone.now().date()
         return False
 
     @property
-    def can_complete(self):
+    def can_complete(self) -> bool:
         """Check xem có thể đánh dấu hoàn thành không"""
         # Chỉ có thể complete activities trong quá khứ hoặc hiện tại
         return self.start_time <= timezone.now() if self.start_time else False
-            
-        if self.longitude is not None and not (-180 <= self.longitude <= 180):
-            raise ValidationError("Kinh độ phải từ -180 đến 180")
-
-    def save(self, *args, **kwargs):
-        """Override save để chạy validation"""
-        self.clean()
-        super().save(*args, **kwargs)
 
 
-class ConversationQuerySet(models.QuerySet):
+class ConversationQuerySet(models.QuerySet['Conversation']):
     """Custom QuerySet for Conversation with optimized methods"""
     
-    def active(self):
+    def active(self) -> 'ConversationQuerySet':
         """Get active conversations"""
         return self.filter(is_active=True)
     
-    def for_user(self, user):
+    def for_user(self, user: Union['User', int]) -> 'ConversationQuerySet':
         """Get conversations for specific user (both direct and group)"""
         return self.filter(
             Q(conversation_type='direct', participants=user) |
             Q(conversation_type='group', group__members=user)
         ).distinct()
     
-    def direct_chats(self):
+    def direct_chats(self) -> 'ConversationQuerySet':
         """Get only direct (1-1) conversations"""
         return self.filter(conversation_type='direct')
     
-    def group_chats(self):
+    def group_chats(self) -> 'ConversationQuerySet':
         """Get only group conversations"""
         return self.filter(conversation_type='group')
     
-    def with_last_message(self):
+    def with_last_message(self) -> 'ConversationQuerySet':
         """Annotate with last message info - OPTIMIZED"""
         # Subquery to get the latest message for each conversation
         last_message_subquery = ChatMessage.objects.filter(
@@ -2389,7 +1733,7 @@ class ConversationQuerySet(models.QuerySet):
             last_message_sender_id=Subquery(last_message_subquery.values('sender_id')[:1])
         ).select_related('group').prefetch_related('participants')
     
-    def get_direct_conversation(self, user1, user2):
+    def get_direct_conversation(self, user1: Union['User', int], user2: Union['User', int]) -> Optional['Conversation']:
         """Get direct conversation between two users"""
         return self.direct_chats().filter(
             participants=user1
@@ -2433,32 +1777,6 @@ class Conversation(BaseModel):
         help_text="Người tham gia (cho chat 1-1: 2 users, group: auto sync từ group members)"
     )
 
-
-# --- Post-save hook for Plan scheduling (imported lazily to avoid startup cycles)
-try:
-    from django.db.models.signals import post_save
-    from django.dispatch import receiver
-
-    @receiver(post_save, sender=Plan)
-    def _plan_post_save_schedule(sender, instance, created, **kwargs):
-        """Schedule/re-schedule Celery tasks for plan start/end on save.
-        This is best-effort: if Celery isn't available, it silently no-ops.
-        """
-        try:
-            # Only schedule if plan has valid datetimes and isn't cancelled/completed
-            if instance.status in ['cancelled', 'completed']:
-                # Revoke any previously scheduled tasks
-                instance.revoke_scheduled_tasks()
-                return
-
-            instance.schedule_celery_tasks()
-        except Exception:
-            # Avoid breaking save if scheduling fails
-            pass
-except Exception:
-    # If signals aren't available at import time, skip wiring
-    pass
-    
     # Conversation metadata
     name = models.CharField(
         max_length=200,
@@ -2507,7 +1825,7 @@ except Exception:
             models.Index(fields=['is_active', 'last_message_at']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.conversation_type == 'group' and self.group:
             return f"Group: {self.group.name}"
         elif self.conversation_type == 'direct':
@@ -2516,7 +1834,7 @@ except Exception:
                 return f"Direct: {participants[0].username} & {participants[1].username}"
         return f"Conversation {self.id}"
 
-    def clean(self):
+    def clean(self) -> None:
         """Validation for conversation"""
         if self.conversation_type == 'group' and not self.group:
             raise ValidationError("Group conversation phải có group")
@@ -2524,7 +1842,7 @@ except Exception:
         if self.conversation_type == 'direct' and self.group:
             raise ValidationError("Direct conversation không được có group")
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         self.clean()
         super().save(*args, **kwargs)
         
@@ -2532,7 +1850,7 @@ except Exception:
         if not self.name:
             self._auto_generate_name()
 
-    def _auto_generate_name(self):
+    def _auto_generate_name(self) -> None:
         """Auto-generate conversation name"""
         if self.conversation_type == 'group' and self.group:
             self.name = self.group.name
@@ -2547,7 +1865,7 @@ except Exception:
     # === Properties ===
     
     @property
-    def avatar_url(self):
+    def avatar_url(self) -> Optional[str]:
         """Get conversation avatar URL"""
         if self.avatar:
             cloudinary_image = CloudinaryImage(str(self.avatar))
@@ -2560,7 +1878,7 @@ except Exception:
         return None
 
     @property
-    def display_name(self):
+    def display_name(self) -> str:
         """Get display name for conversation"""
         if self.name:
             return self.name
@@ -2575,7 +1893,7 @@ except Exception:
         
         return "Cuộc trò chuyện"
 
-    def get_other_participant(self, user):
+    def get_other_participant(self, user: 'User') -> Optional['User']:
         """Get the other participant in direct conversation"""
         if self.conversation_type != 'direct':
             return None
@@ -2638,11 +1956,13 @@ except Exception:
                 for msg_id in unread_message_ids
             ]
             MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
+        
+        return len(unread_message_ids)
 
     # === Class Methods ===
     
     @classmethod
-    def get_or_create_direct_conversation(cls, user1, user2):
+    def get_or_create_direct_conversation(cls, user1: 'User', user2: 'User') -> Tuple['Conversation', bool]:
         """Get or create direct conversation between two users"""
         if user1 == user2:
             raise ValueError("Cannot create conversation with yourself")
@@ -2661,7 +1981,7 @@ except Exception:
         return conversation, True
 
     @classmethod
-    def create_group_conversation(cls, group):
+    def create_group_conversation(cls, group: 'Group') -> 'Conversation':
         """Create conversation for group"""
         conversation = cls.objects.create(
             conversation_type='group',
@@ -2675,14 +1995,14 @@ except Exception:
         return conversation
 
     @classmethod
-    def get_or_create_for_group(cls, group):
+    def get_or_create_for_group(cls, group: 'Group') -> Tuple['Conversation', bool]:
         """Get or create conversation for existing group (migration helper)"""
         try:
             return group.conversation, False
         except cls.DoesNotExist:
             return cls.create_group_conversation(group), True
 
-    def sync_group_participants(self):
+    def sync_group_participants(self) -> None:
         """Sync participants with group members (for group conversations)"""
         if self.conversation_type != 'group' or not self.group:
             return
@@ -2692,26 +2012,34 @@ except Exception:
         self.participants.add(*self.group.members.all())
 
 
-class ChatMessageQuerySet(models.QuerySet):
+class ChatMessageQuerySet(models.QuerySet['ChatMessage']):
     """Custom QuerySet for ChatMessage with optimized methods"""
     
-    def active(self):
+    def active(self) -> 'ChatMessageQuerySet':
         """Filter non-deleted messages"""
         return self.filter(is_deleted=False)
     
-    def for_conversation(self, conversation):
+    def for_conversation(self, conversation: Union['Conversation', int]) -> 'ChatMessageQuerySet':
         """Filter messages for specific conversation"""
         return self.filter(conversation=conversation)
     
-    def for_user(self, user):
+    def for_group(self, group: Union['Group', int]) -> 'ChatMessageQuerySet':
+        """DEPRECATED: Use for_conversation instead"""
+        return self.filter(group=group)
+    
+    def for_user(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
         """Filter messages sent by specific user"""
         return self.filter(sender=user)
     
-    def recent(self, limit=50):
+    def by_user(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
+        """Alias for for_user"""
+        return self.filter(sender=user)
+    
+    def recent(self, limit: int = 50) -> 'ChatMessageQuerySet':
         """Get recent messages with limit"""
         return self.order_by('-created_at')[:limit]
     
-    def with_read_status(self, user):
+    def with_read_status(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
         """Annotate with read status for specific user"""
         return self.annotate(
             is_read_by_user=Exists(
@@ -2722,7 +2050,7 @@ class ChatMessageQuerySet(models.QuerySet):
             )
         )
     
-    def unread_for_user(self, user):
+    def unread_for_user(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
         """Filter unread messages for user"""
         return self.active().exclude(sender=user).exclude(
             Exists(
@@ -2733,39 +2061,21 @@ class ChatMessageQuerySet(models.QuerySet):
             )
         )
     
-    def by_type(self, message_type):
+    def by_type(self, message_type: str) -> 'ChatMessageQuerySet':
         """Filter by message type"""
         return self.filter(message_type=message_type)
     
-    def with_attachments(self):
-        """Filter messages with attachments"""
-        return self.exclude(attachment='')
-    """Custom QuerySet for ChatMessage"""
-    
-    def active(self):
-        return self.filter(is_deleted=False)
-    
-    def for_conversation(self, conversation):
-        return self.filter(conversation=conversation)
-    
-    def for_group(self, group):
-        """DEPRECATED: Use for_conversation instead"""
-        return self.filter(group=group)
-    
-    def by_user(self, user):
-        return self.filter(sender=user)
-    
-    def text_messages(self):
+    def text_messages(self) -> 'ChatMessageQuerySet':
+        """Filter text messages"""
         return self.filter(message_type='text')
     
-    def system_messages(self):
+    def system_messages(self) -> 'ChatMessageQuerySet':
+        """Filter system messages"""
         return self.filter(message_type='system')
     
-    def with_attachments(self):
+    def with_attachments(self) -> 'ChatMessageQuerySet':
+        """Filter messages with attachments"""
         return self.exclude(attachment='')
-    
-    def recent(self, limit=50):
-        return self.order_by('-created_at')[:limit]
 
 
 class ChatMessage(BaseModel):
@@ -2918,7 +2228,7 @@ class ChatMessage(BaseModel):
             models.Index(fields=['message_type', 'created_at']),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.conversation:
             location = f"in {self.conversation.display_name}"
         elif self.group:
@@ -2930,7 +2240,7 @@ class ChatMessage(BaseModel):
             return f"{self.sender.username} {location}: {self.content[:50]}..."
         return f"System message {location}: {self.content[:50]}..."
 
-    def clean(self):
+    def clean(self) -> None:
         """Validation cho message"""
         
         # System messages không cần sender
@@ -2977,7 +2287,7 @@ class ChatMessage(BaseModel):
         self.content = "[Tin nhắn đã bị xóa]"
         self.save(update_fields=['is_deleted', 'content', 'updated_at'])
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Override save để update conversation last_message_at và clear caches"""
         # First call clean if not called yet
         if not hasattr(self, '_clean_called'):
@@ -3071,5 +2381,32 @@ class MessageReadStatus(BaseModel):
         
         ordering = ['read_at']
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.username} read message {self.message.id}"
+
+
+# --- Post-save hook for Plan scheduling (imported lazily to avoid startup cycles)
+try:
+    from django.db.models.signals import post_save
+    from django.dispatch import receiver
+    import logging
+
+    @receiver(post_save, sender=Plan)
+    def _plan_post_save_schedule(sender, instance, created, **kwargs):
+        """Schedule/re-schedule Celery tasks for plan start/end on save.
+        This is best-effort: if Celery isn't available, it silently no-ops.
+        """
+        try:
+            # Only schedule if plan has valid datetimes and isn't cancelled/completed
+            if instance.status in ['cancelled', 'completed']:
+                # Revoke any previously scheduled tasks
+                instance.revoke_scheduled_tasks()
+                return
+
+            instance.schedule_celery_tasks()
+        except Exception:
+            # Avoid breaking save if scheduling fails
+            pass
+except Exception:
+    # If signals aren't available at import time, skip wiring
+    pass

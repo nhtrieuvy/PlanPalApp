@@ -1,12 +1,31 @@
-from psycopg2.extras import Inet
+import json
+from functools import lru_cache, partial
 
 from django.conf import settings
 from django.db.backends.base.operations import BaseDatabaseOperations
+from django.db.backends.postgresql.compiler import InsertUnnest
+from django.db.backends.postgresql.psycopg_any import (
+    Inet,
+    Jsonb,
+    errors,
+    is_psycopg3,
+    mogrify,
+)
 from django.db.backends.utils import split_tzname_delta
 from django.db.models.constants import OnConflict
+from django.db.models.functions import Cast
+from django.utils.regex_helper import _lazy_re_compile
+
+
+@lru_cache
+def get_json_dumps(encoder):
+    if encoder is None:
+        return json.dumps
+    return partial(json.dumps, cls=encoder)
 
 
 class DatabaseOperations(BaseDatabaseOperations):
+    compiler_module = "django.db.backends.postgresql.compiler"
     cast_char_field_without_max_length = "varchar"
     explain_prefix = "EXPLAIN"
     explain_options = frozenset(
@@ -14,7 +33,10 @@ class DatabaseOperations(BaseDatabaseOperations):
             "ANALYZE",
             "BUFFERS",
             "COSTS",
+            "GENERIC_PLAN",
+            "MEMORY",
             "SETTINGS",
+            "SERIALIZE",
             "SUMMARY",
             "TIMING",
             "VERBOSE",
@@ -26,6 +48,18 @@ class DatabaseOperations(BaseDatabaseOperations):
         "BigAutoField": "bigint",
         "SmallAutoField": "smallint",
     }
+
+    if is_psycopg3:
+        from psycopg.types import numeric
+
+        integerfield_type_map = {
+            "SmallIntegerField": numeric.Int2,
+            "IntegerField": numeric.Int4,
+            "BigIntegerField": numeric.Int8,
+            "PositiveSmallIntegerField": numeric.Int2,
+            "PositiveIntegerField": numeric.Int4,
+            "PositiveBigIntegerField": numeric.Int8,
+        }
 
     def unification_cast_sql(self, output_field):
         internal_type = output_field.get_internal_type()
@@ -47,19 +81,23 @@ class DatabaseOperations(BaseDatabaseOperations):
             )
         return "%s"
 
+    # EXTRACT format cannot be passed in parameters.
+    _extract_format_re = _lazy_re_compile(r"[A-Z_]+")
+
     def date_extract_sql(self, lookup_type, sql, params):
         # https://www.postgresql.org/docs/current/functions-datetime.html#FUNCTIONS-DATETIME-EXTRACT
-        extract_sql = f"EXTRACT(%s FROM {sql})"
-        extract_param = lookup_type
         if lookup_type == "week_day":
             # For consistency across backends, we return Sunday=1, Saturday=7.
-            extract_sql = f"EXTRACT(%s FROM {sql}) + 1"
-            extract_param = "dow"
+            return f"EXTRACT(DOW FROM {sql}) + 1", params
         elif lookup_type == "iso_week_day":
-            extract_param = "isodow"
+            return f"EXTRACT(ISODOW FROM {sql})", params
         elif lookup_type == "iso_year":
-            extract_param = "isoyear"
-        return extract_sql, (extract_param, *params)
+            return f"EXTRACT(ISOYEAR FROM {sql})", params
+
+        lookup_type = lookup_type.upper()
+        if not self._extract_format_re.fullmatch(lookup_type):
+            raise ValueError(f"Invalid lookup type: {lookup_type!r}")
+        return f"EXTRACT({lookup_type} FROM {sql})", params
 
     def date_trunc_sql(self, lookup_type, sql, params, tzname=None):
         sql, params = self._convert_sql_to_tz(sql, params, tzname)
@@ -91,10 +129,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         sql, params = self._convert_sql_to_tz(sql, params, tzname)
         if lookup_type == "second":
             # Truncate fractional seconds.
-            return (
-                f"EXTRACT(%s FROM DATE_TRUNC(%s, {sql}))",
-                ("second", "second", *params),
-            )
+            return f"EXTRACT(SECOND FROM DATE_TRUNC(%s, {sql}))", ("second", *params)
         return self.date_extract_sql(lookup_type, sql, params)
 
     def datetime_trunc_sql(self, lookup_type, sql, params, tzname):
@@ -105,10 +140,7 @@ class DatabaseOperations(BaseDatabaseOperations):
     def time_extract_sql(self, lookup_type, sql, params):
         if lookup_type == "second":
             # Truncate fractional seconds.
-            return (
-                f"EXTRACT(%s FROM DATE_TRUNC(%s, {sql}))",
-                ("second", "second", *params),
-            )
+            return f"EXTRACT(SECOND FROM DATE_TRUNC(%s, {sql}))", ("second", *params)
         return self.date_extract_sql(lookup_type, sql, params)
 
     def time_trunc_sql(self, lookup_type, sql, params, tzname=None):
@@ -117,6 +149,11 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     def deferrable_sql(self):
         return " DEFERRABLE INITIALLY DEFERRED"
+
+    def bulk_insert_sql(self, fields, placeholder_rows):
+        if isinstance(placeholder_rows, InsertUnnest):
+            return f"SELECT * FROM {placeholder_rows}"
+        return super().bulk_insert_sql(fields, placeholder_rows)
 
     def fetch_returned_insert_rows(self, cursor):
         """
@@ -127,7 +164,6 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     def lookup_cast(self, lookup_type, internal_type=None):
         lookup = "%s"
-
         # Cast text lookups to text to allow things like filter(x__contains=4)
         if lookup_type in (
             "iexact",
@@ -142,8 +178,6 @@ class DatabaseOperations(BaseDatabaseOperations):
         ):
             if internal_type in ("IPAddressField", "GenericIPAddressField"):
                 lookup = "HOST(%s)"
-            elif internal_type in ("CICharField", "CIEmailField", "CITextField"):
-                lookup = "%s::citext"
             else:
                 lookup = "%s::text"
 
@@ -164,8 +198,11 @@ class DatabaseOperations(BaseDatabaseOperations):
             return name  # Quoting once is enough.
         return '"%s"' % name
 
+    def compose_sql(self, sql, params):
+        return mogrify(sql, params, self.connection)
+
     def set_time_zone_sql(self):
-        return "SET TIME ZONE %s"
+        return "SELECT set_config('TimeZone', %s, false)"
 
     def sql_flush(self, style, tables, *, reset_sequences=False, allow_cascade=False):
         if not tables:
@@ -265,12 +302,27 @@ class DatabaseOperations(BaseDatabaseOperations):
         else:
             return ["DISTINCT"], []
 
-    def last_executed_query(self, cursor, sql, params):
-        # https://www.psycopg.org/docs/cursor.html#cursor.query
-        # The query attribute is a Psycopg extension to the DB API 2.0.
-        if cursor.query is not None:
-            return cursor.query.decode()
-        return None
+    if is_psycopg3:
+
+        def last_executed_query(self, cursor, sql, params):
+            if self.connection.features.uses_server_side_binding:
+                try:
+                    return self.compose_sql(sql, params)
+                except errors.DataError:
+                    return None
+            else:
+                if cursor._query and cursor._query.query is not None:
+                    return cursor._query.query.decode()
+                return None
+
+    else:
+
+        def last_executed_query(self, cursor, sql, params):
+            # https://www.psycopg.org/docs/cursor.html#cursor.query
+            # The query attribute is a Psycopg extension to the DB API 2.0.
+            if cursor.query is not None:
+                return cursor.query.decode()
+            return None
 
     def return_insert_columns(self, fields):
         if not fields:
@@ -285,10 +337,12 @@ class DatabaseOperations(BaseDatabaseOperations):
         ]
         return "RETURNING %s" % ", ".join(columns), ()
 
-    def bulk_insert_sql(self, fields, placeholder_rows):
-        placeholder_rows_sql = (", ".join(row) for row in placeholder_rows)
-        values_sql = ", ".join("(%s)" % sql for sql in placeholder_rows_sql)
-        return "VALUES " + values_sql
+    if is_psycopg3:
+
+        def adapt_integerfield_value(self, value, internal_type):
+            if value is None or hasattr(value, "resolve_expression"):
+                return value
+            return self.integerfield_type_map[internal_type](value)
 
     def adapt_datefield_value(self, value):
         return value
@@ -299,13 +353,13 @@ class DatabaseOperations(BaseDatabaseOperations):
     def adapt_timefield_value(self, value):
         return value
 
-    def adapt_decimalfield_value(self, value, max_digits=None, decimal_places=None):
-        return value
-
     def adapt_ipaddressfield_value(self, value):
         if value:
             return Inet(value)
         return None
+
+    def adapt_json_value(self, value, encoder):
+        return Jsonb(value, dumps=get_json_dumps(encoder))
 
     def subtract_temporals(self, internal_type, lhs, rhs):
         if internal_type == "DateField":
@@ -317,6 +371,9 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     def explain_query_prefix(self, format=None, **options):
         extra = {}
+        if serialize := options.pop("serialize", None):
+            if serialize.upper() in {"TEXT", "BINARY"}:
+                extra["SERIALIZE"] = serialize.upper()
         # Normalize options.
         if options:
             options = {
@@ -353,3 +410,13 @@ class DatabaseOperations(BaseDatabaseOperations):
             update_fields,
             unique_fields,
         )
+
+    def prepare_join_on_clause(self, lhs_table, lhs_field, rhs_table, rhs_field):
+        lhs_expr, rhs_expr = super().prepare_join_on_clause(
+            lhs_table, lhs_field, rhs_table, rhs_field
+        )
+
+        if lhs_field.db_type(self.connection) != rhs_field.db_type(self.connection):
+            rhs_expr = Cast(rhs_expr, lhs_field)
+
+        return lhs_expr, rhs_expr

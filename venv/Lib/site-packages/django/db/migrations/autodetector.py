@@ -1,6 +1,8 @@
 import functools
 import re
-from collections import defaultdict
+from collections import defaultdict, namedtuple
+from enum import Enum
+from graphlib import TopologicalSorter
 from itertools import chain
 
 from django.conf import settings
@@ -15,7 +17,26 @@ from django.db.migrations.utils import (
     RegexObject,
     resolve_relation,
 )
-from django.utils.topological_sort import stable_topological_sort
+from django.utils.functional import cached_property
+
+
+class OperationDependency(
+    namedtuple("OperationDependency", "app_label model_name field_name type")
+):
+    class Type(Enum):
+        CREATE = 0
+        REMOVE = 1
+        ALTER = 2
+        REMOVE_ORDER_WRT = 3
+        ALTER_FOO_TOGETHER = 4
+
+    @cached_property
+    def model_name_lower(self):
+        return self.model_name.lower()
+
+    @cached_property
+    def field_name_lower(self):
+        return self.field_name.lower()
 
 
 class MigrationAutodetector:
@@ -170,6 +191,7 @@ class MigrationAutodetector:
         self.generate_created_proxies()
         self.generate_altered_options()
         self.generate_altered_managers()
+        self.generate_altered_db_table_comment()
 
         # Create the renamed fields and store them in self.renamed_fields.
         # They are used by create_altered_indexes(), generate_altered_fields(),
@@ -189,16 +211,15 @@ class MigrationAutodetector:
         self.generate_renamed_indexes()
         # Generate removal of foo together.
         self.generate_removed_altered_unique_together()
-        self.generate_removed_altered_index_together()
         # Generate field operations.
         self.generate_removed_fields()
         self.generate_added_fields()
         self.generate_altered_fields()
         self.generate_altered_order_with_respect_to()
         self.generate_altered_unique_together()
-        self.generate_altered_index_together()
         self.generate_added_indexes()
         self.generate_added_constraints()
+        self.generate_altered_constraints()
         self.generate_altered_db_table()
 
         self._sort_migrations()
@@ -256,12 +277,20 @@ class MigrationAutodetector:
         Return the resolved dependency and a boolean denoting whether or not
         it was swappable.
         """
-        if dependency[0] != "__setting__":
+        if dependency.app_label != "__setting__":
             return dependency, False
         resolved_app_label, resolved_object_name = getattr(
-            settings, dependency[1]
+            settings, dependency.model_name
         ).split(".")
-        return (resolved_app_label, resolved_object_name.lower()) + dependency[2:], True
+        return (
+            OperationDependency(
+                resolved_app_label,
+                resolved_object_name.lower(),
+                dependency.field_name,
+                dependency.type,
+            ),
+            True,
+        )
 
     def _build_migration_list(self, graph=None):
         """
@@ -297,11 +326,11 @@ class MigrationAutodetector:
                         # swappable dependencies.
                         original_dep = dep
                         dep, is_swappable_dep = self._resolve_dependency(dep)
-                        if dep[0] != app_label:
+                        if dep.app_label != app_label:
                             # External app dependency. See if it's not yet
                             # satisfied.
                             for other_operation in self.generated_operations.get(
-                                dep[0], []
+                                dep.app_label, []
                             ):
                                 if self.check_dependency(other_operation, dep):
                                     deps_satisfied = False
@@ -311,11 +340,17 @@ class MigrationAutodetector:
                             else:
                                 if is_swappable_dep:
                                     operation_dependencies.add(
-                                        (original_dep[0], original_dep[1])
+                                        (
+                                            original_dep.app_label,
+                                            original_dep.model_name,
+                                        )
                                     )
-                                elif dep[0] in self.migrations:
+                                elif dep.app_label in self.migrations:
                                     operation_dependencies.add(
-                                        (dep[0], self.migrations[dep[0]][-1].name)
+                                        (
+                                            dep.app_label,
+                                            self.migrations[dep.app_label][-1].name,
+                                        )
                                     )
                                 else:
                                     # If we can't find the other app, we add a
@@ -329,13 +364,13 @@ class MigrationAutodetector:
                                         # contains the target field. If it's
                                         # not yet migrated or has no
                                         # migrations, we use __first__.
-                                        if graph and graph.leaf_nodes(dep[0]):
+                                        if graph and graph.leaf_nodes(dep.app_label):
                                             operation_dependencies.add(
-                                                graph.leaf_nodes(dep[0])[0]
+                                                graph.leaf_nodes(dep.app_label)[0]
                                             )
                                         else:
                                             operation_dependencies.add(
-                                                (dep[0], "__first__")
+                                                (dep.app_label, "__first__")
                                             )
                                     else:
                                         deps_satisfied = False
@@ -383,22 +418,17 @@ class MigrationAutodetector:
         nicely inside the same app.
         """
         for app_label, ops in sorted(self.generated_operations.items()):
-            # construct a dependency graph for intra-app dependencies
-            dependency_graph = {op: set() for op in ops}
+            ts = TopologicalSorter()
             for op in ops:
+                ts.add(op)
                 for dep in op._auto_deps:
                     # Resolve intra-app dependencies to handle circular
                     # references involving a swappable model.
                     dep = self._resolve_dependency(dep)[0]
-                    if dep[0] == app_label:
-                        for op2 in ops:
-                            if self.check_dependency(op2, dep):
-                                dependency_graph[op].add(op2)
-
-            # we use a stable sort for deterministic tests & general behavior
-            self.generated_operations[app_label] = stable_topological_sort(
-                ops, dependency_graph
-            )
+                    if dep.app_label != app_label:
+                        continue
+                    ts.add(op, *(x for x in ops if self.check_dependency(x, dep)))
+            self.generated_operations[app_label] = list(ts.static_order())
 
     def _optimize_migrations(self):
         # Add in internal dependencies among the migrations
@@ -424,58 +454,79 @@ class MigrationAutodetector:
         False otherwise.
         """
         # Created model
-        if dependency[2] is None and dependency[3] is True:
+        if (
+            dependency.field_name is None
+            and dependency.type == OperationDependency.Type.CREATE
+        ):
             return (
                 isinstance(operation, operations.CreateModel)
-                and operation.name_lower == dependency[1].lower()
+                and operation.name_lower == dependency.model_name_lower
             )
         # Created field
-        elif dependency[2] is not None and dependency[3] is True:
+        elif (
+            dependency.field_name is not None
+            and dependency.type == OperationDependency.Type.CREATE
+        ):
             return (
                 isinstance(operation, operations.CreateModel)
-                and operation.name_lower == dependency[1].lower()
-                and any(dependency[2] == x for x, y in operation.fields)
+                and operation.name_lower == dependency.model_name_lower
+                and any(dependency.field_name == x for x, y in operation.fields)
             ) or (
                 isinstance(operation, operations.AddField)
-                and operation.model_name_lower == dependency[1].lower()
-                and operation.name_lower == dependency[2].lower()
+                and operation.model_name_lower == dependency.model_name_lower
+                and operation.name_lower == dependency.field_name_lower
             )
         # Removed field
-        elif dependency[2] is not None and dependency[3] is False:
+        elif (
+            dependency.field_name is not None
+            and dependency.type == OperationDependency.Type.REMOVE
+        ):
             return (
                 isinstance(operation, operations.RemoveField)
-                and operation.model_name_lower == dependency[1].lower()
-                and operation.name_lower == dependency[2].lower()
+                and operation.model_name_lower == dependency.model_name_lower
+                and operation.name_lower == dependency.field_name_lower
             )
         # Removed model
-        elif dependency[2] is None and dependency[3] is False:
+        elif (
+            dependency.field_name is None
+            and dependency.type == OperationDependency.Type.REMOVE
+        ):
             return (
                 isinstance(operation, operations.DeleteModel)
-                and operation.name_lower == dependency[1].lower()
+                and operation.name_lower == dependency.model_name_lower
             )
         # Field being altered
-        elif dependency[2] is not None and dependency[3] == "alter":
+        elif (
+            dependency.field_name is not None
+            and dependency.type == OperationDependency.Type.ALTER
+        ):
             return (
                 isinstance(operation, operations.AlterField)
-                and operation.model_name_lower == dependency[1].lower()
-                and operation.name_lower == dependency[2].lower()
+                and operation.model_name_lower == dependency.model_name_lower
+                and operation.name_lower == dependency.field_name_lower
             )
         # order_with_respect_to being unset for a field
-        elif dependency[2] is not None and dependency[3] == "order_wrt_unset":
+        elif (
+            dependency.field_name is not None
+            and dependency.type == OperationDependency.Type.REMOVE_ORDER_WRT
+        ):
             return (
                 isinstance(operation, operations.AlterOrderWithRespectTo)
-                and operation.name_lower == dependency[1].lower()
+                and operation.name_lower == dependency.model_name_lower
                 and (operation.order_with_respect_to or "").lower()
-                != dependency[2].lower()
+                != dependency.field_name_lower
             )
         # Field is removed and part of an index/unique_together
-        elif dependency[2] is not None and dependency[3] == "foo_together_change":
+        elif (
+            dependency.field_name is not None
+            and dependency.type == OperationDependency.Type.ALTER_FOO_TOGETHER
+        ):
             return (
                 isinstance(
                     operation,
                     (operations.AlterUniqueTogether, operations.AlterIndexTogether),
                 )
-                and operation.name_lower == dependency[1].lower()
+                and operation.name_lower == dependency.model_name_lower
             )
         # Unknown dependency. Raise an error.
         else:
@@ -570,11 +621,12 @@ class MigrationAutodetector:
                                 rem_model_state.app_label,
                                 rem_model_state.name_lower,
                             )
-                            self.renamed_models_rel[
-                                renamed_models_rel_key
-                            ] = "%s.%s" % (
-                                model_state.app_label,
-                                model_state.name_lower,
+                            self.renamed_models_rel[renamed_models_rel_key] = (
+                                "%s.%s"
+                                % (
+                                    model_state.app_label,
+                                    model_state.name_lower,
+                                )
                             )
                             self.old_model_keys.remove((rem_app_label, rem_model_name))
                             self.old_model_keys.add((app_label, model_name))
@@ -588,7 +640,7 @@ class MigrationAutodetector:
         possible).
 
         Defer any model options that refer to collections of fields that might
-        be deferred (e.g. unique_together, index_together).
+        be deferred (e.g. unique_together).
         """
         old_keys = self.old_model_keys | self.old_unmanaged_keys
         added_models = self.new_model_keys - old_keys
@@ -612,23 +664,31 @@ class MigrationAutodetector:
                     if getattr(field.remote_field, "through", None):
                         related_fields[field_name] = field
 
-            # Are there indexes/unique|index_together to defer?
+            # Are there indexes/unique_together to defer?
             indexes = model_state.options.pop("indexes")
             constraints = model_state.options.pop("constraints")
             unique_together = model_state.options.pop("unique_together", None)
-            index_together = model_state.options.pop("index_together", None)
             order_with_respect_to = model_state.options.pop(
                 "order_with_respect_to", None
             )
             # Depend on the deletion of any possible proxy version of us
             dependencies = [
-                (app_label, model_name, None, False),
+                OperationDependency(
+                    app_label, model_name, None, OperationDependency.Type.REMOVE
+                ),
             ]
             # Depend on all bases
             for base in model_state.bases:
                 if isinstance(base, str) and "." in base:
                     base_app_label, base_name = base.split(".", 1)
-                    dependencies.append((base_app_label, base_name, None, True))
+                    dependencies.append(
+                        OperationDependency(
+                            base_app_label,
+                            base_name,
+                            None,
+                            OperationDependency.Type.CREATE,
+                        )
+                    )
                     # Depend on the removal of base fields if the new model has
                     # a field with the same name.
                     old_base_model_state = self.from_state.models.get(
@@ -647,17 +707,21 @@ class MigrationAutodetector:
                         )
                         for removed_base_field in removed_base_fields:
                             dependencies.append(
-                                (base_app_label, base_name, removed_base_field, False)
+                                OperationDependency(
+                                    base_app_label,
+                                    base_name,
+                                    removed_base_field,
+                                    OperationDependency.Type.REMOVE,
+                                )
                             )
             # Depend on the other end of the primary key if it's a relation
             if primary_key_rel:
                 dependencies.append(
-                    resolve_relation(
-                        primary_key_rel,
-                        app_label,
-                        model_name,
-                    )
-                    + (None, True)
+                    OperationDependency(
+                        *resolve_relation(primary_key_rel, app_label, model_name),
+                        None,
+                        OperationDependency.Type.CREATE,
+                    ),
                 )
             # Generate creation operation
             self.add_operation(
@@ -690,7 +754,11 @@ class MigrationAutodetector:
                     self.to_state,
                 )
                 # Depend on our own model being created
-                dependencies.append((app_label, model_name, None, True))
+                dependencies.append(
+                    OperationDependency(
+                        app_label, model_name, None, OperationDependency.Type.CREATE
+                    )
+                )
                 # Make operation
                 self.add_operation(
                     app_label,
@@ -710,14 +778,28 @@ class MigrationAutodetector:
                         order_with_respect_to=order_with_respect_to,
                     ),
                     dependencies=[
-                        (app_label, model_name, order_with_respect_to, True),
-                        (app_label, model_name, None, True),
+                        OperationDependency(
+                            app_label,
+                            model_name,
+                            order_with_respect_to,
+                            OperationDependency.Type.CREATE,
+                        ),
+                        OperationDependency(
+                            app_label, model_name, None, OperationDependency.Type.CREATE
+                        ),
                     ],
                 )
             related_dependencies = [
-                (app_label, model_name, name, True) for name in sorted(related_fields)
+                OperationDependency(
+                    app_label, model_name, name, OperationDependency.Type.CREATE
+                )
+                for name in sorted(related_fields)
             ]
-            related_dependencies.append((app_label, model_name, None, True))
+            related_dependencies.append(
+                OperationDependency(
+                    app_label, model_name, None, OperationDependency.Type.CREATE
+                )
+            )
             for index in indexes:
                 self.add_operation(
                     app_label,
@@ -745,15 +827,6 @@ class MigrationAutodetector:
                     ),
                     dependencies=related_dependencies,
                 )
-            if index_together:
-                self.add_operation(
-                    app_label,
-                    operations.AlterIndexTogether(
-                        name=model_name,
-                        index_together=index_together,
-                    ),
-                    dependencies=related_dependencies,
-                )
             # Fix relationships if the model changed from a proxy model to a
             # concrete model.
             relations = self.to_state.relations
@@ -770,7 +843,14 @@ class MigrationAutodetector:
                                 name=related_field_name,
                                 field=related_field,
                             ),
-                            dependencies=[(app_label, model_name, None, True)],
+                            dependencies=[
+                                OperationDependency(
+                                    app_label,
+                                    model_name,
+                                    None,
+                                    OperationDependency.Type.CREATE,
+                                )
+                            ],
                         )
 
     def generate_created_proxies(self):
@@ -785,13 +865,22 @@ class MigrationAutodetector:
             assert model_state.options.get("proxy")
             # Depend on the deletion of any possible non-proxy version of us
             dependencies = [
-                (app_label, model_name, None, False),
+                OperationDependency(
+                    app_label, model_name, None, OperationDependency.Type.REMOVE
+                ),
             ]
             # Depend on all bases
             for base in model_state.bases:
                 if isinstance(base, str) and "." in base:
                     base_app_label, base_name = base.split(".", 1)
-                    dependencies.append((base_app_label, base_name, None, True))
+                    dependencies.append(
+                        OperationDependency(
+                            base_app_label,
+                            base_name,
+                            None,
+                            OperationDependency.Type.CREATE,
+                        )
+                    )
             # Generate creation operation
             self.add_operation(
                 app_label,
@@ -834,21 +923,12 @@ class MigrationAutodetector:
                         related_fields[field_name] = field
             # Generate option removal first
             unique_together = model_state.options.pop("unique_together", None)
-            index_together = model_state.options.pop("index_together", None)
             if unique_together:
                 self.add_operation(
                     app_label,
                     operations.AlterUniqueTogether(
                         name=model_name,
                         unique_together=None,
-                    ),
-                )
-            if index_together:
-                self.add_operation(
-                    app_label,
-                    operations.AlterIndexTogether(
-                        name=model_name,
-                        index_together=None,
                     ),
                 )
             # Then remove each related field
@@ -872,25 +952,34 @@ class MigrationAutodetector:
             ), relation_related_fields in relations[app_label, model_name].items():
                 for field_name, field in relation_related_fields.items():
                     dependencies.append(
-                        (related_object_app_label, object_name, field_name, False),
+                        OperationDependency(
+                            related_object_app_label,
+                            object_name,
+                            field_name,
+                            OperationDependency.Type.REMOVE,
+                        ),
                     )
                     if not field.many_to_many:
                         dependencies.append(
-                            (
+                            OperationDependency(
                                 related_object_app_label,
                                 object_name,
                                 field_name,
-                                "alter",
+                                OperationDependency.Type.ALTER,
                             ),
                         )
 
             for name in sorted(related_fields):
-                dependencies.append((app_label, model_name, name, False))
+                dependencies.append(
+                    OperationDependency(
+                        app_label, model_name, name, OperationDependency.Type.REMOVE
+                    )
+                )
             # We're referenced in another field's through=
             through_user = self.through_users.get((app_label, model_state.name_lower))
             if through_user:
                 dependencies.append(
-                    (through_user[0], through_user[1], through_user[2], False)
+                    OperationDependency(*through_user, OperationDependency.Type.REMOVE),
                 )
             # Finally, make the operation, deduping any dependencies
             self.add_operation(
@@ -971,9 +1060,9 @@ class MigrationAutodetector:
                                 (rem_app_label, rem_model_name, rem_field_name)
                             )
                             old_field_keys.add((app_label, model_name, field_name))
-                            self.renamed_fields[
-                                app_label, model_name, field_name
-                            ] = rem_field_name
+                            self.renamed_fields[app_label, model_name, field_name] = (
+                                rem_field_name
+                            )
                             break
 
     def generate_renamed_fields(self):
@@ -1023,7 +1112,11 @@ class MigrationAutodetector:
     def _generate_added_field(self, app_label, model_name, field_name):
         field = self.to_state.models[app_label, model_name].get_field(field_name)
         # Adding a field always depends at least on its removal.
-        dependencies = [(app_label, model_name, field_name, False)]
+        dependencies = [
+            OperationDependency(
+                app_label, model_name, field_name, OperationDependency.Type.REMOVE
+            )
+        ]
         # Fields that are foreignkeys/m2ms depend on stuff.
         if field.remote_field and field.remote_field.model:
             dependencies.extend(
@@ -1034,15 +1127,20 @@ class MigrationAutodetector:
                     self.to_state,
                 )
             )
+        if field.generated:
+            dependencies.extend(self._get_dependencies_for_generated_field(field))
         # You can't just add NOT NULL fields with no default or fields
         # which don't allow empty strings as default.
         time_fields = (models.DateField, models.DateTimeField, models.TimeField)
+        auto_fields = (models.AutoField, models.SmallAutoField, models.BigAutoField)
         preserve_default = (
             field.null
             or field.has_default()
+            or field.has_db_default()
             or field.many_to_many
             or (field.blank and field.empty_strings_allowed)
             or (isinstance(field, time_fields) and field.auto_now)
+            or (isinstance(field, auto_fields))
         )
         if not preserve_default:
             field = field.clone()
@@ -1054,11 +1152,7 @@ class MigrationAutodetector:
                 field.default = self.questioner.ask_not_null_addition(
                     field_name, model_name
                 )
-        if (
-            field.unique
-            and field.default is not models.NOT_PROVIDED
-            and callable(field.default)
-        ):
+        if field.unique and field.has_default() and callable(field.default):
             self.questioner.ask_unique_callable_default_addition(field_name, model_name)
         self.add_operation(
             app_label,
@@ -1089,8 +1183,18 @@ class MigrationAutodetector:
             # order_with_respect_to or index/unique_together operation;
             # this is safely ignored if there isn't one
             dependencies=[
-                (app_label, model_name, field_name, "order_wrt_unset"),
-                (app_label, model_name, field_name, "foo_together_change"),
+                OperationDependency(
+                    app_label,
+                    model_name,
+                    field_name,
+                    OperationDependency.Type.REMOVE_ORDER_WRT,
+                ),
+                OperationDependency(
+                    app_label,
+                    model_name,
+                    field_name,
+                    OperationDependency.Type.ALTER_FOO_TOGETHER,
+                ),
             ],
         )
 
@@ -1156,6 +1260,9 @@ class MigrationAutodetector:
                             for to_field in new_field.to_fields
                         ]
                     )
+                    if old_from_fields := getattr(old_field, "from_fields", None):
+                        old_field.from_fields = tuple(old_from_fields)
+                        old_field.to_fields = tuple(old_field.to_fields)
                 dependencies.extend(
                     self._get_dependencies_for_foreign_key(
                         app_label,
@@ -1187,6 +1294,7 @@ class MigrationAutodetector:
                         old_field.null
                         and not new_field.null
                         and not new_field.has_default()
+                        and not new_field.has_db_default()
                         and not new_field.many_to_many
                     ):
                         field = new_field.clone()
@@ -1304,6 +1412,7 @@ class MigrationAutodetector:
 
     def generate_added_indexes(self):
         for (app_label, model_name), alt_indexes in self.altered_indexes.items():
+            dependencies = self._get_dependencies_for_model(app_label, model_name)
             for index in alt_indexes["added_indexes"]:
                 self.add_operation(
                     app_label,
@@ -1311,6 +1420,7 @@ class MigrationAutodetector:
                         model_name=model_name,
                         index=index,
                     ),
+                    dependencies=dependencies,
                 )
 
     def generate_removed_indexes(self):
@@ -1339,6 +1449,19 @@ class MigrationAutodetector:
                     ),
                 )
 
+    def _constraint_should_be_dropped_and_recreated(
+        self, old_constraint, new_constraint
+    ):
+        old_path, old_args, old_kwargs = old_constraint.deconstruct()
+        new_path, new_args, new_kwargs = new_constraint.deconstruct()
+
+        for attr in old_constraint.non_db_attrs:
+            old_kwargs.pop(attr, None)
+        for attr in new_constraint.non_db_attrs:
+            new_kwargs.pop(attr, None)
+
+        return (old_path, old_args, old_kwargs) != (new_path, new_args, new_kwargs)
+
     def create_altered_constraints(self):
         option_name = operations.AddConstraint.option_name
         for app_label, model_name in sorted(self.kept_model_keys):
@@ -1350,14 +1473,41 @@ class MigrationAutodetector:
 
             old_constraints = old_model_state.options[option_name]
             new_constraints = new_model_state.options[option_name]
-            add_constraints = [c for c in new_constraints if c not in old_constraints]
-            rem_constraints = [c for c in old_constraints if c not in new_constraints]
+
+            alt_constraints = []
+            alt_constraints_name = []
+
+            for old_c in old_constraints:
+                for new_c in new_constraints:
+                    old_c_dec = old_c.deconstruct()
+                    new_c_dec = new_c.deconstruct()
+                    if (
+                        old_c_dec != new_c_dec
+                        and old_c.name == new_c.name
+                        and not self._constraint_should_be_dropped_and_recreated(
+                            old_c, new_c
+                        )
+                    ):
+                        alt_constraints.append(new_c)
+                        alt_constraints_name.append(new_c.name)
+
+            add_constraints = [
+                c
+                for c in new_constraints
+                if c not in old_constraints and c.name not in alt_constraints_name
+            ]
+            rem_constraints = [
+                c
+                for c in old_constraints
+                if c not in new_constraints and c.name not in alt_constraints_name
+            ]
 
             self.altered_constraints.update(
                 {
                     (app_label, model_name): {
                         "added_constraints": add_constraints,
                         "removed_constraints": rem_constraints,
+                        "altered_constraints": alt_constraints,
                     }
                 }
             )
@@ -1367,6 +1517,7 @@ class MigrationAutodetector:
             app_label,
             model_name,
         ), alt_constraints in self.altered_constraints.items():
+            dependencies = self._get_dependencies_for_model(app_label, model_name)
             for constraint in alt_constraints["added_constraints"]:
                 self.add_operation(
                     app_label,
@@ -1374,6 +1525,7 @@ class MigrationAutodetector:
                         model_name=model_name,
                         constraint=constraint,
                     ),
+                    dependencies=dependencies,
                 )
 
     def generate_removed_constraints(self):
@@ -1388,6 +1540,23 @@ class MigrationAutodetector:
                         model_name=model_name,
                         name=constraint.name,
                     ),
+                )
+
+    def generate_altered_constraints(self):
+        for (
+            app_label,
+            model_name,
+        ), alt_constraints in self.altered_constraints.items():
+            dependencies = self._get_dependencies_for_model(app_label, model_name)
+            for constraint in alt_constraints["altered_constraints"]:
+                self.add_operation(
+                    app_label,
+                    operations.AlterConstraint(
+                        model_name=model_name,
+                        name=constraint.name,
+                        constraint=constraint,
+                    ),
+                    dependencies=dependencies,
                 )
 
     @staticmethod
@@ -1415,14 +1584,62 @@ class MigrationAutodetector:
                 app_label,
                 model_name,
             )
-        dependencies = [(dep_app_label, dep_object_name, None, True)]
+        dependencies = [
+            OperationDependency(
+                dep_app_label, dep_object_name, None, OperationDependency.Type.CREATE
+            )
+        ]
         if getattr(field.remote_field, "through", None):
             through_app_label, through_object_name = resolve_relation(
                 field.remote_field.through,
                 app_label,
                 model_name,
             )
-            dependencies.append((through_app_label, through_object_name, None, True))
+            dependencies.append(
+                OperationDependency(
+                    through_app_label,
+                    through_object_name,
+                    None,
+                    OperationDependency.Type.CREATE,
+                )
+            )
+        return dependencies
+
+    def _get_dependencies_for_generated_field(self, field):
+        dependencies = []
+        referenced_base_fields = models.Q(field.expression).referenced_base_fields
+        newly_added_fields = sorted(self.new_field_keys - self.old_field_keys)
+        for app_label, model_name, added_field_name in newly_added_fields:
+            added_field = self.to_state.models[app_label, model_name].get_field(
+                added_field_name
+            )
+            if (
+                added_field.remote_field and added_field.remote_field.model
+            ) or added_field.name in referenced_base_fields:
+                dependencies.append(
+                    OperationDependency(
+                        app_label,
+                        model_name,
+                        added_field.name,
+                        OperationDependency.Type.CREATE,
+                    )
+                )
+        return dependencies
+
+    def _get_dependencies_for_model(self, app_label, model_name):
+        """Return foreign key dependencies of the given model."""
+        dependencies = []
+        model_state = self.to_state.models[app_label, model_name]
+        for field in model_state.fields.values():
+            if field.is_relation:
+                dependencies.extend(
+                    self._get_dependencies_for_foreign_key(
+                        app_label,
+                        model_name,
+                        field,
+                        self.to_state,
+                    )
+                )
         return dependencies
 
     def _get_altered_foo_together_operations(self, option_name):
@@ -1500,9 +1717,6 @@ class MigrationAutodetector:
     def generate_removed_altered_unique_together(self):
         self._generate_removed_altered_foo_together(operations.AlterUniqueTogether)
 
-    def generate_removed_altered_index_together(self):
-        self._generate_removed_altered_foo_together(operations.AlterIndexTogether)
-
     def _generate_altered_foo_together(self, operation):
         for (
             old_value,
@@ -1522,9 +1736,6 @@ class MigrationAutodetector:
     def generate_altered_unique_together(self):
         self._generate_altered_foo_together(operations.AlterUniqueTogether)
 
-    def generate_altered_index_together(self):
-        self._generate_altered_foo_together(operations.AlterIndexTogether)
-
     def generate_altered_db_table(self):
         models_to_check = self.kept_model_keys.union(
             self.kept_proxy_keys, self.kept_unmanaged_keys
@@ -1543,6 +1754,28 @@ class MigrationAutodetector:
                     operations.AlterModelTable(
                         name=model_name,
                         table=new_db_table_name,
+                    ),
+                )
+
+    def generate_altered_db_table_comment(self):
+        models_to_check = self.kept_model_keys.union(
+            self.kept_proxy_keys, self.kept_unmanaged_keys
+        )
+        for app_label, model_name in sorted(models_to_check):
+            old_model_name = self.renamed_models.get(
+                (app_label, model_name), model_name
+            )
+            old_model_state = self.from_state.models[app_label, old_model_name]
+            new_model_state = self.to_state.models[app_label, model_name]
+
+            old_db_table_comment = old_model_state.options.get("db_table_comment")
+            new_db_table_comment = new_model_state.options.get("db_table_comment")
+            if old_db_table_comment != new_db_table_comment:
+                self.add_operation(
+                    app_label,
+                    operations.AlterModelTableComment(
+                        name=model_name,
+                        table_comment=new_db_table_comment,
                     ),
                 )
 
@@ -1601,11 +1834,11 @@ class MigrationAutodetector:
                 dependencies = []
                 if new_model_state.options.get("order_with_respect_to"):
                     dependencies.append(
-                        (
+                        OperationDependency(
                             app_label,
                             model_name,
                             new_model_state.options["order_with_respect_to"],
-                            True,
+                            OperationDependency.Type.CREATE,
                         )
                     )
                 # Actually generate the operation
