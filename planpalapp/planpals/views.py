@@ -1364,18 +1364,12 @@ class FriendRequestActionView(APIView):
 
 
 class FriendsListView(generics.ListAPIView):
-    """
-    Optimized Friends listing with efficient queries
-    Uses canonical friendship model methods
-    """
     serializer_class = UserSummarySerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Get user's friends using optimized canonical model method with counts"""
-        # Get friends with potential counts annotation for serializer
-        friend_ids = Friendship.objects.get_friends_ids(self.request.user)
-        return User.objects.filter(id__in=friend_ids).with_cached_counts()
+        return User.objects.friends_of(self.request.user).with_counts()
+
 
 class ChatMessageViewSet(viewsets.GenericViewSet,
                          mixins.CreateModelMixin,

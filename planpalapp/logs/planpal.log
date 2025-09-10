@@ -2640,3 +2640,289 @@ def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, 
     return 1
 
 INFO 2025-09-08 19:58:42,423 autoreload 22996 19696 Watching for file changes with StatReloader
+DEBUG 2025-09-10 23:49:49,153 selector_events 24704 31912 Using selector: SelectSelector
+DEBUG 2025-09-10 23:49:50,559 selector_events 2968 24592 Using selector: SelectSelector
+INFO 2025-09-10 23:49:50,802 autoreload 2968 24592 Watching for file changes with StatReloader
+INFO 2025-09-10 23:49:51,988 server 2968 29836 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-10 23:49:51,988 server 2968 29836 Configuring endpoint tcp:port=8000:interface=127.0.0.1
+INFO 2025-09-10 23:49:51,989 server 2968 29836 Listening on TCP address 127.0.0.1:8000
+DEBUG 2025-09-10 23:50:01,561 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:01,614 resource 2968 32000 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FA62930CC0>.
+DEBUG 2025-09-10 23:50:01,630 http_protocol 2968 29836 HTTP 200 response started for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:01,630 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:01,631 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 57230]
+INFO 2025-09-10 23:50:01,631 runserver 2968 29836 [mHTTP GET / 200 [0.07, 127.0.0.1:57230][0m
+DEBUG 2025-09-10 23:50:01,913 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 57230]
+WARNING 2025-09-10 23:50:01,970 log 2968 12188 Not Found: /favicon.ico
+DEBUG 2025-09-10 23:50:01,971 http_protocol 2968 29836 HTTP 404 response started for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:01,971 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:01,971 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 57230]
+WARNING 2025-09-10 23:50:01,972 runserver 2968 29836 [33mHTTP GET /favicon.ico 404 [0.06, 127.0.0.1:57230][0m
+DEBUG 2025-09-10 23:50:04,305 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,323 http_protocol 2968 29836 HTTP 301 response started for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,324 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,324 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 57230]
+INFO 2025-09-10 23:50:04,324 runserver 2968 29836 [32mHTTP GET /admin 301 [0.02, 127.0.0.1:57230][0m
+DEBUG 2025-09-10 23:50:04,328 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,339 http_protocol 2968 29836 HTTP 302 response started for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,339 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,340 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 57230]
+INFO 2025-09-10 23:50:04,340 runserver 2968 29836 [32mHTTP GET /admin/ 302 [0.01, 127.0.0.1:57230][0m
+DEBUG 2025-09-10 23:50:04,342 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,535 http_protocol 2968 29836 HTTP 200 response started for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,536 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,536 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 57230]
+INFO 2025-09-10 23:50:04,536 runserver 2968 29836 [mHTTP GET /admin/login/?next=/admin/ 200 [0.19, 127.0.0.1:57230][0m
+DEBUG 2025-09-10 23:50:04,554 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,555 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 57500]
+DEBUG 2025-09-10 23:50:04,558 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 53324]
+DEBUG 2025-09-10 23:50:04,560 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 52595]
+DEBUG 2025-09-10 23:50:04,561 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 53695]
+DEBUG 2025-09-10 23:50:04,563 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:04,719 http_protocol 2968 29836 HTTP 200 response started for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,719 http_protocol 2968 29836 HTTP response chunk for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,720 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 57230]
+DEBUG 2025-09-10 23:50:04,720 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 57230]
+INFO 2025-09-10 23:50:04,720 runserver 2968 29836 [mHTTP GET /static/admin/css/base.css 200 [0.17, 127.0.0.1:57230][0m
+DEBUG 2025-09-10 23:50:04,736 http_protocol 2968 29836 HTTP 200 response started for ['127.0.0.1', 57500]
+DEBUG 2025-09-10 23:50:04,736 http_protocol 2968 29836 HTTP 200 response started for ['127.0.0.1', 53324]
+DEBUG 2025-09-10 23:50:04,737 http_protocol 2968 29836 HTTP 200 response started for ['127.0.0.1', 52595]
+DEBUG 2025-09-10 23:50:04,737 http_protocol 2968 29836 HTTP 200 response started for ['127.0.0.1', 53695]
+DEBUG 2025-09-10 23:50:04,738 http_protocol 2968 29836 HTTP response chunk for ['127.0.0.1', 57500]
+DEBUG 2025-09-10 23:50:04,738 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 57500]
+DEBUG 2025-09-10 23:50:04,738 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 57500]
+INFO 2025-09-10 23:50:04,738 runserver 2968 29836 [mHTTP GET /static/admin/css/dark_mode.css 200 [0.18, 127.0.0.1:57500][0m
+DEBUG 2025-09-10 23:50:04,739 http_protocol 2968 29836 HTTP response chunk for ['127.0.0.1', 53324]
+DEBUG 2025-09-10 23:50:04,739 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 53324]
+DEBUG 2025-09-10 23:50:04,739 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 53324]
+INFO 2025-09-10 23:50:04,740 runserver 2968 29836 [mHTTP GET /static/admin/css/nav_sidebar.css 200 [0.18, 127.0.0.1:53324][0m
+DEBUG 2025-09-10 23:50:04,740 http_protocol 2968 29836 HTTP response chunk for ['127.0.0.1', 52595]
+DEBUG 2025-09-10 23:50:04,740 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 52595]
+DEBUG 2025-09-10 23:50:04,740 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 52595]
+INFO 2025-09-10 23:50:04,740 runserver 2968 29836 [mHTTP GET /static/admin/css/login.css 200 [0.18, 127.0.0.1:52595][0m
+DEBUG 2025-09-10 23:50:04,741 http_protocol 2968 29836 HTTP response chunk for ['127.0.0.1', 53695]
+DEBUG 2025-09-10 23:50:04,741 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 53695]
+DEBUG 2025-09-10 23:50:04,741 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 53695]
+INFO 2025-09-10 23:50:04,741 runserver 2968 29836 [mHTTP GET /static/admin/css/responsive.css 200 [0.18, 127.0.0.1:53695][0m
+DEBUG 2025-09-10 23:50:04,742 http_protocol 2968 29836 HTTP 200 response started for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:04,743 http_protocol 2968 29836 HTTP response chunk for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:04,743 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:04,744 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 61995]
+INFO 2025-09-10 23:50:04,744 runserver 2968 29836 [mHTTP GET /static/admin/js/theme.js 200 [0.18, 127.0.0.1:61995][0m
+DEBUG 2025-09-10 23:50:04,746 http_protocol 2968 29836 HTTP b'GET' request for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:04,768 http_protocol 2968 29836 HTTP 200 response started for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:04,768 http_protocol 2968 29836 HTTP response chunk for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:04,769 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:04,769 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 61995]
+INFO 2025-09-10 23:50:04,769 runserver 2968 29836 [mHTTP GET /static/admin/js/nav_sidebar.js 200 [0.02, 127.0.0.1:61995][0m
+DEBUG 2025-09-10 23:50:08,008 http_protocol 2968 29836 HTTP b'POST' request for ['127.0.0.1', 61995]
+ERROR 2025-09-10 23:50:08,508 log 2968 29496 Internal Server Error: /admin/login/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\cache.py", line 80, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\admin\sites.py", line 449, in login
+    return LoginView.as_view(**defaults)(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\debug.py", line 143, in sensitive_post_parameters_wrapper
+    return view(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 192, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 190, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\cache.py", line 80, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\views.py", line 89, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 144, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\edit.py", line 150, in post
+    if form.is_valid():
+       ^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\forms\forms.py", line 206, in is_valid
+    return self.is_bound and not self.errors
+                                 ^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\forms\forms.py", line 201, in errors
+    self.full_clean()
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\forms\forms.py", line 338, in full_clean
+    self._clean_form()
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\forms\forms.py", line 354, in _clean_form
+    cleaned_data = self.clean()
+                   ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\debug.py", line 75, in sensitive_variables_wrapper
+    return func(*func_args, **func_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\forms.py", line 366, in clean
+    self.user_cache = authenticate(
+                      ^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\debug.py", line 75, in sensitive_variables_wrapper
+    return func(*func_args, **func_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\__init__.py", line 114, in authenticate
+    user = backend.authenticate(request, **credentials)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\backends.py", line 65, in authenticate
+    user = UserModel._default_manager.get_by_natural_key(username)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ManagerFromUserQuerySet' object has no attribute 'get_by_natural_key'
+DEBUG 2025-09-10 23:50:08,566 http_protocol 2968 29836 HTTP 500 response started for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:08,567 http_protocol 2968 29836 HTTP response chunk for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:08,567 http_protocol 2968 29836 HTTP response chunk for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:08,568 http_protocol 2968 29836 HTTP close for ['127.0.0.1', 61995]
+DEBUG 2025-09-10 23:50:08,570 http_protocol 2968 29836 HTTP response complete for ['127.0.0.1', 61995]
+ERROR 2025-09-10 23:50:08,571 runserver 2968 29836 [35;1mHTTP POST /admin/login/?next=/admin/ 500 [0.56, 127.0.0.1:61995][0m
+DEBUG 2025-09-10 23:51:14,485 selector_events 18748 4092 Using selector: SelectSelector
+DEBUG 2025-09-10 23:51:15,403 selector_events 30164 23740 Using selector: SelectSelector
+INFO 2025-09-10 23:51:15,622 autoreload 30164 23740 Watching for file changes with StatReloader
+INFO 2025-09-10 23:51:16,200 server 30164 22808 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-10 23:51:16,200 server 30164 22808 Configuring endpoint tcp:port=8000:interface=127.0.0.1
+INFO 2025-09-10 23:51:16,201 server 30164 22808 Listening on TCP address 127.0.0.1:8000
+DEBUG 2025-09-10 23:51:21,525 http_protocol 30164 22808 HTTP b'GET' request for ['127.0.0.1', 61348]
+DEBUG 2025-09-10 23:51:21,603 http_protocol 30164 22808 HTTP 200 response started for ['127.0.0.1', 61348]
+DEBUG 2025-09-10 23:51:21,603 http_protocol 30164 22808 HTTP close for ['127.0.0.1', 61348]
+DEBUG 2025-09-10 23:51:21,603 http_protocol 30164 22808 HTTP response complete for ['127.0.0.1', 61348]
+INFO 2025-09-10 23:51:21,604 runserver 30164 22808 [mHTTP GET /admin/login/?next=/admin/ 200 [0.08, 127.0.0.1:61348][0m
+DEBUG 2025-09-10 23:51:25,913 http_protocol 30164 22808 HTTP b'POST' request for ['127.0.0.1', 61348]
+ERROR 2025-09-10 23:51:26,040 log 30164 28756 Internal Server Error: /admin/login/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\cache.py", line 80, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\admin\sites.py", line 449, in login
+    return LoginView.as_view(**defaults)(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\debug.py", line 143, in sensitive_post_parameters_wrapper
+    return view(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 192, in _view_wrapper
+    result = _process_exception(request, e)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 190, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\cache.py", line 80, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\views.py", line 89, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 144, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\edit.py", line 150, in post
+    if form.is_valid():
+       ^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\forms\forms.py", line 206, in is_valid
+    return self.is_bound and not self.errors
+                                 ^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\forms\forms.py", line 201, in errors
+    self.full_clean()
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\forms\forms.py", line 338, in full_clean
+    self._clean_form()
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\forms\forms.py", line 354, in _clean_form
+    cleaned_data = self.clean()
+                   ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\debug.py", line 75, in sensitive_variables_wrapper
+    return func(*func_args, **func_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\forms.py", line 366, in clean
+    self.user_cache = authenticate(
+                      ^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\debug.py", line 75, in sensitive_variables_wrapper
+    return func(*func_args, **func_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\__init__.py", line 114, in authenticate
+    user = backend.authenticate(request, **credentials)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\backends.py", line 65, in authenticate
+    user = UserModel._default_manager.get_by_natural_key(username)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ManagerFromUserQuerySet' object has no attribute 'get_by_natural_key'
+DEBUG 2025-09-10 23:51:26,058 http_protocol 30164 22808 HTTP 500 response started for ['127.0.0.1', 61348]
+DEBUG 2025-09-10 23:51:26,059 http_protocol 30164 22808 HTTP response chunk for ['127.0.0.1', 61348]
+DEBUG 2025-09-10 23:51:26,059 http_protocol 30164 22808 HTTP response chunk for ['127.0.0.1', 61348]
+DEBUG 2025-09-10 23:51:26,060 http_protocol 30164 22808 HTTP close for ['127.0.0.1', 61348]
+DEBUG 2025-09-10 23:51:26,060 http_protocol 30164 22808 HTTP response complete for ['127.0.0.1', 61348]
+ERROR 2025-09-10 23:51:26,060 runserver 30164 22808 [35;1mHTTP POST /admin/login/?next=/admin/ 500 [0.15, 127.0.0.1:61348][0m
+DEBUG 2025-09-10 23:57:53,285 selector_events 30464 14812 Using selector: SelectSelector
+DEBUG 2025-09-10 23:58:00,588 selector_events 11576 32660 Using selector: SelectSelector

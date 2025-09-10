@@ -195,16 +195,6 @@ class GroupSerializer(serializers.ModelSerializer):
             return obj.is_member(request.user)
         return False
     
-    def get_user_role(self, obj):
-        """Get current user's role in group"""
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            try:
-                membership = obj.memberships.get(user=request.user)
-                return membership.role
-            except GroupMembership.DoesNotExist:
-                return None
-        return None
     
     def get_can_edit(self, obj):
         """Check if current user can edit group - use model method"""

@@ -1,12 +1,12 @@
-import uuid
+from uuid import UUID, uuid4
 from collections import defaultdict
 from decimal import Decimal
 from datetime import datetime, timedelta, date
-from typing import Dict, List, Optional, Any, Union, TYPE_CHECKING, Tuple
+from typing import Dict, List, Optional, Any, Union, Tuple
 
 from django.db import models, transaction, IntegrityError
 from django.db.models import constraints, QuerySet
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager as DjangoUserManager
 from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError, PermissionDenied
@@ -18,8 +18,7 @@ from cloudinary import CloudinaryImage
 
 from celery import current_app
 
-if TYPE_CHECKING:
-    from django.db.models.manager import Manager
+
 
 
 # Removed direct service imports to avoid circular dependencies
@@ -32,7 +31,7 @@ class BaseModel(models.Model):
     
     id = models.UUIDField(
         primary_key=True,
-        default=uuid.uuid4,
+        default=uuid4,
         editable=False,
         help_text="Unique identifier"
     )
@@ -133,25 +132,25 @@ class UserQuerySet(models.QuerySet['User']):
                 + Count('friendships_as_b', filter=Q(friendships_as_b__status='blocked'), distinct=True)
             )
         )
-        
-    def friends_of(self, user: Union['User', str]) -> 'UserQuerySet':
-        user_id = getattr(user, 'id', user)
+
+    def friends_of(self, user: Union['User', UUID]) -> 'UserQuerySet':
         return self.filter(
-            Q(friendships_as_a__user_b_id=user_id, friendships_as_a__status=Friendship.ACCEPTED) |
-            Q(friendships_as_b__user_a_id=user_id, friendships_as_b__status=Friendship.ACCEPTED)
+            Q(friendships_as_a__user_b=user, friendships_as_a__status=Friendship.ACCEPTED) |
+            Q(friendships_as_b__user_a=user, friendships_as_b__status=Friendship.ACCEPTED)
         ).select_related().distinct()
     
     def with_counts(self) -> 'UserQuerySet':
         return self.with_friends_count().with_plans_count().with_groups_count().with_friend_request_counts()
-    
-    def with_cached_counts(self, cache_timeout: int = 300) -> 'UserQuerySet':
-        return self.with_counts()
     
     def active(self) -> 'UserQuerySet':
         return self.filter(is_active=True)
     
     def online(self) -> 'UserQuerySet':
         return self.filter(is_online=True)
+
+
+class UserManager(DjangoUserManager.from_queryset(UserQuerySet)):
+    pass
 
 
 class User(AbstractUser, BaseModel):
@@ -215,8 +214,8 @@ class User(AbstractUser, BaseModel):
         help_text="Firebase Cloud Messaging token"
     )
     
-    # Custom manager
-    objects = UserQuerySet.as_manager()
+    # Custom manager combining Django UserManager with our UserQuerySet
+    objects = UserManager()
 
     class Meta:
         db_table = 'planpal_users' 
@@ -330,9 +329,6 @@ class User(AbstractUser, BaseModel):
     @property
     def user_groups(self) -> QuerySet['Group']:
         return self.joined_groups
-
-    # === Computed Properties - Status & Media ===
-    
     
     @property
     def online_status(self) -> str:
@@ -395,7 +391,7 @@ class User(AbstractUser, BaseModel):
         cache.delete(cache_key)
     
     @classmethod
-    def clear_unread_cache_for_users(cls, user_ids: List[str]) -> None:
+    def clear_unread_cache_for_users(cls, user_ids: List[UUID]) -> None:
         cache_keys = [f"user_unread_count_{uid}" for uid in user_ids]
         cache.delete_many(cache_keys)
     
@@ -414,30 +410,29 @@ class FriendshipQuerySet(models.QuerySet['Friendship']):
     def blocked(self) -> 'FriendshipQuerySet':
         return self.filter(status=self.model.BLOCKED)
     
+    
+    # Trả về tổng số lượng bản ghi bị xóa và số bản ghi của mỗi user theo django
     def cleanup_old_rejected(self, days: int = 180) -> tuple[int, Dict[str, int]]:
         cutoff = timezone.now() - timezone.timedelta(days=days)
         return self.rejected().exclude(
             rejections__created_at__gte=cutoff
         ).delete()
     
-    def for_user(self, user: Union['User', str]) -> 'FriendshipQuerySet':
-        user_id = getattr(user, 'id', user)
-        return self.filter(Q(user_a_id=user_id) | Q(user_b_id=user_id))
+    def for_user(self, user: Union['User', UUID]) -> 'FriendshipQuerySet':
+        return self.filter(Q(user_a=user) | Q(user_b=user))
 
-    def friends_of(self, user: Union['User', str]) -> 'FriendshipQuerySet':
+    def friends_of(self, user: Union['User', UUID]) -> 'FriendshipQuerySet':
         return self.accepted().for_user(user)
 
-    def pending_for(self, user: Union['User', str]) -> 'FriendshipQuerySet':
-        user_id = getattr(user, 'id', user)
+    def pending_for(self, user: Union['User', UUID]) -> 'FriendshipQuerySet':
         return self.pending().filter(
-            Q(user_b_id=user_id) | Q(user_a_id=user_id)
-        ).exclude(initiator_id=user_id)
+            Q(user_b=user) | Q(user_a=user)
+        ).exclude(initiator=user)
 
-    def sent_by(self, user: Union['User', str]) -> 'FriendshipQuerySet':
-        user_id = getattr(user, 'id', user)
-        return self.pending().filter(initiator_id=user_id)
+    def sent_by(self, user: Union['User', UUID]) -> 'FriendshipQuerySet':
+        return self.pending().filter(initiator=user)
 
-    def between_users(self, user1: Union['User', str], user2: Union['User', str]) -> 'FriendshipQuerySet':
+    def between_users(self, user1: Union['User', UUID], user2: Union['User', UUID]) -> 'FriendshipQuerySet':
         user1_id = getattr(user1, 'id', user1)
         user2_id = getattr(user2, 'id', user2)
         
@@ -446,21 +441,7 @@ class FriendshipQuerySet(models.QuerySet['Friendship']):
         else:
             return self.filter(user_a_id=user2_id, user_b_id=user1_id)
 
-    def get_friends_ids(self, user: Union['User', str]) -> List[str]:
-        user_id = getattr(user, 'id', user)
-        
-        # Use database CASE statement to avoid Python loop
-        friend_ids = self.accepted().for_user(user).annotate(
-            friend_id=Case(
-                When(user_a_id=user_id, then=F('user_b_id')),
-                default=F('user_a_id'),
-                output_field=models.UUIDField()
-            )
-        ).values_list('friend_id', flat=True)
-        
-        return list(friend_ids)
     
-
 class FriendshipRejection(BaseModel):
 
     friendship = models.ForeignKey(
@@ -615,7 +596,7 @@ class Friendship(BaseModel):
 
     # === Instance Methods ===
     
-    def get_other_user(self, user : Union['User', str]) -> 'User':
+    def get_other_user(self, user : Union['User', UUID]) -> 'User':
         user_id = getattr(user, 'id', user)
         if user_id == self.user_a_id:
             return self.user_b
@@ -626,12 +607,12 @@ class Friendship(BaseModel):
     
     def get_receiver(self) -> 'User':
         return self.user_b if self.initiator == self.user_a else self.user_a
-    
-    def is_initiated_by(self, user : Union['User', str]) -> bool:
+
+    def is_initiated_by(self, user : Union['User', UUID]) -> bool:
         user_id = getattr(user, 'id', user)
         return self.initiator_id == user_id
-    
-    def can_be_accepted_by(self, user : Union['User', str]) -> bool:
+
+    def can_be_accepted_by(self, user : Union['User', UUID]) -> bool:
         return (
             self.status == self.PENDING and 
             not self.is_initiated_by(user) and
@@ -647,41 +628,40 @@ class Friendship(BaseModel):
     
     def get_last_rejection(self) -> Optional['FriendshipRejection']:
         return self.rejections.first()  # Already ordered by -created_at
-    
-    def was_rejected_by(self, user : Union['User', str]) -> bool:
-        user_id = getattr(user, 'id', user)
-        return self.rejections.filter(rejected_by_id=user_id).exists()
+
+    def was_rejected_by(self, user : Union['User', UUID]) -> bool:
+        return self.rejections.filter(rejected_by=user).exists()
     
 
     @classmethod
-    def get_friendship_status(cls, user1 : Union['User', str], user2 : Union['User', str]) -> Optional[str]:
+    def get_friendship_status(cls, user1 : Union['User', UUID], user2 : Union['User', UUID]) -> Optional[str]:
         friendship = cls.objects.between_users(user1, user2).first()
         return friendship.status if friendship else None
     
     # === Query Methods - Keep in Model ===
     @classmethod
-    def are_friends(cls, user1 : Union['User', str], user2 : Union['User', str]) -> bool:
+    def are_friends(cls, user1 : Union['User', UUID], user2 : Union['User', UUID]) -> bool:
         return cls.objects.between_users(user1, user2).accepted().exists()
     
     @classmethod
-    def is_blocked(cls, user1 : Union['User', str], user2 : Union['User', str]) -> bool:
+    def is_blocked(cls, user1 : Union['User', UUID], user2 : Union['User', UUID]) -> bool:
         return cls.objects.between_users(user1, user2).blocked().exists()
 
     @classmethod
-    def get_pending_requests(cls, user : Union['User', str]) -> 'FriendshipQuerySet':
+    def get_pending_requests(cls, user : Union['User', UUID]) -> 'FriendshipQuerySet':
         return cls.objects.pending_for(user).select_related(
             'initiator', 'user_a', 'user_b'
         ).order_by('-created_at')
 
     @classmethod
-    def get_sent_requests(cls, user : Union['User', str]) -> 'FriendshipQuerySet':
+    def get_sent_requests(cls, user : Union['User', UUID]) -> 'FriendshipQuerySet':
         return cls.objects.sent_by(user).select_related(
             'user_a', 'user_b'
         ).order_by('-created_at')
 
 
     @classmethod
-    def get_friendship(cls, user1 : Union['User', str], user2 : Union['User', str]) -> Optional['Friendship']:
+    def get_friendship(cls, user1 : Union['User', UUID], user2 : Union['User', UUID]) -> Optional['Friendship']:
         return cls.objects.between_users(user1, user2).select_related(
             'user_a', 'user_b', 'initiator'
         ).first()
@@ -724,10 +704,10 @@ class GroupQuerySet(models.QuerySet['Group']):
     def active(self) -> 'GroupQuerySet':
         return self.filter(is_active=True)
     
-    def for_user(self, user: Union['User', int]) -> 'GroupQuerySet':
+    def for_user(self, user: Union['User', UUID]) -> 'GroupQuerySet':
         return self.filter(members=user)
     
-    def administered_by(self, user: Union['User', int]) -> 'GroupQuerySet':
+    def administered_by(self, user: Union['User', UUID]) -> 'GroupQuerySet':
         return self.filter(
             memberships__user=user,
             memberships__role=GroupMembership.ADMIN
@@ -849,45 +829,45 @@ class Group(BaseModel):
         return bool(self.cover_image)
 
     @property
-    def cover_image_url(self):
+    def cover_image_url(self) -> Optional[str]:
         if not self.cover_image:
             return None
         cloudinary_image = CloudinaryImage(str(self.cover_image))
         return cloudinary_image.build_url(width=1200, height=600, crop='fill', gravity='center', secure=True)
 
     @property
-    def member_count(self):
+    def member_count(self) -> int:
         if hasattr(self, 'member_count_annotated'):
             return self.member_count_annotated
         return self.members.count()
 
     @property
-    def admin_count(self):
+    def admin_count(self) -> int:
         if hasattr(self, 'admin_count_annotated'):
             return self.admin_count_annotated
         return self.get_admin_count()
 
     @property
-    def plans_count(self):
+    def plans_count(self) -> int:
         if hasattr(self, 'plans_count_annotated'):
             return self.plans_count_annotated
         return self.plans.count()
 
     @property
-    def active_plans_count(self):
+    def active_plans_count(self) -> int:
         if hasattr(self, 'active_plans_count_annotated'):
             return self.active_plans_count_annotated
         return self.plans.exclude(status__in=['cancelled', 'completed']).count()
     
-    
-    
-    def is_member(self, user: 'User') -> bool:
+
+
+    def is_member(self, user: Union['User', UUID]) -> bool:
         return GroupMembership.objects.filter(
             group=self,
             user=user
         ).exists()
 
-    def is_admin(self, user: 'User') -> bool:
+    def is_admin(self, user: Union['User', UUID]) -> bool:
         return GroupMembership.objects.filter(
             group=self,
             user=user,
@@ -908,18 +888,9 @@ class Group(BaseModel):
             group=self,
             role=GroupMembership.ADMIN
         ).count()
-    
-    def get_user_role(self, user: 'User') -> Optional[str]:
-        try:
-            membership = GroupMembership.objects.only('role').get(
-                group=self,
-                user=user
-            )
-            return membership.role
-        except GroupMembership.DoesNotExist:
-            return None
-    
-    def get_user_membership(self, user: 'User') -> Optional['GroupMembership']:
+
+
+    def get_user_membership(self, user: Union[UUID, 'User']) -> Optional['GroupMembership']:
         try:
             return GroupMembership.objects.select_related('user').get(
                 group=self,
@@ -930,7 +901,7 @@ class Group(BaseModel):
     
 
 
-    def get_member_roles(self) -> Dict[str, str]:
+    def get_member_roles(self) -> Dict[UUID, str]:
         return dict(
             GroupMembership.objects.filter(group=self)
             .values_list('user_id', 'role')
@@ -941,7 +912,6 @@ class Group(BaseModel):
 
 
 class GroupMembershipQuerySet(models.QuerySet['GroupMembership']):
-    
     def admins(self) -> 'GroupMembershipQuerySet':
         return self.filter(role=GroupMembership.ADMIN)
     
@@ -951,12 +921,11 @@ class GroupMembershipQuerySet(models.QuerySet['GroupMembership']):
     def for_group(self, group: Union['Group', int]) -> 'GroupMembershipQuerySet':
         return self.filter(group=group)
     
-    def for_user(self, user: Union['User', int]) -> 'GroupMembershipQuerySet':
+    def for_user(self, user: Union['User', UUID]) -> 'GroupMembershipQuerySet':
         return self.filter(user=user)
 
 
 class GroupMembership(BaseModel):
-    # Các role trong nhóm
     ADMIN = 'admin'
     MEMBER = 'member'
     
@@ -1056,7 +1025,7 @@ class PlanQuerySet(models.QuerySet['Plan']):
     def active(self) -> 'PlanQuerySet':
         return self.exclude(status__in=['cancelled', 'completed'])
     
-    def for_user(self, user: Union['User', int]) -> 'PlanQuerySet':
+    def for_user(self, user: Union['User', UUID]) -> 'PlanQuerySet':
         return self.filter(
             Q(creator=user) |  # Own plans
             Q(group__members=user) |  # Group plans
@@ -1084,7 +1053,7 @@ class PlanQuerySet(models.QuerySet['Plan']):
             queryset = queryset.filter(end_date__lte=end_date)
         return queryset
     
-    def needs_status_update(self) -> 'PlanQuerySet':
+    def plans_need_status_update(self) -> 'PlanQuerySet':
         now = timezone.now()
         return self.filter(
             Q(
@@ -1406,68 +1375,53 @@ class Plan(BaseModel):
         return False
     
     @classmethod
-    def update_all_statuses(cls) -> Any:
-        return cls.objects.update_statuses_bulk()
-    
-    @classmethod
     def get_plans_needing_updates(cls) -> QuerySet['Plan']:
-        """Get all plans that need status updates"""
-        return cls.objects.needs_status_update()
+        return cls.objects.plans_need_status_update()
 
-    @transaction.atomic
-    def reorder_activities(self, activity_id_order_pairs: List[Tuple[str, int]], date: Optional[date] = None) -> None:
-        # Lock plan để prevent concurrent reordering
-        plan = Plan.objects.select_for_update().get(pk=self.pk)
+    # @transaction.atomic
+    # def reorder_activities(self, activity_id_order_pairs: List[Tuple[str, int]], date: Optional[date] = None) -> None:
+    #     # Lock plan để prevent concurrent reordering
+    #     plan = Plan.objects.select_for_update().get(pk=self.pk)
         
-        if plan.status in ['cancelled', 'completed']:
-            raise ValueError("Không thể reorder activities của plan đã hoàn thành/hủy")
+    #     if plan.status in ['cancelled', 'completed']:
+    #         raise ValueError("Activities of completed/cancelled plans cannot be reordered")
         
-        # Validate all activities belong to this plan
-        activity_ids = [aid for aid, _ in activity_id_order_pairs]
-        activities_qs = plan.activities.filter(id__in=activity_ids)
+    #     # Validate all activities belong to this plan
+    #     activity_ids = [aid for aid, _ in activity_id_order_pairs]
+    #     activities_qs = plan.activities.filter(id__in=activity_ids)
         
-        if date:
-            activities_qs = activities_qs.filter(start_time__date=date)
+    #     if date:
+    #         activities_qs = activities_qs.filter(start_time__date=date)
         
-        if activities_qs.count() != len(activity_ids):
-            raise ValueError("Một số activities không tồn tại hoặc không thuộc plan này")
+    #     if activities_qs.count() != len(activity_ids):
+    #         raise ValueError("Một số activities không tồn tại hoặc không thuộc plan này")
         
-        # Lock activities để prevent concurrent edits
-        activities = list(activities_qs.select_for_update())
-        activity_dict = {act.id: act for act in activities}
+    #     # Lock activities để prevent concurrent edits
+    #     activities = list(activities_qs.select_for_update())
+    #     activity_dict = {act.id: act for act in activities}
         
-        # Validate orders không duplicate
-        orders = [order for _, order in activity_id_order_pairs]
-        if len(set(orders)) != len(orders):
-            raise ValueError("Các order values không được trùng lặp")
+    #     # Validate orders không duplicate
+    #     orders = [order for _, order in activity_id_order_pairs]
+    #     if len(set(orders)) != len(orders):
+    #         raise ValueError("Các order values không được trùng lặp")
         
-        # Bulk update với optimized queries
-        updates = []
-        for activity_id, new_order in activity_id_order_pairs:
-            activity = activity_dict[activity_id]
-            if activity.order != new_order:
-                activity.order = new_order
-                updates.append(activity)
+    #     # Bulk update với optimized queries
+    #     updates = []
+    #     for activity_id, new_order in activity_id_order_pairs:
+    #         activity = activity_dict[activity_id]
+    #         if activity.order != new_order:
+    #             activity.order = new_order
+    #             updates.append(activity)
         
-        if updates:
-            PlanActivity.objects.bulk_update(updates, ['order', 'updated_at'])
+    #     if updates:
+    #         PlanActivity.objects.bulk_update(updates, ['order', 'updated_at'])
             
-            # Touch plan updated_at
-            plan.save(update_fields=['updated_at'])
+    #         # Touch plan updated_at
+    #         plan.save(update_fields=['updated_at'])
         
-        return len(updates)
+    #     return len(updates)
 
-    # === BUSINESS LOGIC REMOVED ===
-    # update_activity_safe, delete_activity_safe moved to PlanService  
-    # Views should call PlanService methods directly
-
-
-class PlanActivity(BaseModel):
-    """
-    Model quản lý các hoạt động trong kế hoạch
-    Mỗi activity có thời gian, địa điểm và chi phí cụ thể
-    """
-    
+class PlanActivity(BaseModel):    
     # Các loại hoạt động cụ thể hơn
     ACTIVITY_TYPES = [
         ('eating', 'Ăn uống'),
@@ -1490,18 +1444,18 @@ class PlanActivity(BaseModel):
         Plan,
         on_delete=models.CASCADE,
         related_name='activities',
-        help_text="Kế hoạch chứa hoạt động này"
+        help_text="Plan of this activity"
     )
     
     # Thông tin cơ bản
     title = models.CharField(
         max_length=200,
-        help_text="Tên hoạt động"
+        help_text="Activity name"
     )
     
     description = models.TextField(
         blank=True,
-        help_text="Mô tả chi tiết hoạt động"
+        help_text="Activity description"
     )
     
     # Loại hoạt động
@@ -1510,28 +1464,28 @@ class PlanActivity(BaseModel):
         choices=ACTIVITY_TYPES,
         default='other',
         db_index=True,
-        help_text="Loại hoạt động"
+        help_text="Activity type"
     )
     
     # Thời gian
     start_time = models.DateTimeField(
-        help_text="Thời gian bắt đầu hoạt động"
+        help_text="Start time of the activity"
     )
     
     end_time = models.DateTimeField(
-        help_text="Thời gian kết thúc hoạt động"
+        help_text="End time of the activity"
     )
     
     # Thông tin địa điểm
     location_name = models.CharField(
         max_length=200,
         blank=True,
-        help_text="Tên địa điểm"
+        help_text="Name of the location"
     )
     
     location_address = models.TextField(
         blank=True,
-        help_text="Địa chỉ chi tiết"
+        help_text="Detailed address"
     )
     
     # Tọa độ GPS
@@ -1540,7 +1494,7 @@ class PlanActivity(BaseModel):
         decimal_places=6,  # 6 chữ số thập phân (độ chính xác ~10cm)
         blank=True, 
         null=True,
-        help_text="Vĩ độ"
+        help_text="Latitude"
     )
     
     longitude = models.DecimalField(
@@ -1548,7 +1502,7 @@ class PlanActivity(BaseModel):
         decimal_places=6,
         blank=True, 
         null=True,
-        help_text="Kinh độ"
+        help_text="Longitude"
     )
     
     # Goong Map API ID (nếu có)
@@ -1564,25 +1518,25 @@ class PlanActivity(BaseModel):
         decimal_places=2,
         blank=True, 
         null=True,
-        help_text="Chi phí dự kiến (VND)"
+        help_text="Estimated cost (VND)"
     )
     
     # Ghi chú
     notes = models.TextField(
         blank=True,
-        help_text="Ghi chú thêm"
+        help_text="Additional notes"
     )
     
     # Thứ tự trong ngày
     order = models.PositiveIntegerField(
         default=0,
-        help_text="Thứ tự hoạt động trong ngày"
+        help_text="Order of activity in the day"
     )
     
     # Trạng thái hoàn thành
     is_completed = models.BooleanField(
         default=False,
-        help_text="Hoạt động đã hoàn thành chưa"
+        help_text="Has the activity been completed?"
     )
     
     # Version field cho optimistic locking
@@ -1591,8 +1545,6 @@ class PlanActivity(BaseModel):
         help_text="Version cho conflict detection"
     )
     
-    # Remove timestamps vì đã có trong BaseModel
-
     class Meta:
         db_table = 'planpal_plan_activities'
         ordering = ['start_time']  # Đơn giản, chỉ theo thời gian
@@ -1611,61 +1563,52 @@ class PlanActivity(BaseModel):
         return f"{self.plan.title} - {self.title} ({self.start_time.strftime('%H:%M')})"
 
     def clean(self) -> None:
-        """Validation cho activity với business rules"""
         super().clean()
-        
-        # Validate thời gian
+        self._validate_time_bounds()
+        self._validate_within_plan_timeline()
+        self._validate_coordinates()
+        self._validate_estimated_cost()
+
+    def _validate_time_bounds(self) -> None:
         if self.start_time and self.end_time:
             if self.end_time <= self.start_time:
-                raise ValidationError("Thời gian kết thúc phải sau thời gian bắt đầu")
-            
-            # Validate duration không quá 24h
+                raise ValidationError("End time must be after start time")
+
             duration = self.end_time - self.start_time
             if duration.total_seconds() > 24 * 3600:
-                raise ValidationError("Hoạt động không được dài quá 24 giờ")
-        
-        # Validate thuộc về plan timeline
+                raise ValidationError("Activity duration must not exceed 24 hours")
+
+    def _validate_within_plan_timeline(self) -> None:
         if self.plan_id and self.start_time and self.end_time:
             plan = self.plan
             if self.start_time.date() < plan.start_date.date():
-                raise ValidationError("Activity không thể bắt đầu trước ngày bắt đầu plan")
+                raise ValidationError("Activity cannot start before plan start date")
             if self.end_time.date() > plan.end_date.date():
-                raise ValidationError("Activity không thể kết thúc sau ngày kết thúc plan")
-        
-        # Validate location coordinates
-        if self.latitude is not None and not (-90 <= self.latitude <= 90):
-            raise ValidationError("Vĩ độ phải từ -90 đến 90")
-        
-        if self.longitude is not None and not (-180 <= self.longitude <= 180):
-            raise ValidationError("Kinh độ phải từ -180 đến 180")
-        
-        # Validate cost
-        if self.estimated_cost is not None and self.estimated_cost < 0:
-            raise ValidationError("Chi phí không được âm")
+                raise ValidationError("Activity cannot end after plan end date")
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        """Override save để auto-increment version và validate"""
-        
-        # Increment version cho optimistic locking (chỉ khi update)
+    def _validate_coordinates(self) -> None:
+        if self.latitude is not None and not (-90 <= self.latitude <= 90):
+            raise ValidationError("Latitude must be between -90 and 90")
+
+        if self.longitude is not None and not (-180 <= self.longitude <= 180):
+            raise ValidationError("Longitude must be between -180 and 180")
+
+    def _validate_estimated_cost(self) -> None:
+        if self.estimated_cost is not None and self.estimated_cost < 0:
+            raise ValidationError("Estimated cost must be non-negative")
+
+    def save(self, *args: Any, **kwargs: Any) -> None:        
         if self.pk:
             self.version = F('version') + 1
         
-        # Run full clean before save
         self.clean()
         
         super().save(*args, **kwargs)
         
-        # Refresh để lấy version mới sau khi save
         if self.pk:
             self.refresh_from_db(fields=['version'])
 
     def check_time_conflict(self, exclude_self: bool = True) -> QuerySet['PlanActivity']:
-        """
-        Check xung đột thời gian với activities khác trong plan
-        
-        Returns:
-            QuerySet: Các activities xung đột
-        """
         conflicts = self.plan.activities.filter(
             start_time__lt=self.end_time,
             end_time__gt=self.start_time
@@ -1678,34 +1621,27 @@ class PlanActivity(BaseModel):
 
     @property
     def duration_minutes(self) -> int:
-        """Tính thời lượng activity theo phút"""
         if self.start_time and self.end_time:
             return int((self.end_time - self.start_time).total_seconds() / 60)
         return 0
 
     @property
     def is_today(self) -> bool:
-        """Check xem activity có phải hôm nay không"""
         if self.start_time:
             return self.start_time.date() == timezone.now().date()
         return False
 
     @property
     def can_complete(self) -> bool:
-        """Check xem có thể đánh dấu hoàn thành không"""
-        # Chỉ có thể complete activities trong quá khứ hoặc hiện tại
         return self.start_time <= timezone.now() if self.start_time else False
 
 
-class ConversationQuerySet(models.QuerySet['Conversation']):
-    """Custom QuerySet for Conversation with optimized methods"""
-    
+class ConversationQuerySet(models.QuerySet['Conversation']):    
     def active(self) -> 'ConversationQuerySet':
         """Get active conversations"""
         return self.filter(is_active=True)
     
-    def for_user(self, user: Union['User', int]) -> 'ConversationQuerySet':
-        """Get conversations for specific user (both direct and group)"""
+    def for_user(self, user: Union['User', UUID]) -> 'ConversationQuerySet':
         return self.filter(
             Q(conversation_type='direct', participants=user) |
             Q(conversation_type='group', group__members=user)
