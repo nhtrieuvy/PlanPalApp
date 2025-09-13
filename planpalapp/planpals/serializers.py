@@ -992,26 +992,46 @@ class MessageReadStatusSerializer(serializers.ModelSerializer):
 # === Conversation Serializers ===
 
 class ConversationSerializer(serializers.ModelSerializer):
-    """
-    Optimized Conversation serializer
-    Uses model properties and methods for efficiency
-    """
     participants = UserSummarySerializer(many=True, read_only=True)
     group = GroupSummarySerializer(read_only=True)
     
-    # Use model properties directly
-    display_name = serializers.CharField(source='display_name', read_only=True)
+    avatar_url = serializers.CharField(read_only=True)
     unread_count = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     
     class Meta:
         model = Conversation
         fields = [
-            'id', 'conversation_type', 'name', 'display_name', 'avatar',
+            'id', 'conversation_type', 'name', 'avatar', 'avatar_url',
             'group', 'participants', 'last_message_at', 'is_active',
             'unread_count', 'last_message', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'last_message_at']
+    
+    def to_representation(self, instance):
+        """Add context-aware display fields"""
+        data = super().to_representation(instance)
+        
+        # Get current user from request context
+        request = self.context.get('request')
+        current_user = request.user if request and request.user.is_authenticated else None
+        
+        # Use model's context-aware methods
+        data['avatar_url'] = instance.get_avatar_url(current_user)
+        
+        # Add additional context-dependent info
+        if instance.conversation_type == 'direct' and current_user:
+            other_user = instance.get_other_participant(current_user)
+            if other_user:
+                data['other_participant'] = {
+                    'id': other_user.id,
+                    'username': other_user.username,
+                    'full_name': other_user.get_full_name(),
+                    'is_online': other_user.is_online,
+                    'last_seen': other_user.last_seen
+                }
+        
+        return data
     
     def get_unread_count(self, obj):
         """Get unread messages count for current user"""
@@ -1036,6 +1056,81 @@ class ConversationSerializer(serializers.ModelSerializer):
                 'sender': last_message.sender.username if last_message.sender else 'System',
                 'created_at': last_message.created_at
             }
+        return None
+
+
+class ConversationSummarySerializer(serializers.ModelSerializer):
+    # Context-dependent fields (computed in to_representation)
+    avatar_url = serializers.CharField(read_only=True)
+    unread_count = serializers.SerializerMethodField()
+    
+    # Last message info (can be prefetched)
+    last_message_preview = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Conversation
+        fields = [
+            'id', 'conversation_type', 'avatar_url',
+            'last_message_at', 'unread_count', 'last_message_preview', 'is_active'
+        ]
+    
+    def to_representation(self, instance):
+        """Add context-aware display fields for list view"""
+        data = super().to_representation(instance)
+        
+        # Get current user from request context
+        request = self.context.get('request')
+        current_user = request.user if request and request.user.is_authenticated else None
+        
+        # Use model's context-aware methods
+        data['avatar_url'] = instance.get_avatar_url(current_user)
+        
+        # Add conversation type specific info
+        if instance.conversation_type == 'group' and instance.group:
+            data['group_id'] = instance.group.id
+            data['member_count'] = instance.group.member_count
+        elif instance.conversation_type == 'direct' and current_user:
+            other_user = instance.get_other_participant(current_user)
+            if other_user:
+                data['other_user_id'] = other_user.id
+                data['other_user_online'] = other_user.is_online
+        
+        return data
+    
+    def get_unread_count(self, obj):
+        """Get unread messages count for current user"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.get_unread_count_for_user(request.user)
+        return 0
+    
+    def get_last_message_preview(self, obj):
+        """Get last message preview (optimized for list view)"""
+        # Check for prefetched data first
+        if hasattr(obj, 'last_message_content') and obj.last_message_content:
+            sender_name = "System"
+            if hasattr(obj, 'last_message_sender_id') and obj.last_message_sender_id:
+                # Try to get sender info from prefetched participants
+                for participant in obj.participants.all():
+                    if participant.id == obj.last_message_sender_id:
+                        sender_name = participant.username
+                        break
+            
+            return {
+                'content': obj.last_message_content[:50] + ('...' if len(obj.last_message_content) > 50 else ''),
+                'sender': sender_name,
+                'created_at': getattr(obj, 'last_message_time', obj.last_message_at)
+            }
+        
+        # Fallback to direct query if no prefetch
+        last_message = obj.messages.filter(is_deleted=False).order_by('-created_at').first()
+        if last_message:
+            return {
+                'content': last_message.content[:50] + ('...' if len(last_message.content) > 50 else ''),
+                'sender': last_message.sender.username if last_message.sender else 'System',
+                'created_at': last_message.created_at
+            }
+        
         return None
 
 

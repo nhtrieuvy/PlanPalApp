@@ -19,14 +19,6 @@ from cloudinary import CloudinaryImage
 from celery import current_app
 
 
-
-
-# Removed direct service imports to avoid circular dependencies
-# Services will be imported dynamically when needed
-
-
-
-
 class BaseModel(models.Model):
     
     id = models.UUIDField(
@@ -45,6 +37,12 @@ class BaseModel(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True,
         help_text="Last updated time"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Active status"
     )
 
     class Meta:
@@ -771,12 +769,6 @@ class Group(BaseModel):
         help_text="Group members"
     )
     
-    is_active = models.BooleanField(
-        default=True,
-        db_index=True,
-        help_text="Is the group active?"
-    )
-    
     objects = GroupQuerySet.as_manager()
 
     class Meta:
@@ -908,7 +900,7 @@ class Group(BaseModel):
         )
 
     def get_recent_messages(self, limit: int = 50) -> QuerySet['ChatMessage']:
-        return self.messages.active().select_related('sender').order_by('-created_at')[:limit]
+        return self.messages.active().select_related('sender').order_by('-created_at')
 
 
 class GroupMembershipQuerySet(models.QuerySet['GroupMembership']):
@@ -1312,72 +1304,6 @@ class Plan(BaseModel):
             
         return queryset.exists()
 
-    def revoke_scheduled_tasks(self) -> None:
-        old_start_id = self.scheduled_start_task_id
-        old_end_id = self.scheduled_end_task_id
-        
-        for task_id in (old_start_id, old_end_id):
-            if not task_id:
-                continue
-            try:
-                current_app.control.revoke(task_id, terminate=False)
-            except Exception:
-                pass
-
-        updates = {}
-        if old_start_id:
-            updates['scheduled_start_task_id'] = None
-        if old_end_id:
-            updates['scheduled_end_task_id'] = None
-            
-        if updates:
-            Plan.objects.filter(
-                pk=self.pk,
-                scheduled_start_task_id=old_start_id,
-                scheduled_end_task_id=old_end_id
-            ).update(**updates)
-
-
-    @property
-    def needs_status_update(self) -> bool:
-        if not (self.start_date and self.end_date):
-            return False
-            
-        now = timezone.now()
-        return (
-            (self.status == 'upcoming' and now >= self.start_date) or
-            (self.status == 'ongoing' and now > self.end_date)
-        )
-    
-    @property 
-    def expected_status(self) -> str:
-        if not (self.start_date and self.end_date):
-            return self.status
-            
-        now = timezone.now()
-        if now < self.start_date:
-            return 'upcoming'
-        elif now <= self.end_date:
-            return 'ongoing'
-        else:
-            return 'completed'
-    
-    def refresh_status(self) -> bool:
-        if not self.needs_status_update:
-            return False
-            
-        old_status = self.status
-        self._auto_status()
-        
-        if self.status != old_status:
-            self.save(update_fields=['status', 'updated_at'])
-            return True
-        return False
-    
-    @classmethod
-    def get_plans_needing_updates(cls) -> QuerySet['Plan']:
-        return cls.objects.plans_need_status_update()
-
     # @transaction.atomic
     # def reorder_activities(self, activity_id_order_pairs: List[Tuple[str, int]], date: Optional[date] = None) -> None:
     #     # Lock plan để prevent concurrent reordering
@@ -1505,7 +1431,6 @@ class PlanActivity(BaseModel):
         help_text="Longitude"
     )
     
-    # Goong Map API ID (nếu có)
     goong_place_id = models.CharField(
         max_length=200,
         blank=True,
@@ -1638,7 +1563,6 @@ class PlanActivity(BaseModel):
 
 class ConversationQuerySet(models.QuerySet['Conversation']):    
     def active(self) -> 'ConversationQuerySet':
-        """Get active conversations"""
         return self.filter(is_active=True)
     
     def for_user(self, user: Union['User', UUID]) -> 'ConversationQuerySet':
@@ -1648,16 +1572,12 @@ class ConversationQuerySet(models.QuerySet['Conversation']):
         ).distinct()
     
     def direct_chats(self) -> 'ConversationQuerySet':
-        """Get only direct (1-1) conversations"""
         return self.filter(conversation_type='direct')
     
     def group_chats(self) -> 'ConversationQuerySet':
-        """Get only group conversations"""
         return self.filter(conversation_type='group')
     
     def with_last_message(self) -> 'ConversationQuerySet':
-        """Annotate with last message info - OPTIMIZED"""
-        # Subquery to get the latest message for each conversation
         last_message_subquery = ChatMessage.objects.filter(
             conversation=OuterRef('pk'),
             is_deleted=False
@@ -1668,9 +1588,8 @@ class ConversationQuerySet(models.QuerySet['Conversation']):
             last_message_content=Subquery(last_message_subquery.values('content')[:1]),
             last_message_sender_id=Subquery(last_message_subquery.values('sender_id')[:1])
         ).select_related('group').prefetch_related('participants')
-    
-    def get_direct_conversation(self, user1: Union['User', int], user2: Union['User', int]) -> Optional['Conversation']:
-        """Get direct conversation between two users"""
+
+    def get_direct_conversation(self, user1: Union['User', UUID], user2: Union['User', UUID]) -> Optional['Conversation']:
         return self.direct_chats().filter(
             participants=user1
         ).filter(
@@ -1679,13 +1598,8 @@ class ConversationQuerySet(models.QuerySet['Conversation']):
 
 
 class Conversation(BaseModel):
-    """
-    Model quản lý cuộc trò chuyện - hỗ trợ cả chat 1-1 và group chat
-    Tương tự như Messenger/Zalo conversation list
-    """
-    
     CONVERSATION_TYPES = [
-        ('direct', 'Chat 1-1'),
+        ('direct', 'Chat cá nhân'),
         ('group', 'Chat nhóm'),
     ]
     
@@ -1696,28 +1610,26 @@ class Conversation(BaseModel):
         help_text="Loại cuộc trò chuyện"
     )
     
-    # For group conversations
     group = models.OneToOneField(
         Group,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name='conversation',
-        help_text="Nhóm (chỉ cho group chat)"
+        help_text="Group (only for group conversations)"
     )
     
-    # For direct conversations (many-to-many for flexibility)
     participants = models.ManyToManyField(
         User,
         related_name='conversations',
-        help_text="Người tham gia (cho chat 1-1: 2 users, group: auto sync từ group members)"
+        help_text="Participants in the conversation"
     )
 
     # Conversation metadata
     name = models.CharField(
         max_length=200,
         blank=True,
-        help_text="Tên cuộc trò chuyện (auto-generate nếu để trống)"
+        help_text="Coversation name"
     )
     
     avatar = CloudinaryField(
@@ -1732,7 +1644,7 @@ class Conversation(BaseModel):
             'gravity': 'face',
             'quality': 'auto:good'
         },
-        help_text="Avatar cuộc trò chuyện"
+        help_text="Conversation avatar"
     )
     
     # Denormalized fields for performance
@@ -1740,14 +1652,9 @@ class Conversation(BaseModel):
         null=True,
         blank=True,
         db_index=True,
-        help_text="Thời gian tin nhắn cuối cùng (denormalized)"
+        help_text="Timestamp of the last message in the conversation"
     )
     
-    is_active = models.BooleanField(
-        default=True,
-        db_index=True,
-        help_text="Cuộc trò chuyện có đang hoạt động không"
-    )
     
     # Custom manager
     objects = ConversationQuerySet.as_manager()
@@ -1768,69 +1675,40 @@ class Conversation(BaseModel):
             participants = list(self.participants.all()[:2])
             if len(participants) == 2:
                 return f"Direct: {participants[0].username} & {participants[1].username}"
+            elif len(participants) == 1:
+                return f"Direct: {participants[0].username} (incomplete)"
         return f"Conversation {self.id}"
 
     def clean(self) -> None:
-        """Validation for conversation"""
         if self.conversation_type == 'group' and not self.group:
-            raise ValidationError("Group conversation phải có group")
+            raise ValidationError("Group conversation must have a group")
         
         if self.conversation_type == 'direct' and self.group:
-            raise ValidationError("Direct conversation không được có group")
+            raise ValidationError("Direct conversation cannot have a group")
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.clean()
         super().save(*args, **kwargs)
-        
-        # Auto-generate name if empty
-        if not self.name:
-            self._auto_generate_name()
-
-    def _auto_generate_name(self) -> None:
-        """Auto-generate conversation name"""
-        if self.conversation_type == 'group' and self.group:
-            self.name = self.group.name
-        elif self.conversation_type == 'direct':
-            participants = list(self.participants.all()[:2])
-            if len(participants) == 2:
-                self.name = f"{participants[0].get_full_name()} & {participants[1].get_full_name()}"
-        
-        if self.name and self.pk:
-            Conversation.objects.filter(pk=self.pk).update(name=self.name)
 
     # === Properties ===
     
-    @property
-    def avatar_url(self) -> Optional[str]:
-        """Get conversation avatar URL"""
+    def get_avatar_url(self, current_user: Optional['User'] = None) -> Optional[str]:
         if self.avatar:
             cloudinary_image = CloudinaryImage(str(self.avatar))
             return cloudinary_image.build_url(secure=True)
         
-        # Fallback to group avatar for group conversations
-        if self.conversation_type == 'group' and self.group and self.group.avatar:
+        if self.conversation_type == 'group' and self.group:
             return self.group.avatar_url
         
+        if self.conversation_type == 'direct' and current_user:
+            other_user = self.get_other_participant(current_user)
+            if other_user:
+                return other_user.avatar_url
         return None
 
-    @property
-    def display_name(self) -> str:
-        """Get display name for conversation"""
-        if self.name:
-            return self.name
-        
-        if self.conversation_type == 'group' and self.group:
-            return self.group.name
-        
-        # For direct chat, show other participant's name
-        participants = list(self.participants.all()[:2])
-        if len(participants) == 2:
-            return f"{participants[0].get_full_name()} & {participants[1].get_full_name()}"
-        
-        return "Cuộc trò chuyện"
+    
 
     def get_other_participant(self, user: 'User') -> Optional['User']:
-        """Get the other participant in direct conversation"""
         if self.conversation_type != 'direct':
             return None
         
@@ -1839,144 +1717,44 @@ class Conversation(BaseModel):
 
     @property
     def participant_count(self):
-        """Get number of participants"""
         if self.conversation_type == 'group' and self.group:
             return self.group.member_count
         return self.participants.count()
 
-    # === Methods ===
     
-    def send_message(self, sender, content, message_type='text', **kwargs):
-        """Send message to conversation"""
-        message = ChatMessage.objects.create(
-            conversation=self,
-            sender=sender,
-            content=content,
-            message_type=message_type,
-            **kwargs
-        )
-        
-        # Update last_message_at automatically handled in ChatMessage.save()
-        return message
-
-    def update_last_message_time(self, timestamp=None):
-        """Update denormalized last_message_at field"""
-        if timestamp is None:
-            timestamp = timezone.now()
-        
-        self.last_message_at = timestamp
-        self.save(update_fields=['last_message_at'])
-
-    def get_unread_count_for_user(self, user):
-        """Get unread message count for specific user"""
-        return self.messages.active().exclude(
-            Q(sender=user) | Q(read_statuses__user=user)
-        ).count()
-
-    def mark_as_read_for_user(self, user, up_to_message=None):
-        """Mark messages as read for user"""
-        messages = self.messages.active().exclude(sender=user)
-        
-        if up_to_message:
-            messages = messages.filter(created_at__lte=up_to_message.created_at)
-        
-        # Get unread message IDs
-        unread_message_ids = messages.exclude(
-            read_statuses__user=user
-        ).values_list('id', flat=True)
-        
-        # Bulk create read statuses
-        if unread_message_ids:
-            read_statuses = [
-                MessageReadStatus(message_id=msg_id, user=user)
-                for msg_id in unread_message_ids
-            ]
-            MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
-        
-        return len(unread_message_ids)
-
-    # === Class Methods ===
-    
-    @classmethod
-    def get_or_create_direct_conversation(cls, user1: 'User', user2: 'User') -> Tuple['Conversation', bool]:
-        """Get or create direct conversation between two users"""
-        if user1 == user2:
-            raise ValueError("Cannot create conversation with yourself")
-        
-        # Try to find existing conversation
-        conversation = cls.objects.get_direct_conversation(user1, user2)
-        
-        if conversation:
-            return conversation, False
-        
-        # Create new direct conversation
-        conversation = cls.objects.create(conversation_type='direct')
-        conversation.participants.add(user1, user2)
-        conversation._auto_generate_name()
-        
-        return conversation, True
-
-    @classmethod
-    def create_group_conversation(cls, group: 'Group') -> 'Conversation':
-        """Create conversation for group"""
-        conversation = cls.objects.create(
-            conversation_type='group',
-            group=group,
-            name=group.name
-        )
-        
-        # Sync participants with group members
-        conversation.sync_group_participants()
-        
-        return conversation
-
-    @classmethod
-    def get_or_create_for_group(cls, group: 'Group') -> Tuple['Conversation', bool]:
-        """Get or create conversation for existing group (migration helper)"""
-        try:
-            return group.conversation, False
-        except cls.DoesNotExist:
-            return cls.create_group_conversation(group), True
-
     def sync_group_participants(self) -> None:
-        """Sync participants with group members (for group conversations)"""
         if self.conversation_type != 'group' or not self.group:
             return
         
-        # Clear and re-add all group members
-        self.participants.clear()
-        self.participants.add(*self.group.members.all())
+        member_ids = set(self.group.members.values_list('id', flat=True))
+        current_ids = set(self.participants.values_list('id', flat=True))
+        if current_ids == member_ids:
+            return
+
+        with transaction.atomic():
+            self.participants.set(list(member_ids))
 
 
-class ChatMessageQuerySet(models.QuerySet['ChatMessage']):
-    """Custom QuerySet for ChatMessage with optimized methods"""
-    
+class ChatMessageQuerySet(models.QuerySet['ChatMessage']):    
     def active(self) -> 'ChatMessageQuerySet':
-        """Filter non-deleted messages"""
         return self.filter(is_deleted=False)
     
     def for_conversation(self, conversation: Union['Conversation', int]) -> 'ChatMessageQuerySet':
-        """Filter messages for specific conversation"""
         return self.filter(conversation=conversation)
     
     def for_group(self, group: Union['Group', int]) -> 'ChatMessageQuerySet':
-        """DEPRECATED: Use for_conversation instead"""
         return self.filter(group=group)
     
     def for_user(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
-        """Filter messages sent by specific user"""
         return self.filter(sender=user)
     
     def by_user(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
-        """Alias for for_user"""
         return self.filter(sender=user)
     
     def recent(self, limit: int = 50) -> 'ChatMessageQuerySet':
-        """Get recent messages with limit"""
         return self.order_by('-created_at')[:limit]
     
     def with_read_status(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
-        """Annotate with read status for specific user"""
         return self.annotate(
             is_read_by_user=Exists(
                 MessageReadStatus.objects.filter(
@@ -1987,7 +1765,6 @@ class ChatMessageQuerySet(models.QuerySet['ChatMessage']):
         )
     
     def unread_for_user(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
-        """Filter unread messages for user"""
         return self.active().exclude(sender=user).exclude(
             Exists(
                 MessageReadStatus.objects.filter(
@@ -1998,29 +1775,19 @@ class ChatMessageQuerySet(models.QuerySet['ChatMessage']):
         )
     
     def by_type(self, message_type: str) -> 'ChatMessageQuerySet':
-        """Filter by message type"""
         return self.filter(message_type=message_type)
     
     def text_messages(self) -> 'ChatMessageQuerySet':
-        """Filter text messages"""
         return self.filter(message_type='text')
     
     def system_messages(self) -> 'ChatMessageQuerySet':
-        """Filter system messages"""
         return self.filter(message_type='system')
     
     def with_attachments(self) -> 'ChatMessageQuerySet':
-        """Filter messages with attachments"""
         return self.exclude(attachment='')
 
 
 class ChatMessage(BaseModel):
-    """
-    Model quản lý tin nhắn trong conversation (cả 1-1 và group chat)
-    Hỗ trợ text, image, file attachments
-    """
-    
-    # Loại tin nhắn
     MESSAGE_TYPES = [
         ('text', 'Văn bản'),
         ('image', 'Hình ảnh'),
@@ -2029,80 +1796,64 @@ class ChatMessage(BaseModel):
         ('system', 'Thông báo hệ thống'),
     ]
     
-    # Thuộc về conversation nào
     conversation = models.ForeignKey(
         Conversation,
         on_delete=models.CASCADE,
         related_name='messages',
         null=True,  # Keep nullable to handle existing messages
         blank=True,
-        help_text="Cuộc trò chuyện chứa tin nhắn này"
+        help_text="The conversation contains this message"
     )
     
-    # DEPRECATED: Keep for backward compatibility, will be removed later
-    group = models.ForeignKey(
-        Group,
-        on_delete=models.CASCADE,
-        related_name='legacy_messages',
-        null=True,
-        blank=True,
-        help_text="DEPRECATED: Sử dụng conversation thay thế"
-    )
-    
-    # Người gửi tin nhắn
     sender = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='sent_messages',
         null=True,  # Null cho system messages
         blank=True,
-        help_text="Người gửi tin nhắn"
+        help_text="Sender"
     )
     
-    # Loại tin nhắn
     message_type = models.CharField(
         max_length=20,
         choices=MESSAGE_TYPES,
         default='text',
         db_index=True,
-        help_text="Loại tin nhắn"
+        help_text="Message type"
     )
     
     # Nội dung tin nhắn
     content = models.TextField(
-        help_text="Nội dung tin nhắn"
+        help_text="Message content"
     )
     
-    # File đính kèm với Cloudinary
     attachment = CloudinaryField(
-        'auto',  # auto: support both image and raw files
+        'auto',
         blank=True,
         null=True,
         folder='planpal/messages/attachments',
         resource_type='auto',  # auto detect file type
-        help_text="File đính kèm (hình ảnh, document)"
+        help_text="Attachment file (image, document, etc.)"
     )
     
-    # Metadata cho file
     attachment_name = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Tên gốc của file"
+        help_text="Original file name"
     )
     
     attachment_size = models.PositiveIntegerField(
         blank=True,
         null=True,
-        help_text="Kích thước file (bytes)"
+        help_text="File size (bytes)"
     )
     
-    # Location data (cho message type = location)
     latitude = models.DecimalField(
         max_digits=9,
         decimal_places=6,
         blank=True,
         null=True,
-        help_text="Vĩ độ của location"
+        help_text="Latitude of location"
     )
     
     longitude = models.DecimalField(
@@ -2110,40 +1861,36 @@ class ChatMessage(BaseModel):
         decimal_places=6,
         blank=True,
         null=True,
-        help_text="Kinh độ của location"
+        help_text="Longitude of location"
     )
     
     location_name = models.CharField(
         max_length=200,
         blank=True,
-        help_text="Tên địa điểm"
+        help_text="Location name"
     )
     
-    # Reply to message (threading)
     reply_to = models.ForeignKey(
         'self',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name='replies',
-        help_text="Tin nhắn được reply"
+        help_text="Reply to message"
     )
     
     # Message status
     is_edited = models.BooleanField(
         default=False,
-        help_text="Tin nhắn đã được chỉnh sửa"
+        help_text="Message has been edited"
     )
     
     is_deleted = models.BooleanField(
         default=False,
         db_index=True,
-        help_text="Tin nhắn đã bị xóa (soft delete)"
+        help_text="Message has been deleted (soft delete)"
     )
     
-    # Remove timestamps vì đã có trong BaseModel
-    
-    # Custom manager - use QuerySet.as_manager()
     objects = ChatMessageQuerySet.as_manager()
 
     class Meta:
@@ -2155,9 +1902,6 @@ class ChatMessage(BaseModel):
             # NEW: Index cho conversation (primary)
             models.Index(fields=['conversation', 'created_at']),
             models.Index(fields=['conversation', 'is_deleted', 'created_at']),
-            # LEGACY: Index cho group (backward compatibility)
-            models.Index(fields=['group', 'created_at']),
-            models.Index(fields=['group', 'is_deleted', 'created_at']),
             # Index cho query messages của user
             models.Index(fields=['sender', 'created_at']),
             # Index cho query theo type
@@ -2166,140 +1910,85 @@ class ChatMessage(BaseModel):
 
     def __str__(self) -> str:
         if self.conversation:
-            location = f"in {self.conversation.display_name}"
-        elif self.group:
-            location = f"in {self.group.name} (legacy)"
+            conv_label = self.conversation.name or f"Conversation {self.conversation.id}"
         else:
-            location = "unknown location"
-            
+            conv_label = "unknown location"
+
         if self.sender:
-            return f"{self.sender.username} {location}: {self.content[:50]}..."
-        return f"System message {location}: {self.content[:50]}..."
+            return f"{self.sender.username} in {conv_label}: {self.content[:50]}..."
+        return f"System message in {conv_label}: {self.content[:50]}..."
 
     def clean(self) -> None:
-        """Validation cho message"""
-        
-        # System messages không cần sender
         if self.message_type == 'system' and self.sender is not None:
-            raise ValidationError("System message không được có sender")
+            raise ValidationError("System message cannot have a sender")
         
         # Non-system messages cần sender
         if self.message_type != 'system' and self.sender is None:
-            raise ValidationError("Message cần có sender")
+            raise ValidationError("Non-system message must have a sender")
         
         # Location messages cần coordinates
         if self.message_type == 'location':
             if not (self.latitude and self.longitude):
-                raise ValidationError("Location message cần có coordinates")
+                raise ValidationError("Location message must have latitude and longitude")
 
     @property
     def is_text_message(self):
-        """Check xem có phải text message không"""
         return self.message_type == 'text'
 
     @property
     def is_image_message(self):
-        """Check xem có phải image message không"""
         return self.message_type == 'image'
 
     @property
     def is_file_message(self):
-        """Check xem có phải file message không"""
         return self.message_type == 'file'
 
     @property
     def is_location_message(self):
-        """Check xem có phải location message không"""
         return self.message_type == 'location'
 
     @property
     def has_attachment(self):
-        """Check xem có attachment không"""
         return bool(self.attachment)
 
     def soft_delete(self):
-        """Soft delete message"""
         self.is_deleted = True
         self.content = "[Tin nhắn đã bị xóa]"
         self.save(update_fields=['is_deleted', 'content', 'updated_at'])
 
     def save(self, *args: Any, **kwargs: Any) -> None:
-        """Override save để update conversation last_message_at và clear caches"""
-        # First call clean if not called yet
         if not hasattr(self, '_clean_called'):
             self.clean()
             self._clean_called = True
             
         super().save(*args, **kwargs)
         
-        # Update conversation's last_message_at (denormalized field)
         if self.conversation and not self.is_deleted:
             self.conversation.update_last_message_time(self.created_at)
         
-        # Clear unread cache for conversation participants
         if self.conversation:
             participant_ids = list(self.conversation.participants.values_list('id', flat=True))
             User.clear_unread_cache_for_users(participant_ids)
 
-    @classmethod
-    def create_system_message(cls, conversation=None, group=None, content=""):
-        """
-        Tạo system message cho conversation hoặc group (legacy)
-        
-        Args:
-            conversation: Conversation instance (preferred)
-            group: Group instance (legacy, for backward compatibility)
-            content: Nội dung thông báo
-        """
-        if conversation:
-            return cls.objects.create(
-                conversation=conversation,
-                sender=None,
-                message_type='system',
-                content=content
-            )
-        elif group:
-            # Legacy support - find or create conversation for group
-            group_conversation, _ = Conversation.get_or_create_for_group(group)
-            return cls.objects.create(
-                conversation=group_conversation,
-                group=group,  # Keep for backward compatibility
-                sender=None,
-                message_type='system',
-                content=content
-            )
-        else:
-            raise ValueError("Either conversation or group must be provided")
-
-
+    
 class MessageReadStatus(BaseModel):
-    """
-    Model theo dõi trạng thái đã đọc của tin nhắn
-    Để hiển thị tin nhắn chưa đọc
-    """
-    
-    # Remove id field vì đã có trong BaseModel
-    
-    # Message được đọc
     message = models.ForeignKey(
         ChatMessage,
         on_delete=models.CASCADE,
         related_name='read_statuses',
-        help_text="Tin nhắn được đọc"
+        help_text="Message that has been read"
     )
     
-    # User đã đọc
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='message_read_statuses',
-        help_text="User đã đọc tin nhắn"
+        help_text="User who has read the message"
     )
     
-    # Thời gian đọc
     read_at = models.DateTimeField(
         auto_now_add=True,
-        help_text="Thời gian đọc tin nhắn"
+        help_text="Time when the message was read"
     )
 
     class Meta:
@@ -2321,7 +2010,6 @@ class MessageReadStatus(BaseModel):
         return f"{self.user.username} read message {self.message.id}"
 
 
-# --- Post-save hook for Plan scheduling (imported lazily to avoid startup cycles)
 try:
     from django.db.models.signals import post_save
     from django.dispatch import receiver
@@ -2329,20 +2017,13 @@ try:
 
     @receiver(post_save, sender=Plan)
     def _plan_post_save_schedule(sender, instance, created, **kwargs):
-        """Schedule/re-schedule Celery tasks for plan start/end on save.
-        This is best-effort: if Celery isn't available, it silently no-ops.
-        """
         try:
-            # Only schedule if plan has valid datetimes and isn't cancelled/completed
             if instance.status in ['cancelled', 'completed']:
-                # Revoke any previously scheduled tasks
                 instance.revoke_scheduled_tasks()
                 return
 
             instance.schedule_celery_tasks()
         except Exception:
-            # Avoid breaking save if scheduling fails
             pass
 except Exception:
-    # If signals aren't available at import time, skip wiring
     pass

@@ -347,16 +347,16 @@ class PlanActivityAdmin(admin.ModelAdmin):
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
     list_display = [
-        'group', 'sender', 'message_type', 'content_preview', 
+        'conversation', 'sender', 'message_type', 'content_preview', 
         'has_attachment', 'is_deleted', 'created_at'
     ]
     list_filter = ['message_type', 'is_deleted', 'created_at']
-    search_fields = ['content', 'group__name', 'sender__username']
+    search_fields = ['content', 'conversation__group__name', 'sender__username']
     readonly_fields = ['id', 'created_at', 'updated_at', 'attachment_preview']
     
     fieldsets = (
         ('Thông tin cơ bản', {
-            'fields': ('group', 'sender', 'message_type', 'content')
+            'fields': ('conversation', 'sender', 'message_type', 'content')
         }),
         ('File đính kèm', {
             'fields': ('attachment_preview', 'attachment', 'attachment_name', 'attachment_size'),

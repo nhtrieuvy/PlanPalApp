@@ -82,6 +82,8 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_PAGINATION_CLASS': 'planpals.paginators.StandardResultsPagination',
+    'PAGE_SIZE': 20,
 }
 
 OAUTH2_PROVIDER = {

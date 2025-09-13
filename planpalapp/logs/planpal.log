@@ -2926,3 +2926,434 @@ DEBUG 2025-09-10 23:51:26,060 http_protocol 30164 22808 HTTP response complete f
 ERROR 2025-09-10 23:51:26,060 runserver 30164 22808 [35;1mHTTP POST /admin/login/?next=/admin/ 500 [0.15, 127.0.0.1:61348][0m
 DEBUG 2025-09-10 23:57:53,285 selector_events 30464 14812 Using selector: SelectSelector
 DEBUG 2025-09-10 23:58:00,588 selector_events 11576 32660 Using selector: SelectSelector
+DEBUG 2025-09-13 19:23:26,487 selector_events 6292 20308 Using selector: SelectSelector
+DEBUG 2025-09-13 19:29:31,914 selector_events 9244 26592 Using selector: SelectSelector
+DEBUG 2025-09-13 19:29:57,930 selector_events 12140 13412 Using selector: SelectSelector
+DEBUG 2025-09-13 19:32:08,362 selector_events 30516 22896 Using selector: SelectSelector
+DEBUG 2025-09-13 19:32:26,608 selector_events 6676 17260 Using selector: SelectSelector
+DEBUG 2025-09-13 20:04:32,254 selector_events 24676 29868 Using selector: SelectSelector
+DEBUG 2025-09-13 20:04:33,049 selector_events 24676 20080 Using selector: SelectSelector
+ERROR 2025-09-13 20:04:33,055 realtime_publisher 24676 29868 Failed to send WebSocket event to plan_test-plan-id: Client sent AUTH, but no password is set
+DEBUG 2025-09-13 20:04:33,055 selector_events 24676 14600 Using selector: SelectSelector
+ERROR 2025-09-13 20:04:33,058 realtime_publisher 24676 29868 Failed to send WebSocket event to user_test-user-id: Client sent AUTH, but no password is set
+INFO 2025-09-13 20:04:33,060 realtime_publisher 24676 29868 Event published: plan.status_changed (ID: f3537112-de2e-40ab-ad3e-2e6aa8df5354, Success: False) to groups: plan_test-plan-id, user_test-user-id
+DEBUG 2025-09-13 20:04:46,767 selector_events 30548 16912 Using selector: SelectSelector
+DEBUG 2025-09-13 20:05:58,111 selector_events 25764 22140 Using selector: SelectSelector
+DEBUG 2025-09-13 20:06:08,672 selector_events 25048 2628 Using selector: SelectSelector
+DEBUG 2025-09-13 20:06:16,406 selector_events 28544 11292 Using selector: SelectSelector
+DEBUG 2025-09-13 20:06:23,015 selector_events 25816 10028 Using selector: SelectSelector
+DEBUG 2025-09-13 20:06:32,961 selector_events 29888 22608 Using selector: SelectSelector
+DEBUG 2025-09-13 20:06:33,621 functional 29888 22608 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-13 20:06:33,623 functional 29888 22608 
+def bulk_update_plan_statuses(self):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,623 functional 29888 22608 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,624 functional 29888 22608 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,624 functional 29888 22608 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,624 functional 29888 22608 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,624 functional 29888 22608 
+def send_plan_reminder(self, plan_id, reminder_type=0):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,626 functional 29888 22608 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,626 functional 29888 22608 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,626 functional 29888 22608 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,626 functional 29888 22608 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,626 functional 29888 22608 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,628 functional 29888 22608 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-13 20:06:33,628 functional 29888 22608 
+def xmap(task, it):
+    return 1
+
+ERROR 2025-09-13 20:06:33,697 redis 29888 22608 Connection to Redis lost: Retry (0/20) now.
+ERROR 2025-09-13 20:06:33,712 redis 29888 22608 Connection to Redis lost: Retry (1/20) in 1.00 second.
+ERROR 2025-09-13 20:06:34,713 redis 29888 22608 Connection to Redis lost: Retry (2/20) in 1.00 second.
+ERROR 2025-09-13 20:06:35,716 redis 29888 22608 Connection to Redis lost: Retry (3/20) in 1.00 second.
+ERROR 2025-09-13 20:06:36,739 redis 29888 22608 Connection to Redis lost: Retry (4/20) in 1.00 second.
+ERROR 2025-09-13 20:06:37,741 redis 29888 22608 Connection to Redis lost: Retry (5/20) in 1.00 second.
+ERROR 2025-09-13 20:06:38,743 redis 29888 22608 Connection to Redis lost: Retry (6/20) in 1.00 second.
+ERROR 2025-09-13 20:06:39,744 redis 29888 22608 Connection to Redis lost: Retry (7/20) in 1.00 second.
+ERROR 2025-09-13 20:06:40,746 redis 29888 22608 Connection to Redis lost: Retry (8/20) in 1.00 second.
+ERROR 2025-09-13 20:06:41,747 redis 29888 22608 Connection to Redis lost: Retry (9/20) in 1.00 second.
+ERROR 2025-09-13 20:06:42,762 redis 29888 22608 Connection to Redis lost: Retry (10/20) in 1.00 second.
+ERROR 2025-09-13 20:06:43,788 redis 29888 22608 Connection to Redis lost: Retry (11/20) in 1.00 second.
+ERROR 2025-09-13 20:06:44,789 redis 29888 22608 Connection to Redis lost: Retry (12/20) in 1.00 second.
+ERROR 2025-09-13 20:06:45,790 redis 29888 22608 Connection to Redis lost: Retry (13/20) in 1.00 second.
+ERROR 2025-09-13 20:06:46,793 redis 29888 22608 Connection to Redis lost: Retry (14/20) in 1.00 second.
+ERROR 2025-09-13 20:06:47,818 redis 29888 22608 Connection to Redis lost: Retry (15/20) in 1.00 second.
+ERROR 2025-09-13 20:06:48,841 redis 29888 22608 Connection to Redis lost: Retry (16/20) in 1.00 second.
+ERROR 2025-09-13 20:06:49,860 redis 29888 22608 Connection to Redis lost: Retry (17/20) in 1.00 second.
+ERROR 2025-09-13 20:06:50,883 redis 29888 22608 Connection to Redis lost: Retry (18/20) in 1.00 second.
+ERROR 2025-09-13 20:06:51,909 redis 29888 22608 Connection to Redis lost: Retry (19/20) in 1.00 second.
+CRITICAL 2025-09-13 20:06:52,910 redis 29888 22608 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+
+INFO 2025-09-13 20:06:52,911 services 29888 22608 Service operation: task_scheduling_failed
+INFO 2025-09-13 20:06:52,913 services 29888 22608 Service operation: plan_created
+ERROR 2025-09-13 20:06:52,932 redis 29888 22608 Connection to Redis lost: Retry (0/20) now.
+ERROR 2025-09-13 20:06:52,933 redis 29888 22608 Connection to Redis lost: Retry (1/20) in 1.00 second.
+ERROR 2025-09-13 20:06:53,936 redis 29888 22608 Connection to Redis lost: Retry (2/20) in 1.00 second.
+ERROR 2025-09-13 20:06:54,938 redis 29888 22608 Connection to Redis lost: Retry (3/20) in 1.00 second.
+ERROR 2025-09-13 20:06:55,940 redis 29888 22608 Connection to Redis lost: Retry (4/20) in 1.00 second.
+ERROR 2025-09-13 20:06:56,941 redis 29888 22608 Connection to Redis lost: Retry (5/20) in 1.00 second.
+ERROR 2025-09-13 20:06:57,943 redis 29888 22608 Connection to Redis lost: Retry (6/20) in 1.00 second.
+ERROR 2025-09-13 20:06:58,945 redis 29888 22608 Connection to Redis lost: Retry (7/20) in 1.00 second.
+ERROR 2025-09-13 20:06:59,946 redis 29888 22608 Connection to Redis lost: Retry (8/20) in 1.00 second.
+ERROR 2025-09-13 20:07:00,963 redis 29888 22608 Connection to Redis lost: Retry (9/20) in 1.00 second.
+ERROR 2025-09-13 20:07:01,966 redis 29888 22608 Connection to Redis lost: Retry (10/20) in 1.00 second.
+ERROR 2025-09-13 20:07:02,967 redis 29888 22608 Connection to Redis lost: Retry (11/20) in 1.00 second.
+ERROR 2025-09-13 20:07:03,968 redis 29888 22608 Connection to Redis lost: Retry (12/20) in 1.00 second.
+ERROR 2025-09-13 20:07:04,995 redis 29888 22608 Connection to Redis lost: Retry (13/20) in 1.00 second.
+ERROR 2025-09-13 20:07:06,016 redis 29888 22608 Connection to Redis lost: Retry (14/20) in 1.00 second.
+ERROR 2025-09-13 20:07:07,019 redis 29888 22608 Connection to Redis lost: Retry (15/20) in 1.00 second.
+ERROR 2025-09-13 20:07:08,043 redis 29888 22608 Connection to Redis lost: Retry (16/20) in 1.00 second.
+ERROR 2025-09-13 20:07:09,044 redis 29888 22608 Connection to Redis lost: Retry (17/20) in 1.00 second.
+ERROR 2025-09-13 20:07:10,057 redis 29888 22608 Connection to Redis lost: Retry (18/20) in 1.00 second.
+ERROR 2025-09-13 20:07:11,081 redis 29888 22608 Connection to Redis lost: Retry (19/20) in 1.00 second.
+CRITICAL 2025-09-13 20:07:12,083 redis 29888 22608 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+
+WARNING 2025-09-13 20:07:12,084 services 29888 22608 Failed to schedule completion task: Client sent AUTH, but no password is set
+INFO 2025-09-13 20:07:12,088 services 29888 22608 Service operation: trip_started
+DEBUG 2025-09-13 20:07:12,088 selector_events 29888 12804 Using selector: SelectSelector
+ERROR 2025-09-13 20:07:12,091 realtime_publisher 29888 22608 Failed to send WebSocket event to plan_d0c19ad1-1c8e-4b4a-9c3c-9196604f66db: Client sent AUTH, but no password is set
+DEBUG 2025-09-13 20:07:12,092 selector_events 29888 28024 Using selector: SelectSelector
+ERROR 2025-09-13 20:07:12,094 realtime_publisher 29888 22608 Failed to send WebSocket event to user_394f6ad5-fbf1-48cd-9bee-274d40926152: Client sent AUTH, but no password is set
+INFO 2025-09-13 20:07:12,096 realtime_publisher 29888 22608 Event published: plan.status_changed (ID: 5881bcb4-6040-4350-86c7-7c2dcf5a994d, Success: False) to groups: plan_d0c19ad1-1c8e-4b4a-9c3c-9196604f66db, user_394f6ad5-fbf1-48cd-9bee-274d40926152
+INFO 2025-09-13 20:07:12,103 services 29888 22608 Service operation: trip_completed
+DEBUG 2025-09-13 20:07:12,103 selector_events 29888 22360 Using selector: SelectSelector
+ERROR 2025-09-13 20:07:12,107 realtime_publisher 29888 22608 Failed to send WebSocket event to plan_d0c19ad1-1c8e-4b4a-9c3c-9196604f66db: Client sent AUTH, but no password is set
+DEBUG 2025-09-13 20:07:12,107 selector_events 29888 21880 Using selector: SelectSelector
+ERROR 2025-09-13 20:07:12,109 realtime_publisher 29888 22608 Failed to send WebSocket event to user_394f6ad5-fbf1-48cd-9bee-274d40926152: Client sent AUTH, but no password is set
+INFO 2025-09-13 20:07:12,111 realtime_publisher 29888 22608 Event published: plan.status_changed (ID: 46d6a5d1-08f3-45a8-860f-582a5bd10aed, Success: False) to groups: plan_d0c19ad1-1c8e-4b4a-9c3c-9196604f66db, user_394f6ad5-fbf1-48cd-9bee-274d40926152
+ERROR 2025-09-13 20:07:12,119 redis 29888 22608 Connection to Redis lost: Retry (0/20) now.
+ERROR 2025-09-13 20:07:12,120 redis 29888 22608 Connection to Redis lost: Retry (1/20) in 1.00 second.
+ERROR 2025-09-13 20:07:13,120 redis 29888 22608 Connection to Redis lost: Retry (2/20) in 1.00 second.
+ERROR 2025-09-13 20:07:14,146 redis 29888 22608 Connection to Redis lost: Retry (3/20) in 1.00 second.
+ERROR 2025-09-13 20:07:15,149 redis 29888 22608 Connection to Redis lost: Retry (4/20) in 1.00 second.
+ERROR 2025-09-13 20:07:16,152 redis 29888 22608 Connection to Redis lost: Retry (5/20) in 1.00 second.
+ERROR 2025-09-13 20:07:17,165 redis 29888 22608 Connection to Redis lost: Retry (6/20) in 1.00 second.
+ERROR 2025-09-13 20:07:18,167 redis 29888 22608 Connection to Redis lost: Retry (7/20) in 1.00 second.
+ERROR 2025-09-13 20:07:19,187 redis 29888 22608 Connection to Redis lost: Retry (8/20) in 1.00 second.
+ERROR 2025-09-13 20:07:20,214 redis 29888 22608 Connection to Redis lost: Retry (9/20) in 1.00 second.
+ERROR 2025-09-13 20:07:21,216 redis 29888 22608 Connection to Redis lost: Retry (10/20) in 1.00 second.
+ERROR 2025-09-13 20:07:22,218 redis 29888 22608 Connection to Redis lost: Retry (11/20) in 1.00 second.
+ERROR 2025-09-13 20:07:23,236 redis 29888 22608 Connection to Redis lost: Retry (12/20) in 1.00 second.
+ERROR 2025-09-13 20:07:24,238 redis 29888 22608 Connection to Redis lost: Retry (13/20) in 1.00 second.
+ERROR 2025-09-13 20:07:25,240 redis 29888 22608 Connection to Redis lost: Retry (14/20) in 1.00 second.
+ERROR 2025-09-13 20:07:26,263 redis 29888 22608 Connection to Redis lost: Retry (15/20) in 1.00 second.
+ERROR 2025-09-13 20:07:27,265 redis 29888 22608 Connection to Redis lost: Retry (16/20) in 1.00 second.
+ERROR 2025-09-13 20:07:28,268 redis 29888 22608 Connection to Redis lost: Retry (17/20) in 1.00 second.
+ERROR 2025-09-13 20:07:29,271 redis 29888 22608 Connection to Redis lost: Retry (18/20) in 1.00 second.
+ERROR 2025-09-13 20:07:30,292 redis 29888 22608 Connection to Redis lost: Retry (19/20) in 1.00 second.
+CRITICAL 2025-09-13 20:07:31,313 redis 29888 22608 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+
+WARNING 2025-09-13 20:07:31,313 services 29888 22608 Failed to schedule completion task: Client sent AUTH, but no password is set
+INFO 2025-09-13 20:07:31,316 services 29888 22608 Service operation: trip_started
+DEBUG 2025-09-13 20:07:31,317 selector_events 29888 6384 Using selector: SelectSelector
+ERROR 2025-09-13 20:07:31,320 realtime_publisher 29888 22608 Failed to send WebSocket event to plan_d0c19ad1-1c8e-4b4a-9c3c-9196604f66db: Client sent AUTH, but no password is set
+DEBUG 2025-09-13 20:07:31,320 selector_events 29888 25484 Using selector: SelectSelector
+ERROR 2025-09-13 20:07:31,323 realtime_publisher 29888 22608 Failed to send WebSocket event to user_394f6ad5-fbf1-48cd-9bee-274d40926152: Client sent AUTH, but no password is set
+INFO 2025-09-13 20:07:31,325 realtime_publisher 29888 22608 Event published: plan.status_changed (ID: 3a1e2e28-c4ca-4b8d-b71c-61dcc6bc9c34, Success: False) to groups: plan_d0c19ad1-1c8e-4b4a-9c3c-9196604f66db, user_394f6ad5-fbf1-48cd-9bee-274d40926152
+INFO 2025-09-13 20:07:31,330 services 29888 22608 Service operation: trip_completed
+DEBUG 2025-09-13 20:07:31,330 selector_events 29888 19940 Using selector: SelectSelector
+ERROR 2025-09-13 20:07:31,333 realtime_publisher 29888 22608 Failed to send WebSocket event to plan_d0c19ad1-1c8e-4b4a-9c3c-9196604f66db: Client sent AUTH, but no password is set
+DEBUG 2025-09-13 20:07:31,333 selector_events 29888 8812 Using selector: SelectSelector
+ERROR 2025-09-13 20:07:31,336 realtime_publisher 29888 22608 Failed to send WebSocket event to user_394f6ad5-fbf1-48cd-9bee-274d40926152: Client sent AUTH, but no password is set
+INFO 2025-09-13 20:07:31,338 realtime_publisher 29888 22608 Event published: plan.status_changed (ID: 97fa4a21-ba5d-410a-9c80-454fe967bf3d, Success: False) to groups: plan_d0c19ad1-1c8e-4b4a-9c3c-9196604f66db, user_394f6ad5-fbf1-48cd-9bee-274d40926152
+INFO 2025-09-13 20:07:31,357 tasks 29888 22608 Plan d0c19ad1-1c8e-4b4a-9c3c-9196604f66db start skipped: Trip start time has not been reached yet
+INFO 2025-09-13 20:07:31,357 trace 29888 22608 Task planpals.tasks.start_plan_task[97db2cee-19d0-455f-9607-4998130b6065] succeeded in 0.0s: {'plan_id': 'd0c19ad1-1c8e-4b4a-9c3c-9196604f66db', 'task_id': '97db2cee-19d0-455f-9607-4998130b6065', 'task_name': 'start_plan_task', 'status': 'skipped', 'reason': 'Trip start time has not been reached yet', 'attempt': 0, 'timestamp': '2025-09-13T13:07:31.357836+00:00'}
+INFO 2025-09-13 20:07:31,359 tasks 29888 22608 Plan d0c19ad1-1c8e-4b4a-9c3c-9196604f66db completion skipped: Cannot complete trip in status: upcoming
+INFO 2025-09-13 20:07:31,359 trace 29888 22608 Task planpals.tasks.complete_plan_task[ec251541-b59b-443a-9e1c-85cc18bac929] succeeded in 0.0s: {'plan_id': 'd0c19ad1-1c8e-4b4a-9c3c-9196604f66db', 'task_id': 'ec251541-b59b-443a-9e1c-85cc18bac929', 'task_name': 'complete_plan_task', 'status': 'skipped', 'reason': 'Cannot complete trip in status: upcoming', 'attempt': 0, 'timestamp': '2025-09-13T13:07:31.359848+00:00'}
+INFO 2025-09-13 20:07:31,365 services 29888 22608 Service operation: bulk_status_update
+DEBUG 2025-09-13 20:07:31,372 selector_events 29888 9388 Using selector: SelectSelector
+ERROR 2025-09-13 20:07:31,392 realtime_publisher 29888 22608 Failed to send WebSocket event to plan_test-plan-id: Client sent AUTH, but no password is set
+DEBUG 2025-09-13 20:07:31,393 selector_events 29888 21916 Using selector: SelectSelector
+ERROR 2025-09-13 20:07:31,395 realtime_publisher 29888 22608 Failed to send WebSocket event to user_test-user-id: Client sent AUTH, but no password is set
+INFO 2025-09-13 20:07:31,396 realtime_publisher 29888 22608 Event published: plan.status_changed (ID: 8046aee9-b581-43c8-b376-2071df5be466, Success: False) to groups: plan_test-plan-id, user_test-user-id
+INFO 2025-09-13 20:11:20,366 autoreload 29884 28164 Watching for file changes with StatReloader
+DEBUG 2025-09-13 20:13:27,542 selector_events 17968 25728 Using selector: SelectSelector
+DEBUG 2025-09-13 20:13:28,451 selector_events 27144 27040 Using selector: SelectSelector
+INFO 2025-09-13 20:13:28,659 autoreload 27144 27040 Watching for file changes with StatReloader
+DEBUG 2025-09-13 20:14:53,874 selector_events 10108 13084 Using selector: SelectSelector
+DEBUG 2025-09-13 20:15:38,331 selector_events 9440 11884 Using selector: SelectSelector
+DEBUG 2025-09-13 20:15:39,159 selector_events 25728 17968 Using selector: SelectSelector
+INFO 2025-09-13 20:15:39,369 autoreload 25728 17968 Watching for file changes with StatReloader
+DEBUG 2025-09-13 20:17:26,223 selector_events 13412 29136 Using selector: SelectSelector
+DEBUG 2025-09-13 20:20:12,358 selector_events 2112 25864 Using selector: SelectSelector
+DEBUG 2025-09-13 20:20:13,202 selector_events 28424 29720 Using selector: SelectSelector
+INFO 2025-09-13 20:20:13,414 autoreload 28424 29720 Watching for file changes with StatReloader
+INFO 2025-09-13 20:20:13,965 server 28424 13660 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-13 20:20:13,966 server 28424 13660 Configuring endpoint tcp:port=8000:interface=127.0.0.1
+INFO 2025-09-13 20:20:13,966 server 28424 13660 Listening on TCP address 127.0.0.1:8000
+DEBUG 2025-09-13 20:20:22,851 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:22,875 resource 28424 29896 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000170FCA1AF40>.
+DEBUG 2025-09-13 20:20:22,891 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:22,892 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:22,892 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:22,892 runserver 28424 13660 [mHTTP GET / 200 [0.04, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:23,579 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+WARNING 2025-09-13 20:20:23,614 log 28424 26200 Not Found: /favicon.ico
+DEBUG 2025-09-13 20:20:23,615 http_protocol 28424 13660 HTTP 404 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:23,615 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:23,616 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+WARNING 2025-09-13 20:20:23,616 runserver 28424 13660 [33mHTTP GET /favicon.ico 404 [0.04, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:26,747 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:26,779 http_protocol 28424 13660 HTTP 301 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:26,780 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:26,781 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:26,782 runserver 28424 13660 [32mHTTP GET /admin 301 [0.03, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:26,784 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:26,827 http_protocol 28424 13660 HTTP 302 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:26,827 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:26,828 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:26,829 runserver 28424 13660 [32mHTTP GET /admin/ 302 [0.04, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:26,834 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:27,084 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:27,085 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:27,085 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:27,086 runserver 28424 13660 [mHTTP GET /admin/login/?next=/admin/ 200 [0.25, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:27,531 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+WARNING 2025-09-13 20:20:27,561 log 28424 26200 Not Found: /adimn
+DEBUG 2025-09-13 20:20:27,563 http_protocol 28424 13660 HTTP 404 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:27,564 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:27,564 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+WARNING 2025-09-13 20:20:27,565 runserver 28424 13660 [33mHTTP GET /adimn 404 [0.03, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:30,522 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:30,531 http_protocol 28424 13660 HTTP 302 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:30,532 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:30,532 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:30,533 runserver 28424 13660 [32mHTTP GET /admin/ 302 [0.01, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:30,536 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:30,553 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:30,554 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:30,554 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:30,554 runserver 28424 13660 [mHTTP GET /admin/login/?next=/admin/ 200 [0.02, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:34,789 http_protocol 28424 13660 HTTP b'POST' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:35,891 http_protocol 28424 13660 HTTP 302 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:35,892 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:35,893 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:35,893 runserver 28424 13660 [32mHTTP POST /admin/login/?next=/admin/ 302 [1.10, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:35,898 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:35,997 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:35,997 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:35,997 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:35,998 runserver 28424 13660 [mHTTP GET /admin/ 200 [0.10, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:36,020 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,039 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 54007]
+DEBUG 2025-09-13 20:20:36,043 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,044 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,137 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,240 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,243 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,245 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,245 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:36,247 runserver 28424 13660 [mHTTP GET /static/admin/css/dashboard.css 200 [0.23, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:36,271 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,272 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,273 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,273 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 58111]
+INFO 2025-09-13 20:20:36,273 runserver 28424 13660 [mHTTP GET /static/admin/img/icon-changelink.svg 200 [0.23, 127.0.0.1:58111][0m
+DEBUG 2025-09-13 20:20:36,276 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,278 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,278 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,279 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61628]
+INFO 2025-09-13 20:20:36,279 runserver 28424 13660 [mHTTP GET /static/admin/img/icon-deletelink.svg 200 [0.23, 127.0.0.1:61628][0m
+DEBUG 2025-09-13 20:20:36,280 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 54007]
+DEBUG 2025-09-13 20:20:36,281 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 54007]
+DEBUG 2025-09-13 20:20:36,283 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 54007]
+DEBUG 2025-09-13 20:20:36,283 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 54007]
+INFO 2025-09-13 20:20:36,283 runserver 28424 13660 [mHTTP GET /static/admin/img/icon-addlink.svg 200 [0.24, 127.0.0.1:54007][0m
+DEBUG 2025-09-13 20:20:36,387 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,388 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,389 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 62068]
+INFO 2025-09-13 20:20:36,389 runserver 28424 13660 [mHTTP GET /admin/oauth2_provider/application/4/change/ 200 [0.25, 127.0.0.1:62068][0m
+DEBUG 2025-09-13 20:20:36,411 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,413 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 54007]
+DEBUG 2025-09-13 20:20:36,415 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,417 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,418 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,429 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 56078]
+DEBUG 2025-09-13 20:20:36,465 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,468 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,470 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,470 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 62068]
+INFO 2025-09-13 20:20:36,471 runserver 28424 13660 [mHTTP GET /static/admin/css/forms.css 200 [0.06, 127.0.0.1:62068][0m
+DEBUG 2025-09-13 20:20:36,473 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,475 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,477 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,478 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,478 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 58111]
+INFO 2025-09-13 20:20:36,479 runserver 28424 13660 [mHTTP GET /static/admin/js/jquery.init.js 200 [0.06, 127.0.0.1:58111][0m
+DEBUG 2025-09-13 20:20:36,482 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,490 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,491 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,491 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,492 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:36,492 runserver 28424 13660 [mHTTP GET /static/admin/js/core.js 200 [0.08, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:36,494 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,497 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 56078]
+DEBUG 2025-09-13 20:20:36,498 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 56078]
+DEBUG 2025-09-13 20:20:36,498 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 56078]
+DEBUG 2025-09-13 20:20:36,499 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 56078]
+INFO 2025-09-13 20:20:36,499 runserver 28424 13660 [mHTTP GET /static/admin/js/admin/RelatedObjectLookups.js 200 [0.07, 127.0.0.1:56078][0m
+DEBUG 2025-09-13 20:20:36,501 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 56078]
+DEBUG 2025-09-13 20:20:36,502 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,503 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,504 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,505 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 58111]
+INFO 2025-09-13 20:20:36,506 runserver 28424 13660 [mHTTP GET /static/admin/css/widgets.css 200 [0.02, 127.0.0.1:58111][0m
+DEBUG 2025-09-13 20:20:36,507 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,509 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,513 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 56078]
+DEBUG 2025-09-13 20:20:36,513 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,513 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,513 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,514 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,514 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,514 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,515 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61628]
+INFO 2025-09-13 20:20:36,515 runserver 28424 13660 [mHTTP GET /static/admin/js/vendor/jquery/jquery.js 200 [0.10, 127.0.0.1:61628][0m
+DEBUG 2025-09-13 20:20:36,518 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 56078]
+DEBUG 2025-09-13 20:20:36,518 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 56078]
+DEBUG 2025-09-13 20:20:36,518 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 56078]
+INFO 2025-09-13 20:20:36,519 runserver 28424 13660 [mHTTP GET /static/admin/js/prepopulate.js 200 [0.02, 127.0.0.1:56078][0m
+DEBUG 2025-09-13 20:20:36,520 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,521 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,524 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,524 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 62068]
+DEBUG 2025-09-13 20:20:36,524 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 62068]
+INFO 2025-09-13 20:20:36,524 runserver 28424 13660 [mHTTP GET /static/admin/js/actions.js 200 [0.05, 127.0.0.1:62068][0m
+DEBUG 2025-09-13 20:20:36,525 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 54007]
+DEBUG 2025-09-13 20:20:36,526 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 54007]
+DEBUG 2025-09-13 20:20:36,526 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 54007]
+INFO 2025-09-13 20:20:36,527 runserver 28424 13660 [mHTTP GET /admin/jsi18n/ 200 [0.11, 127.0.0.1:54007][0m
+DEBUG 2025-09-13 20:20:36,527 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,529 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,530 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61521]
+DEBUG 2025-09-13 20:20:36,530 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61521]
+INFO 2025-09-13 20:20:36,530 runserver 28424 13660 [mHTTP GET /static/admin/js/urlify.js 200 [0.04, 127.0.0.1:61521][0m
+DEBUG 2025-09-13 20:20:36,553 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,555 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,555 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,556 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61628]
+INFO 2025-09-13 20:20:36,556 runserver 28424 13660 [mHTTP GET /static/admin/js/prepopulate_init.js 200 [0.03, 127.0.0.1:61628][0m
+DEBUG 2025-09-13 20:20:36,559 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,589 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,591 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,591 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,592 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61628]
+INFO 2025-09-13 20:20:36,592 runserver 28424 13660 [mHTTP GET /static/admin/js/change_form.js 200 [0.03, 127.0.0.1:61628][0m
+DEBUG 2025-09-13 20:20:36,693 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,695 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,696 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,697 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,697 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,698 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,698 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,698 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 58111]
+INFO 2025-09-13 20:20:36,698 runserver 28424 13660 [mHTTP GET /static/admin/js/vendor/xregexp/xregexp.js 200 [0.19, 127.0.0.1:58111][0m
+DEBUG 2025-09-13 20:20:36,714 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,716 http_protocol 28424 13660 HTTP b'GET' request for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,731 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,731 http_protocol 28424 13660 HTTP 200 response started for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,732 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,732 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 58111]
+DEBUG 2025-09-13 20:20:36,734 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 58111]
+INFO 2025-09-13 20:20:36,735 runserver 28424 13660 [mHTTP GET /static/admin/img/tooltag-arrowright.svg 200 [0.02, 127.0.0.1:58111][0m
+DEBUG 2025-09-13 20:20:36,736 http_protocol 28424 13660 HTTP response chunk for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,736 http_protocol 28424 13660 HTTP close for ['127.0.0.1', 61628]
+DEBUG 2025-09-13 20:20:36,736 http_protocol 28424 13660 HTTP response complete for ['127.0.0.1', 61628]
+INFO 2025-09-13 20:20:36,736 runserver 28424 13660 [mHTTP GET /static/admin/img/search.svg 200 [0.02, 127.0.0.1:61628][0m
+DEBUG 2025-09-13 20:22:06,427 selector_events 9400 3028 Using selector: SelectSelector
+DEBUG 2025-09-13 20:22:07,122 functional 9400 3028 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,123 functional 9400 3028 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,123 functional 9400 3028 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,123 functional 9400 3028 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,124 functional 9400 3028 
+def send_plan_reminder(self, plan_id, reminder_type=0):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,125 functional 9400 3028 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,125 functional 9400 3028 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,125 functional 9400 3028 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,126 functional 9400 3028 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,126 functional 9400 3028 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,126 functional 9400 3028 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,126 functional 9400 3028 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-13 20:22:07,127 functional 9400 3028 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-13 20:22:07,127 functional 9400 3028 
+def bulk_update_plan_statuses(self):
+    return 1
+
