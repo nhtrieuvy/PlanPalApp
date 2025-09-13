@@ -4,9 +4,13 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from typing import Dict, List, Optional, Tuple, Any
 import logging
+from oauth2_provider.models import AccessToken, RefreshToken
+from .serializers import UserSerializer        
+
+from uuid import UUID
 
 from .models import (
-    User, Group, Plan, PlanActivity, ChatMessage, Friendship, GroupMembership
+    User, Group, Plan, PlanActivity, ChatMessage, Friendship, GroupMembership, FriendshipRejection
 )
 from .events import RealtimeEvent, EventType
 from .realtime_publisher import RealtimeEventPublisher
@@ -18,16 +22,12 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 class BaseService:
-    """Base service class with common functionality"""
-    
     @staticmethod
     def log_operation(operation: str, details: Dict[str, Any] = None):
-        """Log service operations for debugging and monitoring"""
         logger.info(f"Service operation: {operation}", extra=details or {})
     
     @staticmethod
     def validate_user_permission(user, resource, permission_type: str) -> bool:
-        """Generic permission validation"""
         if not user or not user.is_authenticated:
             return False
         return True
@@ -38,51 +38,40 @@ class BaseService:
 # ============================================================================
 
 class UserService(BaseService):
-    """Service for user-related business logic"""
-    
     @classmethod
-    def get_user_with_counts(cls, user_id: str) -> User:
-        """Get user with all counts efficiently"""
+    def get_user_with_counts(cls, user_id: UUID) -> User:
         return User.objects.with_cached_counts().get(id=user_id)
     
     @classmethod
     def get_friendship_status(cls, current_user: User, target_user: User) -> Dict[str, Any]:
-        """Get friendship status between two users"""
+        # Self-check
         if current_user == target_user:
             return {'status': 'self'}
-        
-        # Check if there's an existing friendship
-        friendship = Friendship.objects.filter(
-            models.Q(user=current_user, friend=target_user) |
-            models.Q(user=target_user, friend=current_user)
-        ).first()
-        
+
+        friendship = Friendship.get_friendship(current_user, target_user)
+
         if not friendship:
             return {'status': 'none'}
-        
-        if friendship.status == Friendship.ACCEPTED:
+
+        status = friendship.status
+        if status == Friendship.ACCEPTED:
             return {'status': 'friends', 'since': friendship.created_at}
-        elif friendship.status == Friendship.PENDING:
-            if friendship.user == current_user:
-                return {'status': 'pending_sent'}
-            else:
-                return {'status': 'pending_received'}
-        elif friendship.status == Friendship.BLOCKED:
+        if status == Friendship.PENDING:
+            direction = 'pending_sent' if friendship.is_initiated_by(current_user) else 'pending_received'
+            return {'status': direction}
+        if status == Friendship.REJECTED:
+            return {'status': 'rejected'}
+        if status == Friendship.BLOCKED:
             return {'status': 'blocked'}
-        
+
         return {'status': 'unknown'}
     
     @classmethod
     def send_friend_request(cls, from_user: User, to_user: User) -> Tuple[bool, str]:
-        """Send friend request with validation and cooldown logic"""
         if from_user == to_user:
             return False, "Cannot send friend request to yourself"
         
-        # Check if friendship already exists
-        existing = Friendship.objects.filter(
-            models.Q(user=from_user, friend=to_user) |
-            models.Q(user=to_user, friend=from_user)
-        ).first()
+        existing = Friendship.get_friendship(from_user, to_user)
         
         if existing:
             if existing.status == Friendship.ACCEPTED:
@@ -92,15 +81,12 @@ class UserService(BaseService):
             elif existing.status == Friendship.BLOCKED:
                 return False, "Cannot send friend request"
             elif existing.status == Friendship.REJECTED:
-                # Check cooldown logic
-                rejections = existing.rejections.all()[:Friendship.MAX_REJECTION_COUNT + 1]
+                rejection_count = existing.get_rejection_count()
+                last_rejection = existing.get_last_rejection()
                 
-                if rejections:
-                    last_rejection = rejections[0]
+                if last_rejection:
                     time_since_rejection = timezone.now() - last_rejection.created_at
-                    rejection_count = len(rejections)
                     
-                    # Determine cooldown period
                     if rejection_count >= Friendship.MAX_REJECTION_COUNT:
                         cooldown_period = timezone.timedelta(days=Friendship.EXTENDED_COOLDOWN_DAYS)
                         cooldown_msg = f"Must wait {Friendship.EXTENDED_COOLDOWN_DAYS} days after {rejection_count} rejections"
@@ -112,7 +98,6 @@ class UserService(BaseService):
                         remaining_time = cooldown_period - time_since_rejection
                         return False, f"Cannot resend friend request yet. {cooldown_msg}. Time remaining: {remaining_time}"
                 
-                # Update existing rejected friendship to pending
                 existing.status = Friendship.PENDING
                 existing.save()
                 cls.log_operation("friend_request_resent", {
@@ -121,13 +106,17 @@ class UserService(BaseService):
                 })
                 return True, "Friend request sent successfully"
         
-        # Create new friendship request
-        with transaction.atomic():
-            Friendship.objects.create(
-                user=from_user,
-                friend=to_user,
-                status=Friendship.PENDING
-            )
+        try:
+            with transaction.atomic():
+                friendship = Friendship(
+                    user=from_user,
+                    friend=to_user,
+                    status=Friendship.PENDING
+                )
+                friendship.full_clean()
+                friendship.save()
+        except ValidationError as e:
+            return False, str(e)
         
         cls.log_operation("friend_request_sent", {
             'from_user': from_user.id,
@@ -137,8 +126,168 @@ class UserService(BaseService):
         return True, "Friend request sent successfully"
     
     @classmethod
+    def logout_user(cls, user: User, token_string: str = None) -> Tuple[bool, str, bool]:
+        revoked = False
+        
+        try:
+            if token_string:
+                at_qs = AccessToken.objects.select_for_update().filter(
+                    token=token_string, user=user
+                )
+                if at_qs.exists():
+                    at = at_qs.first()
+                    RefreshToken.objects.filter(access_token=at).delete()
+                    at.delete()
+                    revoked = True
+            
+            user.set_online_status(False)
+            
+            cls.log_operation("user_logout", {
+                'user_id': user.id,
+                'token_revoked': revoked
+            })
+            
+            return True, "Logged out successfully", revoked
+            
+        except Exception as e:
+            cls.log_operation("user_logout_failed", {
+                'user_id': user.id,
+                'error': str(e)
+            })
+            return False, f"Logout failed: {e}", False
+    
+    @classmethod
+    def search_users(cls, query: str, current_user: User, limit: int = 20):
+        return User.objects.filter(
+            models.Q(username__icontains=query) |
+            models.Q(email__icontains=query) |
+            models.Q(first_name__icontains=query) |
+            models.Q(last_name__icontains=query)
+        ).exclude(
+            id=current_user.id
+        ).only(
+            'id', 'username', 'first_name', 'last_name', 
+            'avatar', 'is_online', 'last_seen'
+        ).order_by('username')
+    
+    @classmethod
+    def update_user_profile(cls, user: User, data: Dict[str, Any]) -> Tuple[User, bool]:
+        try:
+            with transaction.atomic():
+                serializer = UserSerializer(user, data=data, partial=True)
+                if serializer.is_valid():
+                    user = serializer.save()
+                    user.update_last_seen()
+                    
+                    cls.log_operation("user_profile_updated", {
+                        'user_id': user.id
+                    })
+                    
+                    return user, True
+                else:
+                    return user, False
+        except Exception as e:
+            cls.log_operation("user_profile_update_failed", {
+                'user_id': user.id,
+                'error': str(e)
+            })
+            return user, False
+    
+    @classmethod
+    def get_user_plans(cls, user: User, plan_type: str = 'all'):        
+        queryset = Plan.objects.for_user(user).with_stats()
+        
+        if plan_type == 'personal':
+            queryset = queryset.filter(plan_type='personal')
+        elif plan_type == 'group':
+            queryset = queryset.filter(plan_type='group')
+        
+        return queryset
+    
+    @classmethod
+    def get_user_groups(cls, user: User):
+        return user.joined_groups.with_full_stats()
+    
+    @classmethod
+    def get_user_activities(cls, user: User):        
+        return PlanActivity.objects.filter(
+            plan__in=user.viewable_plans
+        ).select_related('plan', 'plan__group', 'plan__creator').order_by('-start_time')
+    
+    @classmethod
+    def set_user_online_status(cls, user: User, is_online: bool) -> bool:
+        try:
+            with transaction.atomic():
+                user.set_online_status(is_online)
+            return True
+        except Exception as e:
+            cls.log_operation("set_online_status_failed", {
+                'user_id': user.id,
+                'error': str(e)
+            })
+            return False
+    
+    @classmethod
+    def get_friendship_stats(cls, user: User) -> Dict[str, Any]:
+        user = User.objects.with_cached_counts().get(id=user.id)
+        return {
+            'friends_count': user.friends_count,
+            'pending_sent_count': user.pending_sent_count,
+            'pending_received_count': user.pending_received_count,
+            'blocked_count': user.blocked_count
+        }
+    
+    @classmethod
+    def get_recent_conversations(cls, user: User):
+        return user.recent_conversations
+    
+    @classmethod
+    def get_unread_count(cls, user: User) -> int:
+        return user.unread_messages_count
+    
+    @classmethod
+    def unblock_user(cls, current_user: User, target_user: User) -> Tuple[bool, str]:
+        friendship = Friendship.objects.filter(
+            user=current_user,
+            friend=target_user,
+            status=Friendship.BLOCKED
+        ).first()
+        
+        if not friendship:
+            return False, "User is not blocked"
+        
+        friendship.delete()
+        
+        cls.log_operation("user_unblocked", {
+            'blocker': current_user.id,
+            'unblocked': target_user.id
+        })
+        
+        return True, "User unblocked successfully"
+    
+    @classmethod
+    def join_group(cls, user: User, group_id: str = None, invite_code: str = None) -> Tuple[bool, str, Optional['Group']]:
+        try:
+            if invite_code:
+                group = Group.objects.get(invite_code=invite_code)
+            else:
+                group = Group.objects.get(
+                    id=group_id, 
+                    is_public=True
+                )
+            
+            success, message = GroupService.join_group_by_invite(group, user)
+            
+            if success:
+                return True, message, group
+            else:
+                return False, message, None
+                
+        except Group.DoesNotExist:
+            return False, "Group not found or not accessible", None
+    
+    @classmethod
     def accept_friend_request(cls, current_user: User, from_user: User) -> Tuple[bool, str]:
-        """Accept friend request"""
         try:
             friendship = Friendship.objects.get(
                 user=from_user,
@@ -162,7 +311,6 @@ class UserService(BaseService):
     
     @classmethod
     def reject_friend_request(cls, current_user: User, from_user: User) -> Tuple[bool, str]:
-        """Reject a friend request and record the rejection."""
         try:
             friendship = Friendship.objects.get(
                 user=from_user,
@@ -174,8 +322,6 @@ class UserService(BaseService):
                 friendship.status = Friendship.REJECTED
                 friendship.save()
                 
-                # Record the rejection event
-                from .models import FriendshipRejection
                 FriendshipRejection.objects.create(
                     friendship=friendship, 
                     rejected_by=current_user
@@ -193,7 +339,6 @@ class UserService(BaseService):
     
     @classmethod
     def cancel_friend_request(cls, current_user: User, to_user: User) -> Tuple[bool, str]:
-        """Cancel a friend request sent by the current user."""
         try:
             friendship = Friendship.objects.get(
                 user=current_user,
@@ -215,18 +360,15 @@ class UserService(BaseService):
 
     @classmethod
     def block_user(cls, current_user: User, target_user: User) -> Tuple[bool, str]:
-        """Block a user"""
         if current_user == target_user:
             return False, "Cannot block yourself"
         
         with transaction.atomic():
-            # Remove any existing friendship
             Friendship.objects.filter(
                 models.Q(user=current_user, friend=target_user) |
                 models.Q(user=target_user, friend=current_user)
             ).delete()
             
-            # Create block relationship
             Friendship.objects.create(
                 user=current_user,
                 friend=target_user,
@@ -242,14 +384,9 @@ class UserService(BaseService):
     
     @classmethod
     def unfriend_user(cls, current_user: User, target_user: User) -> Tuple[bool, str]:
-        """Remove friendship between users"""
-        friendship = Friendship.objects.filter(
-            models.Q(user=current_user, friend=target_user) |
-            models.Q(user=target_user, friend=current_user),
-            status=Friendship.ACCEPTED
-        ).first()
+        friendship = Friendship.get_friendship(current_user, target_user)
         
-        if not friendship:
+        if not friendship or friendship.status != Friendship.ACCEPTED:
             return False, "Not friends"
         
         friendship.delete()
@@ -262,60 +399,18 @@ class UserService(BaseService):
         return True, "Unfriended successfully"
     
     @classmethod
-    def create_personal_plan(cls, user: User, title: str, start_date, end_date, **kwargs) -> 'Plan':
-        """Create personal plan for user"""
-        from .models import Plan
-        return Plan.objects.create(
-            creator=user,
-            title=title,
-            description=kwargs.get('description', ''),
-            plan_type='personal',
-            start_date=start_date,
-            end_date=end_date,
-            budget=kwargs.get('budget'),
-            is_public=kwargs.get('is_public', False),
-            status='planning'
-        )
-    
-    @classmethod
-    def create_group_plan(cls, user: User, group: 'Group', title: str, start_date, end_date, **kwargs) -> 'Plan':
-        """Create group plan for user"""
-        # Validate user is group member
-        if not cls.is_group_member(user, group):
-            raise ValidationError("You must be a member of the group to create a plan")
-        
-        from .models import Plan
-        return Plan.objects.create(
-            creator=user,
-            title=title,
-            description=kwargs.get('description', ''),
-            plan_type='group',
-            group=group,
-            start_date=start_date,
-            end_date=end_date,
-            budget=kwargs.get('budget'),
-            is_public=kwargs.get('is_public', False),
-            status='planning'
-        )
-    
-    @classmethod
     def is_group_member(cls, user: User, group: 'Group') -> bool:
-        """Check if user is member of group"""
-        from .models import GroupMembership
-        return GroupMembership.objects.filter(group=group, user=user).exists()
+        return group.is_member(user)
 
 
 # ============================================================================
 # GROUP SERVICE  
 # ============================================================================
 
-class GroupService(BaseService):
-    """Service for group-related business logic"""
-    
+class GroupService(BaseService):    
     @classmethod
     def create_group(cls, creator: User, name: str, description: str = "", 
                     is_public: bool = False, initial_members: List[User] = None) -> Group:
-        """Create a new group with initial setup"""
         with transaction.atomic():
             group = Group.objects.create(
                 name=name,
@@ -324,17 +419,15 @@ class GroupService(BaseService):
                 is_public=is_public
             )
             
-            # Add creator as member
             GroupMembership.objects.create(
                 group=group,
                 user=creator,
                 role=GroupMembership.ADMIN
             )
             
-            # Add initial members if provided
             if initial_members:
                 for user in initial_members:
-                    if user != creator:  # Don't add creator twice
+                    if user != creator:
                         cls.add_member_to_group(group, user, role=GroupMembership.MEMBER)
         
         cls.log_operation("group_created", {
@@ -347,29 +440,27 @@ class GroupService(BaseService):
     
     @classmethod
     def add_member_to_group(cls, group: Group, user: User, 
-                           role: str = None, added_by: User = None) -> Tuple[bool, str]:
-        """Add a user to a group with validation"""
-        from .models import GroupMembership, Friendship
-        
-        # Set default role
+                           role: str = None, added_by: User = None) -> Tuple[bool, str]:        
         if role is None:
             role = GroupMembership.MEMBER
         
-        # Check if user is already a member
-        if GroupMembership.objects.filter(group=group, user=user).exists():
+        if group.is_member(user):
             return False, "User is already a member"
         
-        # Additional validation: only friends can be added (if added_by is provided)
         if added_by and added_by != user:
             if not Friendship.are_friends(added_by, user):
                 return False, "Can only add friends to group"
         
-        # Create membership
-        GroupMembership.objects.create(
-            group=group,
-            user=user,
-            role=role
-        )
+        try:
+            membership = GroupMembership(
+                group=group,
+                user=user,
+                role=role
+            )
+            membership.full_clean()  # Use model validation
+            membership.save()
+        except ValidationError as e:
+            return False, str(e)
         
         cls.log_operation("member_added_to_group", {
             'group_id': group.id,
@@ -383,69 +474,57 @@ class GroupService(BaseService):
     @classmethod
     def remove_member_from_group(cls, group: Group, user: User, 
                                 removed_by: User) -> Tuple[bool, str]:
-        """Remove a user from a group"""
-        # Check permissions
-        if not cls.can_manage_members(group, removed_by):
+        if not group.is_admin(removed_by):
             return False, "Permission denied"
         
-        # Cannot remove the admin
         if group.admin == user:
             return False, "Cannot remove group admin"
         
-        try:
-            membership = GroupMembership.objects.get(group=group, user=user)
-            membership.delete()
-            
-            cls.log_operation("member_removed_from_group", {
-                'group_id': group.id,
-                'user_id': user.id,
-                'removed_by': removed_by.id
-            })
-            
-            return True, "Member removed from group"
-            
-        except GroupMembership.DoesNotExist:
+        membership = group.get_user_membership(user)
+        if not membership:
             return False, "User is not a member of this group"
+        
+        membership.delete()
+        
+        cls.log_operation("member_removed_from_group", {
+            'group_id': group.id,
+            'user_id': user.id,
+            'removed_by': removed_by.id
+        })
+        
+        return True, "Member removed from group"
     
     @classmethod
     def join_group_by_invite(cls, group: Group, user: User) -> Tuple[bool, str]:
-        """Join a group using invite code or public access"""
-        if GroupMembership.objects.filter(group=group, user=user).exists():
+        if group.is_member(user):
             return False, "Already a member"
         
-        # Add as regular member
         return cls.add_member_to_group(group, user, GroupMembership.MEMBER)
     
     @classmethod
     def can_manage_members(cls, group: Group, user: User) -> bool:
-        """Check if user can manage group members"""
-        return group.admin == user
+        return group.is_admin(user)
     
     @classmethod
     def can_edit_group(cls, group: Group, user: User) -> bool:
-        """Check if user can edit group details"""
-        return group.admin == user
+        return group.is_admin(user)
     
     @classmethod
     def get_group_statistics(cls, group: Group) -> Dict[str, Any]:
-        """Get comprehensive group statistics"""
-        members_count = group.memberships.count()
-        plans_count = group.plans.count()
-        messages_count = group.messages.count()
+        group_with_stats = Group.objects.with_full_stats().get(id=group.id)
         
         return {
-            'members_count': members_count,
-            'plans_count': plans_count,
-            'messages_count': messages_count,
+            'members_count': group_with_stats.member_count_annotated,
+            'admin_count': group_with_stats.admin_count_annotated,
+            'plans_count': group_with_stats.plans_count_annotated,
             'created_at': group.created_at,
-            'is_public': group.is_public
+            'is_public': getattr(group, 'is_public', False)  # Handle if field doesn't exist
         }
     
     @classmethod
     @transaction.atomic
     def promote_member(cls, group: Group, user_to_promote: User, actor: User) -> Tuple[bool, str]:
-        """Promotes a group member to admin with permission checks."""
-        if not cls.can_manage_members(group, actor):
+        if not group.is_admin(actor):
             return False, "You do not have permission to promote members."
 
         membership = group.get_user_membership(user_to_promote)
@@ -469,8 +548,7 @@ class GroupService(BaseService):
     @classmethod
     @transaction.atomic
     def demote_member(cls, group: Group, user_to_demote: User, actor: User) -> Tuple[bool, str]:
-        """Demotes a group admin to member with permission checks."""
-        if not cls.can_manage_members(group, actor):
+        if not group.is_admin(actor):
             return False, "You do not have permission to demote members."
             
         if actor == user_to_demote:
@@ -483,7 +561,7 @@ class GroupService(BaseService):
         if membership.role != GroupMembership.ADMIN:
             return False, "User is not an admin."
             
-        # Check if this is the last admin
+        # Check if this is the last admin using model method
         if group.get_admin_count() <= 1:
             return False, "Cannot demote the last admin of the group."
 
@@ -497,42 +575,53 @@ class GroupService(BaseService):
         })
 
         return True, "Admin demoted to member successfully."
+    
+    @classmethod
+    def search_user_groups(cls, user: User, query: str):
+        from .models import Group
+        
+        return Group.objects.filter(
+            members=user
+        ).filter(
+            models.Q(name__icontains=query) |
+            models.Q(description__icontains=query)
+        ).select_related('admin').prefetch_related('members__profile', 'memberships__user').with_full_stats()
 
 # ============================================================================
 # PLAN SERVICE
 # ============================================================================
 
-class PlanService(BaseService):
-    """Service for plan-related business logic"""
-    
+class PlanService(BaseService):    
     @classmethod
     def create_plan(cls, creator: User, title: str, description: str = "",
                    plan_type: str = 'personal', group: Group = None,
                    start_date=None, end_date=None, budget=None,
                    is_public: bool = False) -> Plan:
-        """Create a new plan with validation"""
         
-        # Validate group access if group plan
         if plan_type == 'group' and group:
-            if not GroupMembership.objects.filter(group=group, user=creator).exists():
+            if not group.is_member(creator):
                 raise ValidationError("You must be a member of the group to create a plan")
         
-        with transaction.atomic():
-            plan = Plan.objects.create(
-                title=title,
-                description=description,
-                creator=creator,
-                plan_type=plan_type,
-                group=group,
-                start_date=start_date,
-                end_date=end_date,
-                budget=budget,
-                is_public=is_public,
-                status='planning'
-            )
-            
-            # Schedule any necessary tasks
-            cls._schedule_plan_tasks(plan)
+        try:
+            with transaction.atomic():
+                plan = Plan(
+                    title=title,
+                    description=description,
+                    creator=creator,
+                    plan_type=plan_type,
+                    group=group,
+                    start_date=start_date,
+                    end_date=end_date,
+                    is_public=is_public,
+                    status='upcoming'
+                )
+                plan.full_clean()  # Use model validation
+                plan.save()
+                
+                # Schedule any necessary tasks
+                cls._schedule_plan_tasks(plan)
+        except ValidationError as e:
+            raise ValidationError(f"Plan creation failed: {str(e)}")
         
         cls.log_operation("plan_created", {
             'plan_id': plan.id,
@@ -545,30 +634,34 @@ class PlanService(BaseService):
     
     @classmethod
     def add_activity_to_plan(cls, plan: Plan, user: User, activity_data: Dict[str, Any]) -> PlanActivity:
-        """Add an activity to a plan with validation"""
         
-        # Check permissions
         if not cls.can_edit_plan(plan, user):
             raise ValidationError("Permission denied to edit this plan")
         
-        # Validate time conflicts
-        if cls._has_time_conflict(plan, activity_data.get('start_time'), 
-                                 activity_data.get('end_time')):
+        start_time = activity_data.get('start_time')
+        end_time = activity_data.get('end_time')
+        
+        if start_time and end_time and plan.has_time_conflict(start_time, end_time):
             raise ValidationError("Activity time conflicts with existing activities")
         
-        with transaction.atomic():
-            activity = PlanActivity.objects.create(
-                plan=plan,
-                title=activity_data['title'],
-                description=activity_data.get('description', ''),
-                activity_type=activity_data.get('activity_type', 'other'),
-                start_time=activity_data.get('start_time'),
-                end_time=activity_data.get('end_time'),
-                estimated_cost=activity_data.get('estimated_cost', 0),
-                location_name=activity_data.get('location_name', ''),
-                location_address=activity_data.get('location_address', ''),
-                notes=activity_data.get('notes', '')
-            )
+        try:
+            with transaction.atomic():
+                activity = PlanActivity(
+                    plan=plan,
+                    title=activity_data['title'],
+                    description=activity_data.get('description', ''),
+                    activity_type=activity_data.get('activity_type', 'other'),
+                    start_time=start_time,
+                    end_time=end_time,
+                    estimated_cost=activity_data.get('estimated_cost'),
+                    location_name=activity_data.get('location_name', ''),
+                    location_address=activity_data.get('location_address', ''),
+                    notes=activity_data.get('notes', '')
+                )
+                activity.full_clean()
+                activity.save()
+        except ValidationError as e:
+            raise ValidationError(f"Activity creation failed: {str(e)}")
         
         cls.log_operation("activity_added_to_plan", {
             'plan_id': plan.id,
@@ -580,11 +673,7 @@ class PlanService(BaseService):
     
     @classmethod
     def add_activity_with_place(cls, plan: Plan, title: str, start_time, end_time, 
-                               place_id: str = None, **extra_fields):
-        """Add activity with place integration (for backward compatibility)"""
-        from .models import PlanActivity
-        
-        # Build activity data
+                               place_id: str = None, **extra_fields):        
         activity_data = {
             'title': title,
             'start_time': start_time,
@@ -592,11 +681,9 @@ class PlanService(BaseService):
             **extra_fields
         }
         
-        # Handle place_id if provided
         if place_id:
             activity_data['location_name'] = f"Place ID: {place_id}"
         
-        # Use existing add_activity_to_plan method but skip user validation for now
         with transaction.atomic():
             activity = PlanActivity.objects.create(
                 plan=plan,
@@ -616,81 +703,59 @@ class PlanService(BaseService):
         
         return activity
     
-    @classmethod
-    def start_plan(cls, plan: Plan, user: User) -> Tuple[bool, str]:
-        """Start a plan and handle associated logic"""
-        if not cls.can_edit_plan(plan, user):
-            return False, "Permission denied"
+    # @classmethod
+    # def start_plan(cls, plan: Plan, user: User) -> Tuple[bool, str]:
+    #     if not cls.can_edit_plan(plan, user):
+    #         return False, "Permission denied"
         
-        if plan.status != 'planning':
-            return False, "Plan is not in planning status"
+    #     if plan.status != 'upcoming':
+    #         return False, "Plan is not in upcoming status"
         
-        with transaction.atomic():
-            plan.status = 'active'
-            plan.save()
-            
-            # Schedule Celery tasks for the plan
-            cls._schedule_plan_tasks(plan)
-        
-        cls.log_operation("plan_started", {
-            'plan_id': plan.id,
-            'started_by': user.id
-        })
-        
-        return True, "Plan started successfully"
+    #     # Delegate to start_trip for consistent logic
+    #     try:
+    #         result = cls.start_trip(plan, user, force=True)
+    #         return True, "Plan started successfully"
+    #     except ValueError as e:
+    #         return False, str(e)
     
-    @classmethod
-    def complete_plan(cls, plan: Plan, user: User) -> Tuple[bool, str]:
-        """Complete a plan"""
-        if not cls.can_edit_plan(plan, user):
-            return False, "Permission denied"
+    # @classmethod
+    # def complete_plan(cls, plan: Plan, user: User) -> Tuple[bool, str]:
+
+    #     if not cls.can_edit_plan(plan, user):
+    #         return False, "Permission denied"
         
-        if plan.status not in ['active', 'planning']:
-            return False, f"Cannot complete plan with status: {plan.status}"
+    #     if plan.status not in ['ongoing', 'upcoming']:
+    #         return False, f"Cannot complete plan with status: {plan.status}"
         
-        with transaction.atomic():
-            plan.status = 'completed'
-            plan.completed_at = timezone.now()
-            plan.save()
-            
-            # Cancel any scheduled tasks
-            cls._cancel_plan_tasks(plan)
-        
-        cls.log_operation("plan_completed", {
-            'plan_id': plan.id,
-            'completed_by': user.id
-        })
-        
-        return True, "Plan completed successfully"
+    #     # Delegate to complete_trip for consistent logic
+    #     try:
+    #         result = cls.complete_trip(plan, user, force=True)
+    #         return True, "Plan completed successfully"
+    #     except ValueError as e:
+    #         return False, str(e)
     
     @classmethod
     def cancel_plan(cls, plan: Plan, user: User, reason: str = None) -> Tuple[bool, str]:
-        """Cancel a plan with proper validation and cleanup"""
         if not cls.can_edit_plan(plan, user):
             return False, "Permission denied"
         
-        # Validate current status
         if plan.status in ['cancelled', 'completed']:
             return False, f"Cannot cancel plan that is already {plan.get_status_display().lower()}"
         
-        # Permission check for group plans
         if plan.is_group_plan() and user != plan.creator:
             if not plan.group.is_admin(user):
                 return False, "Only group admins can cancel group plans"
         
         with transaction.atomic():
-            # Try to revoke any scheduled tasks
             try:
                 cls._revoke_plan_tasks(plan)
             except Exception:
-                # Best effort - don't fail cancel if revoke fails
                 pass
             
-            # Update plan status
             now = timezone.now()
             updated_count = Plan.objects.filter(
                 pk=plan.pk,
-                status__in=['planning', 'active', 'upcoming', 'ongoing']
+                status__in=['upcoming', 'ongoing']
             ).update(
                 status='cancelled',
                 updated_at=now
@@ -711,17 +776,13 @@ class PlanService(BaseService):
     
     @classmethod
     def start_trip(cls, plan: Plan, user: User = None, force: bool = False):
-        """Start a trip (compatible with tasks) - transition from upcoming to ongoing"""
-        # Validate status transition
         if plan.status != 'upcoming' and not force:
             raise ValueError(f"Cannot start trip in status: {plan.status}")
         
-        # Check if it's time to start (unless forced)
         if not force and plan.start_date and timezone.now() < plan.start_date:
             raise ValueError("Trip start time has not been reached yet")
         
         with transaction.atomic():
-            # Atomic status update with condition check
             updated_count = Plan.objects.filter(
                 pk=plan.pk,
                 status='upcoming'
@@ -733,10 +794,8 @@ class PlanService(BaseService):
             if updated_count == 0 and not force:
                 raise ValueError("Plan status was changed by another operation")
             
-            # Refresh plan instance
             plan.refresh_from_db()
             
-            # Schedule completion task if needed
             try:
                 cls._schedule_completion_task(plan)
             except Exception as e:
@@ -749,7 +808,6 @@ class PlanService(BaseService):
             'timestamp': timezone.now().isoformat()
         })
         
-        # Publish realtime event using transaction.on_commit for reliability
         def _publish_start_event():
             try:
                 publisher = RealtimeEventPublisher()
@@ -778,17 +836,13 @@ class PlanService(BaseService):
     
     @classmethod
     def complete_trip(cls, plan: Plan, user: User = None, force: bool = False):
-        """Complete a trip (compatible with tasks) - transition from ongoing to completed"""
-        # Validate status transition
         if plan.status != 'ongoing' and not force:
             raise ValueError(f"Cannot complete trip in status: {plan.status}")
         
-        # Check if it's time to complete (unless forced)
         if not force and plan.end_date and timezone.now() < plan.end_date:
             raise ValueError("Trip end time has not been reached yet")
         
         with transaction.atomic():
-            # Atomic status update with condition check
             updated_count = Plan.objects.filter(
                 pk=plan.pk,
                 status='ongoing'
@@ -816,7 +870,6 @@ class PlanService(BaseService):
             'timestamp': timezone.now().isoformat()
         })
         
-        # Publish realtime event using transaction.on_commit for reliability
         def _publish_complete_event():
             try:
                 publisher = RealtimeEventPublisher()
@@ -898,13 +951,8 @@ class PlanService(BaseService):
         if plan.creator == user:
             return True
         
-        # Group members can view group plans
-        if plan.plan_type == 'group' and plan.group:
-            return GroupMembership.objects.filter(
-                group=plan.group, user=user
-            ).exists()
-        
-        return False
+        # Use model property for collaborators check
+        return user in plan.collaborators
     
     @classmethod
     def can_edit_plan(cls, plan: Plan, user: User) -> bool:
@@ -914,61 +962,230 @@ class PlanService(BaseService):
             return True
         
         # Group admins can edit group plans
-        if plan.plan_type == 'group' and plan.group:
-            return plan.group.admin == user
+        if plan.is_group_plan() and plan.group:
+            return plan.group.is_admin(user)
         
         return False
     
     @classmethod
     def get_plan_statistics(cls, plan: Plan) -> Dict[str, Any]:
-        """Get comprehensive plan statistics"""
-        activities = plan.activities.all()
-        total_activities = activities.count()
-        completed_activities = activities.filter(is_completed=True).count()
-        total_cost = sum(float(a.estimated_cost) for a in activities if a.estimated_cost)
+        """Get comprehensive plan statistics - Use optimized QuerySet and model properties"""
+        # Use optimized QuerySet with annotations instead of loading all activities
+        plan_with_stats = Plan.objects.with_stats().get(id=plan.id)
         
-        # Calculate duration
-        duration_days = 0
-        if plan.start_date and plan.end_date:
-            duration_days = (plan.end_date - plan.start_date).days + 1
+        # Use model properties with annotation fallbacks
+        activities_count = plan_with_stats.activities_count
+        total_cost = plan_with_stats.total_estimated_cost
+        
+        # Calculate completion rate if needed (could be added to QuerySet)
+        completed_activities = plan.activities.filter(is_completed=True).count()
+        completion_rate = (completed_activities / activities_count * 100) if activities_count > 0 else 0
         
         return {
             'activities': {
-                'total': total_activities,
+                'total': activities_count,
                 'completed': completed_activities,
-                'completion_rate': (completed_activities / total_activities * 100) if total_activities > 0 else 0
+                'completion_rate': completion_rate
             },
             'budget': {
-                'planned': float(plan.budget) if plan.budget else 0,
-                'estimated': total_cost,
-                'over_budget': total_cost > float(plan.budget) if plan.budget else False
+                'estimated': float(total_cost),
+                'over_budget': False  # Add budget comparison logic if needed
             },
             'duration': {
-                'days': duration_days,
+                'days': plan.duration_days,  # Use model property
                 'start_date': plan.start_date,
                 'end_date': plan.end_date
             },
             'status': plan.status,
             'collaboration': {
                 'type': plan.plan_type,
-                'group_id': plan.group.id if plan.group else None
+                'group_id': plan.group.id if plan.group else None,
+                'collaborators_count': len(plan.collaborators)
+            }
+        }
+    
+    @classmethod
+    def get_plan_schedule(cls, plan: 'Plan', user: User) -> Dict[str, Any]:
+        """Get plan schedule organized by date with all activity details"""
+        
+        # Get activities ordered by start time with location data
+        activities = plan.activities.select_related('location').order_by('start_time')
+        
+        # Group activities by date
+        schedule_by_date = {}
+        for activity in activities:
+            if activity.start_time:
+                activity_date = activity.start_time.date()
+                date_str = activity_date.strftime('%Y-%m-%d')
+                
+                if date_str not in schedule_by_date:
+                    schedule_by_date[date_str] = {
+                        'date': date_str,
+                        'activities': []
+                    }
+                
+                # Calculate duration in minutes
+                duration_minutes = 0
+                if activity.start_time and activity.end_time:
+                    duration_delta = activity.end_time - activity.start_time
+                    duration_minutes = int(duration_delta.total_seconds() / 60)
+                
+                schedule_by_date[date_str]['activities'].append({
+                    'id': str(activity.id),
+                    'title': activity.title,
+                    'description': activity.description,
+                    'activity_type': activity.activity_type,
+                    'start_time': activity.start_time,
+                    'end_time': activity.end_time,
+                    'duration_minutes': duration_minutes,
+                    'estimated_cost': float(activity.estimated_cost) if activity.estimated_cost else 0,
+                    'location_name': activity.location_name,
+                    'location_address': activity.location_address,
+                    'notes': activity.notes,
+                    'is_completed': activity.is_completed
+                })
+        
+        # Calculate timeline statistics
+        total_activities = activities.count()
+        completed_activities = activities.filter(is_completed=True).count()
+        
+        # Calculate total duration in minutes
+        total_duration = 0
+        for activity in activities:
+            if activity.start_time and activity.end_time:
+                duration_delta = activity.end_time - activity.start_time
+                total_duration += int(duration_delta.total_seconds() / 60)
+        
+        return {
+            'plan_id': str(plan.id),
+            'plan_title': plan.title,
+            'schedule_by_date': schedule_by_date,
+            'statistics': {
+                'total_activities': total_activities,
+                'completed_activities': completed_activities,
+                'completion_rate': (completed_activities / total_activities * 100) if total_activities > 0 else 0,
+                'total_duration_minutes': total_duration,
+                'total_duration_display': f"{total_duration // 60}h {total_duration % 60}m" if total_duration > 0 else "0m",
+                'date_range': {
+                    'start_date': plan.start_date,
+                    'end_date': plan.end_date,
+                    'duration_days': plan.duration_days
+                }
+            },
+            'permissions': {
+                'can_edit': cls.can_edit_plan(plan, user),
+                'can_add_activity': cls.can_edit_plan(plan, user)
             }
         }
     
     @classmethod
     def _has_time_conflict(cls, plan: Plan, start_time, end_time) -> bool:
-        """Check if activity times conflict with existing activities"""
+        """Check if activity times conflict with existing activities - Use model method"""
         if not start_time or not end_time:
             return False
         
-        conflicts = plan.activities.filter(
-            models.Q(
-                start_time__lt=end_time,
-                end_time__gt=start_time
-            )
-        ).exists()
+        return plan.has_time_conflict(start_time, end_time)
+    
+    @classmethod
+    def get_plans_needing_updates(cls):
+        """Get plans that need status updates - Use QuerySet method"""
+        from .models import Plan
+        return Plan.objects.plans_need_status_update()
+    
+    @classmethod
+    def bulk_update_plan_statuses(cls) -> Dict[str, int]:
+        """Bulk update plan statuses based on dates with realtime events"""
+        from .models import Plan
+        now = timezone.now()
         
-        return conflicts
+        # Use QuerySet method instead of manual filtering
+        plans_needing_update = Plan.objects.plans_need_status_update()
+        
+        # Get plans that will be updated for realtime events
+        upcoming_plans = list(plans_needing_update.filter(
+            status='upcoming'
+        ).values('id', 'title', 'group_id', 'creator_id'))
+        
+        ongoing_plans = list(plans_needing_update.filter(
+            status='ongoing'
+        ).values('id', 'title', 'group_id', 'creator_id'))
+        
+        # Perform bulk updates
+        upcoming_to_ongoing = Plan.objects.filter(
+            status='upcoming',
+            start_date__lte=now
+        ).update(
+            status='ongoing',
+            updated_at=now
+        )
+        
+        ongoing_to_completed = Plan.objects.filter(
+            status='ongoing',
+            end_date__lt=now
+        ).update(
+            status='completed', 
+            updated_at=now
+        )
+        
+        cls.log_operation("bulk_status_update", {
+            'upcoming_to_ongoing': upcoming_to_ongoing,
+            'ongoing_to_completed': ongoing_to_completed,
+            'total_updated': upcoming_to_ongoing + ongoing_to_completed
+        })
+        
+        # Publish realtime events for each updated plan
+        def _publish_bulk_events():
+            try:
+                publisher = RealtimeEventPublisher()
+                
+                # Publish events for upcoming -> ongoing
+                for plan_data in upcoming_plans:
+                    event = RealtimeEvent(
+                        event_type=EventType.PLAN_STATUS_CHANGED,
+                        plan_id=str(plan_data['id']),
+                        user_id=None,  # System update
+                        group_id=str(plan_data['group_id']) if plan_data['group_id'] else None,
+                        data={
+                            'plan_id': str(plan_data['id']),
+                            'title': plan_data['title'],
+                            'old_status': 'upcoming',
+                            'new_status': 'ongoing',
+                            'updated_by': 'system',
+                            'timestamp': now.isoformat(),
+                            'bulk_update': True
+                        }
+                    )
+                    publisher.publish_event(event, send_push=False)  # No push for bulk updates
+                
+                # Publish events for ongoing -> completed
+                for plan_data in ongoing_plans:
+                    event = RealtimeEvent(
+                        event_type=EventType.PLAN_STATUS_CHANGED,
+                        plan_id=str(plan_data['id']),
+                        user_id=None,  # System update
+                        group_id=str(plan_data['group_id']) if plan_data['group_id'] else None,
+                        data={
+                            'plan_id': str(plan_data['id']),
+                            'title': plan_data['title'],
+                            'old_status': 'ongoing',
+                            'new_status': 'completed',
+                            'updated_by': 'system',
+                            'timestamp': now.isoformat(),
+                            'bulk_update': True
+                        }
+                    )
+                    publisher.publish_event(event, send_push=False)  # No push for bulk updates
+                    
+            except Exception as e:
+                logger.warning(f"Failed to publish bulk update events: {e}")
+        
+        transaction.on_commit(_publish_bulk_events)
+        
+        return {
+            'upcoming_to_ongoing': upcoming_to_ongoing,
+            'ongoing_to_completed': ongoing_to_completed,
+            'total_updated': upcoming_to_ongoing + ongoing_to_completed
+        }
     
     @classmethod
     def _schedule_plan_tasks(cls, plan: Plan):
@@ -987,6 +1204,92 @@ class PlanService(BaseService):
             cancel_plan_reminders.delay(str(plan.id))
         except ImportError:
             logger.warning("Celery tasks not available for plan cancellation")
+    
+    # === Business Logic moved from Plan model ===
+    
+    @classmethod
+    def revoke_scheduled_tasks(cls, plan: Plan) -> None:
+        """Revoke scheduled Celery tasks for a plan"""
+        from celery import current_app
+        
+        old_start_id = plan.scheduled_start_task_id
+        old_end_id = plan.scheduled_end_task_id
+        
+        for task_id in (old_start_id, old_end_id):
+            if not task_id:
+                continue
+            try:
+                current_app.control.revoke(task_id, terminate=False)
+            except Exception:
+                pass
+
+        updates = {}
+        if old_start_id:
+            updates['scheduled_start_task_id'] = None
+        if old_end_id:
+            updates['scheduled_end_task_id'] = None
+            
+        if updates:
+            from .models import Plan
+            Plan.objects.filter(
+                pk=plan.pk,
+                scheduled_start_task_id=old_start_id,
+                scheduled_end_task_id=old_end_id
+            ).update(**updates)
+    
+    @classmethod
+    def refresh_plan_status(cls, plan: Plan) -> bool:
+        """Refresh plan status based on dates"""
+        if not cls.needs_status_update(plan):
+            return False
+            
+        old_status = plan.status
+        new_status = cls.get_expected_status(plan)
+        
+        if new_status != old_status:
+            plan.status = new_status
+            plan.save(update_fields=['status', 'updated_at'])
+            
+            cls.log_operation("plan_status_refreshed", {
+                'plan_id': plan.id,
+                'old_status': old_status,
+                'new_status': new_status
+            })
+            
+            return True
+        return False
+    
+    @classmethod
+    def needs_status_update(cls, plan: Plan) -> bool:
+        """Check if plan needs status update"""
+        if not (plan.start_date and plan.end_date):
+            return False
+            
+        now = timezone.now()
+        return (
+            (plan.status == 'upcoming' and now >= plan.start_date) or
+            (plan.status == 'ongoing' and now > plan.end_date)
+        )
+    
+    @classmethod
+    def get_expected_status(cls, plan: Plan) -> str:
+        """Get expected status based on dates"""
+        if not (plan.start_date and plan.end_date):
+            return plan.status
+            
+        now = timezone.now()
+        if now < plan.start_date:
+            return 'upcoming'
+        elif now <= plan.end_date:
+            return 'ongoing'
+        else:
+            return 'completed'
+    
+    @classmethod
+    def get_plans_needing_updates(cls):
+        """Get plans that need status updates"""
+        from .models import Plan
+        return Plan.objects.plans_need_status_update()
     
     @classmethod
     def bulk_update_plan_statuses(cls) -> Dict[str, int]:
@@ -1087,7 +1390,7 @@ class PlanService(BaseService):
         """Schedule Celery tasks for plan lifecycle"""
         try:
             # Lazy import to avoid circular dependency
-            from .tasks import start_plan_task, end_plan_task
+            from .tasks import start_plan_task, complete_plan_task
             
             # Schedule start task if plan has start date
             if plan.start_date:
@@ -1099,7 +1402,7 @@ class PlanService(BaseService):
             
             # Schedule end task if plan has end date
             if plan.end_date:
-                end_task = end_plan_task.apply_async(
+                end_task = complete_plan_task.apply_async(
                     args=[str(plan.id)],
                     eta=plan.end_date
                 )
@@ -1182,21 +1485,26 @@ class ChatService(BaseService):
     """Service for chat and messaging business logic"""
     
     @classmethod
-    def send_message(cls, sender: User, group: Group, content: str, 
-                    message_type: str = 'user') -> ChatMessage:
+    def send_message(cls, sender: User, group: 'Group', content: str, 
+                    message_type: str = 'user') -> 'ChatMessage':
         """Send a message to a group chat"""
         
-        # Validate group membership
-        if not GroupMembership.objects.filter(group=group, user=sender).exists():
+        # Validate group membership using model method
+        if not group.is_member(sender):
             raise ValidationError("You must be a member of the group to send messages")
         
-        # Create message
-        message = ChatMessage.objects.create(
-            sender=sender,
-            group=group,
-            content=content,
-            message_type=message_type
-        )
+        # Create message with validation
+        try:
+            message = ChatMessage(
+                sender=sender,
+                group=group,
+                content=content,
+                message_type=message_type
+            )
+            message.full_clean()  # Use model validation
+            message.save()
+        except ValidationError as e:
+            raise ValidationError(f"Message creation failed: {str(e)}")
         
         cls.log_operation("message_sent", {
             'message_id': message.id,
@@ -1206,6 +1514,38 @@ class ChatService(BaseService):
         })
         
         return message
+    
+    @classmethod
+    def get_group_messages(cls, user: User, group_id: str, limit: int = 50, before_id: str = None) -> Dict[str, Any]:
+        """Get paginated messages for a group with cursor pagination"""
+        from .models import Group, ChatMessage
+        from .paginators import ManualCursorPaginator
+        
+        # Validate user access to group
+        try:
+            group = Group.objects.get(id=group_id, members=user)
+        except Group.DoesNotExist:
+            raise ValidationError("Group not found or access denied")
+        
+        # Build base queryset
+        queryset = ChatMessage.objects.filter(
+            group=group
+        ).select_related('sender').order_by('-created_at')
+        
+        # Use manual cursor paginator
+        result = ManualCursorPaginator.paginate_by_id(
+            queryset=queryset,
+            before_id=before_id,
+            limit=limit,
+            ordering='-id'
+        )
+        
+        return {
+            'messages': result['items'],
+            'has_more': result['has_more'],
+            'next_cursor': result['next_cursor'],
+            'count': result['count']
+        }
     
     @classmethod
     def edit_message(cls, message: ChatMessage, user: User, new_content: str) -> Tuple[bool, str]:
@@ -1226,7 +1566,7 @@ class ChatService(BaseService):
         
         message.content = new_content
         message.is_edited = True
-        message.save()
+        message.save(update_fields=['content', 'is_edited', 'updated_at'])
         
         cls.log_operation("message_edited", {
             'message_id': message.id,
@@ -1237,53 +1577,51 @@ class ChatService(BaseService):
     
     @classmethod
     def delete_message(cls, message: ChatMessage, user: User) -> Tuple[bool, str]:
-        """Delete a message with permission check - validation only, no actual deletion"""
+        """Delete a message with permission check"""
         
         # Sender or group admin can delete
         can_delete = (
             message.sender == user or 
-            message.group.admin == user  # Assuming group has admin field
+            (hasattr(message, 'group') and message.group and message.group.is_admin(user))
         )
         
         if not can_delete:
             return False, "Permission denied. Only sender or group admin can delete messages"
         
-        cls.log_operation("message_delete_validated", {
+        # Use model's soft delete method
+        message.soft_delete()
+        
+        cls.log_operation("message_deleted", {
             'message_id': message.id,
             'deleted_by': user.id,
-            'was_admin_action': message.group.admin == user and message.sender != user
+            'was_admin_action': hasattr(message, 'group') and message.group and message.group.is_admin(user) and message.sender != user
         })
         
-        return True, "Message can be deleted"
+        return True, "Message deleted successfully"
     
     @classmethod
     def get_unread_count(cls, user: User, group: Group = None) -> int:
-        """Get unread messages count for user"""
+        """Get unread messages count for user - Use optimized QuerySet methods"""
         if group:
-            # Unread count for specific group
-            last_read = cls._get_last_read_time(user, group)
-            return ChatMessage.objects.filter(
-                group=group,
-                created_at__gt=last_read
-            ).exclude(sender=user).count()
+            # Unread count for specific group - Use QuerySet method
+            return ChatMessage.objects.unread_for_user(user).for_group(group).count()
         else:
-            # Total unread count across all groups
-            total = 0
-            user_groups = Group.objects.filter(members=user)
-            for group in user_groups:
-                total += cls.get_unread_count(user, group)
-            return total
+            # Total unread count - Use cached property from User model
+            return user.unread_messages_count
     
     @classmethod
     def mark_messages_as_read(cls, user: User, group: Group) -> None:
         """Mark messages as read for user in group"""
         # This would typically update a UserGroupReadStatus model
-        # For now, we'll just log the operation
+        # For now, we'll just log the operation and clear cache
         cls.log_operation("messages_marked_read", {
             'user_id': user.id,
             'group_id': group.id,
             'timestamp': timezone.now()
         })
+        
+        # Clear cached unread count
+        user.clear_unread_cache()
     
     @classmethod
     def _get_last_read_time(cls, user: User, group: Group):
@@ -1291,6 +1629,55 @@ class ChatService(BaseService):
         # This would typically come from a UserGroupReadStatus model
         # For now, return a default time
         return timezone.now() - timezone.timedelta(days=7)
+
+    @classmethod
+    def create_system_message(cls, conversation=None, group=None, content: str = ""):
+        """Create a system message. If a group is provided, ensure a group conversation exists."""
+        from .models import ChatMessage, Conversation
+
+        if conversation is None and group is None:
+            raise ValueError("Either conversation or group must be provided")
+
+        with transaction.atomic():
+            # If group is provided, find or create the group conversation
+            if group is not None:
+                conversation = Conversation.objects.filter(group=group).first()
+                if conversation is None:
+                    conversation = Conversation(
+                        conversation_type='group',
+                        group=group,
+                        name=group.name or ''
+                    )
+                    conversation.full_clean()
+                    conversation.save()
+                    # Ensure participants are in sync
+                    try:
+                        conversation.sync_group_participants()
+                    except Exception:
+                        # Best-effort: don't fail the system message creation if sync has issues
+                        pass
+
+            # Create the system message with validation
+            message = ChatMessage(
+                conversation=conversation,
+                sender=None,
+                message_type='system',
+                content=content
+            )
+            message.full_clean()
+            message.save()
+
+            # Update denormalized last_message_at timestamp atomically
+            if conversation is not None:
+                Conversation.objects.filter(pk=conversation.pk).update(last_message_at=message.created_at)
+
+        cls.log_operation("system_message_created", {
+            'conversation_id': conversation.id if conversation else None,
+            'group_id': getattr(group, 'id', None),
+            'message_id': message.id
+        })
+
+        return message
 
 
 # ============================================================================
@@ -1328,6 +1715,152 @@ class NotificationService(BaseService):
             'from_user_id': from_user_id,
             'to_user_id': to_user_id
         })
+
+class ConversationService(BaseService):
+    @classmethod
+    def send_message_to_conversation(cls, conversation, sender: User, content: str, 
+                                   message_type: str = 'text', **kwargs) -> 'ChatMessage':
+        """Send message to conversation with validation"""
+        from .models import ChatMessage, MessageReadStatus
+        
+        # Validate sender is participant
+        sender_id = getattr(sender, 'id', sender)
+        if not conversation.participants.filter(id=sender_id).exists():
+            raise ValidationError("Sender is not a participant of this conversation")
+
+        try:
+            with transaction.atomic():
+                message = ChatMessage(
+                    conversation=conversation,
+                    sender=sender,
+                    content=content,
+                    message_type=message_type,
+                    **kwargs
+                )
+                message.full_clean()  # Use model validation
+                message.save()
+                
+                # Update denormalized timestamp atomically
+                from .models import Conversation
+                Conversation.objects.filter(pk=conversation.pk).update(last_message_at=message.created_at)
+                
+                cls.log_operation("conversation_message_sent", {
+                    'conversation_id': conversation.id,
+                    'sender_id': sender_id,
+                    'message_type': message_type
+                })
+                
+                return message
+        except ValidationError as e:
+            raise ValidationError(f"Message creation failed: {str(e)}")
+    
+    @classmethod
+    def update_last_message_time(cls, conversation, timestamp=None):
+        """Update denormalized last_message_at field"""
+        if timestamp is None:
+            timestamp = timezone.now()
+        
+        conversation.last_message_at = timestamp
+        conversation.save(update_fields=['last_message_at'])
+    
+    @classmethod
+    def get_unread_count_for_user(cls, conversation, user):
+        """Get unread message count for specific user - Use QuerySet method"""
+        return conversation.messages.unread_for_user(user).count()
+    
+    @classmethod
+    def mark_as_read_for_user(cls, conversation, user, up_to_message=None):
+        """Mark messages as read for user"""
+        from .models import MessageReadStatus
+        
+        messages = conversation.messages.active().exclude(sender=user)
+        
+        if up_to_message:
+            messages = messages.filter(created_at__lte=up_to_message.created_at)
+        
+        # Get unread message IDs using QuerySet method
+        unread_message_ids = messages.exclude(
+            read_statuses__user=user
+        ).values_list('id', flat=True)
+        
+        # Bulk create read statuses
+        if unread_message_ids:
+            read_statuses = [
+                MessageReadStatus(message_id=msg_id, user=user)
+                for msg_id in unread_message_ids
+            ]
+            MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
+            
+            # Clear user's unread cache
+            user.clear_unread_cache()
+        
+        return len(unread_message_ids)
+    
+    @classmethod
+    def get_or_create_direct_conversation(cls, user1: User, user2: User):
+        """Get or create direct conversation between two users"""
+        from .models import Conversation
+        
+        if user1 == user2:
+            raise ValueError("Cannot create conversation with yourself")
+        
+        # Try to find existing conversation using QuerySet method
+        conversation = Conversation.objects.get_direct_conversation(user1, user2)
+        
+        if conversation:
+            return conversation, False
+        
+        # Create new direct conversation with validation
+        try:
+            conversation = Conversation(conversation_type='direct')
+            conversation.full_clean()
+            conversation.save()
+            conversation.participants.add(user1, user2)
+        except ValidationError as e:
+            raise ValidationError(f"Conversation creation failed: {str(e)}")
+        
+        cls.log_operation("direct_conversation_created", {
+            'conversation_id': conversation.id,
+            'user1_id': user1.id,
+            'user2_id': user2.id
+        })
+        
+        return conversation, True
+    
+    @classmethod
+    def create_group_conversation(cls, group):
+        """Create conversation for group"""
+        from .models import Conversation
+        
+        try:
+            conversation = Conversation(
+                conversation_type='group',
+                group=group
+            )
+            conversation.full_clean()
+            conversation.save()
+            
+            # Sync participants with group members
+            conversation.sync_group_participants()
+        except ValidationError as e:
+            raise ValidationError(f"Group conversation creation failed: {str(e)}")
+        
+        cls.log_operation("group_conversation_created", {
+            'conversation_id': conversation.id,
+            'group_id': group.id
+        })
+        
+        return conversation
+    
+    @classmethod
+    def get_or_create_for_group(cls, group):
+        """Get or create conversation for existing group"""
+        from .models import Conversation
+        
+        try:
+            return group.conversation, False
+        except Conversation.DoesNotExist:
+            return cls.create_group_conversation(group), True
 
 
 

@@ -10,10 +10,7 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def start_plan_task(self, plan_id):
-    """
-    Automatic task to start a plan at scheduled time
-    Includes real-time broadcasting of status change
-    """
+
     try:
         from .services import PlanService
         plan = Plan.objects.get(pk=plan_id)

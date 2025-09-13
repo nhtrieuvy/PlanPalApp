@@ -36,6 +36,11 @@ from .permissions import (
 from .services import UserService, GroupService, PlanService, ChatService
 from .integrations import GoongMapService, NotificationService
 from .oauth2_utils import OAuth2ResponseFormatter
+from .paginators import (
+    StandardResultsPagination, SearchResultsPagination, 
+    ChatMessageCursorPagination, ActivityCursorPagination,
+    MobilePagination, get_paginator_class
+)
 
 # Import services at the end to avoid circular imports
 # These will be imported lazily when needed
@@ -51,37 +56,32 @@ User = get_user_model()
 
 class OAuth2LogoutView(APIView):
     """
-    Optimized OAuth2 logout with proper token cleanup
-    Sets user offline status and revokes tokens
+    Clean logout controller - delegates to UserService
+    Handles request/response only
     """
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request) -> Response:
-        """Handle logout with token revocation and status update"""
+        """Handle logout - pure controller logic"""
         user = request.user
         token_string = getattr(request.auth, 'token', None) if hasattr(request.auth, 'token') else request.auth
-        revoked = False
         
         try:
-            if token_string:
-                at_qs = AccessToken.objects.select_for_update().filter(
-                    token=token_string, user=user
+            # Delegate to service layer
+            success, message, revoked = UserService.logout_user(user, token_string)
+            
+            if success:
+                return Response({
+                    'message': message,
+                    'timestamp': timezone.now().isoformat(),
+                    'token_revoked': revoked
+                })
+            else:
+                data, code = OAuth2ResponseFormatter.error_response(
+                    'server_error', message, 500
                 )
-                if at_qs.exists():
-                    at = at_qs.first()
-                    # Delete linked refresh tokens first
-                    RefreshToken.objects.filter(access_token=at).delete()
-                    at.delete()
-                    revoked = True
-            
-            # Use model method for status update
-            user.set_online_status(False)
-            
-            return Response({
-                'message': 'Logged out successfully',
-                'timestamp': timezone.now().isoformat(),
-                'token_revoked': revoked
-            })
+                return Response(data, status=code)
+                
         except Exception as e:
             data, code = OAuth2ResponseFormatter.error_response(
                 'server_error', f'Logout failed: {e}', 500
@@ -102,6 +102,7 @@ class UserViewSet(viewsets.GenericViewSet,
     Uses model methods and cached counts for performance
     """
     serializer_class = UserSerializer
+    pagination_class = StandardResultsPagination
     
     def get_permissions(self):
         """Dynamic permission assignment based on action"""
@@ -150,8 +151,7 @@ class UserViewSet(viewsets.GenericViewSet,
     @action(detail=False, methods=['get'])
     def search(self, request):
         """
-        Optimized user search for friend requests
-        Uses efficient queries and pagination
+        User search - pure controller using UserService with pagination
         """
         query = request.query_params.get('q')
         if not query or len(query) < 2:
@@ -160,22 +160,20 @@ class UserViewSet(viewsets.GenericViewSet,
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Optimized query with select_related and only necessary fields
-        users = User.objects.filter(
-            models.Q(username__icontains=query) |
-            models.Q(email__icontains=query) |
-            models.Q(first_name__icontains=query) |
-            models.Q(last_name__icontains=query)
-        ).exclude(
-            id=request.user.id
-        ).only(
-            'id', 'username', 'first_name', 'last_name', 
-            'avatar', 'is_online', 'last_seen'
-        )[:20]  # Limit results for performance
+        # Get queryset from service layer
+        users_queryset = UserService.search_users(query, request.user)
         
-        # Use optimized serializer
-        serializer = UserSummarySerializer(users, many=True, context={'request': request})
+        # Apply search pagination
+        paginator = SearchResultsPagination()
+        paginator.set_search_query(query)
+        page = paginator.paginate_queryset(users_queryset, request)
         
+        if page is not None:
+            serializer = UserSummarySerializer(page, many=True, context={'request': request})
+            return paginator.get_paginated_response(serializer.data)
+        
+        # Fallback for non-paginated response
+        serializer = UserSummarySerializer(users_queryset, many=True, context={'request': request})
         return Response({
             'users': serializer.data,
             'count': len(serializer.data),
@@ -185,69 +183,49 @@ class UserViewSet(viewsets.GenericViewSet,
     @action(detail=False, methods=['get'])
     def profile(self, request: Request) -> Response:
         """
-        Get current user profile with optimized counts
-        Uses cached counts for better performance
+        Get current user profile - pure controller
         """
-        # Get user with cached counts for performance
-        user = User.objects.with_cached_counts().get(id=request.user.id)
+        user = UserService.get_user_with_counts(request.user.id)
         serializer = self.get_serializer(user) 
         return Response(serializer.data)
     
     @action(detail=False, methods=['put', 'patch'])
     def update_profile(self, request: Request) -> Response:
         """
-        Update current user profile
-        Uses atomic transaction for data consistency
+        Update current user profile - delegate to service
         """
-        with transaction.atomic():
-            serializer = self.get_serializer(
-                request.user, 
-                data=request.data, 
-                partial=True
-            )
-            serializer.is_valid(raise_exception=True)
-            user = serializer.save()
-            
-            # Update last seen on profile updates
-            user.update_last_seen()
-            
-        return Response(serializer.data)
+        user, updated = UserService.update_user_profile(request.user, request.data)
+        
+        if updated:
+            serializer = self.get_serializer(user)
+            return Response(serializer.data)
+        else:
+            return Response({'error': 'Update failed'}, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=False, methods=['get'])
     def my_plans(self, request):
         """
-        Get user's plans with optimized queries
-        Uses model methods and efficient filtering
+        Get user's plans - delegate to service
         """
-        user = request.user
         plan_type = request.query_params.get('type', 'all')
+        plans = UserService.get_user_plans(request.user, plan_type)
         
-        # Use optimized queryset from model
-        queryset = Plan.objects.for_user(user).with_stats()
-        
-        if plan_type == 'personal':
-            queryset = queryset.filter(plan_type='personal')
-        elif plan_type == 'group':
-            queryset = queryset.filter(plan_type='group')
-        
-        page = self.paginate_queryset(queryset)
+        page = self.paginate_queryset(plans)
         if page is not None:
             serializer = PlanSummarySerializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
         
-        serializer = PlanSummarySerializer(queryset, many=True, context={'request': request})
+        serializer = PlanSummarySerializer(plans, many=True, context={'request': request})
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])
     def my_groups(self, request):
         """
-        Get user's groups with optimized queries
-        Uses model properties for efficient filtering
+        Get user's groups - delegate to service
         """
-        user = request.user
-        
-        # Use model property for optimized query
-        groups = user.joined_groups.with_full_stats()
+        groups = UserService.get_user_groups(request.user)
+        serializer = GroupSummarySerializer(groups, many=True, context={'request': request})
+        return Response(serializer.data)
         
         page = self.paginate_queryset(groups)
         if page is not None:
@@ -260,26 +238,22 @@ class UserViewSet(viewsets.GenericViewSet,
     @action(detail=False, methods=['get'])
     def my_activities(self, request):
         """
-        Get user's plan activities with optimized filtering
-        Uses model methods for efficient queries
+        Get user's plan activities - delegate to service with cursor pagination
         """
-        user = request.user
-        activity_type = request.query_params.get('type', 'all')
+        # Get queryset from service
+        activities_queryset = UserService.get_user_activities(request.user)
         
-        # Use optimized queryset from model
-        queryset = PlanActivity.objects.filter(
-            plan__created_by=user
-        ).select_related('plan', 'location').prefetch_related('plan__group')
+        # Use activity cursor pagination
+        paginator = ActivityCursorPagination()
+        page = paginator.paginate_queryset(activities_queryset, request)
         
-        if activity_type == 'personal':
-            queryset = queryset.filter(plan__group__isnull=True)
-        elif activity_type == 'group':
-            queryset = queryset.filter(plan__group__isnull=False)
-        
-        page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = PlanActivitySerializer(page, many=True, context={'request': request})
-            return self.get_paginated_response(serializer.data)
+            return paginator.get_paginated_response(serializer.data)
+        
+        # Fallback for non-paginated response
+        serializer = PlanActivitySerializer(activities_queryset, many=True, context={'request': request})
+        return Response(serializer.data)
         
         serializer = PlanActivitySerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
@@ -287,42 +261,33 @@ class UserViewSet(viewsets.GenericViewSet,
     @action(detail=False, methods=['post'])
     def set_online_status(self, request):
         """
-        Update user online status efficiently
-        Uses atomic transaction for consistency
+        Update user online status - delegate to service
         """
         is_online = request.data.get('is_online', True)
+        success = UserService.set_user_online_status(request.user, is_online)
         
-        with transaction.atomic():
-            request.user.set_online_status(is_online)
-        
-        return Response({
-            'is_online': request.user.is_online,
-            'last_seen': request.user.last_seen
-        })
+        if success:
+            return Response({
+                'is_online': request.user.is_online,
+                'last_seen': request.user.last_seen
+            })
+        else:
+            return Response({'error': 'Failed to update status'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['get'])
     def friendship_stats(self, request):
         """
-        Get user's friendship statistics
-        Uses cached counts for performance
+        Get user's friendship statistics - pure controller
         """
-        # Get user with all counts annotated to avoid N+1 queries
-        user = User.objects.with_cached_counts().get(id=request.user.id)
-        
-        return Response({
-            'friends_count': user.friends_count,
-            'pending_sent_count': user.pending_sent_count,
-            'pending_received_count': user.pending_received_count,
-            'blocked_count': user.blocked_count
-        })
+        stats = UserService.get_friendship_stats(request.user)
+        return Response(stats)
     
     @action(detail=False, methods=['get'])
     def recent_conversations(self, request):
         """
-        Get recent conversations with optimized queries
-        Uses model property for efficient filtering
+        Get recent conversations - delegate to service
         """
-        conversations = request.user.recent_conversations[:10]
+        conversations = UserService.get_recent_conversations(request.user)
         serializer = GroupSerializer(conversations, many=True, context={'request': request})
         
         return Response({
@@ -333,9 +298,13 @@ class UserViewSet(viewsets.GenericViewSet,
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
         """
-        Get unread messages count efficiently
-        Uses cached property for performance
+        Get unread messages count - delegate to service
         """
+        count = UserService.get_unread_count(request.user)
+        return Response({
+            'unread_count': count,
+            'timestamp': timezone.now().isoformat()
+        })
         return Response({
             'unread_count': request.user.unread_messages_count,
             'timestamp': timezone.now().isoformat()
@@ -364,10 +333,6 @@ class UserViewSet(viewsets.GenericViewSet,
         target_user = get_object_or_404(User, id=pk)
         current_user = request.user
         
-        if current_user == target_user:
-            return Response({'status': 'self'})
-        
-        # Use canonical friendship model method
         status_info = current_user.get_friendship_status(target_user)
         
         return Response(status_info)
@@ -416,7 +381,7 @@ class UserViewSet(viewsets.GenericViewSet,
     # OPTIMIZED API unblock user
     @action(detail=True, methods=['delete'])
     def unblock(self, request, pk=None):
-        """Unblock user - SECURE"""
+        """Unblock user - delegate to service"""
         target_user = get_object_or_404(User, id=pk)
         current_user = request.user
         
@@ -424,19 +389,13 @@ class UserViewSet(viewsets.GenericViewSet,
             return Response({'error': 'Cannot unblock yourself'}, 
                           status=status.HTTP_400_BAD_REQUEST)
         
-        friendship = Friendship.objects.filter(
-            user=current_user,
-            friend=target_user,
-            status=Friendship.BLOCKED
-        ).first()
+        success, message = UserService.unblock_user(current_user, target_user)
         
-        if not friendship:
-            return Response({'error': 'User is not blocked'}, 
+        if not success:
+            return Response({'error': message}, 
                           status=status.HTTP_400_BAD_REQUEST)
         
-        # Remove the block by deleting the friendship
-        friendship.delete()
-        return Response({'message': 'User unblocked successfully'})
+        return Response({'message': message})
     
     def _can_view_profile(self, current_user, target_user):
         """Check if current user can view target user profile"""
@@ -463,6 +422,7 @@ class GroupViewSet(viewsets.GenericViewSet,
     """
     serializer_class = GroupSerializer
     permission_classes = [IsAuthenticated, GroupPermission]
+    pagination_class = StandardResultsPagination
     
     def get_serializer_class(self):
         """
@@ -517,8 +477,7 @@ class GroupViewSet(viewsets.GenericViewSet,
     @action(detail=False, methods=['post'])
     def join(self, request):
         """
-        Join group by invite code or ID with enhanced security
-        Uses atomic transactions and proper validation
+        Join group - pure controller using GroupService
         """
         group_id = request.data.get('group_id')
         invite_code = request.data.get('invite_code')
@@ -530,16 +489,12 @@ class GroupViewSet(viewsets.GenericViewSet,
             )
         
         try:
-            if invite_code:
-                group = Group.objects.get(invite_code=invite_code)
-            else:
-                group = Group.objects.get(
-                    id=group_id, 
-                    is_public=True
-                )
-            
-            # Use service layer for joining
-            success, message = GroupService.join_group_by_invite(group, request.user)
+            # Delegate group lookup and join logic to service
+            success, message, group = GroupService.join_group(
+                user=request.user,
+                group_id=group_id,
+                invite_code=invite_code
+            )
             
             if not success:
                 return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
@@ -549,9 +504,9 @@ class GroupViewSet(viewsets.GenericViewSet,
                 'group': GroupSummarySerializer(group, context={'request': request}).data
             })
             
-        except Group.DoesNotExist:
+        except Exception as e:
             return Response(
-                {'error': 'Group not found or not accessible'}, 
+                {'error': str(e)}, 
                 status=status.HTTP_404_NOT_FOUND
             )
     
@@ -593,7 +548,7 @@ class GroupViewSet(viewsets.GenericViewSet,
     
     @action(detail=False, methods=['get'])
     def search(self, request):
-        """Search in user's groups"""
+        """Search in user's groups - delegate to service with pagination"""
         query = request.query_params.get('q')
         if not query:
             return Response(
@@ -601,12 +556,20 @@ class GroupViewSet(viewsets.GenericViewSet,
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        groups = self.get_queryset().filter(
-            models.Q(name__icontains=query) |
-            models.Q(description__icontains=query)
-        )
+        # Get queryset from service
+        groups_queryset = GroupService.search_user_groups(request.user, query)
         
-        serializer = self.get_serializer(groups, many=True)
+        # Apply search pagination
+        paginator = SearchResultsPagination()
+        paginator.set_search_query(query)
+        page = paginator.paginate_queryset(groups_queryset, request)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        
+        # Fallback for non-paginated response
+        serializer = self.get_serializer(groups_queryset, many=True)
         return Response({
             'groups': serializer.data,
             'query': query,
@@ -729,6 +692,7 @@ class PlanViewSet(viewsets.ModelViewSet):
     """
     serializer_class = PlanSerializer
     permission_classes = [IsAuthenticated, PlanPermission]
+    pagination_class = StandardResultsPagination
     
     def get_serializer_class(self):
         """
@@ -758,23 +722,20 @@ class PlanViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """
-        Auto-set creator with atomic transaction
-        Handles notifications and ensures data consistency
+        Create plan - delegate to service layer
         """
-        with transaction.atomic():
-            plan = serializer.save(creator=self.request.user)
-            
-            # Send notification asynchronously if service available
-            try:
-                if hasattr(NotificationService, 'notify_plan_created'):
-                    NotificationService.notify_plan_created(
-                        plan_id=str(plan.id),
-                        creator_name=self.request.user.username,
-                        group_id=str(plan.group.id) if plan.group else None
-                    )
-            except Exception:
-                pass  # Don't fail plan creation if notification fails
-        
+        data = serializer.validated_data
+        plan = PlanService.create_plan(
+            creator=self.request.user,
+            title=data['title'],
+            description=data.get('description', ''),
+            plan_type=data.get('plan_type', 'personal'),
+            group=data.get('group'),
+            start_date=data.get('start_date'),
+            end_date=data.get('end_date'),
+            budget=data.get('budget'),
+            is_public=data.get('is_public', False)
+        )
         return plan
 
     # def create(self, request, *args, **kwargs):
@@ -867,161 +828,48 @@ class PlanViewSet(viewsets.ModelViewSet):
     #API thêm hoạt động vào kế hoạch - OPTIMIZED
     @action(detail=True, methods=['post'])
     def add_activity(self, request, pk=None):
-        """Add activity to plan using serializer - THIN VIEW"""
+        """Add activity to plan - delegate to service"""
         plan = self.get_object()
         
-        # ✅ THIN VIEW - delegate to serializer
-        serializer = PlanActivitySerializer(data=request.data)
-        if serializer.is_valid():
-            # Set plan from URL parameter
-            serializer.validated_data['plan'] = plan
-            activity = serializer.save()
-            
+        try:
+            activity = PlanService.add_activity_to_plan(plan, request.user, request.data)
             return Response(
                 PlanActivitySerializer(activity).data, 
                 status=status.HTTP_201_CREATED
             )
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     #API lấy tóm tắt kế hoạch
     @action(detail=True, methods=['get'])
     def summary(self, request, pk=None):
+        """Get plan summary - delegate to service"""
         plan = self.get_object()
         
-        return Response({
-            'id': str(plan.id),
-            'title': plan.title,
-            'duration': {
-                'days': plan.duration_days,          # Using property
-                'display': plan.duration_display      # Using property
-            },
-            'activities': {
-                'count': plan.activities_count,       # Using property
-                'by_date': len(plan.activities_by_date)  # Using property
-            },
-            'budget': {
-                'planned': plan.budget,
-                'estimated': plan.total_estimated_cost,  # Using property
-                'comparison': plan.budget_vs_estimated,  # Using property
-                'over_budget': plan.is_over_budget       # Using property
-            },
-            'status': {
-                'code': plan.status,
-                'display': plan.status_display          # Using property
-            },
-            'collaboration': {
-                'type': plan.plan_type,
-                'collaborators_count': len(plan.collaborators)  # Using property
-            },
-            'timestamps': {
-                'created': plan.created_at,
-                'updated': plan.updated_at
-            }
-        })
+        summary = PlanService.get_plan_statistics(plan)
+        return Response(summary)
     
     @action(detail=True, methods=['get'])
     def schedule(self, request, pk=None):
-        """Get plan activities schedule/timeline - OPTIMIZED"""
+        """Get plan schedule - delegate to service"""
         plan = self.get_object()
         
-        # Get activities with optimized query
-        activities = plan.activities.order_by('start_time')
-        
-        # Group activities by date
-        schedule_by_date = {}
-        for activity in activities:
-            if activity.start_time:
-                date_key = activity.start_time.date().isoformat()
-                if date_key not in schedule_by_date:
-                    schedule_by_date[date_key] = []
-                
-                # Calculate duration in minutes
-                duration_minutes = 0
-                if activity.start_time and activity.end_time:
-                    duration_delta = activity.end_time - activity.start_time
-                    duration_minutes = int(duration_delta.total_seconds() / 60)
-                
-                schedule_by_date[date_key].append({
-                    'id': str(activity.id),
-                    'title': activity.title,
-                    'description': activity.description,
-                    'activity_type': activity.activity_type,
-                    'start_time': activity.start_time,
-                    'end_time': activity.end_time,
-                    'duration_minutes': duration_minutes,
-                    'estimated_cost': float(activity.estimated_cost) if activity.estimated_cost else 0,
-                    'location_name': activity.location_name,
-                    'location_address': activity.location_address,
-                    'notes': activity.notes,
-                    'is_completed': activity.is_completed
-                })
-        
-        # Calculate timeline statistics
-        total_activities = activities.count()
-        completed_activities = activities.filter(is_completed=True).count()
-        
-        # Calculate total duration in minutes
-        total_duration = 0
-        for activity in activities:
-            if activity.start_time and activity.end_time:
-                duration_delta = activity.end_time - activity.start_time
-                total_duration += int(duration_delta.total_seconds() / 60)
-        
-        return Response({
-            'plan_id': str(plan.id),
-            'plan_title': plan.title,
-            'schedule_by_date': schedule_by_date,
-            'statistics': {
-                'total_activities': total_activities,
-                'completed_activities': completed_activities,
-                'completion_rate': (completed_activities / total_activities * 100) if total_activities > 0 else 0,
-                'total_duration_minutes': total_duration,
-                'total_duration_display': f"{total_duration // 60}h {total_duration % 60}m" if total_duration > 0 else "0m",
-                'date_range': {
-                    'start_date': plan.start_date,
-                    'end_date': plan.end_date,
-                    'duration_days': plan.duration_days
-                }
-            },
-            'permissions': {
-                'can_edit': self._can_user_edit_plan(plan, request.user),
-                'can_add_activity': self._can_user_edit_plan(plan, request.user)
-            }
-        })
+        schedule_data = PlanService.get_plan_schedule(plan, request.user)
+        return Response(schedule_data)
     
     @action(detail=True, methods=['post'])
     def create_activity(self, request, pk=None):
-        """Create new activity in plan - ADMIN ONLY for group plans"""
+        """Create new activity in plan - delegate to service"""
         plan = self.get_object()
         
-        # Check if user can add activities to this plan
-        if plan.plan_type == 'group' and plan.group and not plan.group.is_admin(request.user):
+        try:
+            activity = PlanService.add_activity_to_plan(plan, request.user, request.data)
             return Response(
-                {'error': 'Only group admins can add activities to group plans'}, 
-                status=status.HTTP_403_FORBIDDEN
+                PlanActivitySerializer(activity, context={'request': request}).data,
+                status=status.HTTP_201_CREATED
             )
-        elif plan.plan_type == 'personal' and plan.user != request.user:
-            return Response(
-                {'error': 'You can only add activities to your own plans'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Create activity in plan
-        activity_data = request.data.copy()
-        activity_data['plan'] = plan.id
-        
-        activity_serializer = PlanActivitySerializer(data=activity_data)
-        
-        if activity_serializer.is_valid():
-            activity = activity_serializer.save()
-            
-            return Response({
-                'message': 'Activity created successfully',
-                'activity': PlanActivitySerializer(activity).data
-            }, status=status.HTTP_201_CREATED)
-        
-        return Response(activity_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     def _can_user_edit_plan(self, plan, user):
         """Check if user can edit plan - delegates to service layer"""
@@ -1156,7 +1004,7 @@ class PlanViewSet(viewsets.ModelViewSet):
         # Get public plans excluding user's own plans
         public_plans = Plan.objects.filter(
             is_public=True,
-            status__in=['planning', 'active']
+            status__in=['upcoming', 'ongoing']
         ).exclude(creator=user)
         
         # Exclude plans where user is already a member
@@ -1232,15 +1080,12 @@ class PlanViewSet(viewsets.ModelViewSet):
 
 
 class FriendRequestView(generics.CreateAPIView):
-    """
-    Optimized Friend Request creation with enhanced validation
-    Uses atomic transactions and proper error handling
-    """
+    """Send friend request - pure controller"""
     serializer_class = FriendRequestSerializer
     permission_classes = [IsAuthenticated]
     
     def create(self, request):
-        """Create friend request with comprehensive validation"""
+        """Send friend request - delegate to UserService"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
@@ -1255,27 +1100,26 @@ class FriendRequestView(generics.CreateAPIView):
             )
         
         try:
-            with transaction.atomic():
-                success, message = UserService.send_friend_request(request.user, friend)
-                
-                if not success:
-                    return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+            success, message = UserService.send_friend_request(request.user, friend)
+            
+            if not success:
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Send notification asynchronously
-                try:
-                    NotificationService.notify_friend_request(
-                        friend_id, 
-                        request.user.get_full_name()
-                    )
-                except Exception:
-                    pass  # Don't fail request if notification fails
+            # Send notification via service
+            try:
+                NotificationService.notify_friend_request(
+                    friend_id, 
+                    request.user.get_full_name()
+                )
+            except Exception:
+                pass  # Don't fail request if notification fails
+            
+            friendship = Friendship.objects.between_users(request.user, friend).first()
+            return Response({
+                'message': message,
+                'friendship': FriendshipSerializer(friendship, context={'request': request}).data
+            }, status=status.HTTP_201_CREATED)
                 
-                friendship = Friendship.objects.between_users(request.user, friend).first()
-                return Response({
-                    'message': message,
-                    'friendship': FriendshipSerializer(friendship, context={'request': request}).data
-                }, status=status.HTTP_201_CREATED)
-                    
         except ValidationError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1364,18 +1208,12 @@ class FriendRequestActionView(APIView):
 
 
 class FriendsListView(generics.ListAPIView):
-    """
-    Optimized Friends listing with efficient queries
-    Uses canonical friendship model methods
-    """
     serializer_class = UserSummarySerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Get user's friends using optimized canonical model method with counts"""
-        # Get friends with potential counts annotation for serializer
-        friend_ids = Friendship.objects.get_friends_ids(self.request.user)
-        return User.objects.filter(id__in=friend_ids).with_cached_counts()
+        return User.objects.friends_of(self.request.user).with_counts()
+
 
 class ChatMessageViewSet(viewsets.GenericViewSet,
                          mixins.CreateModelMixin,
@@ -1385,6 +1223,7 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
     """Optimized Chat Message operations - NO dangerous list endpoint"""
     serializer_class = ChatMessageSerializer
     permission_classes = [IsAuthenticated, ChatMessagePermission]
+    pagination_class = ChatMessageCursorPagination  # Use cursor pagination for messages
     
     def get_queryset(self):
         # ✅ OPTIMIZED - Only messages from user's groups
@@ -1395,19 +1234,36 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
     
     
     def create(self, request, *args, **kwargs):
-        """Override create to add business logic"""
-        # Validate group membership before sending message
+        """Create message - delegate to ChatService"""
         group_id = request.data.get('group')
-        if group_id:
-            try:
-                group = Group.objects.get(id=group_id, members=request.user)
-            except Group.DoesNotExist:
-                return Response(
-                    {'error': 'Cannot send message to this group'}, 
-                    status=status.HTTP_403_FORBIDDEN
-                )
+        content = request.data.get('content', '')
+        message_type = request.data.get('message_type', 'text')
         
-        return super().create(request, *args, **kwargs)
+        if not group_id:
+            return Response(
+                {'error': 'group field is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            group = Group.objects.get(id=group_id, members=request.user)
+            message = ChatService.send_message(
+                sender=request.user,
+                group=group,
+                content=content,
+                message_type=message_type
+            )
+            
+            serializer = self.get_serializer(message)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Group.DoesNotExist:
+            return Response(
+                {'error': 'Cannot send message to this group'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        except ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     def perform_create(self, serializer):
         """Set sender automatically"""
@@ -1446,8 +1302,10 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
     #API lấy tin nhắn theo nhóm với pagination
     @action(detail=False, methods=['get'])
     def by_group(self, request):
-        """Get paginated messages for specific group"""
+        """Get paginated messages for specific group - delegate to service"""
         group_id = request.query_params.get('group_id')
+        limit = min(int(request.query_params.get('limit', 50)), 100)
+        before_id = request.query_params.get('before_id')
         
         if not group_id:
             return Response(
@@ -1455,49 +1313,25 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate user access to group
         try:
-            group = Group.objects.get(id=group_id, members=request.user)
-        except Group.DoesNotExist:
-            return Response(
-                {'error': 'Group not found or access denied'}, 
-                status=status.HTTP_404_NOT_FOUND
+            messages_data = ChatService.get_group_messages(
+                user=request.user,
+                group_id=group_id,
+                limit=limit,
+                before_id=before_id
             )
-        
-        # Pagination parameters
-        limit = min(int(request.query_params.get('limit', 50)), 100)  # Max 100
-        before_id = request.query_params.get('before_id')  # Cursor pagination
-        
-        # Build query with cursor pagination
-        queryset = ChatMessage.objects.filter(
-            group=group
-        ).select_related('sender').order_by('-created_at')
-        
-        if before_id:
-            try:
-                before_message = ChatMessage.objects.get(id=before_id)
-                queryset = queryset.filter(created_at__lt=before_message.created_at)
-            except ChatMessage.DoesNotExist:
-                return Response(
-                    {'error': 'Invalid before_id'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        
-        # Get limit + 1 to check if more exist
-        messages = list(queryset[:limit + 1])
-        
-        has_more = len(messages) > limit
-        if has_more:
-            messages = messages[:-1]  # Remove extra message
-        
-        serializer = self.get_serializer(messages, many=True)
-        
-        return Response({
-            'messages': serializer.data,
-            'has_more': has_more,
-            'next_cursor': messages[-1].id if messages and has_more else None,
-            'count': len(messages)
-        })
+            
+            serializer = self.get_serializer(messages_data['messages'], many=True)
+            
+            return Response({
+                'messages': serializer.data,
+                'has_more': messages_data['has_more'],
+                'next_cursor': messages_data['next_cursor'],
+                'count': len(serializer.data)
+            })
+            
+        except ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     #API tìm kiếm tin nhắn
     @action(detail=False, methods=['get'])
@@ -1529,9 +1363,13 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
                     status=status.HTTP_404_NOT_FOUND
                 )
         
-        # Limit search results for performance
-        messages = queryset[:50]
-        serializer = self.get_serializer(messages, many=True)
+        # Apply pagination to messages
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
         
         return Response({
             'messages': serializer.data,
@@ -1564,6 +1402,7 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
     """Optimized Plan Activity operations - SECURE permissions"""
     serializer_class = PlanActivitySerializer
     permission_classes = [IsAuthenticated, PlanActivityPermission]
+    pagination_class = ActivityCursorPagination  # Use cursor pagination for activities
     
     def get_queryset(self):
         # ✅ SECURE - Only activities from user's plans
@@ -1764,9 +1603,13 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
                     status=status.HTTP_404_NOT_FOUND
                 )
         
-        # Limit search results for performance
-        activities = queryset.order_by('-created_at')[:50]
-        serializer = self.get_serializer(activities, many=True)
+        # Apply pagination to activities
+        page = self.paginate_queryset(queryset.order_by('-created_at'))
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset.order_by('-created_at'), many=True)
         
         return Response({
             'activities': serializer.data,
