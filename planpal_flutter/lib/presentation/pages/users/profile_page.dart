@@ -274,7 +274,12 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildInfoRow('Họ tên', user.fullName),
           _buildInfoRow('Email', user.email ?? ''),
           _buildInfoRow('Số điện thoại', user.phoneNumber ?? ''),
-          _buildInfoRow('Ngày sinh', user.dateOfBirth ?? ''),
+          _buildInfoRow(
+            'Ngày sinh',
+            user.dateOfBirth != null
+                ? '${user.dateOfBirth!.day}/${user.dateOfBirth!.month}/${user.dateOfBirth!.year}'
+                : 'Chưa cập nhật',
+          ),
           const SizedBox(height: 8),
           _buildInfoRow('Giới thiệu', user.bio ?? ''),
         ],

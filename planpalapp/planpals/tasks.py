@@ -1,6 +1,5 @@
 from celery import shared_task
 from django.utils import timezone
-from django.db import transaction
 import logging
 from .models import Plan
 from .realtime_publisher import publish_plan_status_changed
@@ -10,9 +9,9 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def start_plan_task(self, plan_id):
-
     try:
         from .services import PlanService
+        
         plan = Plan.objects.get(pk=plan_id)
         
         # Call the business logic method from service
@@ -62,12 +61,10 @@ def start_plan_task(self, plan_id):
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def complete_plan_task(self, plan_id):
-    """
-    Automatic task to complete a plan at scheduled time
-    Includes real-time broadcasting of status change
-    """
     try:
+        # Import locally to avoid circular import
         from .services import PlanService
+        
         plan = Plan.objects.get(pk=plan_id)
         
         # Call the business logic method from service

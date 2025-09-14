@@ -3357,3 +3357,2172 @@ DEBUG 2025-09-13 20:22:07,127 functional 9400 3028
 def bulk_update_plan_statuses(self):
     return 1
 
+DEBUG 2025-09-14 20:20:26,549 selector_events 20540 5156 Using selector: SelectSelector
+DEBUG 2025-09-14 20:20:27,664 selector_events 15696 25924 Using selector: SelectSelector
+INFO 2025-09-14 20:20:27,885 autoreload 15696 25924 Watching for file changes with StatReloader
+DEBUG 2025-09-14 20:20:34,606 selector_events 2640 30436 Using selector: SelectSelector
+ERROR 2025-09-14 20:20:35,112 signal 2640 30436 Signal handler <bound method DjangoFixup.on_import_modules of <celery.fixups.django.DjangoFixup object at 0x000001CABDA2EF00>> raised: ModuleNotFoundError("No module named 'planpalapp.planpals'")
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\utils\dispatch\signal.py", line 276, in send
+    response = receiver(signal=self, sender=sender, **named)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\fixups\django.py", line 97, in on_import_modules
+    self.worker_fixup.validate_models()
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\fixups\django.py", line 137, in validate_models
+    run_checks()
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\checks\registry.py", line 89, in run_checks
+    new_errors = check(app_configs=app_configs, databases=databases)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\checks\urls.py", line 44, in check_url_namespaces_unique
+    all_namespaces = _load_all_namespaces(resolver)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\checks\urls.py", line 63, in _load_all_namespaces
+    url_patterns = getattr(resolver, "url_patterns", [])
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\urls\resolvers.py", line 718, in url_patterns
+    patterns = getattr(self.urlconf_module, "urlpatterns", self.urlconf_module)
+                       ^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\urls\resolvers.py", line 711, in urlconf_module
+    return import_module(self.urlconf_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpalapp\urls.py", line 37, in <module>
+    path('', include('planpals.urls')),
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\urls\conf.py", line 39, in include
+    urlconf_module = import_module(urlconf_module)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\urls.py", line 8, in <module>
+    from .views import (
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 19, in <module>
+    from .serializers import (
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 3, in <module>
+    from planpalapp.planpals.services import PlanService
+ModuleNotFoundError: No module named 'planpalapp.planpals'
+ERROR 2025-09-14 20:20:35,283 signal 2640 30436 Signal handler <promise@0x1cabd903b10 --> <bound method Celery._autodiscover_tasks of <Celery planpalapp at 0x1cabda2ed20>>> raised: ModuleNotFoundError("No module named 'planpalapp.planpals'")
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\utils\dispatch\signal.py", line 276, in send
+    response = receiver(signal=self, sender=sender, **named)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\vine\promises.py", line 161, in __call__
+    return self.throw()
+           ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\vine\promises.py", line 158, in __call__
+    retval = fun(*final_args, **final_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\app\base.py", line 691, in _autodiscover_tasks
+    return self._autodiscover_tasks_from_fixups(related_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\app\base.py", line 700, in _autodiscover_tasks_from_fixups
+    return self._autodiscover_tasks_from_names([
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\app\base.py", line 695, in _autodiscover_tasks_from_names
+    return self.loader.autodiscover_tasks(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\loaders\base.py", line 220, in autodiscover_tasks
+    mod.__name__ for mod in autodiscover_tasks(packages or (),
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\loaders\base.py", line 246, in autodiscover_tasks
+    return [find_related_module(pkg, related_name) for pkg in packages]
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\loaders\base.py", line 271, in find_related_module
+    raise e
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\celery\loaders\base.py", line 267, in find_related_module
+    return importlib.import_module(module_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\importlib\__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\tasks.py", line 7, in <module>
+    from .services import PlanService
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py", line 7, in <module>
+    from .serializers import UserSerializer
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 3, in <module>
+    from planpalapp.planpals.services import PlanService
+ModuleNotFoundError: No module named 'planpalapp.planpals'
+INFO 2025-09-14 20:21:24,055 autoreload 15696 25924 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:21:25,025 selector_events 22504 17600 Using selector: SelectSelector
+INFO 2025-09-14 20:21:25,272 autoreload 22504 17600 Watching for file changes with StatReloader
+INFO 2025-09-14 20:22:43,483 autoreload 22504 17600 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-14 20:22:44,331 selector_events 16876 20484 Using selector: SelectSelector
+INFO 2025-09-14 20:22:44,648 autoreload 16876 20484 Watching for file changes with StatReloader
+INFO 2025-09-14 20:23:01,626 autoreload 16876 20484 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:23:02,518 selector_events 27480 17596 Using selector: SelectSelector
+INFO 2025-09-14 20:23:02,751 autoreload 27480 17596 Watching for file changes with StatReloader
+DEBUG 2025-09-14 20:23:12,816 selector_events 4644 9164 Using selector: SelectSelector
+DEBUG 2025-09-14 20:23:13,672 selector_events 30692 14024 Using selector: SelectSelector
+INFO 2025-09-14 20:23:13,892 autoreload 30692 14024 Watching for file changes with StatReloader
+INFO 2025-09-14 20:23:35,849 autoreload 30692 14024 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\tasks.py changed, reloading.
+DEBUG 2025-09-14 20:23:36,729 selector_events 23112 5332 Using selector: SelectSelector
+INFO 2025-09-14 20:23:36,992 autoreload 23112 5332 Watching for file changes with StatReloader
+INFO 2025-09-14 20:29:58,111 autoreload 23112 5332 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:29:58,997 selector_events 2888 30488 Using selector: SelectSelector
+INFO 2025-09-14 20:29:59,230 autoreload 2888 30488 Watching for file changes with StatReloader
+INFO 2025-09-14 20:34:37,069 autoreload 2888 30488 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:34:38,008 selector_events 23044 27696 Using selector: SelectSelector
+INFO 2025-09-14 20:34:38,266 autoreload 23044 27696 Watching for file changes with StatReloader
+INFO 2025-09-14 20:36:11,799 autoreload 23044 27696 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:36:12,699 selector_events 4556 26936 Using selector: SelectSelector
+INFO 2025-09-14 20:36:12,941 autoreload 4556 26936 Watching for file changes with StatReloader
+DEBUG 2025-09-14 20:37:15,253 selector_events 15164 21996 Using selector: SelectSelector
+INFO 2025-09-14 20:37:28,662 autoreload 4556 26936 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\tasks.py changed, reloading.
+DEBUG 2025-09-14 20:37:30,696 selector_events 19876 16268 Using selector: SelectSelector
+INFO 2025-09-14 20:37:31,306 autoreload 19876 16268 Watching for file changes with StatReloader
+INFO 2025-09-14 20:37:32,805 server 19876 26944 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:37:32,806 server 19876 26944 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:37:32,808 server 19876 26944 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:37:35,963 autoreload 19876 16268 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\tasks.py changed, reloading.
+DEBUG 2025-09-14 20:37:38,028 selector_events 13568 30508 Using selector: SelectSelector
+INFO 2025-09-14 20:37:38,606 autoreload 13568 30508 Watching for file changes with StatReloader
+INFO 2025-09-14 20:37:39,768 server 13568 14552 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:37:39,769 server 13568 14552 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:37:39,772 server 13568 14552 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:37:43,574 autoreload 13568 30508 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\tasks.py changed, reloading.
+DEBUG 2025-09-14 20:37:44,546 selector_events 23304 13644 Using selector: SelectSelector
+INFO 2025-09-14 20:37:44,798 autoreload 23304 13644 Watching for file changes with StatReloader
+INFO 2025-09-14 20:37:45,345 server 23304 18052 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:37:45,346 server 23304 18052 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:37:45,346 server 23304 18052 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 20:37:51,443 selector_events 22028 20236 Using selector: SelectSelector
+INFO 2025-09-14 20:40:51,825 autoreload 23304 13644 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:40:52,774 selector_events 10368 24196 Using selector: SelectSelector
+INFO 2025-09-14 20:40:53,027 autoreload 10368 24196 Watching for file changes with StatReloader
+INFO 2025-09-14 20:40:53,534 server 10368 26284 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:40:53,534 server 10368 26284 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:40:53,535 server 10368 26284 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:41:16,259 autoreload 10368 24196 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:41:17,143 selector_events 10620 24156 Using selector: SelectSelector
+INFO 2025-09-14 20:41:17,366 autoreload 10620 24156 Watching for file changes with StatReloader
+INFO 2025-09-14 20:41:17,836 server 10620 10444 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:41:17,836 server 10620 10444 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:41:17,837 server 10620 10444 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:41:21,137 autoreload 10620 24156 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:41:22,044 selector_events 22100 21996 Using selector: SelectSelector
+INFO 2025-09-14 20:41:22,270 autoreload 22100 21996 Watching for file changes with StatReloader
+INFO 2025-09-14 20:41:22,844 server 22100 6348 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:41:22,844 server 22100 6348 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:41:22,845 server 22100 6348 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:41:30,239 autoreload 22100 21996 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\tasks.py changed, reloading.
+DEBUG 2025-09-14 20:41:31,110 selector_events 13596 17808 Using selector: SelectSelector
+INFO 2025-09-14 20:41:31,379 autoreload 13596 17808 Watching for file changes with StatReloader
+INFO 2025-09-14 20:41:31,893 server 13596 8300 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:41:31,894 server 13596 8300 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:41:31,895 server 13596 8300 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:41:36,219 autoreload 13596 17808 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:41:37,110 selector_events 19876 23336 Using selector: SelectSelector
+INFO 2025-09-14 20:41:37,382 autoreload 19876 23336 Watching for file changes with StatReloader
+INFO 2025-09-14 20:41:37,866 server 19876 3292 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:41:37,867 server 19876 3292 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:41:37,867 server 19876 3292 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:42:05,915 autoreload 19876 23336 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:42:07,512 selector_events 14300 16304 Using selector: SelectSelector
+INFO 2025-09-14 20:42:07,780 autoreload 14300 16304 Watching for file changes with StatReloader
+INFO 2025-09-14 20:42:08,288 server 14300 10552 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:42:08,289 server 14300 10552 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:42:08,289 server 14300 10552 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:42:16,707 autoreload 14300 16304 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:42:17,671 selector_events 29424 28164 Using selector: SelectSelector
+INFO 2025-09-14 20:42:17,923 autoreload 29424 28164 Watching for file changes with StatReloader
+INFO 2025-09-14 20:42:18,439 server 29424 12252 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:42:18,439 server 29424 12252 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:42:18,441 server 29424 12252 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:42:20,753 autoreload 29424 28164 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:42:21,607 selector_events 25996 11196 Using selector: SelectSelector
+INFO 2025-09-14 20:42:21,837 autoreload 25996 11196 Watching for file changes with StatReloader
+INFO 2025-09-14 20:42:22,319 server 25996 22156 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:42:22,319 server 25996 22156 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:42:22,320 server 25996 22156 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:42:32,761 autoreload 25996 11196 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:42:33,654 selector_events 22760 30472 Using selector: SelectSelector
+INFO 2025-09-14 20:42:33,892 autoreload 22760 30472 Watching for file changes with StatReloader
+INFO 2025-09-14 20:42:34,419 server 22760 26180 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:42:34,420 server 22760 26180 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:42:34,420 server 22760 26180 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:42:44,894 autoreload 22760 30472 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:42:45,775 selector_events 20916 16584 Using selector: SelectSelector
+INFO 2025-09-14 20:42:45,999 autoreload 20916 16584 Watching for file changes with StatReloader
+INFO 2025-09-14 20:42:46,522 server 20916 15988 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:42:46,523 server 20916 15988 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:42:46,524 server 20916 15988 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:48:02,843 autoreload 20916 16584 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:48:03,771 selector_events 26868 22480 Using selector: SelectSelector
+INFO 2025-09-14 20:48:03,976 autoreload 26868 22480 Watching for file changes with StatReloader
+INFO 2025-09-14 20:48:04,487 server 26868 19332 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:48:04,487 server 26868 19332 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:48:04,488 server 26868 19332 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:48:11,882 autoreload 26868 22480 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:48:12,835 selector_events 22488 6272 Using selector: SelectSelector
+INFO 2025-09-14 20:48:13,048 autoreload 22488 6272 Watching for file changes with StatReloader
+INFO 2025-09-14 20:48:13,594 server 22488 30472 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:48:13,594 server 22488 30472 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:48:13,595 server 22488 30472 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:48:24,089 autoreload 22488 6272 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:48:24,883 selector_events 19208 24692 Using selector: SelectSelector
+INFO 2025-09-14 20:48:25,087 autoreload 19208 24692 Watching for file changes with StatReloader
+INFO 2025-09-14 20:48:25,566 server 19208 18412 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:48:25,567 server 19208 18412 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:48:25,568 server 19208 18412 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:48:29,889 autoreload 19208 24692 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:48:30,803 selector_events 19096 14712 Using selector: SelectSelector
+INFO 2025-09-14 20:48:31,023 autoreload 19096 14712 Watching for file changes with StatReloader
+INFO 2025-09-14 20:48:31,570 server 19096 21724 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:48:31,570 server 19096 21724 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:48:31,571 server 19096 21724 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:48:53,321 autoreload 19096 14712 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:48:54,186 selector_events 27752 16604 Using selector: SelectSelector
+INFO 2025-09-14 20:48:54,406 autoreload 27752 16604 Watching for file changes with StatReloader
+INFO 2025-09-14 20:48:54,863 server 27752 22440 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:48:54,863 server 27752 22440 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:48:54,864 server 27752 22440 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:48:58,161 autoreload 27752 16604 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 20:48:59,063 selector_events 25540 12992 Using selector: SelectSelector
+INFO 2025-09-14 20:48:59,285 autoreload 25540 12992 Watching for file changes with StatReloader
+INFO 2025-09-14 20:48:59,773 server 25540 27088 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:48:59,773 server 25540 27088 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:48:59,774 server 25540 27088 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 20:49:17,141 selector_events 1932 14056 Using selector: SelectSelector
+DEBUG 2025-09-14 20:49:18,116 selector_events 21144 21808 Using selector: SelectSelector
+INFO 2025-09-14 20:49:18,334 autoreload 21144 21808 Watching for file changes with StatReloader
+INFO 2025-09-14 20:49:18,927 server 21144 23312 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:49:18,927 server 21144 23312 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+CRITICAL 2025-09-14 20:49:18,928 server 21144 23312 Listen failure: Couldn't listen on 0.0.0.0:8000: [WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted.
+DEBUG 2025-09-14 20:49:59,145 selector_events 7784 14124 Using selector: SelectSelector
+DEBUG 2025-09-14 20:49:59,704 functional 7784 14124 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,704 functional 7784 14124 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,704 functional 7784 14124 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,705 functional 7784 14124 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-14 20:49:59,705 functional 7784 14124 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,705 functional 7784 14124 
+def send_plan_reminder(self, plan_id, reminder_type=0):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,705 functional 7784 14124 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,706 functional 7784 14124 
+def bulk_update_plan_statuses(self):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,706 functional 7784 14124 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,706 functional 7784 14124 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,707 functional 7784 14124 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,707 functional 7784 14124 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,707 functional 7784 14124 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-14 20:49:59,708 functional 7784 14124 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-14 20:50:12,935 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 64052]
+DEBUG 2025-09-14 20:50:13,192 http_protocol 25540 27088 HTTP 200 response started for ['127.0.0.1', 64052]
+DEBUG 2025-09-14 20:50:13,193 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 64052]
+DEBUG 2025-09-14 20:50:13,193 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 64052]
+INFO 2025-09-14 20:50:13,194 runserver 25540 27088 [mHTTP GET /admin/ 200 [0.26, 127.0.0.1:64052][0m
+DEBUG 2025-09-14 20:50:13,219 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 64052]
+DEBUG 2025-09-14 20:50:13,224 http_protocol 25540 27088 HTTP 304 response started for ['127.0.0.1', 64052]
+DEBUG 2025-09-14 20:50:13,225 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 64052]
+DEBUG 2025-09-14 20:50:13,225 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 64052]
+INFO 2025-09-14 20:50:13,225 runserver 25540 27088 [36mHTTP GET /static/admin/css/dashboard.css 304 [0.01, 127.0.0.1:64052][0m
+DEBUG 2025-09-14 20:50:13,281 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 64052]
+DEBUG 2025-09-14 20:50:13,282 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 52419]
+DEBUG 2025-09-14 20:50:13,284 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 64293]
+DEBUG 2025-09-14 20:50:13,289 http_protocol 25540 27088 HTTP 304 response started for ['127.0.0.1', 64052]
+DEBUG 2025-09-14 20:50:13,289 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 64052]
+DEBUG 2025-09-14 20:50:13,289 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 64052]
+INFO 2025-09-14 20:50:13,290 runserver 25540 27088 [36mHTTP GET /static/admin/img/icon-addlink.svg 304 [0.01, 127.0.0.1:64052][0m
+DEBUG 2025-09-14 20:50:13,291 http_protocol 25540 27088 HTTP 304 response started for ['127.0.0.1', 52419]
+DEBUG 2025-09-14 20:50:13,291 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 52419]
+DEBUG 2025-09-14 20:50:13,292 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 52419]
+INFO 2025-09-14 20:50:13,292 runserver 25540 27088 [36mHTTP GET /static/admin/img/icon-changelink.svg 304 [0.01, 127.0.0.1:52419][0m
+DEBUG 2025-09-14 20:50:13,293 http_protocol 25540 27088 HTTP 304 response started for ['127.0.0.1', 64293]
+DEBUG 2025-09-14 20:50:13,293 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 64293]
+DEBUG 2025-09-14 20:50:13,294 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 64293]
+INFO 2025-09-14 20:50:13,294 runserver 25540 27088 [36mHTTP GET /static/admin/img/icon-deletelink.svg 304 [0.01, 127.0.0.1:64293][0m
+DEBUG 2025-09-14 20:50:13,448 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 64293]
+WARNING 2025-09-14 20:50:13,474 log 25540 10428 Not Found: /favicon.ico
+DEBUG 2025-09-14 20:50:13,475 http_protocol 25540 27088 HTTP 404 response started for ['127.0.0.1', 64293]
+DEBUG 2025-09-14 20:50:13,475 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 64293]
+DEBUG 2025-09-14 20:50:13,476 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 64293]
+WARNING 2025-09-14 20:50:13,476 runserver 25540 27088 [33mHTTP GET /favicon.ico 404 [0.03, 127.0.0.1:64293][0m
+DEBUG 2025-09-14 20:53:27,716 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 61423]
+DEBUG 2025-09-14 20:53:27,733 resource 25540 29712 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001A285010180>.
+WARNING 2025-09-14 20:53:27,790 log 25540 30064 Unauthorized: /users/profile/
+DEBUG 2025-09-14 20:53:27,791 http_protocol 25540 27088 HTTP 401 response started for ['127.0.0.1', 61423]
+DEBUG 2025-09-14 20:53:27,791 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 61423]
+DEBUG 2025-09-14 20:53:27,791 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 61423]
+WARNING 2025-09-14 20:53:27,791 runserver 25540 27088 [31;1mHTTP GET /users/profile/ 401 [0.08, 127.0.0.1:61423][0m
+DEBUG 2025-09-14 20:53:27,876 http_protocol 25540 27088 HTTP b'POST' request for ['127.0.0.1', 61425]
+DEBUG 2025-09-14 20:53:27,879 token 25540 7416 Dispatching grant_type refresh_token request to <oauthlib.oauth2.rfc6749.grant_types.refresh_token.RefreshTokenGrant object at 0x000001A284F5A180>.
+DEBUG 2025-09-14 20:53:27,880 refresh_token 25540 7416 Validating refresh token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-14 20:53:27,885 refresh_token 25540 7416 Validating refresh token 1l1PzGDbTMp3EQ0Rv34ZATeg7nosyY for client <Application: PlanPalApp>.
+DEBUG 2025-09-14 20:53:27,938 refresh_token 25540 7416 Issuing new token to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>), {'access_token': 'JWUIKWrPU0BQTds4th89xQV7EQmu2j', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'QpFx9PsZjCMEUd6hbBYZazQK6s89dd'}.
+DEBUG 2025-09-14 20:53:27,941 http_protocol 25540 27088 HTTP 200 response started for ['127.0.0.1', 61425]
+DEBUG 2025-09-14 20:53:27,941 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 61425]
+DEBUG 2025-09-14 20:53:27,941 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 61425]
+INFO 2025-09-14 20:53:27,941 runserver 25540 27088 [mHTTP POST /o/token/ 200 [0.07, 127.0.0.1:61425][0m
+DEBUG 2025-09-14 20:53:27,995 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 61427]
+DEBUG 2025-09-14 20:53:28,000 resource 25540 19616 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001A284EF8F80>.
+ERROR 2025-09-14 20:53:28,167 log 25540 10428 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 140, in profile
+    user = UserService.get_user_with_counts(request.user.id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py", line 40, in get_user_with_counts
+    return User.objects.with_cached_counts().get(id=user_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserManager' object has no attribute 'with_cached_counts'
+DEBUG 2025-09-14 20:53:28,212 http_protocol 25540 27088 HTTP 500 response started for ['127.0.0.1', 61427]
+DEBUG 2025-09-14 20:53:28,213 http_protocol 25540 27088 HTTP response chunk for ['127.0.0.1', 61427]
+DEBUG 2025-09-14 20:53:28,213 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 61427]
+DEBUG 2025-09-14 20:53:28,213 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 61427]
+ERROR 2025-09-14 20:53:28,214 runserver 25540 27088 [35;1mHTTP GET /users/profile/ 500 [0.22, 127.0.0.1:61427][0m
+DEBUG 2025-09-14 20:53:48,730 http_protocol 25540 27088 HTTP b'POST' request for ['127.0.0.1', 55990]
+DEBUG 2025-09-14 20:53:48,734 token 25540 25992 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x000001A284F58140>.
+DEBUG 2025-09-14 20:53:48,742 resource_owner_password_credentials 25540 25992 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-14 20:53:48,742 resource_owner_password_credentials 25540 25992 Validating username admin.
+DEBUG 2025-09-14 20:53:49,291 resource_owner_password_credentials 25540 25992 Authorizing access to user <User: admin ()>.
+DEBUG 2025-09-14 20:53:49,292 base 25540 25992 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-14 20:53:49,310 resource_owner_password_credentials 25540 25992 Issuing token {'access_token': '9IzdQzRdQuYHTpSZzVGMbGslvFUH9F', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'xgyY9CHi5xPdaembqVgwkpOtsBQPpL'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-09-14 20:53:49,313 http_protocol 25540 27088 HTTP 200 response started for ['127.0.0.1', 55990]
+DEBUG 2025-09-14 20:53:49,314 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 55990]
+DEBUG 2025-09-14 20:53:49,314 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 55990]
+INFO 2025-09-14 20:53:49,315 runserver 25540 27088 [mHTTP POST /o/token/ 200 [0.58, 127.0.0.1:55990][0m
+DEBUG 2025-09-14 20:53:49,336 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 55992]
+DEBUG 2025-09-14 20:53:49,340 resource 25540 27772 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001A285186E40>.
+ERROR 2025-09-14 20:53:49,379 log 25540 10428 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 140, in profile
+    user = UserService.get_user_with_counts(request.user.id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py", line 40, in get_user_with_counts
+    return User.objects.with_cached_counts().get(id=user_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserManager' object has no attribute 'with_cached_counts'
+DEBUG 2025-09-14 20:53:49,387 http_protocol 25540 27088 HTTP 500 response started for ['127.0.0.1', 55992]
+DEBUG 2025-09-14 20:53:49,387 http_protocol 25540 27088 HTTP response chunk for ['127.0.0.1', 55992]
+DEBUG 2025-09-14 20:53:49,387 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 55992]
+DEBUG 2025-09-14 20:53:49,388 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 55992]
+ERROR 2025-09-14 20:53:49,388 runserver 25540 27088 [35;1mHTTP GET /users/profile/ 500 [0.05, 127.0.0.1:55992][0m
+DEBUG 2025-09-14 20:53:49,737 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 49443]
+DEBUG 2025-09-14 20:53:49,745 resource 25540 5016 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001A285237DC0>.
+ERROR 2025-09-14 20:53:49,955 log 25540 10428 Internal Server Error: /plans/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 43, in list
+    return self.get_paginated_response(serializer.data)
+                                       ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 768, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 627, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 507, in to_representation
+    for field in fields:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 368, in _readable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 357, in fields
+    fields[key] = value
+    ~~~~~~^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\utils\serializer_helpers.py", line 169, in __setitem__
+    field.bind(field_name=key, parent=self.serializer)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 367, in bind
+    assert self.source != field_name, (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: It is redundant to specify `source='duration_days'` on field 'IntegerField' in serializer 'PlanSummarySerializer', because it is the same as the field name. Remove the `source` keyword argument.
+DEBUG 2025-09-14 20:53:49,966 http_protocol 25540 27088 HTTP 500 response started for ['127.0.0.1', 49443]
+DEBUG 2025-09-14 20:53:49,966 http_protocol 25540 27088 HTTP response chunk for ['127.0.0.1', 49443]
+DEBUG 2025-09-14 20:53:49,966 http_protocol 25540 27088 HTTP response chunk for ['127.0.0.1', 49443]
+DEBUG 2025-09-14 20:53:49,966 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 49443]
+DEBUG 2025-09-14 20:53:49,966 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 49443]
+ERROR 2025-09-14 20:53:49,967 runserver 25540 27088 [35;1mHTTP GET /plans/ 500 [0.23, 127.0.0.1:49443][0m
+DEBUG 2025-09-14 20:56:22,907 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 52992]
+DEBUG 2025-09-14 20:56:22,914 resource 25540 16860 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001A284F69E40>.
+ERROR 2025-09-14 20:56:22,987 log 25540 10428 Internal Server Error: /plans/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 43, in list
+    return self.get_paginated_response(serializer.data)
+                                       ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 768, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 627, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 507, in to_representation
+    for field in fields:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 368, in _readable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 357, in fields
+    fields[key] = value
+    ~~~~~~^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\utils\serializer_helpers.py", line 169, in __setitem__
+    field.bind(field_name=key, parent=self.serializer)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 367, in bind
+    assert self.source != field_name, (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: It is redundant to specify `source='duration_days'` on field 'IntegerField' in serializer 'PlanSummarySerializer', because it is the same as the field name. Remove the `source` keyword argument.
+DEBUG 2025-09-14 20:56:22,993 http_protocol 25540 27088 HTTP 500 response started for ['127.0.0.1', 52992]
+DEBUG 2025-09-14 20:56:22,993 http_protocol 25540 27088 HTTP response chunk for ['127.0.0.1', 52992]
+DEBUG 2025-09-14 20:56:22,994 http_protocol 25540 27088 HTTP response chunk for ['127.0.0.1', 52992]
+DEBUG 2025-09-14 20:56:22,994 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 52992]
+DEBUG 2025-09-14 20:56:22,994 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 52992]
+ERROR 2025-09-14 20:56:22,995 runserver 25540 27088 [35;1mHTTP GET /plans/ 500 [0.09, 127.0.0.1:52992][0m
+DEBUG 2025-09-14 20:56:36,866 http_protocol 25540 27088 HTTP b'GET' request for ['127.0.0.1', 52992]
+DEBUG 2025-09-14 20:56:36,870 resource 25540 29968 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001A28516D380>.
+ERROR 2025-09-14 20:56:36,953 log 25540 10428 Internal Server Error: /plans/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 43, in list
+    return self.get_paginated_response(serializer.data)
+                                       ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 768, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 627, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 507, in to_representation
+    for field in fields:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 368, in _readable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 357, in fields
+    fields[key] = value
+    ~~~~~~^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\utils\serializer_helpers.py", line 169, in __setitem__
+    field.bind(field_name=key, parent=self.serializer)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 367, in bind
+    assert self.source != field_name, (
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: It is redundant to specify `source='duration_days'` on field 'IntegerField' in serializer 'PlanSummarySerializer', because it is the same as the field name. Remove the `source` keyword argument.
+DEBUG 2025-09-14 20:56:36,959 http_protocol 25540 27088 HTTP 500 response started for ['127.0.0.1', 52992]
+DEBUG 2025-09-14 20:56:36,960 http_protocol 25540 27088 HTTP response chunk for ['127.0.0.1', 52992]
+DEBUG 2025-09-14 20:56:36,960 http_protocol 25540 27088 HTTP response chunk for ['127.0.0.1', 52992]
+DEBUG 2025-09-14 20:56:36,961 http_protocol 25540 27088 HTTP close for ['127.0.0.1', 52992]
+DEBUG 2025-09-14 20:56:36,961 http_protocol 25540 27088 HTTP response complete for ['127.0.0.1', 52992]
+ERROR 2025-09-14 20:56:36,961 runserver 25540 27088 [35;1mHTTP GET /plans/ 500 [0.10, 127.0.0.1:52992][0m
+INFO 2025-09-14 20:59:00,511 autoreload 25540 12992 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:59:02,021 selector_events 26728 11540 Using selector: SelectSelector
+INFO 2025-09-14 20:59:02,412 autoreload 26728 11540 Watching for file changes with StatReloader
+INFO 2025-09-14 20:59:03,032 server 26728 10032 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:59:03,033 server 26728 10032 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:59:03,033 server 26728 10032 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:59:29,833 autoreload 26728 11540 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:59:30,714 selector_events 14448 14752 Using selector: SelectSelector
+INFO 2025-09-14 20:59:30,941 autoreload 14448 14752 Watching for file changes with StatReloader
+INFO 2025-09-14 20:59:31,485 server 14448 27284 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:59:31,485 server 14448 27284 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:59:31,486 server 14448 27284 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:59:38,887 autoreload 14448 14752 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:59:39,859 selector_events 3128 12120 Using selector: SelectSelector
+INFO 2025-09-14 20:59:40,078 autoreload 3128 12120 Watching for file changes with StatReloader
+INFO 2025-09-14 20:59:40,580 server 3128 19860 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:59:40,582 server 3128 19860 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:59:40,582 server 3128 19860 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 20:59:55,154 autoreload 3128 12120 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 20:59:56,065 selector_events 30060 28144 Using selector: SelectSelector
+INFO 2025-09-14 20:59:56,302 autoreload 30060 28144 Watching for file changes with StatReloader
+INFO 2025-09-14 20:59:56,817 server 30060 29180 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 20:59:56,818 server 30060 29180 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 20:59:56,818 server 30060 29180 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:00:30,769 autoreload 30060 28144 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 21:00:31,680 selector_events 17404 19872 Using selector: SelectSelector
+INFO 2025-09-14 21:00:31,912 autoreload 17404 19872 Watching for file changes with StatReloader
+INFO 2025-09-14 21:00:32,474 server 17404 4572 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:00:32,475 server 17404 4572 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:00:32,475 server 17404 4572 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:00:40,907 autoreload 17404 19872 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 21:00:41,866 selector_events 24248 11788 Using selector: SelectSelector
+INFO 2025-09-14 21:00:42,085 autoreload 24248 11788 Watching for file changes with StatReloader
+INFO 2025-09-14 21:00:42,598 server 24248 10200 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:00:42,598 server 24248 10200 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:00:42,599 server 24248 10200 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:00:56,182 autoreload 24248 11788 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 21:00:57,158 selector_events 12864 24356 Using selector: SelectSelector
+INFO 2025-09-14 21:00:57,393 autoreload 12864 24356 Watching for file changes with StatReloader
+INFO 2025-09-14 21:00:57,947 server 12864 22592 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:00:57,947 server 12864 22592 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:00:57,948 server 12864 22592 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:01:26,823 autoreload 12864 24356 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 21:01:27,779 selector_events 28452 15608 Using selector: SelectSelector
+INFO 2025-09-14 21:01:28,033 autoreload 28452 15608 Watching for file changes with StatReloader
+INFO 2025-09-14 21:01:28,552 server 28452 28224 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:01:28,552 server 28452 28224 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:01:28,553 server 28452 28224 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:01:44,158 autoreload 28452 15608 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 21:01:45,047 selector_events 30424 10884 Using selector: SelectSelector
+INFO 2025-09-14 21:01:45,269 autoreload 30424 10884 Watching for file changes with StatReloader
+INFO 2025-09-14 21:01:45,771 server 30424 27732 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:01:45,772 server 30424 27732 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:01:45,772 server 30424 27732 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:01:58,322 autoreload 30424 10884 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 21:01:59,216 selector_events 27044 11372 Using selector: SelectSelector
+INFO 2025-09-14 21:01:59,447 autoreload 27044 11372 Watching for file changes with StatReloader
+INFO 2025-09-14 21:01:59,944 server 27044 21888 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:01:59,944 server 27044 21888 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:01:59,945 server 27044 21888 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 21:02:27,222 selector_events 12412 792 Using selector: SelectSelector
+DEBUG 2025-09-14 21:03:00,089 http_protocol 27044 21888 HTTP b'GET' request for ['127.0.0.1', 51214]
+DEBUG 2025-09-14 21:03:00,109 resource 27044 14716 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000209C23648C0>.
+DEBUG 2025-09-14 21:03:00,143 http_protocol 27044 21888 HTTP 200 response started for ['127.0.0.1', 51214]
+DEBUG 2025-09-14 21:03:00,143 http_protocol 27044 21888 HTTP close for ['127.0.0.1', 51214]
+DEBUG 2025-09-14 21:03:00,144 http_protocol 27044 21888 HTTP response complete for ['127.0.0.1', 51214]
+INFO 2025-09-14 21:03:00,144 runserver 27044 21888 [mHTTP GET /plans/ 200 [0.05, 127.0.0.1:51214][0m
+INFO 2025-09-14 21:04:19,614 autoreload 27044 11372 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-14 21:04:20,659 selector_events 24768 13340 Using selector: SelectSelector
+INFO 2025-09-14 21:04:20,892 autoreload 24768 13340 Watching for file changes with StatReloader
+INFO 2025-09-14 21:04:21,359 server 24768 18800 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:04:21,359 server 24768 18800 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:04:21,359 server 24768 18800 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 21:04:31,486 http_protocol 24768 18800 HTTP b'GET' request for ['127.0.0.1', 52494]
+DEBUG 2025-09-14 21:04:31,502 resource 24768 10440 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000191134B8040>.
+ERROR 2025-09-14 21:04:31,719 log 24768 27732 Internal Server Error: /groups/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 339, in list
+    page = self.paginate_queryset(queryset)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\generics.py", line 171, in paginate_queryset
+    return self.paginator.paginate_queryset(queryset, self.request, view=self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\pagination.py", line 216, in paginate_queryset
+    return list(self.page)
+           ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\paginator.py", line 191, in __len__
+    return len(self.object_list)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 366, in __len__
+    self._fetch_all()
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 1951, in _fetch_all
+    self._prefetch_related_objects()
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 1328, in _prefetch_related_objects
+    prefetch_related_objects(self._result_cache, *self._prefetch_related_lookups)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 2372, in prefetch_related_objects
+    raise AttributeError(
+AttributeError: Cannot find 'profile' on User object, 'members__profile' is an invalid parameter to prefetch_related()
+DEBUG 2025-09-14 21:04:31,729 http_protocol 24768 18800 HTTP 500 response started for ['127.0.0.1', 52494]
+DEBUG 2025-09-14 21:04:31,729 http_protocol 24768 18800 HTTP response chunk for ['127.0.0.1', 52494]
+DEBUG 2025-09-14 21:04:31,730 http_protocol 24768 18800 HTTP close for ['127.0.0.1', 52494]
+DEBUG 2025-09-14 21:04:31,730 http_protocol 24768 18800 HTTP response complete for ['127.0.0.1', 52494]
+ERROR 2025-09-14 21:04:31,731 runserver 24768 18800 [35;1mHTTP GET /groups/ 500 [0.24, 127.0.0.1:52494][0m
+INFO 2025-09-14 21:06:08,677 autoreload 24768 13340 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\events.py changed, reloading.
+DEBUG 2025-09-14 21:06:09,728 selector_events 27596 22984 Using selector: SelectSelector
+INFO 2025-09-14 21:06:09,979 autoreload 27596 22984 Watching for file changes with StatReloader
+INFO 2025-09-14 21:06:10,585 server 27596 30352 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:06:10,585 server 27596 30352 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:06:10,587 server 27596 30352 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:06:15,963 autoreload 27596 22984 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-14 21:06:16,841 selector_events 12680 30420 Using selector: SelectSelector
+INFO 2025-09-14 21:06:17,067 autoreload 12680 30420 Watching for file changes with StatReloader
+INFO 2025-09-14 21:06:17,584 server 12680 1532 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:06:17,585 server 12680 1532 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:06:17,586 server 12680 1532 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 21:06:25,858 http_protocol 12680 1532 HTTP b'GET' request for ['127.0.0.1', 60377]
+DEBUG 2025-09-14 21:06:25,873 resource 12680 21432 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002609F4E2C00>.
+DEBUG 2025-09-14 21:06:25,908 http_protocol 12680 1532 HTTP 200 response started for ['127.0.0.1', 60377]
+DEBUG 2025-09-14 21:06:25,909 http_protocol 12680 1532 HTTP close for ['127.0.0.1', 60377]
+DEBUG 2025-09-14 21:06:25,910 http_protocol 12680 1532 HTTP response complete for ['127.0.0.1', 60377]
+INFO 2025-09-14 21:06:25,911 runserver 12680 1532 [mHTTP GET /plans/ 200 [0.05, 127.0.0.1:60377][0m
+DEBUG 2025-09-14 21:06:31,638 http_protocol 12680 1532 HTTP b'GET' request for ['127.0.0.1', 60377]
+WARNING 2025-09-14 21:06:31,664 log 12680 24512 Not Found: //
+DEBUG 2025-09-14 21:06:31,665 http_protocol 12680 1532 HTTP 404 response started for ['127.0.0.1', 60377]
+DEBUG 2025-09-14 21:06:31,665 http_protocol 12680 1532 HTTP close for ['127.0.0.1', 60377]
+DEBUG 2025-09-14 21:06:31,666 http_protocol 12680 1532 HTTP response complete for ['127.0.0.1', 60377]
+WARNING 2025-09-14 21:06:31,666 runserver 12680 1532 [33mHTTP GET // 404 [0.03, 127.0.0.1:60377][0m
+DEBUG 2025-09-14 21:06:35,920 http_protocol 12680 1532 HTTP b'GET' request for ['127.0.0.1', 60377]
+WARNING 2025-09-14 21:06:35,941 log 12680 24512 Not Found: /group/
+DEBUG 2025-09-14 21:06:35,942 http_protocol 12680 1532 HTTP 404 response started for ['127.0.0.1', 60377]
+DEBUG 2025-09-14 21:06:35,943 http_protocol 12680 1532 HTTP close for ['127.0.0.1', 60377]
+DEBUG 2025-09-14 21:06:35,944 http_protocol 12680 1532 HTTP response complete for ['127.0.0.1', 60377]
+WARNING 2025-09-14 21:06:35,944 runserver 12680 1532 [33mHTTP GET /group/ 404 [0.02, 127.0.0.1:60377][0m
+DEBUG 2025-09-14 21:06:51,946 http_protocol 12680 1532 HTTP b'GET' request for ['127.0.0.1', 60377]
+DEBUG 2025-09-14 21:06:51,952 resource 12680 19048 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002609F7FFA40>.
+DEBUG 2025-09-14 21:06:51,989 http_protocol 12680 1532 HTTP 200 response started for ['127.0.0.1', 60377]
+DEBUG 2025-09-14 21:06:51,989 http_protocol 12680 1532 HTTP close for ['127.0.0.1', 60377]
+DEBUG 2025-09-14 21:06:51,990 http_protocol 12680 1532 HTTP response complete for ['127.0.0.1', 60377]
+INFO 2025-09-14 21:06:51,991 runserver 12680 1532 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:60377][0m
+INFO 2025-09-14 21:06:55,793 autoreload 12680 30420 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 21:06:56,700 selector_events 20244 21088 Using selector: SelectSelector
+INFO 2025-09-14 21:06:56,938 autoreload 20244 21088 Watching for file changes with StatReloader
+INFO 2025-09-14 21:06:57,445 server 20244 14416 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:06:57,446 server 20244 14416 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:06:57,447 server 20244 14416 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:06:58,742 autoreload 20244 21088 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-14 21:06:59,650 selector_events 30272 4376 Using selector: SelectSelector
+INFO 2025-09-14 21:06:59,882 autoreload 30272 4376 Watching for file changes with StatReloader
+INFO 2025-09-14 21:07:00,605 server 30272 26048 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:07:00,605 server 30272 26048 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:07:00,606 server 30272 26048 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 21:07:05,496 http_protocol 30272 26048 HTTP b'GET' request for ['127.0.0.1', 60448]
+DEBUG 2025-09-14 21:07:05,511 resource 30272 16868 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000020DDEB45800>.
+DEBUG 2025-09-14 21:07:05,550 http_protocol 30272 26048 HTTP 200 response started for ['127.0.0.1', 60448]
+DEBUG 2025-09-14 21:07:05,550 http_protocol 30272 26048 HTTP close for ['127.0.0.1', 60448]
+DEBUG 2025-09-14 21:07:05,550 http_protocol 30272 26048 HTTP response complete for ['127.0.0.1', 60448]
+INFO 2025-09-14 21:07:05,550 runserver 30272 26048 [mHTTP GET /groups/ 200 [0.05, 127.0.0.1:60448][0m
+DEBUG 2025-09-14 21:07:07,826 http_protocol 30272 26048 HTTP b'GET' request for ['127.0.0.1', 60453]
+DEBUG 2025-09-14 21:07:07,832 resource 30272 492 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000020DDEBB8500>.
+DEBUG 2025-09-14 21:07:07,857 http_protocol 30272 26048 HTTP 200 response started for ['127.0.0.1', 60453]
+DEBUG 2025-09-14 21:07:07,858 http_protocol 30272 26048 HTTP close for ['127.0.0.1', 60453]
+DEBUG 2025-09-14 21:07:07,858 http_protocol 30272 26048 HTTP response complete for ['127.0.0.1', 60453]
+INFO 2025-09-14 21:07:07,859 runserver 30272 26048 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:60453][0m
+DEBUG 2025-09-14 21:07:38,348 http_protocol 30272 26048 HTTP b'GET' request for ['127.0.0.1', 60546]
+DEBUG 2025-09-14 21:07:38,352 resource 30272 28828 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000020DDEA5BC40>.
+ERROR 2025-09-14 21:07:38,383 log 30272 20572 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 140, in profile
+    user = UserService.get_user_with_counts(request.user.id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py", line 40, in get_user_with_counts
+    return User.objects.with_cached_counts().get(id=user_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserManager' object has no attribute 'with_cached_counts'
+DEBUG 2025-09-14 21:07:38,391 http_protocol 30272 26048 HTTP 500 response started for ['127.0.0.1', 60546]
+DEBUG 2025-09-14 21:07:38,391 http_protocol 30272 26048 HTTP response chunk for ['127.0.0.1', 60546]
+DEBUG 2025-09-14 21:07:38,391 http_protocol 30272 26048 HTTP close for ['127.0.0.1', 60546]
+DEBUG 2025-09-14 21:07:38,391 http_protocol 30272 26048 HTTP response complete for ['127.0.0.1', 60546]
+ERROR 2025-09-14 21:07:38,391 runserver 30272 26048 [35;1mHTTP GET /users/profile/ 500 [0.04, 127.0.0.1:60546][0m
+DEBUG 2025-09-14 21:07:52,891 http_protocol 30272 26048 HTTP b'POST' request for ['127.0.0.1', 60559]
+DEBUG 2025-09-14 21:07:52,899 token 30272 18948 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x0000020DDEC8B350>.
+DEBUG 2025-09-14 21:07:52,905 resource_owner_password_credentials 30272 18948 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-14 21:07:52,905 resource_owner_password_credentials 30272 18948 Validating username admin.
+DEBUG 2025-09-14 21:07:53,419 resource_owner_password_credentials 30272 18948 Authorizing access to user <User: admin ()>.
+DEBUG 2025-09-14 21:07:53,419 base 30272 18948 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-14 21:07:53,428 resource_owner_password_credentials 30272 18948 Issuing token {'access_token': '8K4LrHTaLeA6IWcc1CSskHv25HrNSt', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': '5NuZkIPXPnm6TMMl08HAzQnXsb1Z2B'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-09-14 21:07:53,433 http_protocol 30272 26048 HTTP 200 response started for ['127.0.0.1', 60559]
+DEBUG 2025-09-14 21:07:53,433 http_protocol 30272 26048 HTTP close for ['127.0.0.1', 60559]
+DEBUG 2025-09-14 21:07:53,433 http_protocol 30272 26048 HTTP response complete for ['127.0.0.1', 60559]
+INFO 2025-09-14 21:07:53,434 runserver 30272 26048 [mHTTP POST /o/token/ 200 [0.54, 127.0.0.1:60559][0m
+DEBUG 2025-09-14 21:07:53,475 http_protocol 30272 26048 HTTP b'GET' request for ['127.0.0.1', 60561]
+DEBUG 2025-09-14 21:07:53,480 resource 30272 17608 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000020DDEA397C0>.
+ERROR 2025-09-14 21:07:53,516 log 30272 20572 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 140, in profile
+    user = UserService.get_user_with_counts(request.user.id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py", line 40, in get_user_with_counts
+    return User.objects.with_cached_counts().get(id=user_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserManager' object has no attribute 'with_cached_counts'
+DEBUG 2025-09-14 21:07:53,523 http_protocol 30272 26048 HTTP 500 response started for ['127.0.0.1', 60561]
+DEBUG 2025-09-14 21:07:53,524 http_protocol 30272 26048 HTTP response chunk for ['127.0.0.1', 60561]
+DEBUG 2025-09-14 21:07:53,524 http_protocol 30272 26048 HTTP close for ['127.0.0.1', 60561]
+DEBUG 2025-09-14 21:07:53,524 http_protocol 30272 26048 HTTP response complete for ['127.0.0.1', 60561]
+ERROR 2025-09-14 21:07:53,526 runserver 30272 26048 [35;1mHTTP GET /users/profile/ 500 [0.05, 127.0.0.1:60561][0m
+DEBUG 2025-09-14 21:07:53,988 http_protocol 30272 26048 HTTP b'GET' request for ['127.0.0.1', 60563]
+DEBUG 2025-09-14 21:07:53,999 resource 30272 17920 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000020DDEC1F400>.
+DEBUG 2025-09-14 21:07:54,030 http_protocol 30272 26048 HTTP 200 response started for ['127.0.0.1', 60563]
+DEBUG 2025-09-14 21:07:54,030 http_protocol 30272 26048 HTTP close for ['127.0.0.1', 60563]
+DEBUG 2025-09-14 21:07:54,030 http_protocol 30272 26048 HTTP response complete for ['127.0.0.1', 60563]
+INFO 2025-09-14 21:07:54,031 runserver 30272 26048 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:60563][0m
+DEBUG 2025-09-14 21:07:54,125 http_protocol 30272 26048 HTTP b'GET' request for ['127.0.0.1', 60565]
+DEBUG 2025-09-14 21:07:54,128 resource 30272 16584 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000020DDEA3AB80>.
+DEBUG 2025-09-14 21:07:54,164 http_protocol 30272 26048 HTTP 200 response started for ['127.0.0.1', 60565]
+DEBUG 2025-09-14 21:07:54,164 http_protocol 30272 26048 HTTP close for ['127.0.0.1', 60565]
+DEBUG 2025-09-14 21:07:54,164 http_protocol 30272 26048 HTTP response complete for ['127.0.0.1', 60565]
+INFO 2025-09-14 21:07:54,164 runserver 30272 26048 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:60565][0m
+INFO 2025-09-14 21:10:07,825 autoreload 30272 4376 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:10:08,825 selector_events 30072 15516 Using selector: SelectSelector
+INFO 2025-09-14 21:10:09,152 autoreload 30072 15516 Watching for file changes with StatReloader
+INFO 2025-09-14 21:10:09,633 server 30072 25148 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:10:09,634 server 30072 25148 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:10:09,634 server 30072 25148 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:10:46,716 autoreload 30072 15516 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:10:47,664 selector_events 3468 12440 Using selector: SelectSelector
+INFO 2025-09-14 21:10:47,965 autoreload 3468 12440 Watching for file changes with StatReloader
+INFO 2025-09-14 21:10:48,422 server 3468 13124 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:10:48,422 server 3468 13124 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:10:48,422 server 3468 13124 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:10:57,859 autoreload 3468 12440 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 21:10:58,768 selector_events 13692 10200 Using selector: SelectSelector
+INFO 2025-09-14 21:10:59,055 autoreload 13692 10200 Watching for file changes with StatReloader
+INFO 2025-09-14 21:10:59,526 server 13692 18444 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:10:59,526 server 13692 18444 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:10:59,527 server 13692 18444 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:11:00,794 autoreload 13692 10200 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-14 21:11:01,750 selector_events 5940 4568 Using selector: SelectSelector
+INFO 2025-09-14 21:11:01,978 autoreload 5940 4568 Watching for file changes with StatReloader
+INFO 2025-09-14 21:11:02,490 server 5940 23424 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:11:02,490 server 5940 23424 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:11:02,492 server 5940 23424 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 21:11:25,213 http_protocol 5940 23424 HTTP b'GET' request for ['127.0.0.1', 55592]
+DEBUG 2025-09-14 21:11:25,225 resource 5940 6340 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000213ACEC02C0>.
+ERROR 2025-09-14 21:11:25,276 log 5940 28276 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 140, in profile
+    user = UserService.get_user_with_counts(request.user.id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py", line 40, in get_user_with_counts
+    return User.objects.with_cached_counts().get(id=user_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserManager' object has no attribute 'with_cached_counts'
+DEBUG 2025-09-14 21:11:25,285 http_protocol 5940 23424 HTTP 500 response started for ['127.0.0.1', 55592]
+DEBUG 2025-09-14 21:11:25,285 http_protocol 5940 23424 HTTP response chunk for ['127.0.0.1', 55592]
+DEBUG 2025-09-14 21:11:25,285 http_protocol 5940 23424 HTTP close for ['127.0.0.1', 55592]
+DEBUG 2025-09-14 21:11:25,286 http_protocol 5940 23424 HTTP response complete for ['127.0.0.1', 55592]
+ERROR 2025-09-14 21:11:25,286 runserver 5940 23424 [35;1mHTTP GET /users/profile/ 500 [0.07, 127.0.0.1:55592][0m
+DEBUG 2025-09-14 21:11:30,469 http_protocol 5940 23424 HTTP b'POST' request for ['127.0.0.1', 55599]
+DEBUG 2025-09-14 21:11:30,479 token 5940 18172 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x00000213ACDD5820>.
+DEBUG 2025-09-14 21:11:30,487 resource_owner_password_credentials 5940 18172 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-14 21:11:30,487 resource_owner_password_credentials 5940 18172 Validating username admin.
+DEBUG 2025-09-14 21:11:31,012 resource_owner_password_credentials 5940 18172 Authorizing access to user <User: admin ()>.
+DEBUG 2025-09-14 21:11:31,012 base 5940 18172 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-14 21:11:31,018 resource_owner_password_credentials 5940 18172 Issuing token {'access_token': 'Dpz3uJB1fU0g5l8OvMLUsbskpJJQ2X', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': '458oCtCq98XWtYblF7jyHsLRD7J3vC'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-09-14 21:11:31,021 http_protocol 5940 23424 HTTP 200 response started for ['127.0.0.1', 55599]
+DEBUG 2025-09-14 21:11:31,022 http_protocol 5940 23424 HTTP close for ['127.0.0.1', 55599]
+DEBUG 2025-09-14 21:11:31,022 http_protocol 5940 23424 HTTP response complete for ['127.0.0.1', 55599]
+INFO 2025-09-14 21:11:31,022 runserver 5940 23424 [mHTTP POST /o/token/ 200 [0.55, 127.0.0.1:55599][0m
+DEBUG 2025-09-14 21:11:31,058 http_protocol 5940 23424 HTTP b'GET' request for ['127.0.0.1', 55602]
+DEBUG 2025-09-14 21:11:31,062 resource 5940 23636 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000213ACE1D1C0>.
+ERROR 2025-09-14 21:11:31,091 log 5940 28276 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 140, in profile
+    user = UserService.get_user_with_counts(request.user.id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py", line 40, in get_user_with_counts
+    return User.objects.with_cached_counts().get(id=user_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserManager' object has no attribute 'with_cached_counts'
+DEBUG 2025-09-14 21:11:31,099 http_protocol 5940 23424 HTTP 500 response started for ['127.0.0.1', 55602]
+DEBUG 2025-09-14 21:11:31,099 http_protocol 5940 23424 HTTP response chunk for ['127.0.0.1', 55602]
+DEBUG 2025-09-14 21:11:31,099 http_protocol 5940 23424 HTTP close for ['127.0.0.1', 55602]
+DEBUG 2025-09-14 21:11:31,099 http_protocol 5940 23424 HTTP response complete for ['127.0.0.1', 55602]
+ERROR 2025-09-14 21:11:31,100 runserver 5940 23424 [35;1mHTTP GET /users/profile/ 500 [0.04, 127.0.0.1:55602][0m
+DEBUG 2025-09-14 21:11:31,413 http_protocol 5940 23424 HTTP b'GET' request for ['127.0.0.1', 55604]
+DEBUG 2025-09-14 21:11:31,417 resource 5940 22576 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000213ACDA1E40>.
+DEBUG 2025-09-14 21:11:31,445 http_protocol 5940 23424 HTTP 200 response started for ['127.0.0.1', 55604]
+DEBUG 2025-09-14 21:11:31,446 http_protocol 5940 23424 HTTP close for ['127.0.0.1', 55604]
+DEBUG 2025-09-14 21:11:31,446 http_protocol 5940 23424 HTTP response complete for ['127.0.0.1', 55604]
+INFO 2025-09-14 21:11:31,446 runserver 5940 23424 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:55604][0m
+DEBUG 2025-09-14 21:11:31,574 http_protocol 5940 23424 HTTP b'GET' request for ['127.0.0.1', 55606]
+DEBUG 2025-09-14 21:11:31,579 resource 5940 15272 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000213ACC5B400>.
+DEBUG 2025-09-14 21:11:31,611 http_protocol 5940 23424 HTTP 200 response started for ['127.0.0.1', 55606]
+DEBUG 2025-09-14 21:11:31,611 http_protocol 5940 23424 HTTP close for ['127.0.0.1', 55606]
+DEBUG 2025-09-14 21:11:31,611 http_protocol 5940 23424 HTTP response complete for ['127.0.0.1', 55606]
+INFO 2025-09-14 21:11:31,611 runserver 5940 23424 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:55606][0m
+INFO 2025-09-14 21:11:58,579 autoreload 5940 4568 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-14 21:11:59,617 selector_events 21160 26748 Using selector: SelectSelector
+INFO 2025-09-14 21:11:59,897 autoreload 21160 26748 Watching for file changes with StatReloader
+INFO 2025-09-14 21:12:00,591 server 21160 25108 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:12:00,591 server 21160 25108 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:12:00,592 server 21160 25108 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:12:01,964 autoreload 21160 26748 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-14 21:12:02,917 selector_events 23164 8184 Using selector: SelectSelector
+INFO 2025-09-14 21:12:03,190 autoreload 23164 8184 Watching for file changes with StatReloader
+INFO 2025-09-14 21:12:03,732 server 23164 29540 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:12:03,732 server 23164 29540 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:12:03,733 server 23164 29540 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 21:12:42,880 http_protocol 23164 29540 HTTP b'GET' request for ['127.0.0.1', 55741]
+DEBUG 2025-09-14 21:12:42,893 resource 23164 16548 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000218024BDD80>.
+ERROR 2025-09-14 21:12:43,054 log 23164 22640 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+MySQLdb.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 142, in profile
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 40, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 509, in to_representation
+    attribute = field.get_attribute(instance)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 446, in get_attribute
+    return get_attribute(instance, self.source_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 96, in get_attribute
+    instance = getattr(instance, attr)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py", line 382, in unread_messages_count
+    count = unread_messages.count()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 604, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 644, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 626, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+django.db.utils.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+DEBUG 2025-09-14 21:12:43,074 http_protocol 23164 29540 HTTP 500 response started for ['127.0.0.1', 55741]
+DEBUG 2025-09-14 21:12:43,075 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55741]
+DEBUG 2025-09-14 21:12:43,075 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55741]
+DEBUG 2025-09-14 21:12:43,075 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55741]
+DEBUG 2025-09-14 21:12:43,075 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55741]
+DEBUG 2025-09-14 21:12:43,076 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55741]
+ERROR 2025-09-14 21:12:43,076 runserver 23164 29540 [35;1mHTTP GET /users/profile/ 500 [0.20, 127.0.0.1:55741][0m
+DEBUG 2025-09-14 21:12:48,158 http_protocol 23164 29540 HTTP b'POST' request for ['127.0.0.1', 55750]
+DEBUG 2025-09-14 21:12:48,167 token 23164 22348 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x000002180251B3B0>.
+DEBUG 2025-09-14 21:12:48,173 resource_owner_password_credentials 23164 22348 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-14 21:12:48,173 resource_owner_password_credentials 23164 22348 Validating username admin.
+DEBUG 2025-09-14 21:12:48,721 resource_owner_password_credentials 23164 22348 Authorizing access to user <User: admin ()>.
+DEBUG 2025-09-14 21:12:48,721 base 23164 22348 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-14 21:12:48,731 resource_owner_password_credentials 23164 22348 Issuing token {'access_token': 'x4nFR5gmAuiuMIiIV9PZrCD4kS7Yqd', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'UCjKkEsR3939bq136jLWyn2KQAIAZG'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-09-14 21:12:48,736 http_protocol 23164 29540 HTTP 200 response started for ['127.0.0.1', 55750]
+DEBUG 2025-09-14 21:12:48,736 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55750]
+DEBUG 2025-09-14 21:12:48,737 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55750]
+INFO 2025-09-14 21:12:48,737 runserver 23164 29540 [mHTTP POST /o/token/ 200 [0.58, 127.0.0.1:55750][0m
+DEBUG 2025-09-14 21:12:48,777 http_protocol 23164 29540 HTTP b'GET' request for ['127.0.0.1', 55752]
+DEBUG 2025-09-14 21:12:48,782 resource 23164 25640 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002180276CF80>.
+ERROR 2025-09-14 21:12:48,870 log 23164 22640 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+MySQLdb.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 142, in profile
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 40, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 509, in to_representation
+    attribute = field.get_attribute(instance)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 446, in get_attribute
+    return get_attribute(instance, self.source_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 96, in get_attribute
+    instance = getattr(instance, attr)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py", line 382, in unread_messages_count
+    count = unread_messages.count()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 604, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 644, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 626, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+django.db.utils.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+DEBUG 2025-09-14 21:12:48,877 http_protocol 23164 29540 HTTP 500 response started for ['127.0.0.1', 55752]
+DEBUG 2025-09-14 21:12:48,877 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55752]
+DEBUG 2025-09-14 21:12:48,877 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55752]
+DEBUG 2025-09-14 21:12:48,877 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55752]
+DEBUG 2025-09-14 21:12:48,877 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55752]
+DEBUG 2025-09-14 21:12:48,878 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55752]
+ERROR 2025-09-14 21:12:48,878 runserver 23164 29540 [35;1mHTTP GET /users/profile/ 500 [0.10, 127.0.0.1:55752][0m
+DEBUG 2025-09-14 21:12:49,374 http_protocol 23164 29540 HTTP b'GET' request for ['127.0.0.1', 55754]
+DEBUG 2025-09-14 21:12:49,379 resource 23164 15392 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000218024E46C0>.
+DEBUG 2025-09-14 21:12:49,400 http_protocol 23164 29540 HTTP 200 response started for ['127.0.0.1', 55754]
+DEBUG 2025-09-14 21:12:49,400 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55754]
+DEBUG 2025-09-14 21:12:49,400 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55754]
+INFO 2025-09-14 21:12:49,400 runserver 23164 29540 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:55754][0m
+DEBUG 2025-09-14 21:12:49,444 http_protocol 23164 29540 HTTP b'GET' request for ['127.0.0.1', 55756]
+DEBUG 2025-09-14 21:12:49,449 resource 23164 27272 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002180253D740>.
+DEBUG 2025-09-14 21:12:49,478 http_protocol 23164 29540 HTTP 200 response started for ['127.0.0.1', 55756]
+DEBUG 2025-09-14 21:12:49,478 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55756]
+DEBUG 2025-09-14 21:12:49,479 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55756]
+INFO 2025-09-14 21:12:49,479 runserver 23164 29540 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:55756][0m
+DEBUG 2025-09-14 21:14:09,371 http_protocol 23164 29540 HTTP b'GET' request for ['127.0.0.1', 55934]
+DEBUG 2025-09-14 21:14:09,376 resource 23164 14512 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000218025BBC80>.
+ERROR 2025-09-14 21:14:09,471 log 23164 22640 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+MySQLdb.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 142, in profile
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 40, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 509, in to_representation
+    attribute = field.get_attribute(instance)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 446, in get_attribute
+    return get_attribute(instance, self.source_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 96, in get_attribute
+    instance = getattr(instance, attr)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py", line 382, in unread_messages_count
+    count = unread_messages.count()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 604, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 644, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 626, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+django.db.utils.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+DEBUG 2025-09-14 21:14:09,478 http_protocol 23164 29540 HTTP 500 response started for ['127.0.0.1', 55934]
+DEBUG 2025-09-14 21:14:09,479 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55934]
+DEBUG 2025-09-14 21:14:09,479 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55934]
+DEBUG 2025-09-14 21:14:09,479 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55934]
+DEBUG 2025-09-14 21:14:09,479 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55934]
+DEBUG 2025-09-14 21:14:09,480 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55934]
+ERROR 2025-09-14 21:14:09,480 runserver 23164 29540 [35;1mHTTP GET /users/profile/ 500 [0.11, 127.0.0.1:55934][0m
+DEBUG 2025-09-14 21:14:16,987 http_protocol 23164 29540 HTTP b'POST' request for ['127.0.0.1', 55943]
+DEBUG 2025-09-14 21:14:16,995 token 23164 16852 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x000002180251B3B0>.
+DEBUG 2025-09-14 21:14:17,002 resource_owner_password_credentials 23164 16852 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-14 21:14:17,002 resource_owner_password_credentials 23164 16852 Validating username admin.
+DEBUG 2025-09-14 21:14:17,655 resource_owner_password_credentials 23164 16852 Client error in token request, (invalid_grant) Invalid credentials given. <oauthlib.Request SANITIZED>.
+WARNING 2025-09-14 21:14:17,659 log 23164 22640 Bad Request: /o/token/
+DEBUG 2025-09-14 21:14:17,659 http_protocol 23164 29540 HTTP 400 response started for ['127.0.0.1', 55943]
+DEBUG 2025-09-14 21:14:17,659 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55943]
+DEBUG 2025-09-14 21:14:17,659 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55943]
+WARNING 2025-09-14 21:14:17,659 runserver 23164 29540 [31;1mHTTP POST /o/token/ 400 [0.67, 127.0.0.1:55943][0m
+DEBUG 2025-09-14 21:14:24,691 http_protocol 23164 29540 HTTP b'POST' request for ['127.0.0.1', 55951]
+DEBUG 2025-09-14 21:14:24,696 token 23164 3624 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x000002180251B3B0>.
+DEBUG 2025-09-14 21:14:24,700 resource_owner_password_credentials 23164 3624 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-14 21:14:24,701 resource_owner_password_credentials 23164 3624 Validating username admin.
+DEBUG 2025-09-14 21:14:25,227 resource_owner_password_credentials 23164 3624 Authorizing access to user <User: admin ()>.
+DEBUG 2025-09-14 21:14:25,228 base 23164 3624 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-14 21:14:25,235 resource_owner_password_credentials 23164 3624 Issuing token {'access_token': 'T5oBL23HE7l0g1iGh8aVnTibj4Z1ua', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': '9RDgFDPYPhkOOASKwdExaMd5iroy6X'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-09-14 21:14:25,240 http_protocol 23164 29540 HTTP 200 response started for ['127.0.0.1', 55951]
+DEBUG 2025-09-14 21:14:25,241 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55951]
+DEBUG 2025-09-14 21:14:25,241 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55951]
+INFO 2025-09-14 21:14:25,242 runserver 23164 29540 [mHTTP POST /o/token/ 200 [0.55, 127.0.0.1:55951][0m
+DEBUG 2025-09-14 21:14:25,272 http_protocol 23164 29540 HTTP b'GET' request for ['127.0.0.1', 55953]
+DEBUG 2025-09-14 21:14:25,277 resource 23164 9440 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000021802794BC0>.
+ERROR 2025-09-14 21:14:25,366 log 23164 22640 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+MySQLdb.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 142, in profile
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 40, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 509, in to_representation
+    attribute = field.get_attribute(instance)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 446, in get_attribute
+    return get_attribute(instance, self.source_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 96, in get_attribute
+    instance = getattr(instance, attr)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py", line 382, in unread_messages_count
+    count = unread_messages.count()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 604, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 644, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 626, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+django.db.utils.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+DEBUG 2025-09-14 21:14:25,374 http_protocol 23164 29540 HTTP 500 response started for ['127.0.0.1', 55953]
+DEBUG 2025-09-14 21:14:25,374 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55953]
+DEBUG 2025-09-14 21:14:25,374 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55953]
+DEBUG 2025-09-14 21:14:25,375 http_protocol 23164 29540 HTTP response chunk for ['127.0.0.1', 55953]
+DEBUG 2025-09-14 21:14:25,375 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55953]
+DEBUG 2025-09-14 21:14:25,375 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55953]
+ERROR 2025-09-14 21:14:25,375 runserver 23164 29540 [35;1mHTTP GET /users/profile/ 500 [0.10, 127.0.0.1:55953][0m
+DEBUG 2025-09-14 21:14:25,734 http_protocol 23164 29540 HTTP b'GET' request for ['127.0.0.1', 55955]
+DEBUG 2025-09-14 21:14:25,738 resource 23164 16928 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000021802808C80>.
+DEBUG 2025-09-14 21:14:25,762 http_protocol 23164 29540 HTTP 200 response started for ['127.0.0.1', 55955]
+DEBUG 2025-09-14 21:14:25,763 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55955]
+DEBUG 2025-09-14 21:14:25,763 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55955]
+INFO 2025-09-14 21:14:25,763 runserver 23164 29540 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:55955][0m
+DEBUG 2025-09-14 21:14:25,838 http_protocol 23164 29540 HTTP b'GET' request for ['127.0.0.1', 55957]
+DEBUG 2025-09-14 21:14:25,843 resource 23164 27020 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000021802864E40>.
+DEBUG 2025-09-14 21:14:25,871 http_protocol 23164 29540 HTTP 200 response started for ['127.0.0.1', 55957]
+DEBUG 2025-09-14 21:14:25,872 http_protocol 23164 29540 HTTP close for ['127.0.0.1', 55957]
+DEBUG 2025-09-14 21:14:25,872 http_protocol 23164 29540 HTTP response complete for ['127.0.0.1', 55957]
+INFO 2025-09-14 21:14:25,872 runserver 23164 29540 [mHTTP GET /groups/ 200 [0.03, 127.0.0.1:55957][0m
+DEBUG 2025-09-14 21:17:08,355 selector_events 25256 28960 Using selector: SelectSelector
+INFO 2025-09-14 21:17:33,670 autoreload 23164 8184 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:17:34,799 selector_events 11732 27112 Using selector: SelectSelector
+INFO 2025-09-14 21:17:35,168 autoreload 11732 27112 Watching for file changes with StatReloader
+INFO 2025-09-14 21:17:35,760 server 11732 19168 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:17:35,760 server 11732 19168 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:17:35,761 server 11732 19168 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 21:18:26,315 selector_events 16236 30372 Using selector: SelectSelector
+INFO 2025-09-14 21:19:20,237 autoreload 11732 27112 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:19:21,464 selector_events 27132 12084 Using selector: SelectSelector
+INFO 2025-09-14 21:19:21,810 autoreload 27132 12084 Watching for file changes with StatReloader
+INFO 2025-09-14 21:19:22,310 server 27132 2252 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:19:22,311 server 27132 2252 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:19:22,311 server 27132 2252 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 21:19:41,549 http_protocol 27132 2252 HTTP b'GET' request for ['127.0.0.1', 56343]
+DEBUG 2025-09-14 21:19:41,563 resource 27132 12252 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001674F9C7F80>.
+ERROR 2025-09-14 21:19:41,696 log 27132 24136 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+MySQLdb.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 142, in profile
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 40, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 509, in to_representation
+    attribute = field.get_attribute(instance)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 446, in get_attribute
+    return get_attribute(instance, self.source_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 96, in get_attribute
+    instance = getattr(instance, attr)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py", line 382, in unread_messages_count
+    count = unread_messages.count()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 604, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 644, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 626, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+django.db.utils.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+DEBUG 2025-09-14 21:19:41,707 http_protocol 27132 2252 HTTP 500 response started for ['127.0.0.1', 56343]
+DEBUG 2025-09-14 21:19:41,707 http_protocol 27132 2252 HTTP response chunk for ['127.0.0.1', 56343]
+DEBUG 2025-09-14 21:19:41,708 http_protocol 27132 2252 HTTP response chunk for ['127.0.0.1', 56343]
+DEBUG 2025-09-14 21:19:41,708 http_protocol 27132 2252 HTTP response chunk for ['127.0.0.1', 56343]
+DEBUG 2025-09-14 21:19:41,708 http_protocol 27132 2252 HTTP close for ['127.0.0.1', 56343]
+DEBUG 2025-09-14 21:19:41,708 http_protocol 27132 2252 HTTP response complete for ['127.0.0.1', 56343]
+ERROR 2025-09-14 21:19:41,708 runserver 27132 2252 [35;1mHTTP GET /users/profile/ 500 [0.16, 127.0.0.1:56343][0m
+DEBUG 2025-09-14 21:19:46,197 http_protocol 27132 2252 HTTP b'POST' request for ['127.0.0.1', 56356]
+DEBUG 2025-09-14 21:19:46,207 token 27132 1764 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x000001674FCDB380>.
+DEBUG 2025-09-14 21:19:46,212 resource_owner_password_credentials 27132 1764 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-14 21:19:46,213 resource_owner_password_credentials 27132 1764 Validating username admin.
+DEBUG 2025-09-14 21:19:46,752 resource_owner_password_credentials 27132 1764 Authorizing access to user <User: admin ()>.
+DEBUG 2025-09-14 21:19:46,752 base 27132 1764 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-14 21:19:46,758 resource_owner_password_credentials 27132 1764 Issuing token {'access_token': 'TCKD1nTM3kZvP43klxOut5MyUjnRq8', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'aNEMGpAsNvdRTr6b3gMO9kqTGHjW1V'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-09-14 21:19:46,762 http_protocol 27132 2252 HTTP 200 response started for ['127.0.0.1', 56356]
+DEBUG 2025-09-14 21:19:46,762 http_protocol 27132 2252 HTTP close for ['127.0.0.1', 56356]
+DEBUG 2025-09-14 21:19:46,763 http_protocol 27132 2252 HTTP response complete for ['127.0.0.1', 56356]
+INFO 2025-09-14 21:19:46,763 runserver 27132 2252 [mHTTP POST /o/token/ 200 [0.57, 127.0.0.1:56356][0m
+DEBUG 2025-09-14 21:19:46,807 http_protocol 27132 2252 HTTP b'GET' request for ['127.0.0.1', 56358]
+DEBUG 2025-09-14 21:19:46,811 resource 27132 12808 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001674FB16C80>.
+ERROR 2025-09-14 21:19:46,886 log 27132 24136 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+MySQLdb.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 142, in profile
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 40, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 509, in to_representation
+    attribute = field.get_attribute(instance)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 446, in get_attribute
+    return get_attribute(instance, self.source_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 96, in get_attribute
+    instance = getattr(instance, attr)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py", line 382, in unread_messages_count
+    count = unread_messages.count()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 604, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 644, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 626, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+django.db.utils.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+DEBUG 2025-09-14 21:19:46,893 http_protocol 27132 2252 HTTP 500 response started for ['127.0.0.1', 56358]
+DEBUG 2025-09-14 21:19:46,894 http_protocol 27132 2252 HTTP response chunk for ['127.0.0.1', 56358]
+DEBUG 2025-09-14 21:19:46,894 http_protocol 27132 2252 HTTP response chunk for ['127.0.0.1', 56358]
+DEBUG 2025-09-14 21:19:46,894 http_protocol 27132 2252 HTTP response chunk for ['127.0.0.1', 56358]
+DEBUG 2025-09-14 21:19:46,894 http_protocol 27132 2252 HTTP close for ['127.0.0.1', 56358]
+DEBUG 2025-09-14 21:19:46,895 http_protocol 27132 2252 HTTP response complete for ['127.0.0.1', 56358]
+ERROR 2025-09-14 21:19:46,895 runserver 27132 2252 [35;1mHTTP GET /users/profile/ 500 [0.09, 127.0.0.1:56358][0m
+DEBUG 2025-09-14 21:19:47,311 http_protocol 27132 2252 HTTP b'GET' request for ['127.0.0.1', 56360]
+DEBUG 2025-09-14 21:19:47,317 resource 27132 17244 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001674FBAE000>.
+DEBUG 2025-09-14 21:19:47,359 http_protocol 27132 2252 HTTP 200 response started for ['127.0.0.1', 56360]
+DEBUG 2025-09-14 21:19:47,360 http_protocol 27132 2252 HTTP close for ['127.0.0.1', 56360]
+DEBUG 2025-09-14 21:19:47,360 http_protocol 27132 2252 HTTP response complete for ['127.0.0.1', 56360]
+INFO 2025-09-14 21:19:47,360 runserver 27132 2252 [mHTTP GET /plans/ 200 [0.05, 127.0.0.1:56360][0m
+DEBUG 2025-09-14 21:19:47,406 http_protocol 27132 2252 HTTP b'GET' request for ['127.0.0.1', 56362]
+DEBUG 2025-09-14 21:19:47,411 resource 27132 4564 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001674FBDA100>.
+DEBUG 2025-09-14 21:19:47,446 http_protocol 27132 2252 HTTP 200 response started for ['127.0.0.1', 56362]
+DEBUG 2025-09-14 21:19:47,446 http_protocol 27132 2252 HTTP close for ['127.0.0.1', 56362]
+DEBUG 2025-09-14 21:19:47,446 http_protocol 27132 2252 HTTP response complete for ['127.0.0.1', 56362]
+INFO 2025-09-14 21:19:47,447 runserver 27132 2252 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:56362][0m
+DEBUG 2025-09-14 21:19:55,205 http_protocol 27132 2252 HTTP b'GET' request for ['127.0.0.1', 56370]
+DEBUG 2025-09-14 21:19:55,208 resource 27132 8512 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001674FFB8800>.
+DEBUG 2025-09-14 21:19:55,228 http_protocol 27132 2252 HTTP 200 response started for ['127.0.0.1', 56370]
+DEBUG 2025-09-14 21:19:55,228 http_protocol 27132 2252 HTTP close for ['127.0.0.1', 56370]
+DEBUG 2025-09-14 21:19:55,229 http_protocol 27132 2252 HTTP response complete for ['127.0.0.1', 56370]
+INFO 2025-09-14 21:19:55,229 runserver 27132 2252 [mHTTP GET /groups/ 200 [0.02, 127.0.0.1:56370][0m
+DEBUG 2025-09-14 21:19:57,444 http_protocol 27132 2252 HTTP b'GET' request for ['127.0.0.1', 56374]
+DEBUG 2025-09-14 21:19:57,449 resource 27132 3928 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001674FBE7BC0>.
+DEBUG 2025-09-14 21:19:57,472 http_protocol 27132 2252 HTTP 200 response started for ['127.0.0.1', 56374]
+DEBUG 2025-09-14 21:19:57,472 http_protocol 27132 2252 HTTP close for ['127.0.0.1', 56374]
+DEBUG 2025-09-14 21:19:57,473 http_protocol 27132 2252 HTTP response complete for ['127.0.0.1', 56374]
+INFO 2025-09-14 21:19:57,473 runserver 27132 2252 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:56374][0m
+INFO 2025-09-14 21:20:04,000 autoreload 27132 12084 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:20:04,922 selector_events 27048 16428 Using selector: SelectSelector
+INFO 2025-09-14 21:20:05,230 autoreload 27048 16428 Watching for file changes with StatReloader
+INFO 2025-09-14 21:20:05,709 server 27048 23960 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:20:05,710 server 27048 23960 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:20:05,711 server 27048 23960 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-14 21:22:42,795 selector_events 22028 14432 Using selector: SelectSelector
+DEBUG 2025-09-14 21:22:56,621 selector_events 12252 18628 Using selector: SelectSelector
+DEBUG 2025-09-14 21:23:06,087 selector_events 18036 1928 Using selector: SelectSelector
+INFO 2025-09-14 21:26:23,536 autoreload 27048 16428 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:26:24,843 selector_events 23424 19676 Using selector: SelectSelector
+INFO 2025-09-14 21:26:25,166 autoreload 23424 19676 Watching for file changes with StatReloader
+INFO 2025-09-14 21:26:25,670 server 23424 17448 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:26:25,670 server 23424 17448 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:26:25,671 server 23424 17448 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:26:37,258 autoreload 23424 19676 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:26:38,168 selector_events 27508 17376 Using selector: SelectSelector
+INFO 2025-09-14 21:26:38,454 autoreload 27508 17376 Watching for file changes with StatReloader
+INFO 2025-09-14 21:26:38,956 server 27508 29704 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:26:38,957 server 27508 29704 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:26:38,957 server 27508 29704 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:26:52,535 autoreload 27508 17376 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:26:53,503 selector_events 19884 30188 Using selector: SelectSelector
+INFO 2025-09-14 21:26:53,798 autoreload 19884 30188 Watching for file changes with StatReloader
+INFO 2025-09-14 21:26:54,287 server 19884 13740 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:26:54,287 server 19884 13740 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:26:54,288 server 19884 13740 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:28:04,088 autoreload 19884 30188 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:28:05,104 selector_events 23604 18000 Using selector: SelectSelector
+INFO 2025-09-14 21:28:05,391 autoreload 23604 18000 Watching for file changes with StatReloader
+INFO 2025-09-14 21:28:05,851 server 23604 18436 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:28:05,851 server 23604 18436 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:28:05,852 server 23604 18436 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:28:22,459 autoreload 23604 18000 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:28:23,349 selector_events 19556 24732 Using selector: SelectSelector
+INFO 2025-09-14 21:28:23,626 autoreload 19556 24732 Watching for file changes with StatReloader
+INFO 2025-09-14 21:28:24,108 server 19556 12760 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:28:24,108 server 19556 12760 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:28:24,109 server 19556 12760 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:29:41,051 autoreload 19556 24732 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:29:42,197 selector_events 9440 4332 Using selector: SelectSelector
+INFO 2025-09-14 21:29:42,504 autoreload 9440 4332 Watching for file changes with StatReloader
+INFO 2025-09-14 21:29:42,959 server 9440 30716 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:29:42,959 server 9440 30716 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:29:42,960 server 9440 30716 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:29:50,411 autoreload 9440 4332 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:29:51,359 selector_events 5808 28568 Using selector: SelectSelector
+INFO 2025-09-14 21:29:51,632 autoreload 5808 28568 Watching for file changes with StatReloader
+INFO 2025-09-14 21:29:52,102 server 5808 13024 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:29:52,102 server 5808 13024 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:29:52,103 server 5808 13024 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:29:59,496 autoreload 5808 28568 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:30:00,504 selector_events 19052 13740 Using selector: SelectSelector
+INFO 2025-09-14 21:30:00,811 autoreload 19052 13740 Watching for file changes with StatReloader
+INFO 2025-09-14 21:30:01,308 server 19052 19752 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:30:01,308 server 19052 19752 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:30:01,309 server 19052 19752 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:30:14,815 autoreload 19052 13740 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:30:15,771 selector_events 17968 8000 Using selector: SelectSelector
+INFO 2025-09-14 21:30:16,068 autoreload 17968 8000 Watching for file changes with StatReloader
+INFO 2025-09-14 21:30:16,537 server 17968 14020 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:30:16,537 server 17968 14020 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:30:16,538 server 17968 14020 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:30:24,985 autoreload 17968 8000 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:30:25,878 selector_events 3104 21284 Using selector: SelectSelector
+INFO 2025-09-14 21:30:26,141 autoreload 3104 21284 Watching for file changes with StatReloader
+INFO 2025-09-14 21:30:26,613 server 3104 29856 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:30:26,614 server 3104 29856 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:30:26,614 server 3104 29856 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:31:21,065 autoreload 3104 21284 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:31:22,044 selector_events 20380 8364 Using selector: SelectSelector
+INFO 2025-09-14 21:31:22,321 autoreload 20380 8364 Watching for file changes with StatReloader
+INFO 2025-09-14 21:31:22,811 server 20380 20416 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:31:22,811 server 20380 20416 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:31:22,812 server 20380 20416 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:31:33,293 autoreload 20380 8364 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:31:34,203 selector_events 23240 29128 Using selector: SelectSelector
+INFO 2025-09-14 21:31:34,484 autoreload 23240 29128 Watching for file changes with StatReloader
+INFO 2025-09-14 21:31:34,966 server 23240 12924 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:31:34,966 server 23240 12924 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:31:34,966 server 23240 12924 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:32:47,777 autoreload 23240 29128 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:32:48,761 selector_events 25240 23628 Using selector: SelectSelector
+INFO 2025-09-14 21:32:49,049 autoreload 25240 23628 Watching for file changes with StatReloader
+INFO 2025-09-14 21:32:49,520 server 25240 29620 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:32:49,520 server 25240 29620 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:32:49,521 server 25240 29620 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:32:52,849 autoreload 25240 23628 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:32:53,788 selector_events 10576 18872 Using selector: SelectSelector
+INFO 2025-09-14 21:32:54,076 autoreload 10576 18872 Watching for file changes with StatReloader
+INFO 2025-09-14 21:32:54,570 server 10576 11180 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:32:54,571 server 10576 11180 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:32:54,572 server 10576 11180 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:32:58,904 autoreload 10576 18872 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:32:59,875 selector_events 21252 27400 Using selector: SelectSelector
+INFO 2025-09-14 21:33:00,148 autoreload 21252 27400 Watching for file changes with StatReloader
+INFO 2025-09-14 21:33:00,665 server 21252 5304 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:33:00,665 server 21252 5304 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:33:00,666 server 21252 5304 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:33:05,007 autoreload 21252 27400 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:33:06,003 selector_events 7268 4572 Using selector: SelectSelector
+INFO 2025-09-14 21:33:06,275 autoreload 7268 4572 Watching for file changes with StatReloader
+INFO 2025-09-14 21:33:06,747 server 7268 12424 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:33:06,747 server 7268 12424 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:33:06,748 server 7268 12424 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:33:10,096 autoreload 7268 4572 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:33:11,034 selector_events 24248 16220 Using selector: SelectSelector
+INFO 2025-09-14 21:33:11,306 autoreload 24248 16220 Watching for file changes with StatReloader
+INFO 2025-09-14 21:33:11,772 server 24248 16116 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:33:11,772 server 24248 16116 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:33:11,773 server 24248 16116 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:33:15,075 autoreload 24248 16220 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-14 21:33:16,060 selector_events 20904 21396 Using selector: SelectSelector
+INFO 2025-09-14 21:33:16,324 autoreload 20904 21396 Watching for file changes with StatReloader
+INFO 2025-09-14 21:33:16,780 server 20904 29476 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-14 21:33:16,780 server 20904 29476 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-14 21:33:16,782 server 20904 29476 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-14 21:34:34,761 autoreload 20904 21396 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.

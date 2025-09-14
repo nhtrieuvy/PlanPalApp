@@ -44,9 +44,7 @@ class EventType(Enum):
 
 
 @dataclass
-class RealtimeEvent:
-    """Standardized event structure for real-time communications"""
-    
+class RealtimeEvent:    
     event_type: EventType
     data: Dict[str, Any]
     timestamp: str = None
@@ -62,7 +60,6 @@ class RealtimeEvent:
             self.event_id = str(uuid.uuid4())
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert event to dictionary for JSON serialization"""
         return {
             'event_type': self.event_type.value,
             'event_id': self.event_id,
