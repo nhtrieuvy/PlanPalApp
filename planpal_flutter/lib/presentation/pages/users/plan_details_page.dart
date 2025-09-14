@@ -7,6 +7,7 @@ import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import '../../../core/dtos/plan_detail.dart';
+import '../../../core/dtos/plan_activity.dart';
 import '../plans/activity_form_page.dart';
 import '../plans/plan_schedule_page.dart';
 // Removed local PlanStatus mapping; rely on backend-provided status strings
@@ -203,10 +204,10 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildCreatorCard(
-                p.creator?.avatarThumb ?? '',
-                (p.creator?.fullName.isNotEmpty == true
-                    ? p.creator!.fullName
-                    : (p.creator?.username ?? 'Không rõ')),
+                p.creator.avatarForDisplay,
+                (p.creator.fullName.isNotEmpty
+                    ? p.creator.fullName
+                    : p.creator.username),
               ),
               const SizedBox(height: 16),
               _buildMetaCard(
@@ -217,17 +218,17 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                     : p.status,
                 planType: p.planType,
                 isPublic: p.isPublic,
-                durationDisplay: p.durationDisplay ?? '',
+                durationDisplay: p.durationDisplay,
                 activitiesCount: p.activitiesCount,
                 totalEstimatedCost: p.totalEstimatedCost,
                 groupName: p.groupName ?? '',
               ),
-              if (p.description.isNotEmpty) ...[
+              if (p.description != null && p.description!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 _buildInfoCard(
                   icon: Icons.description,
                   title: 'Mô tả',
-                  subtitle: p.description,
+                  subtitle: p.description!,
                   color: AppColors.primary,
                   theme: theme,
                 ),
@@ -729,7 +730,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
 
   Widget _buildActivitiesCard({
     required ThemeData theme,
-    required List<ActivityItem> activities,
+    required List<PlanActivity> activities,
     required DateFormat df,
   }) {
     final display = activities.take(5).toList();
@@ -772,7 +773,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                 final st = a.startTime;
                 final et = a.endTime;
                 final title = a.title;
-                final type = a.type;
+                final type = a.activityType;
                 String timeRange = '';
                 if (st != null) {
                   timeRange = df.format(st);

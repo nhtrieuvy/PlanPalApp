@@ -688,16 +688,6 @@ class _HomeContentState extends State<_HomeContent> {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
     final name = p.title.isNotEmpty ? p.title : 'Kế hoạch';
-    final dest = '';
-    final start = p.startDate?.toIso8601String();
-    final end = p.endDate?.toIso8601String();
-    DateTime? startDt, endDt;
-    try {
-      if (start != null) startDt = DateTime.parse(start);
-    } catch (_) {}
-    try {
-      if (end != null) endDt = DateTime.parse(end);
-    } catch (_) {}
 
     return Container(
       width: 280,
@@ -718,7 +708,7 @@ class _HomeContentState extends State<_HomeContent> {
                     color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.location_on, color: color, size: 20),
+                  child: Icon(Icons.event, color: color, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -734,9 +724,9 @@ class _HomeContentState extends State<_HomeContent> {
                           fontSize: 16,
                         ),
                       ),
-                      if (startDt != null && endDt != null)
+                      if (p.startDate != null || p.endDate != null)
                         Text(
-                          '${startDt.day}/${startDt.month} - ${endDt.day}/${endDt.month}',
+                          p.dateRange,
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,
@@ -748,9 +738,9 @@ class _HomeContentState extends State<_HomeContent> {
               ],
             ),
             const SizedBox(height: 12),
-            if (dest.isNotEmpty)
+            if (p.groupName != null && p.groupName!.isNotEmpty)
               Text(
-                dest,
+                'Nhóm: ${p.groupName}',
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -758,10 +748,10 @@ class _HomeContentState extends State<_HomeContent> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.group, size: 16, color: Colors.grey[600]),
+                Icon(Icons.event_note, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  '•',
+                  p.activitiesCountText,
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
                 const Spacer(),
@@ -771,13 +761,21 @@ class _HomeContentState extends State<_HomeContent> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.1),
+                    color: p.isUpcoming
+                        ? AppColors.warning.withValues(alpha: 0.1)
+                        : p.isOngoing
+                        ? AppColors.success.withValues(alpha: 0.1)
+                        : AppColors.info.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    'Mới',
+                  child: Text(
+                    p.statusDisplay,
                     style: TextStyle(
-                      color: AppColors.success,
+                      color: p.isUpcoming
+                          ? AppColors.warning
+                          : p.isOngoing
+                          ? AppColors.success
+                          : AppColors.info,
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
                     ),
@@ -795,7 +793,6 @@ class _HomeContentState extends State<_HomeContent> {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
     final name = g.name.isNotEmpty ? g.name : 'Nhóm';
-    final membersCount = g.memberCount;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -813,7 +810,28 @@ class _HomeContentState extends State<_HomeContent> {
                 color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.group, color: color, size: 24),
+              child: g.avatarForDisplay.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: g.avatarForDisplay,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            Icon(Icons.group, color: color, size: 24),
+                        errorWidget: (context, url, error) =>
+                            Icon(Icons.group, color: color, size: 24),
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        g.initials,
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -831,7 +849,7 @@ class _HomeContentState extends State<_HomeContent> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$membersCount thành viên',
+                    g.memberCountText,
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],

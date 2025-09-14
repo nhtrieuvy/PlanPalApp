@@ -110,8 +110,8 @@ class _GroupFormPageState extends State<GroupFormPage> {
 
         // Evict any cached images for the returned URLs to avoid stale images
         try {
-          final avatarUrl = result.avatarThumb ?? '';
-          final coverUrl = result.coverImageUrl ?? '';
+          final avatarUrl = result.avatarUrl;
+          final coverUrl = result.coverImageUrl;
           if (avatarUrl.isNotEmpty) {
             CachedNetworkImage.evictFromCache(avatarUrl);
           }
@@ -126,7 +126,7 @@ class _GroupFormPageState extends State<GroupFormPage> {
             'id': result.id,
             'name': result.name,
             'description': result.description,
-            'avatar_thumb': result.avatarThumb,
+            'avatar_thumb': result.avatarUrl,
             'cover_image_url': result.coverImageUrl,
             'member_count': result.memberCount,
           },
@@ -143,8 +143,8 @@ class _GroupFormPageState extends State<GroupFormPage> {
 
         // Evict cache for changed image URLs so UI shows updates immediately
         try {
-          final newAvatar = result.avatarThumb ?? '';
-          final newCover = result.coverImageUrl ?? '';
+          final newAvatar = result.avatarUrl;
+          final newCover = result.coverImageUrl;
           if (newAvatar.isNotEmpty) {
             CachedNetworkImage.evictFromCache(newAvatar);
           }
@@ -159,7 +159,7 @@ class _GroupFormPageState extends State<GroupFormPage> {
             'id': result.id,
             'name': result.name,
             'description': result.description,
-            'avatar_thumb': result.avatarThumb,
+            'avatar_thumb': result.avatarUrl,
             'cover_image_url': result.coverImageUrl,
             'member_count': result.memberCount,
           },
@@ -496,10 +496,10 @@ class _GroupFormPageState extends State<GroupFormPage> {
                   title: Text(friend.fullName),
                   subtitle: Text('@${friend.username}'),
                   secondary: CircleAvatar(
-                    backgroundImage: friend.avatarThumb?.isNotEmpty == true
-                        ? CachedNetworkImageProvider(friend.avatarThumb!)
+                    backgroundImage: friend.avatarUrl?.isNotEmpty == true
+                        ? CachedNetworkImageProvider(friend.avatarUrl!)
                         : null,
-                    child: friend.avatarThumb?.isEmpty != false
+                    child: friend.avatarUrl?.isEmpty != false
                         ? Text(friend.initials)
                         : null,
                   ),

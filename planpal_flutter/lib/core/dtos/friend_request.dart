@@ -1,31 +1,5 @@
-import 'user_summary.dart';
+// Deprecated: moved to `create_friend_request.dart` as `CreateFriendRequest`.
+// This file is kept for backward compatibility but should not be imported.
+// Please import 'create_friend_request.dart' and use CreateFriendRequest instead.
 
-class FriendRequest {
-  final String id;
-  final UserSummary user;
-  final String status;
-  final DateTime createdAt;
-  final String? message;
-
-  const FriendRequest({
-    required this.id,
-    required this.user,
-    required this.status,
-    required this.createdAt,
-    this.message,
-  });
-
-  factory FriendRequest.fromJson(Map<String, dynamic> json) {
-    return FriendRequest(
-      id: json['id']?.toString() ?? '',
-      user: UserSummary.fromJson(Map<String, dynamic>.from(json['user'] ?? {})),
-      status: json['status']?.toString() ?? 'pending',
-      createdAt:
-          DateTime.tryParse(json['created_at']?.toString() ?? '') ??
-          DateTime.now(),
-      message: json['message']?.toString(),
-    );
-  }
-
-  bool get isPending => status == 'pending';
-}
+/* intentionally empty - deprecated */

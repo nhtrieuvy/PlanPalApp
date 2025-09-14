@@ -1,32 +1,29 @@
 import 'package:equatable/equatable.dart';
 import 'user_summary.dart';
 
-/// Friendship model matching backend FriendshipSerializer
-/// Represents friendship relationship between two users
-class Friendship extends Equatable {
+/// FriendRequestDetail model for displaying pending friend requests
+/// Represents a pending friendship with status information
+class FriendRequestDetail extends Equatable {
   final String id;
   final UserSummary user;
-  final UserSummary friend;
   final UserSummary initiator;
   final String status;
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  const Friendship({
+  const FriendRequestDetail({
     required this.id,
     required this.user,
-    required this.friend,
     required this.initiator,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
   });
 
-  factory Friendship.fromJson(Map<String, dynamic> json) {
-    return Friendship(
+  factory FriendRequestDetail.fromJson(Map<String, dynamic> json) {
+    return FriendRequestDetail(
       id: json['id']?.toString() ?? '',
       user: UserSummary.fromJson(json['user'] ?? {}),
-      friend: UserSummary.fromJson(json['friend'] ?? {}),
       initiator: UserSummary.fromJson(json['initiator'] ?? {}),
       status: json['status']?.toString() ?? 'pending',
       createdAt: json['created_at'] != null
@@ -42,7 +39,6 @@ class Friendship extends Equatable {
     return {
       'id': id,
       'user': user.toJson(),
-      'friend': friend.toJson(),
       'initiator': initiator.toJson(),
       'status': status,
       'created_at': createdAt.toIso8601String(),
@@ -50,19 +46,17 @@ class Friendship extends Equatable {
     };
   }
 
-  Friendship copyWith({
+  FriendRequestDetail copyWith({
     String? id,
     UserSummary? user,
-    UserSummary? friend,
     UserSummary? initiator,
     String? status,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
-    return Friendship(
+    return FriendRequestDetail(
       id: id ?? this.id,
       user: user ?? this.user,
-      friend: friend ?? this.friend,
       initiator: initiator ?? this.initiator,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
@@ -72,30 +66,14 @@ class Friendship extends Equatable {
 
   /// Helper getters for UI display
   bool get isPending => status == 'pending';
-  bool get isAccepted => status == 'accepted';
-  bool get isRejected => status == 'rejected';
-  bool get isBlocked => status == 'blocked';
-
-  String get statusDisplay {
-    switch (status) {
-      case 'pending':
-        return 'Pending';
-      case 'accepted':
-        return 'Friends';
-      case 'rejected':
-        return 'Rejected';
-      case 'blocked':
-        return 'Blocked';
-      default:
-        return status;
-    }
-  }
+  UserSummary get sender => initiator;
+  String get senderName =>
+      initiator.fullName.isNotEmpty ? initiator.fullName : initiator.username;
 
   @override
   List<Object?> get props => [
     id,
     user,
-    friend,
     initiator,
     status,
     createdAt,
@@ -104,5 +82,5 @@ class Friendship extends Equatable {
 
   @override
   String toString() =>
-      'Friendship(id: $id, status: $status, friend: ${friend.username})';
+      'FriendRequestDetail(id: $id, from: ${initiator.username}, status: $status)';
 }

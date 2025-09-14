@@ -147,7 +147,7 @@ class _PlanFormPageState extends State<PlanFormPage> {
             'end_date': result.endDate?.toIso8601String(),
             'is_public': result.isPublic,
             'plan_type': result.planType,
-            'group_id': result.groupId,
+            'group_id': result.group?.id,
           },
         });
       } else {
@@ -171,7 +171,7 @@ class _PlanFormPageState extends State<PlanFormPage> {
             'end_date': result.endDate?.toIso8601String(),
             'is_public': result.isPublic,
             'plan_type': result.planType,
-            'group_id': result.groupId,
+            'group_id': result.group?.id,
           },
         });
       }

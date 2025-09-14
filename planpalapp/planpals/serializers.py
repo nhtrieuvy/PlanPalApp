@@ -1,8 +1,5 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from django.db import models
-from django.utils import timezone
-from django.core.cache import cache
 from .models import (
     Plan, Group, GroupMembership, ChatMessage, Conversation,
     Friendship, PlanActivity, MessageReadStatus
@@ -11,17 +8,12 @@ from .models import (
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
-    """
-    Full User serializer - optimized with property-based fields
-    Business logic in model, presentation logic here
-    """
-    
+class UserSerializer(serializers.ModelSerializer):    
     # Use model properties directly for computed fields
-    online_status = serializers.CharField(source='online_status', read_only=True)
-    avatar_url = serializers.CharField(source='avatar_url', read_only=True)
-    has_avatar = serializers.BooleanField(source='has_avatar', read_only=True)
-    is_recently_online = serializers.BooleanField(source='is_recently_online', read_only=True)
+    online_status = serializers.CharField(read_only=True)
+    avatar_url = serializers.CharField(read_only=True)
+    has_avatar = serializers.BooleanField(read_only=True)
+    is_recently_online = serializers.BooleanField(read_only=True)
     
     # Count fields - use with_cached_counts() for optimization
     plans_count = serializers.IntegerField(read_only=True)
@@ -45,14 +37,12 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'date_joined', 'last_seen', 'is_online']
     
     def to_representation(self, instance):
-        """Add presentation-only computed fields"""
         data = super().to_representation(instance)
         data['full_name'] = instance.get_full_name() or instance.username
         data['initials'] = self._get_initials(instance)
         return data
     
     def _get_initials(self, instance):
-        """Helper method for UI initials display"""
         if instance.first_name and instance.last_name:
             return f"{instance.first_name[0]}{instance.last_name[0]}".upper()
         elif instance.first_name:
@@ -61,7 +51,6 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    """Serializer cho user registration"""
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True)
     
@@ -94,10 +83,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserSummarySerializer(serializers.ModelSerializer):
-    """Lightweight User serializer for nested representations"""
-    avatar_url = serializers.CharField(source='avatar_url', read_only=True)
-    has_avatar = serializers.BooleanField(source='has_avatar', read_only=True)
-    online_status = serializers.CharField(source='online_status', read_only=True)
+    avatar_url = serializers.CharField(read_only=True)
+    has_avatar = serializers.BooleanField(read_only=True)
+    online_status = serializers.CharField(read_only=True)
     
     class Meta:
         model = User
@@ -108,14 +96,12 @@ class UserSummarySerializer(serializers.ModelSerializer):
         ]
     
     def to_representation(self, instance):
-        """Add presentation-only computed fields"""
         data = super().to_representation(instance)
         data['full_name'] = instance.get_full_name() or instance.username
         data['initials'] = self._get_initials(instance)
         return data
     
     def _get_initials(self, instance):
-        """Helper method for UI initials display"""
         if instance.first_name and instance.last_name:
             return f"{instance.first_name[0]}{instance.last_name[0]}".upper()
         elif instance.first_name:
@@ -124,7 +110,6 @@ class UserSummarySerializer(serializers.ModelSerializer):
 
 
 class GroupMembershipSerializer(serializers.ModelSerializer):
-    """Serializer cho GroupMembership"""
     user = UserSummarySerializer(read_only=True)
     
     class Meta:
@@ -136,23 +121,19 @@ class GroupMembershipSerializer(serializers.ModelSerializer):
 
 
 class GroupSerializer(serializers.ModelSerializer):
-    """
-    Full group detail serializer - optimized with model properties
-    Business logic in model, presentation logic here
-    """
     admin = UserSummarySerializer(read_only=True)
     memberships = GroupMembershipSerializer(many=True, read_only=True)
     
     # Use model properties directly
-    member_count = serializers.IntegerField(source='member_count', read_only=True)
+    member_count = serializers.IntegerField(read_only=True)
     plans_count = serializers.IntegerField(read_only=True)
     active_plans_count = serializers.IntegerField(read_only=True)
     
     # Avatar and cover properties from model
-    avatar_url = serializers.CharField(source='avatar_url', read_only=True)
-    has_avatar = serializers.BooleanField(source='has_avatar', read_only=True)
-    cover_image_url = serializers.CharField(source='cover_image_url', read_only=True)
-    has_cover_image = serializers.BooleanField(source='has_cover_image', read_only=True)
+    avatar_url = serializers.CharField(read_only=True)
+    has_avatar = serializers.BooleanField(read_only=True)
+    cover_image_url = serializers.CharField(read_only=True)
+    has_cover_image = serializers.BooleanField(read_only=True)
     
     # Context-dependent fields
     is_member = serializers.SerializerMethodField()
@@ -172,13 +153,11 @@ class GroupSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'admin', 'created_at', 'updated_at']
     
     def to_representation(self, instance):
-        """Add presentation-only computed fields"""
         data = super().to_representation(instance)
         data['initials'] = self._get_group_initials(instance)
         return data
     
     def _get_group_initials(self, instance):
-        """Helper method for UI initials display"""
         if not instance.name:
             return 'G'
         
@@ -189,7 +168,6 @@ class GroupSerializer(serializers.ModelSerializer):
         return instance.name[:2].upper()
     
     def get_is_member(self, obj):
-        """Check if current user is member - use model method"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.is_member(request.user)
@@ -197,37 +175,30 @@ class GroupSerializer(serializers.ModelSerializer):
     
     
     def get_can_edit(self, obj):
-        """Check if current user can edit group - use model method"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.is_admin(request.user)
         return False
     
     def get_can_delete(self, obj):
-        """Check if current user can delete group"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.admin == request.user
         return False
     
     def create(self, validated_data):
-        """Create group with auto-setup - business logic in model"""
         request = self.context.get('request')
         validated_data['admin'] = request.user
         return super().create(validated_data)
 
 
 class GroupCreateSerializer(serializers.ModelSerializer):
-    """
-    Optimized serializer for group creation with initial members
-    Business logic moved to model methods
-    """
     # Use model properties directly
-    avatar_url = serializers.CharField(source='avatar_url', read_only=True)
-    has_avatar = serializers.BooleanField(source='has_avatar', read_only=True)
-    cover_image_url = serializers.CharField(source='cover_image_url', read_only=True)
-    has_cover_image = serializers.BooleanField(source='has_cover_image', read_only=True)
-    member_count = serializers.IntegerField(source='member_count', read_only=True)
+    avatar_url = serializers.CharField(read_only=True)
+    has_avatar = serializers.BooleanField(read_only=True)
+    cover_image_url = serializers.CharField(read_only=True)
+    has_cover_image = serializers.BooleanField(read_only=True)
+    member_count = serializers.IntegerField(read_only=True)
     
     admin = UserSummarySerializer(read_only=True)
     
@@ -249,13 +220,11 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'admin', 'created_at', 'updated_at']
 
     def to_representation(self, instance):
-        """Add presentation-only computed fields"""
         data = super().to_representation(instance)
         data['initials'] = self._get_group_initials(instance)
         return data
     
     def _get_group_initials(self, instance):
-        """Helper method for UI initials display"""
         if not instance.name:
             return 'G'
         
@@ -266,19 +235,16 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         return instance.name[:2].upper()
 
     def validate_name(self, value):
-        """Validate group name"""
         if len(value.strip()) < 3:
-            raise serializers.ValidationError("Tên nhóm phải có ít nhất 3 ký tự")
+            raise serializers.ValidationError("Group name must be at least 3 characters")
         return value.strip()
     
     def validate_initial_members(self, value):
-        """Validate initial members list - use model methods"""
         if len(value) < 2:
-            raise serializers.ValidationError("Cần ít nhất 2 bạn bè để tạo nhóm")
+            raise serializers.ValidationError("At least 2 friends are required to create a group")
         
-        # Check for duplicates
         if len(value) != len(set(value)):
-            raise serializers.ValidationError("Không thể thêm cùng một người nhiều lần")
+            raise serializers.ValidationError("Cannot add the same person multiple times")
         
         request = self.context.get('request')
         if not request:
@@ -286,32 +252,28 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         
         current_user = request.user
         
-        # Check if current user is in the list (shouldn't be)
         if str(current_user.id) in [str(uid) for uid in value]:
-            raise serializers.ValidationError("Không thể thêm chính mình vào nhóm")
+            raise serializers.ValidationError("Cannot add yourself to the group")
         
-        # Use model method for validation
         for user_id in value:
             try:
                 target_user = User.objects.get(id=user_id)
             except User.DoesNotExist:
-                raise serializers.ValidationError(f"User với ID {user_id} không tồn tại")
+                raise serializers.ValidationError(f"User with ID {user_id} does not exist")
             
             if not Friendship.are_friends(current_user, target_user):
                 raise serializers.ValidationError(
-                    f"Chỉ có thể thêm bạn bè vào nhóm. {target_user.username} chưa phải là bạn bè"
+                    f"Only friends can be added to the group. {target_user.username} is not a friend"
                 )
         return value
     
     def create(self, validated_data):
-        """Create group with initial members - delegate to model"""
         request = self.context.get('request')
         initial_members = validated_data.pop('initial_members')
         validated_data['admin'] = request.user
         
         group = super().create(validated_data)
         
-        # Add initial members using model method
         for user_id in initial_members:
             user = User.objects.get(id=user_id)
             group.add_member(user, role='member')
@@ -320,12 +282,8 @@ class GroupCreateSerializer(serializers.ModelSerializer):
 
 
 class GroupSummarySerializer(serializers.ModelSerializer):
-    """
-    Lightweight group summary for list views
-    Uses model properties for optimization
-    """
-    member_count = serializers.IntegerField(source='member_count', read_only=True)
-    avatar_url = serializers.CharField(source='avatar_url', read_only=True)
+    member_count = serializers.IntegerField(read_only=True)
+    avatar_url = serializers.CharField(read_only=True)
     
     class Meta:
         model = Group
@@ -335,13 +293,11 @@ class GroupSummarySerializer(serializers.ModelSerializer):
         ]
     
     def to_representation(self, instance):
-        """Add presentation-only computed fields"""
         data = super().to_representation(instance)
         data['initials'] = self._get_group_initials(instance)
         return data
     
     def _get_group_initials(self, instance):
-        """Helper method for UI initials display"""
         if not instance.name:
             return 'G'
         
@@ -353,13 +309,9 @@ class GroupSummarySerializer(serializers.ModelSerializer):
 
 
 class PlanActivitySerializer(serializers.ModelSerializer):
-    """
-    Optimized PlanActivity serializer
-    Uses model properties where possible, presentation logic here
-    """
     # Use model properties directly
-    duration_hours = serializers.FloatField(source='duration_hours', read_only=True)
-    has_location = serializers.BooleanField(source='has_location', read_only=True)
+    duration_hours = serializers.FloatField(read_only=True)
+    has_location = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = PlanActivity
@@ -373,7 +325,6 @@ class PlanActivitySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def to_representation(self, instance):
-        """Add presentation-only computed fields"""
         data = super().to_representation(instance)
         data['duration_display'] = self._get_duration_display(instance)
         data['activity_type_display'] = self._get_activity_type_display(instance)
@@ -381,7 +332,6 @@ class PlanActivitySerializer(serializers.ModelSerializer):
         return data
     
     def _get_duration_display(self, instance):
-        """Helper method for duration display formatting"""
         hours = instance.duration_hours
         if hours == 0:
             return "Chưa xác định"
@@ -398,7 +348,6 @@ class PlanActivitySerializer(serializers.ModelSerializer):
             return f"{days} ngày {remaining_hours:.1f} giờ"
     
     def _get_activity_type_display(self, instance):
-        """Helper method for activity type with icons"""
         type_icons = {
             'eating': '🍽️ Ăn uống',
             'resting': '🛏️ Nghỉ ngơi',
@@ -415,7 +364,6 @@ class PlanActivitySerializer(serializers.ModelSerializer):
         return type_icons.get(instance.activity_type, instance.activity_type)
     
     def _get_maps_url(self, instance):
-        """Helper method for Google Maps URL generation"""
         if instance.has_location:
             return f"https://www.google.com/maps?q={instance.latitude},{instance.longitude}"
         elif instance.location_name:
@@ -423,14 +371,13 @@ class PlanActivitySerializer(serializers.ModelSerializer):
         return None
     
     def validate(self, attrs):
-        """Basic validation - complex logic delegated to model"""
         start_time = attrs.get('start_time')
         end_time = attrs.get('end_time')
         
         # Basic time validation
         if start_time and end_time and end_time <= start_time:
             raise serializers.ValidationError(
-                "Thời gian kết thúc phải sau thời gian bắt đầu"
+                "End time must be after start time"
             )
         
         # Delegate complex validation to model
@@ -441,17 +388,13 @@ class PlanActivitySerializer(serializers.ModelSerializer):
                 exclude_id = self.instance.id if self.instance else None
                 if plan.check_activity_overlap(start_time, end_time, exclude_id):
                     raise serializers.ValidationError(
-                        "Hoạt động bị trùng thời gian với hoạt động khác"
+                        "Activity overlaps with another activity"
                     )
         
         return attrs
 
 
 class PlanSerializer(serializers.ModelSerializer):
-    """
-    Optimized Plan serializer
-    Uses model properties and methods, presentation logic here
-    """
     creator = UserSummarySerializer(read_only=True)
     group = GroupSummarySerializer(read_only=True)
     activities = PlanActivitySerializer(many=True, read_only=True)
@@ -462,10 +405,9 @@ class PlanSerializer(serializers.ModelSerializer):
     group_name = serializers.CharField(source='group.name', read_only=True)
     
     # Use model properties directly
-    duration_days = serializers.IntegerField(source='duration_days', read_only=True)
-    activities_count = serializers.IntegerField(source='activities_count', read_only=True)
+    duration_days = serializers.IntegerField(read_only=True)
+    activities_count = serializers.IntegerField(read_only=True)
     total_estimated_cost = serializers.DecimalField(
-        source='total_estimated_cost', 
         max_digits=12, 
         decimal_places=2, 
         read_only=True
@@ -488,14 +430,12 @@ class PlanSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'creator', 'plan_type', 'created_at', 'updated_at']
     
     def to_representation(self, instance):
-        """Add presentation-only computed fields"""
         data = super().to_representation(instance)
         data['duration_display'] = self._get_duration_display(instance)
         data['status_display'] = self._get_status_display(instance)
         return data
     
     def _get_duration_display(self, instance):
-        """Helper method for duration display formatting"""
         days = instance.duration_days
         if days == 0:
             return "Chưa xác định"
@@ -505,7 +445,6 @@ class PlanSerializer(serializers.ModelSerializer):
             return f"{days} ngày"
     
     def _get_status_display(self, instance):
-        """Helper method for status display with icons"""
         status_map = {
             'upcoming': '⏳ Sắp bắt đầu',
             'ongoing': '🏃 Đang diễn ra',
@@ -515,7 +454,6 @@ class PlanSerializer(serializers.ModelSerializer):
         return status_map.get(instance.status, instance.status)
     
     def get_can_view(self, obj):
-        """Check if current user can view plan - use model methods"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             user = request.user
@@ -537,7 +475,6 @@ class PlanSerializer(serializers.ModelSerializer):
     
     
     def get_can_edit(self, obj):
-        """Check if current user can edit plan - use model methods"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             user = request.user
@@ -554,26 +491,23 @@ class PlanSerializer(serializers.ModelSerializer):
         return False
     
     def get_collaborators(self, obj):
-        """Get plan collaborators - use model property"""
         collaborators = obj.collaborators
         return UserSummarySerializer(collaborators, many=True, context=self.context).data
     
     def validate(self, attrs):
-        """Basic validation - delegate complex logic to model"""
         if attrs.get('start_date') and attrs.get('end_date'):
             if attrs['end_date'] <= attrs['start_date']:
                 raise serializers.ValidationError(
-                    "Ngày kết thúc phải sau ngày bắt đầu"
+                    "End time must be after start time"
                 )
         
-        # Validate group access using model methods
         group_id = attrs.get('group_id')
         instance = getattr(self, 'instance', None)
         if instance:
             if instance.plan_type == 'personal' and group_id:
-                raise serializers.ValidationError("Kế hoạch cá nhân không thể gán nhóm")
+                raise serializers.ValidationError("Personal plans cannot be assigned to a group")
             if instance.plan_type == 'group' and ('group_id' in attrs) and group_id is None:
-                raise serializers.ValidationError("Kế hoạch nhóm phải thuộc một nhóm")
+                raise serializers.ValidationError("Group plans must belong to a group")
 
         if group_id:
             try:
@@ -582,21 +516,19 @@ class PlanSerializer(serializers.ModelSerializer):
                 if request and request.user.is_authenticated:
                     if not group.is_member(request.user):
                         raise serializers.ValidationError(
-                            "Bạn không phải thành viên của nhóm này"
+                            "You are not a member of this group"
                         )
             except Group.DoesNotExist:
-                raise serializers.ValidationError("Nhóm không tồn tại")
-        
+                raise serializers.ValidationError("Group does not exist")
+
         return attrs
     
     def create(self, validated_data):
-        """Create plan with proper setup"""
         request = self.context.get('request')
         validated_data['creator'] = request.user
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        """Update plan respecting business rules"""
         if 'group_id' in validated_data:
             group_id = validated_data.pop('group_id')
             if instance.plan_type == 'personal':
@@ -606,16 +538,12 @@ class PlanSerializer(serializers.ModelSerializer):
                     group = Group.objects.get(id=group_id)
                     validated_data['group'] = group
                 except Group.DoesNotExist:
-                    raise serializers.ValidationError("Nhóm không tồn tại")
+                    raise serializers.ValidationError("Group does not exist")
         
         return super().update(instance, validated_data)
 
 
 class PlanCreateSerializer(serializers.ModelSerializer):
-    """
-    Simplified serializer for plan creation
-    Business logic delegated to model methods
-    """
     plan_type = serializers.ChoiceField(
         choices=[('personal', 'Cá nhân'), ('group', 'Nhóm')], 
         required=True
@@ -630,17 +558,15 @@ class PlanCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_title(self, value):
-        """Validate plan title"""
         if len(value.strip()) < 3:
-            raise serializers.ValidationError("Tiêu đề phải có ít nhất 3 ký tự")
+            raise serializers.ValidationError("Title must be at least 3 characters")
         return value.strip()
 
     def validate(self, attrs):
-        """Validate plan creation data"""
         if attrs.get('start_date') and attrs.get('end_date'):
             if attrs['end_date'] <= attrs['start_date']:
                 raise serializers.ValidationError(
-                    "Ngày kết thúc phải sau ngày bắt đầu"
+                    "End time must be after start time"
                 )
         
         plan_type = attrs.get('plan_type')
@@ -648,64 +574,45 @@ class PlanCreateSerializer(serializers.ModelSerializer):
         
         if plan_type == 'group':
             if not group_id:
-                raise serializers.ValidationError("Kế hoạch nhóm phải chọn nhóm")
+                raise serializers.ValidationError("Group plans must belong to a group")
             
-            # Validate group access using service layer
             try:
                 group = Group.objects.get(id=group_id)
                 request = self.context.get('request')
                 if request and request.user.is_authenticated:
-                    from .integrations import group_service
                     if not GroupMembership.objects.filter(group=group, user=request.user).exists():
                         raise serializers.ValidationError(
-                            "Bạn không phải thành viên của nhóm này"
+                            "You are not a member of this group"
                         )
+                # Store resolved group for the view to use
+                attrs['group'] = group
             except Group.DoesNotExist:
-                raise serializers.ValidationError("Nhóm không tồn tại")
+                raise serializers.ValidationError("Group does not exist")
         elif plan_type == 'personal':
             if group_id:
-                raise serializers.ValidationError("Kế hoạch cá nhân không thể thuộc nhóm")
+                raise serializers.ValidationError("Personal plans cannot belong to a group")
+            attrs['group'] = None
         else:
-            raise serializers.ValidationError("Loại kế hoạch không hợp lệ")
+            raise serializers.ValidationError("Invalid plan type")
         
         return attrs
 
     def create(self, validated_data):
-        """Create plan using service layer"""
-        plan_type = validated_data.get('plan_type', 'personal')
-        group_id = validated_data.pop('group_id', None)
-        group = Group.objects.get(id=group_id) if group_id else None
-        
         request = self.context.get('request')
+        if request and request.user and not request.user.is_anonymous:
+            validated_data['creator'] = request.user
         
-        # Use service layer to create plan
-        from .integrations import plan_service
-        plan = plan_service.create_plan(
-            creator=request.user,
-            title=validated_data['title'],
-            description=validated_data.get('description', ''),
-            plan_type=plan_type,
-            group=group,
-            start_date=validated_data.get('start_date'),
-            end_date=validated_data.get('end_date'),
-            budget=validated_data.get('budget'),
-            is_public=validated_data.get('is_public', False)
-        )
-        
-        return plan
+        validated_data.pop('group_id', None)
+        return super().create(validated_data)
 
 
 class PlanSummarySerializer(serializers.ModelSerializer):
-    """
-    Lightweight Plan summary for list views
-    Uses model properties for optimization
-    """
     creator = UserSummarySerializer(read_only=True)
     group_name = serializers.CharField(source='group.name', read_only=True)
     
     # Use model properties directly
-    duration_days = serializers.IntegerField(source='duration_days', read_only=True)
-    activities_count = serializers.IntegerField(source='activities_count', read_only=True)
+    duration_days = serializers.IntegerField(read_only=True)
+    activities_count = serializers.IntegerField(read_only=True)
     
     class Meta:
         model = Plan
@@ -716,14 +623,12 @@ class PlanSummarySerializer(serializers.ModelSerializer):
         ]
     
     def to_representation(self, instance):
-        """Add presentation-only computed fields"""
         data = super().to_representation(instance)
         data['status_display'] = self._get_status_display(instance)
         data['duration_display'] = self._get_duration_display(instance)
         return data
     
     def _get_duration_display(self, instance):
-        """Helper method for duration display formatting"""
         days = instance.duration_days
         if days == 0:
             return "Chưa xác định"
@@ -733,7 +638,6 @@ class PlanSummarySerializer(serializers.ModelSerializer):
             return f"{days} ngày"
     
     def _get_status_display(self, instance):
-        """Helper method for status display with icons"""
         status_map = {
             'upcoming': '⏳ Sắp bắt đầu',
             'ongoing': '🏃 Đang diễn ra',
@@ -743,17 +647,13 @@ class PlanSummarySerializer(serializers.ModelSerializer):
         return status_map.get(instance.status, instance.status)
     
 class ChatMessageSerializer(serializers.ModelSerializer):
-    """
-    Optimized ChatMessage serializer with Cloudinary support
-    Uses model properties where possible, presentation logic here
-    """
     sender = UserSummarySerializer(read_only=True)
     reply_to = serializers.SerializerMethodField()
     
     # Use model properties directly where available
-    attachment_url = serializers.CharField(source='attachment_url', read_only=True)
-    attachment_size_display = serializers.CharField(source='attachment_size_display', read_only=True)
-    location_url = serializers.CharField(source='location_url', read_only=True)
+    attachment_url = serializers.CharField(read_only=True)
+    attachment_size_display = serializers.CharField(read_only=True)
+    location_url = serializers.CharField(read_only=True)
     
     # Context-dependent fields
     can_edit = serializers.SerializerMethodField()
@@ -776,7 +676,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         ]
     
     def get_reply_to(self, obj):
-        """Get reply to message info"""
         if obj.reply_to:
             return {
                 'id': obj.reply_to.id,
@@ -787,7 +686,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         return None
     
     def get_can_edit(self, obj):
-        """Check if current user can edit message"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             # Only sender can edit their own text messages
@@ -797,7 +695,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         return False
     
     def get_can_delete(self, obj):
-        """Check if current user can delete message"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             user = request.user
@@ -810,9 +707,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         return False
     
     def get_attachment_thumbnail(self, obj):
-        """Get attachment thumbnail for images"""
         if obj.attachment and obj.message_type == 'image':
-            # Use Cloudinary transformation for thumbnail
             try:
                 return obj.attachment.build_url(
                     width=150, height=150, crop='fill', quality='auto:good'
@@ -822,29 +717,20 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         return None
     
     def validate(self, attrs):
-        """Basic validation - delegate complex logic to model"""
-        # Location messages need coordinates
         if attrs.get('message_type') == 'location':
             if not (attrs.get('latitude') and attrs.get('longitude')):
                 raise serializers.ValidationError(
-                    "Location messages phải có coordinates"
+                    "Location messages must have coordinates"
                 )
         return attrs
     
     def create(self, validated_data):
-        """Create message with proper setup"""
         request = self.context.get('request')
         validated_data['sender'] = request.user
         return super().create(validated_data)
 
 
 class FriendshipSerializer(serializers.ModelSerializer):
-    """
-    Optimized Friendship serializer 
-    Uses canonical friendship model and efficient representation
-    """
-    # Note: user_a and user_b are internal canonical fields
-    # We expose logical user/friend based on context
     user = serializers.SerializerMethodField()
     friend = serializers.SerializerMethodField()
     initiator = UserSummarySerializer(read_only=True)
@@ -858,7 +744,6 @@ class FriendshipSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'user', 'friend', 'initiator', 'created_at', 'updated_at']
     
     def get_user(self, instance):
-        """Get the current user in the friendship"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             current_user = request.user
@@ -869,7 +754,6 @@ class FriendshipSerializer(serializers.ModelSerializer):
         return UserSummarySerializer(instance.initiator, context=self.context).data
     
     def get_friend(self, instance):
-        """Get the other user (friend) in the friendship"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             current_user = request.user
@@ -882,15 +766,10 @@ class FriendshipSerializer(serializers.ModelSerializer):
 
 
 class FriendRequestSerializer(serializers.Serializer):
-    """
-    Optimized friend request serializer
-    Uses model methods for validation and creation
-    """
     friend_id = serializers.UUIDField()
     message = serializers.CharField(max_length=200, required=False, allow_blank=True)
     
     def validate_friend_id(self, value):
-        """Validate friend request using model methods"""
         request = self.context['request']
         user = request.user
         
@@ -904,7 +783,6 @@ class FriendRequestSerializer(serializers.Serializer):
         if friend_user == user:
             raise serializers.ValidationError("Cannot send friend request to yourself")
         
-        # Use model method for existing friendship check
         existing = Friendship.between_users(user, friend_user)
         if existing:
             if existing.status == 'pending':
@@ -918,7 +796,6 @@ class FriendRequestSerializer(serializers.Serializer):
         return value
     
     def create(self, validated_data):
-        """Create friendship using model method"""
         request = self.context['request']
         # Use model class method for creation
         friendship = Friendship.create_request(
@@ -929,16 +806,13 @@ class FriendRequestSerializer(serializers.Serializer):
 
 
 class FriendsListSerializer(serializers.ModelSerializer):
-    """
-    Optimized serializer for friends list
-    Uses context for efficient data loading
-    """
+
     friendship_since = serializers.SerializerMethodField()
     mutual_friends_count = serializers.SerializerMethodField()
     
     # Use model properties directly
-    avatar_url = serializers.CharField(source='avatar_url', read_only=True)
-    online_status = serializers.CharField(source='online_status', read_only=True)
+    avatar_url = serializers.CharField(read_only=True)
+    online_status = serializers.CharField(read_only=True)
     
     class Meta:
         model = User
@@ -949,14 +823,12 @@ class FriendsListSerializer(serializers.ModelSerializer):
         ]
     
     def to_representation(self, instance):
-        """Add presentation-only computed fields"""
         data = super().to_representation(instance)
         data['full_name'] = instance.get_full_name() or instance.username
         data['initials'] = self._get_initials(instance)
         return data
     
     def _get_initials(self, instance):
-        """Helper method for UI initials display"""
         if instance.first_name and instance.last_name:
             return f"{instance.first_name[0]}{instance.last_name[0]}".upper()
         elif instance.first_name:
@@ -964,23 +836,17 @@ class FriendsListSerializer(serializers.ModelSerializer):
         return instance.username[0].upper() if instance.username else "U"
     
     def get_friendship_since(self, obj):
-        """Get friendship date - optimized with context"""
         friendships_map = self.context.get('friendships_map', {})
         friendship = friendships_map.get(obj.id)
         return friendship.created_at if friendship else None
     
     def get_mutual_friends_count(self, obj):
-        """Get mutual friends count - optimized with context"""
         # This can be pre-calculated and passed in context for better performance
         mutual_count = self.context.get('mutual_friends_count', {})
         return mutual_count.get(obj.id, 0)
 
 
 class MessageReadStatusSerializer(serializers.ModelSerializer):
-    """
-    Optimized MessageReadStatus serializer
-    Uses lightweight user representation
-    """
     user = UserSummarySerializer(read_only=True)
     
     class Meta:
@@ -988,8 +854,6 @@ class MessageReadStatusSerializer(serializers.ModelSerializer):
         fields = ['id', 'message', 'user', 'read_at']
         read_only_fields = ['id', 'user', 'read_at']
 
-
-# === Conversation Serializers ===
 
 class ConversationSerializer(serializers.ModelSerializer):
     participants = UserSummarySerializer(many=True, read_only=True)
@@ -1009,7 +873,6 @@ class ConversationSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'last_message_at']
     
     def to_representation(self, instance):
-        """Add context-aware display fields"""
         data = super().to_representation(instance)
         
         # Get current user from request context
@@ -1034,18 +897,14 @@ class ConversationSerializer(serializers.ModelSerializer):
         return data
     
     def get_unread_count(self, obj):
-        """Get unread messages count for current user"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.get_unread_count_for_user(request.user)
         return 0
     
     def get_last_message(self, obj):
-        """Get last message info"""
-        # Use prefetch_related or select_related for optimization
         last_message = getattr(obj, 'prefetched_last_message', None)
         if not last_message:
-            # Fallback query
             last_message = obj.messages.filter(is_deleted=False).order_by('-created_at').first()
         
         if last_message:
@@ -1060,11 +919,9 @@ class ConversationSerializer(serializers.ModelSerializer):
 
 
 class ConversationSummarySerializer(serializers.ModelSerializer):
-    # Context-dependent fields (computed in to_representation)
     avatar_url = serializers.CharField(read_only=True)
     unread_count = serializers.SerializerMethodField()
     
-    # Last message info (can be prefetched)
     last_message_preview = serializers.SerializerMethodField()
     
     class Meta:
@@ -1075,17 +932,13 @@ class ConversationSummarySerializer(serializers.ModelSerializer):
         ]
     
     def to_representation(self, instance):
-        """Add context-aware display fields for list view"""
         data = super().to_representation(instance)
         
-        # Get current user from request context
         request = self.context.get('request')
         current_user = request.user if request and request.user.is_authenticated else None
         
-        # Use model's context-aware methods
         data['avatar_url'] = instance.get_avatar_url(current_user)
         
-        # Add conversation type specific info
         if instance.conversation_type == 'group' and instance.group:
             data['group_id'] = instance.group.id
             data['member_count'] = instance.group.member_count
@@ -1098,15 +951,12 @@ class ConversationSummarySerializer(serializers.ModelSerializer):
         return data
     
     def get_unread_count(self, obj):
-        """Get unread messages count for current user"""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.get_unread_count_for_user(request.user)
         return 0
     
     def get_last_message_preview(self, obj):
-        """Get last message preview (optimized for list view)"""
-        # Check for prefetched data first
         if hasattr(obj, 'last_message_content') and obj.last_message_content:
             sender_name = "System"
             if hasattr(obj, 'last_message_sender_id') and obj.last_message_sender_id:
@@ -1122,7 +972,6 @@ class ConversationSummarySerializer(serializers.ModelSerializer):
                 'created_at': getattr(obj, 'last_message_time', obj.last_message_at)
             }
         
-        # Fallback to direct query if no prefetch
         last_message = obj.messages.filter(is_deleted=False).order_by('-created_at').first()
         if last_message:
             return {

@@ -218,9 +218,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     final members = g.members;
     final UserSummary? admin = g.admin;
     final adminName = admin?.fullName ?? '';
-    final adminAvatar = admin?.avatarThumb ?? '';
+    final adminAvatar = admin?.avatarUrl ?? '';
     final adminInitials = admin?.initials ?? '';
-    final coverUrl = g.coverImageUrl ?? '';
+    final coverUrl = g.coverImageUrl;
 
     return NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) => [
@@ -280,10 +280,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                           backgroundColor: Colors.white,
                           child: Builder(
                             builder: (context) {
-                              final groupAvatarUrl = g.avatarUrl ?? '';
-                              final groupInitials =
-                                  (g.initials?.isNotEmpty ?? false)
-                                  ? g.initials!
+                              final groupAvatarUrl = g.avatarUrl;
+                              final groupInitials = g.initials.isNotEmpty
+                                  ? g.initials
                                   : (name.isNotEmpty
                                         ? ((name
                                                       .trim()
@@ -362,8 +361,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           children: [
             _buildAdminCard(adminAvatar, adminName, adminInitials),
             const SizedBox(height: 16),
-            if (desc.isNotEmpty)
-              _buildInfoCard('Mô tả', desc, Icons.description_outlined),
+            if (desc?.isNotEmpty == true)
+              _buildInfoCard('Mô tả', desc!, Icons.description_outlined),
             const SizedBox(height: 16),
             _buildMembersCard(membersCount, members),
             const SizedBox(height: 16),
@@ -425,7 +424,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   Widget _buildMembersCard(int membersCount, List<UserSummary> members) {
     final currentUser = context.read<AuthProvider>().user;
-    final isAdmin = groupData?.admin?.id == currentUser?.id;
+    final isAdmin = groupData!.admin.id == currentUser?.id;
 
     return Card(
       elevation: 2,
@@ -518,7 +517,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                                                 : '?')))
                                   .toUpperCase())
                             : '?');
-                  final avatar = member.avatarThumb ?? '';
+                  final avatar = member.avatarUrl ?? '';
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -924,7 +923,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     if (!mounted) return;
 
     // Filter out users who are already members
-    final currentMemberIds = groupData?.members.map((m) => m.id).toSet() ?? {};
+    final currentMemberIds = groupData!.members.map((m) => m.id).toSet();
     final availableFriends = friends
         .where((friend) => !currentMemberIds.contains(friend.id))
         .toList();

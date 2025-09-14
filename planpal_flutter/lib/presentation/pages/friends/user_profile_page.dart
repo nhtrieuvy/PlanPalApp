@@ -583,14 +583,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         ? Colors.green
                         : Colors.grey,
                   ),
-                  if (widget.user.dateJoined != null) ...[
-                    const Divider(),
-                    _buildInfoRow(
-                      Icons.calendar_today,
-                      'Tham gia',
-                      _formatDate(widget.user.dateJoined!),
-                    ),
-                  ],
+                  const Divider(),
+                  _buildInfoRow(
+                    Icons.calendar_today,
+                    'Tham gia',
+                    _formatDate(widget.user.dateJoined),
+                  ),
                   if (widget.user.lastSeen != null &&
                       !widget.user.isOnline) ...[
                     const Divider(),

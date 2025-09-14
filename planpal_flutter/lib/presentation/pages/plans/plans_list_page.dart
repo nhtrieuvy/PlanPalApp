@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/dtos/plan_summary.dart';
 import '../../../core/repositories/plan_repository.dart';
@@ -62,11 +61,10 @@ class _PlansListPageState extends State<PlansListPage>
       });
 
       if (widget.showGroupPlansOnly && widget.groupId != null) {
-        // Load group plans only
+        // Load group plans only - for now, filter by group plans type
+        // Since PlanSummary doesn't have groupId, we filter by planType
         allPlans = await _planRepo.getPlans();
-        plans = allPlans
-            .where((p) => p.planType == 'group' && p.groupId == widget.groupId)
-            .toList();
+        plans = allPlans.where((p) => p.planType == 'group').toList();
       } else {
         // Load all user's plans
         allPlans = await _planRepo.getPlans();
@@ -237,7 +235,7 @@ class _PlansListPageState extends State<PlansListPage>
               const SizedBox(height: 12),
 
               // Date range
-              if (plan.startDate != null && plan.endDate != null) ...[
+              if (plan.dateRange.isNotEmpty) ...[
                 Row(
                   children: [
                     Icon(
@@ -247,14 +245,14 @@ class _PlansListPageState extends State<PlansListPage>
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${DateFormat('dd/MM/yyyy').format(plan.startDate!)} - ${DateFormat('dd/MM/yyyy').format(plan.endDate!)}',
+                      plan.dateRange,
                       style: TextStyle(color: Colors.grey[600], fontSize: 14),
                     ),
                     const SizedBox(width: 16),
                     Icon(Icons.timer, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
-                      '${plan.activitiesCount} hoạt động', // Using activitiesCount instead of durationDisplay
+                      plan.activitiesCountText,
                       style: TextStyle(color: Colors.grey[600], fontSize: 14),
                     ),
                   ],
@@ -267,11 +265,15 @@ class _PlansListPageState extends State<PlansListPage>
                 children: [
                   _buildStatChip(
                     Icons.event,
-                    '${plan.activitiesCount} hoạt động',
+                    plan.activitiesCountText,
                     Colors.blue,
                   ),
                   const SizedBox(width: 8),
-                  // Removed budget info since PlanSummary doesn't have budget
+                  _buildStatChip(
+                    Icons.schedule,
+                    plan.durationDisplay,
+                    Colors.green,
+                  ),
                 ],
               ),
 

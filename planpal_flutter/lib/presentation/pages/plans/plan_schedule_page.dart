@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../../core/dtos/plan_detail.dart';
+import '../../../core/dtos/plan_activity.dart';
 import '../../../core/repositories/plan_repository.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../widgets/common/loading_widget.dart';
@@ -25,7 +25,7 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
     with SingleTickerProviderStateMixin {
   late final PlanRepository _planRepo;
 
-  Map<String, List<ActivityItem>>? scheduleByDate;
+  Map<String, List<PlanActivity>>? scheduleByDate;
   Map<String, dynamic>? statistics;
   Map<String, dynamic>? permissions;
   bool isLoading = true;
@@ -53,7 +53,7 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
       // Parse schedule by date correctly
       final rawScheduleByDate =
           scheduleData['schedule_by_date'] as Map<String, dynamic>? ?? {};
-      final Map<String, List<ActivityItem>> parsedSchedule = {};
+      final Map<String, List<PlanActivity>> parsedSchedule = {};
 
       for (final entry in rawScheduleByDate.entries) {
         final dateKey = entry.key;
@@ -63,7 +63,7 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
             .whereType<Map<String, dynamic>>()
             .map((item) {
               try {
-                return ActivityItem.fromJson(Map<String, dynamic>.from(item));
+                return PlanActivity.fromJson(Map<String, dynamic>.from(item));
               } catch (e) {
                 rethrow;
               }
@@ -287,7 +287,7 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
     );
   }
 
-  Widget _buildDaySchedule(String date, List<ActivityItem> activities) {
+  Widget _buildDaySchedule(String date, List<PlanActivity> activities) {
     if (activities.isEmpty) {
       return Center(
         child: Column(
@@ -318,14 +318,11 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
     );
   }
 
-  Widget _buildActivityCard(ActivityItem activity, int index) {
-    final startTime = activity.startTime;
-    final endTime = activity.endTime;
-
+  Widget _buildActivityCard(PlanActivity activity, int index) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation:
-          2, // Removed isCompleted check since ActivityItem doesn't have it
+          2, // Removed isCompleted check since we're using PlanActivity properly now
       child: InkWell(
         onTap: () => _showActivityDetails(activity),
         borderRadius: BorderRadius.circular(8),
@@ -334,7 +331,7 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: _getActivityTypeColor(
-                activity.type,
+                activity.activityType,
               ).withValues(alpha: 0.3),
               width: 2,
             ),
@@ -353,21 +350,21 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
                       ),
                       decoration: BoxDecoration(
                         color: _getActivityTypeColor(
-                          activity.type,
+                          activity.activityType,
                         ).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        _getActivityTypeName(activity.type),
+                        _getActivityTypeName(activity.activityType),
                         style: TextStyle(
                           fontSize: 12,
-                          color: _getActivityTypeColor(activity.type),
+                          color: _getActivityTypeColor(activity.activityType),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                     const Spacer(),
-                    // Removed completion status since ActivityItem doesn't have isCompleted
+                    // Can now use isCompleted from PlanActivity
                     // IconButton for completion toggle would need backend support
                   ],
                 ),
@@ -380,11 +377,21 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
                     // Removed decoration and color since no completion status
                   ),
                 ),
-                // Removed description since ActivityItem doesn't have it
+                // Show description if available
+                if (activity.description != null &&
+                    activity.description!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    activity.description!,
+                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    if (startTime != null) ...[
+                    if (activity.startTime != null) ...[
                       Icon(
                         Icons.access_time,
                         size: 16,
@@ -392,45 +399,48 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${DateFormat('HH:mm').format(startTime)}${endTime != null ? ' - ${DateFormat('HH:mm').format(endTime)}' : ''}',
+                        activity.timeRange,
                         style: TextStyle(color: Colors.grey[600], fontSize: 14),
                       ),
-                      // Calculate and show duration if both times are available
-                      if (endTime != null) ...[
-                        const SizedBox(width: 16),
-                        Icon(Icons.timer, size: 16, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          _calculateDuration(startTime, endTime),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
+                      const SizedBox(width: 16),
+                    ],
+                    if (activity.hasLocation &&
+                        activity.locationName != null) ...[
+                      Icon(
+                        Icons.location_on,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        activity.locationName!,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(width: 16),
+                    ],
+                    if (activity.estimatedCost != null &&
+                        activity.estimatedCost! > 0) ...[
+                      Icon(
+                        Icons.attach_money,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        activity.costDisplay,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
                     ],
                   ],
                 ),
-                // Removed location info since ActivityItem doesn't have it
-                // Removed cost info since ActivityItem doesn't have it
               ],
             ),
           ),
         ),
       ),
     );
-  }
-
-  String _calculateDuration(DateTime start, DateTime end) {
-    final duration = end.difference(start);
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes % 60;
-
-    if (hours > 0) {
-      return '${hours}h ${minutes}m';
-    } else {
-      return '${minutes}m';
-    }
   }
 
   Color _getActivityTypeColor(String activityType) {
@@ -487,7 +497,7 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
     }
   }
 
-  void _showActivityDetails(ActivityItem activity) {
+  void _showActivityDetails(PlanActivity activity) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -497,9 +507,9 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Only show basic info available from ActivityItem
+              // Show all available info from PlanActivity
               Text('Loại:', style: Theme.of(context).textTheme.titleSmall),
-              Text(_getActivityTypeName(activity.type)),
+              Text(_getActivityTypeName(activity.activityType)),
               const SizedBox(height: 8),
               if (activity.startTime != null) ...[
                 Text(
@@ -511,7 +521,7 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
                 ),
                 const SizedBox(height: 8),
               ],
-              // Removed other fields since ActivityItem doesn't have them
+              // All fields are available from PlanActivity
             ],
           ),
         ),
@@ -544,7 +554,7 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
     }
   }
 
-  void _showEditActivityDialog(ActivityItem activity) {
+  void _showEditActivityDialog(PlanActivity activity) {
     // TODO: Implement edit activity dialog
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

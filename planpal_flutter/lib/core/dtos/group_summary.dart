@@ -1,34 +1,104 @@
-class GroupSummary {
+import 'package:equatable/equatable.dart';
+
+/// Utility function to validate image URLs
+bool _isValidImageUrl(String? url) {
+  if (url == null || url.isEmpty) return false;
+  final uri = Uri.tryParse(url);
+  return uri != null &&
+      uri.isAbsolute &&
+      (uri.scheme == 'http' || uri.scheme == 'https');
+}
+
+/// GroupSummary model matching backend GroupSummarySerializer
+/// Lightweight version of Group for lists and references
+class GroupSummary extends Equatable {
   final String id;
   final String name;
-  final String description;
+  final String? description;
   final int memberCount;
-  final bool isActive;
-  final String? avatarThumb;
-  final String? initials;
+  final String avatarUrl;
+  final DateTime createdAt;
+  final String initials;
 
   const GroupSummary({
     required this.id,
     required this.name,
-    required this.description,
+    this.description,
     required this.memberCount,
-    required this.isActive,
-    this.avatarThumb,
-    this.initials,
+    required this.avatarUrl,
+    required this.createdAt,
+    required this.initials,
   });
 
-  // factory là constructor đặc biệt cho phép chạy logic trước khi trả về một instance; nó không nhất thiết phải tạo object mới
-  factory GroupSummary.fromJson(Map<String, dynamic> gs) {
+  factory GroupSummary.fromJson(Map<String, dynamic> json) {
+    String validatedAvatarUrl = '';
+    final rawAvatarUrl = json['avatar_url']?.toString();
+    if (_isValidImageUrl(rawAvatarUrl)) {
+      validatedAvatarUrl = rawAvatarUrl!;
+    }
+
     return GroupSummary(
-      id: gs['id']?.toString() ?? '',
-      name: gs['name']?.toString() ?? '',
-      description: gs['description']?.toString() ?? '',
-      memberCount: gs['member_count'] is int
-          ? gs['member_count'] as int
-          : int.tryParse('${gs['member_count']}') ?? 0,
-      isActive: gs['is_active'] == true,
-      avatarThumb: gs['avatar_thumb']?.toString(),
-      initials: gs['initials']?.toString(),
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString(),
+      memberCount: json['member_count']?.toInt() ?? 0,
+      avatarUrl: validatedAvatarUrl,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'].toString())
+          : DateTime.now(),
+      initials: json['initials']?.toString() ?? 'G',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'member_count': memberCount,
+      'avatar_url': avatarUrl,
+      'created_at': createdAt.toIso8601String(),
+      'initials': initials,
+    };
+  }
+
+  GroupSummary copyWith({
+    String? id,
+    String? name,
+    String? description,
+    int? memberCount,
+    String? avatarUrl,
+    DateTime? createdAt,
+    String? initials,
+  }) {
+    return GroupSummary(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      memberCount: memberCount ?? this.memberCount,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      createdAt: createdAt ?? this.createdAt,
+      initials: initials ?? this.initials,
+    );
+  }
+
+  /// Helper getters for UI display
+  String get avatarForDisplay => avatarUrl.isNotEmpty ? avatarUrl : '';
+  String get memberCountText =>
+      '$memberCount ${memberCount == 1 ? 'member' : 'members'}';
+
+  @override
+  List<Object?> get props => [
+    id,
+    name,
+    description,
+    memberCount,
+    avatarUrl,
+    createdAt,
+    initials,
+  ];
+
+  @override
+  String toString() =>
+      'GroupSummary(id: $id, name: $name, memberCount: $memberCount)';
 }

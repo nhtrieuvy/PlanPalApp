@@ -1,25 +1,22 @@
 from django.db import transaction, models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from django.contrib.auth import get_user_model
 from typing import Dict, List, Optional, Tuple, Any
 import logging
 from oauth2_provider.models import AccessToken, RefreshToken
-from .serializers import UserSerializer        
 
 from uuid import UUID
 
 from .models import (
-    User, Group, Plan, PlanActivity, ChatMessage, Friendship, GroupMembership, FriendshipRejection
+    User, Group, Plan, PlanActivity, ChatMessage, Friendship, GroupMembership, FriendshipRejection, Conversation, MessageReadStatus
 )
 from .events import RealtimeEvent, EventType
 from .realtime_publisher import RealtimeEventPublisher
+from .tasks import start_plan_task, complete_plan_task
+from celery import current_app
+from .paginators import ManualCursorPaginator
 
 logger = logging.getLogger(__name__)
-
-# ============================================================================
-# BASE SERVICE CLASS
-# ============================================================================
 
 class BaseService:
     @staticmethod
@@ -40,7 +37,7 @@ class BaseService:
 class UserService(BaseService):
     @classmethod
     def get_user_with_counts(cls, user_id: UUID) -> User:
-        return User.objects.with_cached_counts().get(id=user_id)
+        return User.objects.with_counts().get(id=user_id)
     
     @classmethod
     def get_friendship_status(cls, current_user: User, target_user: User) -> Dict[str, Any]:
@@ -174,6 +171,9 @@ class UserService(BaseService):
     def update_user_profile(cls, user: User, data: Dict[str, Any]) -> Tuple[User, bool]:
         try:
             with transaction.atomic():
+                # Import locally to avoid circular import with serializers.py
+                from .serializers import UserSerializer
+
                 serializer = UserSerializer(user, data=data, partial=True)
                 if serializer.is_valid():
                     user = serializer.save()
@@ -229,7 +229,7 @@ class UserService(BaseService):
     
     @classmethod
     def get_friendship_stats(cls, user: User) -> Dict[str, Any]:
-        user = User.objects.with_cached_counts().get(id=user.id)
+        user = User.objects.with_counts().get(id=user.id)
         return {
             'friends_count': user.friends_count,
             'pending_sent_count': user.pending_sent_count,
@@ -577,15 +577,13 @@ class GroupService(BaseService):
         return True, "Admin demoted to member successfully."
     
     @classmethod
-    def search_user_groups(cls, user: User, query: str):
-        from .models import Group
-        
+    def search_user_groups(cls, user: User, query: str):        
         return Group.objects.filter(
             members=user
         ).filter(
             models.Q(name__icontains=query) |
             models.Q(description__icontains=query)
-        ).select_related('admin').prefetch_related('members__profile', 'memberships__user').with_full_stats()
+    ).select_related('admin').prefetch_related('members', 'memberships__user').with_full_stats()
 
 # ============================================================================
 # PLAN SERVICE
@@ -898,12 +896,9 @@ class PlanService(BaseService):
     
     @classmethod
     def cancel_trip(cls, plan: Plan, user: User = None, reason: str = None, force: bool = False):
-        """Cancel a trip - can be called from any status"""
-        # Check permissions if user is provided
         if user and not cls.can_edit_plan(plan, user):
             raise ValueError("Permission denied to cancel this plan")
         
-        # Validate current status (unless forced)
         if plan.status in ['cancelled', 'completed'] and not force:
             raise ValueError(f"Cannot cancel plan that is already {plan.status}")
         
@@ -942,26 +937,19 @@ class PlanService(BaseService):
     
     @classmethod
     def can_view_plan(cls, plan: Plan, user: User) -> bool:
-        """Check if user can view a plan"""
-        # Public plans can be viewed by anyone
         if plan.is_public:
             return True
         
-        # Creator can always view
         if plan.creator == user:
             return True
         
-        # Use model property for collaborators check
         return user in plan.collaborators
     
     @classmethod
     def can_edit_plan(cls, plan: Plan, user: User) -> bool:
-        """Check if user can edit a plan"""
-        # Creator can always edit
         if plan.creator == user:
             return True
         
-        # Group admins can edit group plans
         if plan.is_group_plan() and plan.group:
             return plan.group.is_admin(user)
         
@@ -969,15 +957,11 @@ class PlanService(BaseService):
     
     @classmethod
     def get_plan_statistics(cls, plan: Plan) -> Dict[str, Any]:
-        """Get comprehensive plan statistics - Use optimized QuerySet and model properties"""
-        # Use optimized QuerySet with annotations instead of loading all activities
         plan_with_stats = Plan.objects.with_stats().get(id=plan.id)
         
-        # Use model properties with annotation fallbacks
         activities_count = plan_with_stats.activities_count
         total_cost = plan_with_stats.total_estimated_cost
         
-        # Calculate completion rate if needed (could be added to QuerySet)
         completed_activities = plan.activities.filter(is_completed=True).count()
         completion_rate = (completed_activities / activities_count * 100) if activities_count > 0 else 0
         
@@ -992,7 +976,7 @@ class PlanService(BaseService):
                 'over_budget': False  # Add budget comparison logic if needed
             },
             'duration': {
-                'days': plan.duration_days,  # Use model property
+                'days': plan.duration_days,
                 'start_date': plan.start_date,
                 'end_date': plan.end_date
             },
@@ -1006,12 +990,9 @@ class PlanService(BaseService):
     
     @classmethod
     def get_plan_schedule(cls, plan: 'Plan', user: User) -> Dict[str, Any]:
-        """Get plan schedule organized by date with all activity details"""
         
-        # Get activities ordered by start time with location data
         activities = plan.activities.select_related('location').order_by('start_time')
         
-        # Group activities by date
         schedule_by_date = {}
         for activity in activities:
             if activity.start_time:
@@ -1024,7 +1005,6 @@ class PlanService(BaseService):
                         'activities': []
                     }
                 
-                # Calculate duration in minutes
                 duration_minutes = 0
                 if activity.start_time and activity.end_time:
                     duration_delta = activity.end_time - activity.start_time
@@ -1045,11 +1025,9 @@ class PlanService(BaseService):
                     'is_completed': activity.is_completed
                 })
         
-        # Calculate timeline statistics
         total_activities = activities.count()
         completed_activities = activities.filter(is_completed=True).count()
         
-        # Calculate total duration in minutes
         total_duration = 0
         for activity in activities:
             if activity.start_time and activity.end_time:
@@ -1078,139 +1056,15 @@ class PlanService(BaseService):
             }
         }
     
-    @classmethod
-    def _has_time_conflict(cls, plan: Plan, start_time, end_time) -> bool:
-        """Check if activity times conflict with existing activities - Use model method"""
-        if not start_time or not end_time:
-            return False
-        
-        return plan.has_time_conflict(start_time, end_time)
     
     @classmethod
     def get_plans_needing_updates(cls):
-        """Get plans that need status updates - Use QuerySet method"""
-        from .models import Plan
         return Plan.objects.plans_need_status_update()
     
-    @classmethod
-    def bulk_update_plan_statuses(cls) -> Dict[str, int]:
-        """Bulk update plan statuses based on dates with realtime events"""
-        from .models import Plan
-        now = timezone.now()
-        
-        # Use QuerySet method instead of manual filtering
-        plans_needing_update = Plan.objects.plans_need_status_update()
-        
-        # Get plans that will be updated for realtime events
-        upcoming_plans = list(plans_needing_update.filter(
-            status='upcoming'
-        ).values('id', 'title', 'group_id', 'creator_id'))
-        
-        ongoing_plans = list(plans_needing_update.filter(
-            status='ongoing'
-        ).values('id', 'title', 'group_id', 'creator_id'))
-        
-        # Perform bulk updates
-        upcoming_to_ongoing = Plan.objects.filter(
-            status='upcoming',
-            start_date__lte=now
-        ).update(
-            status='ongoing',
-            updated_at=now
-        )
-        
-        ongoing_to_completed = Plan.objects.filter(
-            status='ongoing',
-            end_date__lt=now
-        ).update(
-            status='completed', 
-            updated_at=now
-        )
-        
-        cls.log_operation("bulk_status_update", {
-            'upcoming_to_ongoing': upcoming_to_ongoing,
-            'ongoing_to_completed': ongoing_to_completed,
-            'total_updated': upcoming_to_ongoing + ongoing_to_completed
-        })
-        
-        # Publish realtime events for each updated plan
-        def _publish_bulk_events():
-            try:
-                publisher = RealtimeEventPublisher()
-                
-                # Publish events for upcoming -> ongoing
-                for plan_data in upcoming_plans:
-                    event = RealtimeEvent(
-                        event_type=EventType.PLAN_STATUS_CHANGED,
-                        plan_id=str(plan_data['id']),
-                        user_id=None,  # System update
-                        group_id=str(plan_data['group_id']) if plan_data['group_id'] else None,
-                        data={
-                            'plan_id': str(plan_data['id']),
-                            'title': plan_data['title'],
-                            'old_status': 'upcoming',
-                            'new_status': 'ongoing',
-                            'updated_by': 'system',
-                            'timestamp': now.isoformat(),
-                            'bulk_update': True
-                        }
-                    )
-                    publisher.publish_event(event, send_push=False)  # No push for bulk updates
-                
-                # Publish events for ongoing -> completed
-                for plan_data in ongoing_plans:
-                    event = RealtimeEvent(
-                        event_type=EventType.PLAN_STATUS_CHANGED,
-                        plan_id=str(plan_data['id']),
-                        user_id=None,  # System update
-                        group_id=str(plan_data['group_id']) if plan_data['group_id'] else None,
-                        data={
-                            'plan_id': str(plan_data['id']),
-                            'title': plan_data['title'],
-                            'old_status': 'ongoing',
-                            'new_status': 'completed',
-                            'updated_by': 'system',
-                            'timestamp': now.isoformat(),
-                            'bulk_update': True
-                        }
-                    )
-                    publisher.publish_event(event, send_push=False)  # No push for bulk updates
-                    
-            except Exception as e:
-                logger.warning(f"Failed to publish bulk update events: {e}")
-        
-        transaction.on_commit(_publish_bulk_events)
-        
-        return {
-            'upcoming_to_ongoing': upcoming_to_ongoing,
-            'ongoing_to_completed': ongoing_to_completed,
-            'total_updated': upcoming_to_ongoing + ongoing_to_completed
-        }
     
-    @classmethod
-    def _schedule_plan_tasks(cls, plan: Plan):
-        """Schedule Celery tasks for plan notifications and reminders"""
-        try:
-            from .tasks import schedule_plan_reminders
-            schedule_plan_reminders.delay(str(plan.id))
-        except ImportError:
-            logger.warning("Celery tasks not available for plan scheduling")
-    
-    @classmethod
-    def _cancel_plan_tasks(cls, plan: Plan):
-        """Cancel scheduled Celery tasks for a plan"""
-        try:
-            from .tasks import cancel_plan_reminders
-            cancel_plan_reminders.delay(str(plan.id))
-        except ImportError:
-            logger.warning("Celery tasks not available for plan cancellation")
-    
-    # === Business Logic moved from Plan model ===
-    
+
     @classmethod
     def revoke_scheduled_tasks(cls, plan: Plan) -> None:
-        """Revoke scheduled Celery tasks for a plan"""
-        from celery import current_app
         
         old_start_id = plan.scheduled_start_task_id
         old_end_id = plan.scheduled_end_task_id
@@ -1230,7 +1084,6 @@ class PlanService(BaseService):
             updates['scheduled_end_task_id'] = None
             
         if updates:
-            from .models import Plan
             Plan.objects.filter(
                 pk=plan.pk,
                 scheduled_start_task_id=old_start_id,
@@ -1239,7 +1092,6 @@ class PlanService(BaseService):
     
     @classmethod
     def refresh_plan_status(cls, plan: Plan) -> bool:
-        """Refresh plan status based on dates"""
         if not cls.needs_status_update(plan):
             return False
             
@@ -1261,7 +1113,6 @@ class PlanService(BaseService):
     
     @classmethod
     def needs_status_update(cls, plan: Plan) -> bool:
-        """Check if plan needs status update"""
         if not (plan.start_date and plan.end_date):
             return False
             
@@ -1273,7 +1124,6 @@ class PlanService(BaseService):
     
     @classmethod
     def get_expected_status(cls, plan: Plan) -> str:
-        """Get expected status based on dates"""
         if not (plan.start_date and plan.end_date):
             return plan.status
             
@@ -1287,112 +1137,13 @@ class PlanService(BaseService):
     
     @classmethod
     def get_plans_needing_updates(cls):
-        """Get plans that need status updates"""
-        from .models import Plan
         return Plan.objects.plans_need_status_update()
     
-    @classmethod
-    def bulk_update_plan_statuses(cls) -> Dict[str, int]:
-        """Bulk update plan statuses based on dates with realtime events"""
-        from .models import Plan
-        now = timezone.now()
-        
-        # Get plans that will be updated for realtime events
-        upcoming_plans = list(Plan.objects.filter(
-            status='upcoming',
-            start_date__lte=now
-        ).values('id', 'title', 'group_id', 'creator_id'))
-        
-        ongoing_plans = list(Plan.objects.filter(
-            status='ongoing',
-            end_date__lt=now
-        ).values('id', 'title', 'group_id', 'creator_id'))
-        
-        # Perform bulk updates
-        upcoming_to_ongoing = Plan.objects.filter(
-            status='upcoming',
-            start_date__lte=now
-        ).update(
-            status='ongoing',
-            updated_at=now
-        )
-        
-        ongoing_to_completed = Plan.objects.filter(
-            status='ongoing',
-            end_date__lt=now
-        ).update(
-            status='completed', 
-            updated_at=now
-        )
-        
-        cls.log_operation("bulk_status_update", {
-            'upcoming_to_ongoing': upcoming_to_ongoing,
-            'ongoing_to_completed': ongoing_to_completed,
-            'total_updated': upcoming_to_ongoing + ongoing_to_completed
-        })
-        
-        # Publish realtime events for each updated plan
-        def _publish_bulk_events():
-            try:
-                publisher = RealtimeEventPublisher()
-                
-                # Publish events for upcoming -> ongoing
-                for plan_data in upcoming_plans:
-                    event = RealtimeEvent(
-                        event_type=EventType.PLAN_STATUS_CHANGED,
-                        plan_id=str(plan_data['id']),
-                        user_id=None,  # System update
-                        group_id=str(plan_data['group_id']) if plan_data['group_id'] else None,
-                        data={
-                            'plan_id': str(plan_data['id']),
-                            'title': plan_data['title'],
-                            'old_status': 'upcoming',
-                            'new_status': 'ongoing',
-                            'updated_by': 'system',
-                            'timestamp': now.isoformat(),
-                            'bulk_update': True
-                        }
-                    )
-                    publisher.publish_event(event, send_push=False)  # No push for bulk updates
-                
-                # Publish events for ongoing -> completed
-                for plan_data in ongoing_plans:
-                    event = RealtimeEvent(
-                        event_type=EventType.PLAN_STATUS_CHANGED,
-                        plan_id=str(plan_data['id']),
-                        user_id=None,  # System update
-                        group_id=str(plan_data['group_id']) if plan_data['group_id'] else None,
-                        data={
-                            'plan_id': str(plan_data['id']),
-                            'title': plan_data['title'],
-                            'old_status': 'ongoing',
-                            'new_status': 'completed',
-                            'updated_by': 'system',
-                            'timestamp': now.isoformat(),
-                            'bulk_update': True
-                        }
-                    )
-                    publisher.publish_event(event, send_push=False)  # No push for bulk updates
-                    
-            except Exception as e:
-                logger.warning(f"Failed to publish bulk update events: {e}")
-        
-        transaction.on_commit(_publish_bulk_events)
-        
-        return {
-            'upcoming_to_ongoing': upcoming_to_ongoing,
-            'ongoing_to_completed': ongoing_to_completed,
-            'total_updated': upcoming_to_ongoing + ongoing_to_completed
-        }
+    
     
     @classmethod
     def _schedule_plan_tasks(cls, plan: Plan):
-        """Schedule Celery tasks for plan lifecycle"""
-        try:
-            # Lazy import to avoid circular dependency
-            from .tasks import start_plan_task, complete_plan_task
-            
-            # Schedule start task if plan has start date
+        try: 
             if plan.start_date:
                 start_task = start_plan_task.apply_async(
                     args=[str(plan.id)],
@@ -1400,7 +1151,6 @@ class PlanService(BaseService):
                 )
                 plan.scheduled_start_task_id = start_task.id
             
-            # Schedule end task if plan has end date
             if plan.end_date:
                 end_task = complete_plan_task.apply_async(
                     args=[str(plan.id)],
@@ -1408,11 +1158,9 @@ class PlanService(BaseService):
                 )
                 plan.scheduled_end_task_id = end_task.id
             
-            # Save task IDs
             plan.save(update_fields=['scheduled_start_task_id', 'scheduled_end_task_id'])
             
         except ImportError:
-            # Celery tasks not available - this is OK in development/testing
             pass
         except Exception as e:
             cls.log_operation("task_scheduling_failed", {
@@ -1422,21 +1170,17 @@ class PlanService(BaseService):
     
     @classmethod
     def _revoke_plan_tasks(cls, plan: Plan):
-        """Revoke scheduled Celery tasks for a plan"""
         old_start_id = plan.scheduled_start_task_id
         old_end_id = plan.scheduled_end_task_id
         
-        # Try to revoke tasks (best effort)
         for task_id in (old_start_id, old_end_id):
             if not task_id:
                 continue
             try:
-                from celery import current_app
                 current_app.control.revoke(task_id, terminate=False)
             except Exception:
                 pass
 
-        # Clear stored ids
         Plan.objects.filter(pk=plan.pk).update(
             scheduled_start_task_id=None,
             scheduled_end_task_id=None
@@ -1444,56 +1188,40 @@ class PlanService(BaseService):
     
     @classmethod
     def _schedule_completion_task(cls, plan: Plan):
-        """Schedule completion task for an ongoing plan"""
         if not plan.end_date:
             return
             
-        try:
-            from .tasks import complete_plan_task
-            
-            # Revoke existing end task if any
+        try:            
             if plan.scheduled_end_task_id:
                 try:
-                    from celery import current_app
                     current_app.control.revoke(plan.scheduled_end_task_id, terminate=False)
                 except Exception:
                     pass
             
-            # Schedule new completion task
             end_task = complete_plan_task.apply_async(
                 args=[str(plan.id)],
                 eta=plan.end_date
             )
             
-            # Update plan with new task id
             Plan.objects.filter(pk=plan.pk).update(
                 scheduled_end_task_id=end_task.id
             )
             
         except ImportError:
-            # Celery not available - OK in dev/test
             pass
         except Exception as e:
             logger.warning(f"Failed to schedule completion task: {e}")
 
 
-# ============================================================================
-# CHAT SERVICE
-# ============================================================================
-
 class ChatService(BaseService):
-    """Service for chat and messaging business logic"""
     
     @classmethod
     def send_message(cls, sender: User, group: 'Group', content: str, 
                     message_type: str = 'user') -> 'ChatMessage':
-        """Send a message to a group chat"""
         
-        # Validate group membership using model method
         if not group.is_member(sender):
             raise ValidationError("You must be a member of the group to send messages")
         
-        # Create message with validation
         try:
             message = ChatMessage(
                 sender=sender,
@@ -1501,7 +1229,7 @@ class ChatService(BaseService):
                 content=content,
                 message_type=message_type
             )
-            message.full_clean()  # Use model validation
+            message.full_clean()
             message.save()
         except ValidationError as e:
             raise ValidationError(f"Message creation failed: {str(e)}")
@@ -1517,22 +1245,16 @@ class ChatService(BaseService):
     
     @classmethod
     def get_group_messages(cls, user: User, group_id: str, limit: int = 50, before_id: str = None) -> Dict[str, Any]:
-        """Get paginated messages for a group with cursor pagination"""
-        from .models import Group, ChatMessage
-        from .paginators import ManualCursorPaginator
         
-        # Validate user access to group
         try:
             group = Group.objects.get(id=group_id, members=user)
         except Group.DoesNotExist:
             raise ValidationError("Group not found or access denied")
         
-        # Build base queryset
         queryset = ChatMessage.objects.filter(
             group=group
         ).select_related('sender').order_by('-created_at')
         
-        # Use manual cursor paginator
         result = ManualCursorPaginator.paginate_by_id(
             queryset=queryset,
             before_id=before_id,
@@ -1548,19 +1270,14 @@ class ChatService(BaseService):
         }
     
     @classmethod
-    def edit_message(cls, message: ChatMessage, user: User, new_content: str) -> Tuple[bool, str]:
-        """Edit a message with validation"""
-        
-        # Only sender can edit
+    def edit_message(cls, message: ChatMessage, user: User, new_content: str) -> Tuple[bool, str]:        
         if message.sender != user:
             return False, "Can only edit your own messages"
         
-        # Check edit time limit (15 minutes)
         edit_deadline = message.created_at + timezone.timedelta(minutes=15)
         if timezone.now() > edit_deadline:
             return False, "Message edit time expired (15 minutes limit)"
         
-        # Cannot edit system messages
         if message.message_type == 'system':
             return False, "Cannot edit system messages"
         
@@ -1576,9 +1293,7 @@ class ChatService(BaseService):
         return True, "Message edited successfully"
     
     @classmethod
-    def delete_message(cls, message: ChatMessage, user: User) -> Tuple[bool, str]:
-        """Delete a message with permission check"""
-        
+    def delete_message(cls, message: ChatMessage, user: User) -> Tuple[bool, str]:        
         # Sender or group admin can delete
         can_delete = (
             message.sender == user or 
@@ -1601,45 +1316,32 @@ class ChatService(BaseService):
     
     @classmethod
     def get_unread_count(cls, user: User, group: Group = None) -> int:
-        """Get unread messages count for user - Use optimized QuerySet methods"""
         if group:
-            # Unread count for specific group - Use QuerySet method
             return ChatMessage.objects.unread_for_user(user).for_group(group).count()
         else:
-            # Total unread count - Use cached property from User model
             return user.unread_messages_count
     
     @classmethod
     def mark_messages_as_read(cls, user: User, group: Group) -> None:
-        """Mark messages as read for user in group"""
-        # This would typically update a UserGroupReadStatus model
-        # For now, we'll just log the operation and clear cache
         cls.log_operation("messages_marked_read", {
             'user_id': user.id,
             'group_id': group.id,
             'timestamp': timezone.now()
         })
         
-        # Clear cached unread count
         user.clear_unread_cache()
     
     @classmethod
     def _get_last_read_time(cls, user: User, group: Group):
-        """Get the last time user read messages in group"""
-        # This would typically come from a UserGroupReadStatus model
-        # For now, return a default time
         return timezone.now() - timezone.timedelta(days=7)
 
     @classmethod
     def create_system_message(cls, conversation=None, group=None, content: str = ""):
-        """Create a system message. If a group is provided, ensure a group conversation exists."""
-        from .models import ChatMessage, Conversation
 
         if conversation is None and group is None:
             raise ValueError("Either conversation or group must be provided")
 
         with transaction.atomic():
-            # If group is provided, find or create the group conversation
             if group is not None:
                 conversation = Conversation.objects.filter(group=group).first()
                 if conversation is None:
@@ -1650,7 +1352,6 @@ class ChatService(BaseService):
                     )
                     conversation.full_clean()
                     conversation.save()
-                    # Ensure participants are in sync
                     try:
                         conversation.sync_group_participants()
                     except Exception:
@@ -1667,7 +1368,6 @@ class ChatService(BaseService):
             message.full_clean()
             message.save()
 
-            # Update denormalized last_message_at timestamp atomically
             if conversation is not None:
                 Conversation.objects.filter(pk=conversation.pk).update(last_message_at=message.created_at)
 
@@ -1685,23 +1385,18 @@ class ChatService(BaseService):
 # ============================================================================
 
 class NotificationService(BaseService):
-    """Service for notifications and alerts"""
     
     @classmethod
     def notify_plan_created(cls, plan_id: str, creator_name: str, group_id: str = None):
-        """Send notification when a plan is created"""
         cls.log_operation("plan_created_notification", {
             'plan_id': plan_id,
             'creator_name': creator_name,
             'group_id': group_id
         })
         
-        # Implementation would send actual notifications
-        # via email, push notifications, etc.
     
     @classmethod
     def notify_member_added(cls, group_id: str, user_id: str, added_by_id: str):
-        """Send notification when member is added to group"""
         cls.log_operation("member_added_notification", {
             'group_id': group_id,
             'user_id': user_id,
@@ -1710,7 +1405,6 @@ class NotificationService(BaseService):
     
     @classmethod
     def notify_friend_request(cls, from_user_id: str, to_user_id: str):
-        """Send notification for friend request"""
         cls.log_operation("friend_request_notification", {
             'from_user_id': from_user_id,
             'to_user_id': to_user_id
@@ -1720,10 +1414,7 @@ class ConversationService(BaseService):
     @classmethod
     def send_message_to_conversation(cls, conversation, sender: User, content: str, 
                                    message_type: str = 'text', **kwargs) -> 'ChatMessage':
-        """Send message to conversation with validation"""
-        from .models import ChatMessage, MessageReadStatus
         
-        # Validate sender is participant
         sender_id = getattr(sender, 'id', sender)
         if not conversation.participants.filter(id=sender_id).exists():
             raise ValidationError("Sender is not a participant of this conversation")
@@ -1740,8 +1431,6 @@ class ConversationService(BaseService):
                 message.full_clean()  # Use model validation
                 message.save()
                 
-                # Update denormalized timestamp atomically
-                from .models import Conversation
                 Conversation.objects.filter(pk=conversation.pk).update(last_message_at=message.created_at)
                 
                 cls.log_operation("conversation_message_sent", {
@@ -1756,7 +1445,6 @@ class ConversationService(BaseService):
     
     @classmethod
     def update_last_message_time(cls, conversation, timestamp=None):
-        """Update denormalized last_message_at field"""
         if timestamp is None:
             timestamp = timezone.now()
         
@@ -1765,25 +1453,19 @@ class ConversationService(BaseService):
     
     @classmethod
     def get_unread_count_for_user(cls, conversation, user):
-        """Get unread message count for specific user - Use QuerySet method"""
         return conversation.messages.unread_for_user(user).count()
     
     @classmethod
     def mark_as_read_for_user(cls, conversation, user, up_to_message=None):
-        """Mark messages as read for user"""
-        from .models import MessageReadStatus
-        
         messages = conversation.messages.active().exclude(sender=user)
-        
+
         if up_to_message:
             messages = messages.filter(created_at__lte=up_to_message.created_at)
         
-        # Get unread message IDs using QuerySet method
         unread_message_ids = messages.exclude(
             read_statuses__user=user
         ).values_list('id', flat=True)
         
-        # Bulk create read statuses
         if unread_message_ids:
             read_statuses = [
                 MessageReadStatus(message_id=msg_id, user=user)
@@ -1791,26 +1473,20 @@ class ConversationService(BaseService):
             ]
             MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
             
-            # Clear user's unread cache
             user.clear_unread_cache()
         
         return len(unread_message_ids)
     
     @classmethod
-    def get_or_create_direct_conversation(cls, user1: User, user2: User):
-        """Get or create direct conversation between two users"""
-        from .models import Conversation
-        
+    def get_or_create_direct_conversation(cls, user1: User, user2: User):        
         if user1 == user2:
             raise ValueError("Cannot create conversation with yourself")
         
-        # Try to find existing conversation using QuerySet method
         conversation = Conversation.objects.get_direct_conversation(user1, user2)
         
         if conversation:
             return conversation, False
         
-        # Create new direct conversation with validation
         try:
             conversation = Conversation(conversation_type='direct')
             conversation.full_clean()
@@ -1828,10 +1504,7 @@ class ConversationService(BaseService):
         return conversation, True
     
     @classmethod
-    def create_group_conversation(cls, group):
-        """Create conversation for group"""
-        from .models import Conversation
-        
+    def create_group_conversation(cls, group):        
         try:
             conversation = Conversation(
                 conversation_type='group',
@@ -1840,7 +1513,6 @@ class ConversationService(BaseService):
             conversation.full_clean()
             conversation.save()
             
-            # Sync participants with group members
             conversation.sync_group_participants()
         except ValidationError as e:
             raise ValidationError(f"Group conversation creation failed: {str(e)}")
@@ -1853,10 +1525,7 @@ class ConversationService(BaseService):
         return conversation
     
     @classmethod
-    def get_or_create_for_group(cls, group):
-        """Get or create conversation for existing group"""
-        from .models import Conversation
-        
+    def get_or_create_for_group(cls, group):        
         try:
             return group.conversation, False
         except Conversation.DoesNotExist:

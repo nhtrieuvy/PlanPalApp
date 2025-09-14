@@ -37,7 +37,7 @@ class _GroupPageState extends State<GroupPage> {
     try {
       final data = await _repo.getGroups();
       if (!mounted) return;
-  setState(() => _groups = data);
+      setState(() => _groups = data);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'Lỗi: $e');
@@ -50,10 +50,14 @@ class _GroupPageState extends State<GroupPage> {
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(builder: (_) => const GroupFormPage()),
     );
-    if (result != null && result['action'] == 'created' && result['group'] != null) {
+    if (result != null &&
+        result['action'] == 'created' &&
+        result['group'] != null) {
       final raw = Map<String, dynamic>.from(result['group'] as Map);
       GroupSummary? created;
-      try { created = GroupSummary.fromJson(raw); } catch (_) {}
+      try {
+        created = GroupSummary.fromJson(raw);
+      } catch (_) {}
       if (!mounted || created == null) return;
       setState(() => _groups = [created!, ..._groups]);
       ScaffoldMessenger.of(
@@ -73,7 +77,7 @@ class _GroupPageState extends State<GroupPage> {
           'id': detail.id,
           'name': detail.name,
           'description': detail.description,
-          'avatar_url': detail.avatarThumb, // may be null
+          'avatar_url': detail.avatarUrl, // may be null
           'cover_image_url': detail.coverImageUrl,
         };
       } catch (_) {
@@ -81,19 +85,27 @@ class _GroupPageState extends State<GroupPage> {
       }
     }
     final result = await navigator.push<Map<String, dynamic>>(
-      MaterialPageRoute(builder: (_) => GroupFormPage(initial: initial ?? {
-        'id': g.id,
-        'name': g.name,
-        'description': g.description,
-        'avatar_thumb': g.avatarThumb,
-      })),
+      MaterialPageRoute(
+        builder: (_) => GroupFormPage(
+          initial:
+              initial ??
+              {
+                'id': g.id,
+                'name': g.name,
+                'description': g.description,
+                'avatar_url': g.avatarUrl,
+              },
+        ),
+      ),
     );
     if (result != null &&
         result['action'] == 'updated' &&
         result['group'] != null) {
       final updatedRaw = Map<String, dynamic>.from(result['group'] as Map);
       GroupSummary? updated;
-      try { updated = GroupSummary.fromJson(updatedRaw); } catch (_) {}
+      try {
+        updated = GroupSummary.fromJson(updatedRaw);
+      } catch (_) {}
       final id = updatedRaw['id'];
       if (!mounted) return;
       // Evict cached images for this group so the list will show fresh images
@@ -104,7 +116,10 @@ class _GroupPageState extends State<GroupPage> {
         if (cover.isNotEmpty) CachedNetworkImage.evictFromCache(cover);
       } catch (_) {}
       if (updated != null) {
-        setState(() => _groups = _groups.map((e) => e.id == id ? updated! : e).toList());
+        setState(
+          () =>
+              _groups = _groups.map((e) => e.id == id ? updated! : e).toList(),
+        );
       }
       ScaffoldMessenger.of(
         context,
@@ -136,7 +151,7 @@ class _GroupPageState extends State<GroupPage> {
     try {
       await _repo.deleteGroup(id);
       if (!mounted) return;
-  setState(() => _groups = _groups.where((e) => e.id != id).toList());
+      setState(() => _groups = _groups.where((e) => e.id != id).toList());
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đã xoá nhóm')));
@@ -234,16 +249,16 @@ class _GroupPageState extends State<GroupPage> {
                     // fallback to initials if no avatar.
                     Builder(
                       builder: (_) {
-            final avatar = g.avatarThumb;
-            final initials = name
-              .trim()
-              .split(RegExp(r'\s+'))
-              .take(2)
-              .map((e) => e.isNotEmpty ? e[0] : '')
-              .join()
-              .toUpperCase();
+                        final avatar = g.avatarUrl;
+                        final initials = name
+                            .trim()
+                            .split(RegExp(r'\s+'))
+                            .take(2)
+                            .map((e) => e.isNotEmpty ? e[0] : '')
+                            .join()
+                            .toUpperCase();
 
-                        if (avatar != null && avatar.isNotEmpty) {
+                        if (avatar.isNotEmpty) {
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(16),
                             child: CachedNetworkImage(
@@ -317,7 +332,7 @@ class _GroupPageState extends State<GroupPage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          if (desc.isNotEmpty)
+                          if (desc != null && desc.isNotEmpty)
                             Text(
                               desc,
                               style: theme.textTheme.bodyMedium?.copyWith(
