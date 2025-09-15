@@ -1,598 +1,261 @@
-# 🌟 PlanPal - Travel Planning & Group Collaboration App
+# 🌟 PlanPal - Collaborative Travel Planning Platform
 
-**PlanPal** là ứng dụng lập kế hoạch du lịch nhóm với tính năng chat real-time, quản lý hoạt động, và tích hợp bản đồ Việt Nam (Goong API).
 
-## 📋 Mục Lục
-- [Tổng Quan Hệ Thống](#tổng-quan-hệ-thống)
-- [Chức năng Hệ Thống](#-chức-năng-hệ-thống)
-- [Yêu Cầu Hệ Thống](#yêu-cầu-hệ-thống)
-- [Setup Backend (Django)](#setup-backend-django)
-- [Setup Frontend (Flutter)](#setup-frontend-flutter)
-- [Chạy Toàn Bộ Hệ Thống](#chạy-toàn-bộ-hệ-thống)
-- [API Documentation](#api-documentation)
-- [Troubleshooting](#troubleshooting)
+**PlanPal** is a comprehensive travel planning application designed for seamless group collaboration. It features real-time chat, activity management, and dynamic map integration, providing a one-stop solution for organizing trips.
 
 ---
 
-## 🏗️ Tổng Quan Hệ Thống
+## 🏗️ System Architecture
 
-### **Architecture Overview**
+PlanPal is built on a robust client-server architecture, ensuring scalability and maintainability.
+
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Flutter App    │────│  Django API     │────│     MySQL       │
-│  (Mobile/Web)   │    │  (Backend)      │    │   (Database)    │
+│  Flutter App    │◀───▶│  Django REST    │◀───▶│     MySQL       │
+│  (Mobile/Web)   │    │    Framework    │    │   (Database)    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          │                       │                       │
     ┌─────────┐          ┌─────────────┐         ┌─────────────┐
     │Firebase │          │  Cloudinary │         │  Goong Maps │
-    │   FCM   │          │   (Media)   │         │    API      │
+    │   FCM   │          │(Media Storage)│         │ (Location API)│
     └─────────┘          └─────────────┘         └─────────────┘
 ```
 
-### **Core Features**
-- 👥 **User Management**: Authentication, profiles, friendships
-- 🏢 **Group Management**: Create/join groups, admin roles
-- 📅 **Plan Management**: Personal & group travel plans
-- 💬 **Real-time Chat**: Group messaging with attachments
-- 📍 **Location Services**: Vietnamese maps via Goong API
-- 🔔 **Push Notifications**: Firebase Cloud Messaging
-- 📱 **Cross-platform**: Android, iOS, Web support
+- **Frontend**: A cross-platform application built with Flutter, supporting Android, iOS, and Web.
+- **Backend**: A powerful API powered by Django REST Framework, handling all business logic.
+- **Database**: MySQL is used for production data storage, offering reliability and performance.
+- **External Services**:
+    - **Cloudinary**: Manages all media assets, including user avatars and message attachments.
+    - **Goong Maps API**: Provides Vietnam-specific location services, including search, geocoding, and nearby places.
+    - **Firebase**: Handles real-time push notifications via Firebase Cloud Messaging (FCM).
 
 ---
 
-## 🧩 Chức năng Hệ Thống
+## ✨ Core Features
 
 ### Backend (Django REST Framework)
-- Xác thực & Phiên đăng nhập
-  - Đăng nhập/đăng xuất theo kiểu OAuth2 (token access/refresh)
-  - Bảo vệ API bằng quyền hạn và middleware
-- Người dùng & Bạn bè
-  - Hồ sơ người dùng (avatar Cloudinary, họ tên, tiểu sử)
-  - Gửi/nhận lời mời kết bạn, chấp nhận/từ chối, danh sách bạn bè
-  - Đếm thông báo/tin nhắn chưa đọc theo người dùng
-- Nhóm (Groups)
-  - Tạo/xem/sửa/xoá nhóm; vai trò: admin/thành viên; kiểm tra quyền
-  - Tham gia nhóm (bằng mã mời hoặc ID phù hợp), danh sách admins, tin nhắn gần đây
-- Kế hoạch (Plans)
-  - Hỗ trợ 2 loại: cá nhân (personal) và nhóm (group)
-  - Tạo kế hoạch: title, description, start_date, end_date, is_public, plan_type, (group_id nếu là group)
-  - Mặc định status = "upcoming" khi tạo; validate ngày kết thúc > ngày bắt đầu
-  - Với kế hoạch nhóm: kiểm tra thành viên nhóm trước khi cho tạo/cập nhật; không cho gán nhóm với kế hoạch cá nhân
-  - Cập nhật: tôn trọng plan_type (cá nhân không thể có group; nhóm phải có group hợp lệ)
-  - Tính toán phụ trợ: duration, activities_count, tổng chi phí ước tính, trạng thái hiển thị, group_name
-- Hoạt động trong kế hoạch (Plan Activities)
-  - Thêm hoạt động: thời gian bắt đầu/kết thúc, địa điểm (tuỳ chọn), chi phí ước tính, ghi chú, thứ tự
-  - Chống chồng lấn thời gian hoạt động trong cùng kế hoạch
-- Nhắn tin nhóm (Messages)
-  - Gửi/sửa/xoá tin nhắn trong nhóm; đếm tin chưa đọc; danh sách theo nhóm
-  - Hỗ trợ tệp đính kèm qua Cloudinary; tin nhắn vị trí (lat/long, tên địa điểm)
-- Tích hợp ngoài
-  - Cloudinary (lưu media), Goong Maps (tìm kiếm, geocode, nearby), Firebase (FCM thông báo — tuỳ chọn)
+
+- **Authentication & Authorization**:
+  - Secure OAuth2-style authentication with access and refresh tokens.
+  - Permission-based access control to protect API endpoints.
+- **User & Social**:
+  - Complete user profiles with avatars (hosted on Cloudinary), bios, and contact information.
+  - Friendship management system (send, accept, reject invitations).
+  - Real-time counts for unread messages and notifications.
+- **Group Management**:
+  - Full CRUD functionality for groups with distinct roles (admin, member).
+  - Secure group joining via invite codes or direct IDs.
+  - Endpoints to list group members, administrators, and recent messages.
+- **Plan Management**:
+  - Supports both private (personal) and collaborative (group) travel plans.
+  - Comprehensive plan details: title, description, start/end dates, and public/private visibility.
+  - Automated plan status calculation (e.g., Upcoming, Ongoing, Completed).
+  - Business logic to ensure only group members can create or modify group plans.
+- **Activity & Itinerary**:
+  - Add, update, and delete plan activities with specified times, locations, and estimated costs.
+  - Built-in validation to prevent overlapping activity schedules within the same plan.
+- **Real-time Messaging**:
+  - Group-specific chat rooms for seamless communication.
+  - Support for rich media attachments (images, files) via Cloudinary.
+  - Location sharing within messages, including latitude/longitude and place names.
 
 ### Frontend (Flutter)
-- Xác thực & Hồ sơ
-  - Đăng nhập/đăng ký; xem/cập nhật hồ sơ cá nhân
-- Quản lý kế hoạch
-  - Danh sách/chi tiết/tạo/sửa/xoá kế hoạch
-  - Form tạo kế hoạch có radio chọn loại (Cá nhân/Nhóm); nếu chọn Nhóm sẽ yêu cầu chọn nhóm
-  - Validate đầu vào (tiêu đề tối thiểu 3 ký tự; ngày kết thúc sau ngày bắt đầu); hiển thị lỗi rõ ràng
-  - Hiển thị badge loại kế hoạch (Nhóm/Cá nhân), tên nhóm (nếu là nhóm), chip trạng thái, ngày bắt đầu/kết thúc
-- Quản lý nhóm
-  - Danh sách/chi tiết/tạo/sửa/xoá nhóm; hiển thị số thành viên, mô tả, quyền
-- Trải nghiệm người dùng
-  - Giao diện hiện đại, thống nhất; xử lý lỗi tập trung ở Repository để hiện thông báo dễ hiểu
-  - Hỗ trợ Android/iOS/Web; hot reload cho phát triển nhanh
 
+- **Authentication & Profile**:
+  - Intuitive screens for user login, registration, and password recovery.
+  - A dedicated section for users to view and update their personal profiles.
+- **Plan Management**:
+  - Clean and organized lists for viewing personal and group plans.
+  - User-friendly forms for creating, editing, and deleting plans with clear type selection (Personal/Group).
+  - Robust input validation to ensure data integrity (e.g., title length, valid date ranges).
+  - Informative UI components like badges for plan types, status chips, and date displays.
+- **Group Interaction**:
+  - Detailed views for group information, member lists, and administrative controls.
+  - Simple and effective interface for creating and managing groups.
+- **User Experience**:
+  - A modern, consistent, and responsive user interface.
+  - Centralized error handling to provide clear and helpful feedback to the user.
+  - Cross-platform compatibility for a native experience on Android, iOS, and the Web.
 
-## 🛠️ Yêu Cầu Hệ Thống
+---
 
-### **Backend Requirements**
+## 🛠️ Tech Stack
+
+| Category      | Technology                                       |
+|---------------|--------------------------------------------------|
+| **Backend**   | Python, Django, Django REST Framework            |
+| **Frontend**  | Flutter, Dart                                    |
+| **Database**  | MySQL (Production), SQLite (Development)         |
+| **Cache**     | Redis (Optional)                                 |
+| **Media**     | Cloudinary                                       |
+| **Maps**      | Goong Maps API                                   |
+| **Notifications**| Firebase Cloud Messaging (FCM)                |
+
+---
+
+## 🚀 Getting Started
+
+Follow these instructions to set up the project for local development.
+
+### 📋 Prerequisites
+
 - **Python**: 3.9+
-- **Django**: 4.2+
-- **MySQL**: 8.0+ (hoặc SQLite cho development)
-- **Redis**: 6+ (cho caching - optional)
-
-### **Frontend Requirements**
 - **Flutter SDK**: 3.32+
-- **Dart**: 3.0+
-- **Android Studio**: 2024.3+ (cho Android development)
-- **VS Code**: 1.80+ với Flutter extensions
+- **Database**: MySQL 8.0+
 
-### **External Services**
-- **Cloudinary**: Image/file storage
-- **Goong Maps API**: Vietnamese maps
-- **Firebase**: Push notifications
-- **MySQL**: Production database
+### 🔧 Backend Setup (Django)
 
----
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/trieuvyynXLe0/PlanPalApp.git
+    cd PlanPalApp/planpalapp
+    ```
 
-## 🔧 Setup Backend (Django)
+2.  **Create a Virtual Environment**:
+    ```bash
+    # Windows
+    python -m venv venv
+    venv\Scripts\activate
 
-### **1. Clone Repository**
-```bash
-git clone https://github.com/trieuvyynXLe0/PlanPalApp.git
-cd PlanPalApp
+    # macOS/Linux
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+
+3.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Configure Environment Variables**:
+    Create a `.env` file in the `planpalapp/` directory and add the following configuration.
+    
+    ```env
+    # Django Settings
+    SECRET_KEY=your-super-secret-django-key
+    DEBUG=True
+    ALLOWED_HOSTS=localhost,127.0.0.1
+
+    # Database (Example for MySQL)
+    DB_NAME=planpal_db
+    DB_USER=planpal_user
+    DB_PASSWORD=your_password
+    DB_HOST=localhost
+    DB_PORT=3306
+
+    # External Services
+    CLOUDINARY_CLOUD_NAME=your_cloud_name
+    CLOUDINARY_API_KEY=your_api_key
+    CLOUDINARY_API_SECRET=your_api_secret
+    GOONG_API_KEY=your_goong_api_key
+    FIREBASE_CREDENTIALS_PATH=../firebase-service-account.json
+    ```
+
+5.  **Run Database Migrations**:
+    ```bash
+    python manage.py makemigrations
+    python manage.py migrate
+    ```
+
+6.  **Create a Superuser**:
+    ```bash
+    python manage.py createsuperuser
+    ```
+
+7.  **Run the Development Server**:
+    ```bash
+    python manage.py runserver
+    ```
+    The backend will be available at `http://127.0.0.1:8000`.
+
+### ⚙️ Redis & Celery (Windows)
+
+PlanPal uses Redis as the Celery broker and for caching. On Windows you can run Redis via WSL2, a native Windows port (e.g., Chocolatey), or run Redis on another machine.
+
+Quick notes:
+- For development, WSL2 (Ubuntu) is recommended because the official Redis build targets Linux.
+- If you use a native Windows build (Chocolatey), add `redis-server` to PATH or install as a service.
+
+Start Redis (WSL recommended):
+
+```powershell
+# If using WSL2 (preferred):
+wsl -d Ubuntu -- bash -ic "redis-server --protected-mode no"
+
+# If redis-server is on PATH natively:
+redis-server
+
+# If installed via Chocolatey as a service:
+Start-Service redis
 ```
 
-### **2. Setup Python Environment**
-```bash
-# Tạo virtual environment
-python -m venv venv
+Start Celery worker (from `planpalapp/` and with virtualenv activated):
 
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
+```powershell
+# Activate virtualenv
+venv\Scripts\Activate
 
-# Upgrade pip
-python -m pip install --upgrade pip
+# Start Celery worker
+celery -A planpalapp worker --loglevel=info
 ```
 
-### **3. Install Dependencies**
-```bash
-# Install Python packages
-pip install -r requirements.txt
-```
-
-### **4. Database Setup**
-
-#### **Option A: SQLite (Development)**
-```bash
-cd planpalapp
-
-# Run migrations
-python manage.py makemigrations
-python manage.py migrate
-
-# Create superuser
-python manage.py createsuperuser
-```
-
-#### **Option B: MySQL (Production)**
-```bash
-# Install MySQL
-# Windows: Download từ https://dev.mysql.com/downloads/mysql/
-# macOS: brew install mysql
-# Ubuntu: sudo apt-get install mysql-server
-
-# Start MySQL service
-# Windows: Services → MySQL80 → Start
-# macOS: brew services start mysql
-# Linux: sudo systemctl start mysql
-
-# Create database
-mysql -u root -p
-CREATE DATABASE planpal_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'planpal_user'@'localhost' IDENTIFIED BY 'your_password';
-GRANT ALL PRIVILEGES ON planpal_db.* TO 'planpal_user'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
-
-# Update settings.py database config
-# Xem section "Environment Variables" bên dưới
-```
-
-### **5. Environment Variables**
-Tạo file `.env` trong thư mục `planpalapp/`:
-
-```bash
-# Database (MySQL)
-DB_NAME=planpal_db
-DB_USER=planpal_user
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=3306
-
-# Django Settings
-SECRET_KEY=your-super-secret-django-key-here
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
-
-# Cloudinary Settings
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-
-# Goong Maps API
-GOONG_API_KEY=your_goong_api_key
-
-# Firebase Settings (for notifications)
-FIREBASE_CREDENTIALS_PATH=../firebase-service-account.json
-```
-
-### **6. External Services Setup**
-
-#### **Cloudinary Setup**
-1. Tạo account tại [cloudinary.com](https://cloudinary.com)
-2. Lấy `Cloud Name`, `API Key`, `API Secret`
-3. Thêm vào `.env` file
-
-#### **Goong Maps Setup**
-1. Tạo account tại [docs.goong.io](https://docs.goong.io)
-2. Tạo API key
-3. Thêm vào `.env` file
-
-#### **Firebase Setup (Optional)**
-1. Tạo project tại [Firebase Console](https://console.firebase.google.com)
-2. Download `service account key` → lưu vào `firebase-service-account.json`
-3. Enable Cloud Messaging
-
-### **7. Run Backend**
-```bash
-cd planpalapp
-
-# Apply migrations
-python manage.py migrate
-
-# Collect static files (if needed)
-python manage.py collectstatic --noinput
-
-# Run development server
-python manage.py runserver 0.0.0.0:8000
-```
-
-**Backend sẽ chạy tại: `http://localhost:8000`**
-
-### **8. Test API**
-```bash
-# Test API endpoints
-curl http://localhost:8000/api/
-curl http://localhost:8000/api/users/
-
-# Django Admin
-# Truy cập: http://localhost:8000/admin/
-# Login với superuser đã tạo
-```
-
----
-
-## 📱 Setup Frontend (Flutter)
-
-### **1. Install Flutter SDK**
-
-#### **Windows:**
-```bash
-# Download Flutter SDK
-# https://docs.flutter.dev/get-started/install/windows
-
-# Extract to C:\flutter
-# Add to PATH: C:\flutter\bin
-
-# Verify installation
-flutter doctor
-```
-
-#### **macOS:**
-```bash
-# Using Homebrew
-brew install flutter
-
-# Or download manually
-# https://docs.flutter.dev/get-started/install/macos
-```
-
-#### **Linux:**
-```bash
-# Download and extract Flutter
-wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.32.8-stable.tar.xz
-tar xf flutter_linux_3.32.8-stable.tar.xz
-
-# Add to PATH
-export PATH="$PATH:`pwd`/flutter/bin"
-```
-
-### **2. Setup Development Environment**
-
-#### **Android Setup:**
-```bash
-# Install Android Studio
-# https://developer.android.com/studio
-
-# Install Android SDK command-line tools
-# Android Studio → SDK Manager → SDK Tools → Command-line tools
-
-# Accept licenses
-flutter doctor --android-licenses
-```
-
-#### **VS Code Setup:**
-```bash
-# Install extensions:
-# - Flutter (by Dart Code)
-# - Dart (by Dart Code)
-# - Android iOS Emulator
-```
-
-### **3. Verify Flutter Installation**
-```bash
-flutter doctor -v
-
-# Expected output:
-# [✓] Flutter (Channel stable, 3.32.8)
-# [✓] Android toolchain 
-# [✓] VS Code
-# [✓] Connected device
-```
-
-### **4. Setup Project**
-```bash
-# Navigate to project directory
-cd planpal_flutter
-
-# Get dependencies
-flutter pub get
-
-# Generate code (if needed)
-flutter packages pub run build_runner build
-```
-
-### **5. Configure API Endpoints**
-Tạo file `lib/core/constants/api_constants.dart`:
-
-```dart
-class ApiConstants {
-  // Thay YOUR_LOCAL_IP bằng IP thực của máy
-  static const String baseUrl = 'http://YOUR_LOCAL_IP:8000/api';
-  
-  // Endpoints
-  static const String login = '/auth/login/';
-  static const String register = '/users/';
-  static const String users = '/users/';
-  static const String groups = '/groups/';
-  static const String plans = '/plans/';
-  static const String messages = '/messages/';
-}
-```
-
-**Lấy Local IP:**
-```bash
-# Windows
-ipconfig | findstr IPv4
-
-# macOS/Linux  
-ifconfig | grep inet
-```
-
-### **6. Setup Android Emulator**
-```bash
-# List available emulators
-flutter emulators
-
-# Create new emulator (if needed)
-flutter emulators --create --name pixel_7
-
-# Launch emulator
-flutter emulators --launch pixel_7
-```
-
-### **7. Run Flutter App**
-```bash
-# Run on emulator
-flutter run
-
-# Or specify device
-flutter run -d android
-flutter run -d chrome  # for web testing
-
-# Hot reload: Press 'r'
-# Hot restart: Press 'R'
-# Quit: Press 'q'
-```
-
----
-
-## 🚀 Chạy Toàn Bộ Hệ Thống
-
-### **Step-by-step Startup Guide:**
-
-#### **1. Start Backend**
-```bash
-# Terminal 1: Django Backend
-cd planpalapp
-python manage.py runserver 0.0.0.0:8000
-```
-
-#### **2. Start Android Emulator**
-```bash
-# Terminal 2: Android Emulator
-flutter emulators --launch pixel_7
-```
-
-#### **3. Start Flutter App**
-```bash
-# Terminal 3: Flutter App
-cd planpal_flutter
-flutter run -d android
-```
-
-#### **4. Test Full System**
-```bash
-# Test API connection
-curl http://localhost:8000/api/users/
-
-# Test Flutter app - should show login screen
-# Register new user → Login → Explore features
-```
-
-### **Development Workflow:**
-1. **Backend changes**: Save file → Django auto-reloads
-2. **Frontend changes**: Save file → Press `r` for hot reload
-3. **Database changes**: `python manage.py makemigrations` → `python manage.py migrate`
+### 📱 Frontend Setup (Flutter)
+
+1.  **Navigate to the Frontend Directory**:
+    ```bash
+    cd ../planpal_flutter
+    ```
+
+2.  **Install Dependencies**:
+    ```bash
+    flutter pub get
+    ```
+
+3.  **Configure API Endpoint**:
+    Create a file at `lib/core/services/apis.dart` and define your backend URL.
+    *(Ensure you use your local network IP address, not `localhost`, when running on a physical device.)*
+    ```dart
+    const String baseUrl = 'http://localhost:8000';
+    ```
+
+4.  **Run Android emulator (if required)**:
+    Here I use android studio
+    *(Ensure you have an emulator device in the emulator software)
+    ```bash
+    flutter emulator --launch name_device
+    ```
+
+5.  **Run the App**:
+    ```bash
+    # Select a device (e.g., Chrome, an Android emulator, or a physical device)
+    flutter run
+    ```
+
+### 🌐 Running the Full System
+
+1.  **Start the Backend Server**:
+    Open a terminal, navigate to `planpalapp/`, and run `python manage.py runserver`.
+
+2.  **Start the Frontend Application**:
+    Open a second terminal, navigate to `planpal_flutter/`, and run `flutter run` after selecting a target device.
 
 ---
 
 ## 📚 API Documentation
 
-### **Authentication Endpoints**
-```
-POST /api/auth/login/          # Login user
-POST /api/auth/logout/         # Logout user
-POST /api/users/               # Register user
-```
+The API is self-documented using the browsable API feature of Django REST Framework. Once the backend server is running, you can explore the available endpoints by navigating to `http://127.0.0.1:8000/api/`.
 
-### **User Management**
-```
-GET    /api/users/profile/     # Get current user
-PUT    /api/users/profile/     # Update profile
-GET    /api/users/search/      # Search users
-GET    /api/users/my_plans/    # Get user's plans
-```
-
-### **Group Management**
-```
-GET    /api/groups/            # List user's groups
-POST   /api/groups/            # Create group
-GET    /api/groups/{id}/       # Get group details
-PUT    /api/groups/{id}/       # Update group
-DELETE /api/groups/{id}/       # Delete group
-POST   /api/groups/join/       # Join group
-```
-
-### **Plan Management**
-```
-GET    /api/plans/             # List user's plans
-POST   /api/plans/             # Create plan
-GET    /api/plans/{id}/        # Get plan details
-PUT    /api/plans/{id}/        # Update plan
-DELETE /api/plans/{id}/        # Delete plan
-POST   /api/plans/{id}/add_activity/  # Add activity
-```
-
-### **Chat System**
-```
-GET    /api/messages/by_group/ # Get group messages
-POST   /api/messages/          # Send message
-PUT    /api/messages/{id}/     # Edit message
-DELETE /api/messages/{id}/     # Delete message
-```
-
-### **Location Services**
-```
-GET    /api/places/search/     # Search places
-GET    /api/places/nearby/     # Nearby places
-GET    /api/geocode/           # Address ↔ Coordinates
-```
-
-**Full API Documentation:** Access Django admin hoặc setup Django REST Swagger
+Key endpoints include:
+- `/api/auth/`: Authentication (login, logout).
+- `/api/users/`: User management and profiles.
+- `/api/groups/`: Group creation and management.
+- `/api/plans/`: Travel plan operations.
+- `/api/messages/`: Real-time chat messages.
 
 ---
 
-## 🔧 Troubleshooting
-
-### **Common Backend Issues**
-
-#### **Database Connection Error**
-```bash
-# Error: database "planpal_db" does not exist
-# Solution:
-mysql -u root -p
-CREATE DATABASE planpal_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-#### **Missing Dependencies**
-```bash
-# Error: No module named 'cloudinary'
-# Solution:
-pip install -r requirements.txt
-```
-
-#### **Port Already in Use**
-```bash
-# Error: [Errno 10048] Only one usage... port 8000
-# Solution:
-python manage.py runserver 8001
-# Or kill process using port 8000
-```
-
-### **Common Frontend Issues**
-
-#### **Flutter Doctor Issues**
-```bash
-# Android license issue:
-flutter doctor --android-licenses
-
-# SDK not found:
-flutter config --android-sdk /path/to/android/sdk
-```
-flutter emulators --launch Pixel_7
-flutter run
-#### **API Connection Issues**
-```bash
-# Error: Connection refused
-# Solution: Check API_BASE_URL in Flutter app
-# Use actual IP instead of localhost: http://192.168.1.100:8000
-```
-
-#### **Build Issues**
-```bash
-# Clean build
-flutter clean
-flutter pub get
-flutter pub run build_runner build --delete-conflicting-outputs
-```
-
-### **Network Issues**
-
-#### **CORS Errors**
-Trong Django `settings.py`:
-```python
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
-```
-
-#### **Firewall Issues**
-```bash
-# Windows: Allow Python/Flutter through Windows Firewall
-# Ensure ports 8000, 3000 are accessible
-```
-
----
-
-## 🚀 Production Deployment
-
-### **Backend Deployment (Django)**
-- **Heroku/Railway**: Easy deployment
-- **AWS/GCP**: Scalable options
-- **VPS**: Cost-effective solution
-
-### **Frontend Deployment (Flutter)**
-- **Google Play Store**: Android distribution
-- **Apple App Store**: iOS distribution  
-- **Firebase Hosting**: Web version
-
-### **Database**
-- **Production**: MySQL on cloud
-- **Development**: SQLite local
-
----
-
-## 🤝 Contributing
-
-1. Fork repository
-2. Create feature branch: `git checkout -b feature/new-feature`
-3. Commit changes: `git commit -m 'Add new feature'`
-4. Push branch: `git push origin feature/new-feature`
-5. Submit Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👨‍💻 Developer Info
-
-- **Project**: PlanPal Travel Planning App
-- **Backend**: Django REST Framework
-- **Frontend**: Flutter
-- **Database**: MySQL
-- **APIs**: Goong Maps (Vietnam), Cloudinary, Firebase
+## 📄 Author
+Author: Nguyen Hoang Trieu Vy - @nhtrieuvy
 
 
