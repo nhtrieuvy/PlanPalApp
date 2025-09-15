@@ -19,7 +19,7 @@ from .models import (
 from .serializers import (
     GroupCreateSerializer, GroupSummarySerializer, PlanSummarySerializer, 
     UserSerializer, UserCreateSerializer, UserSummarySerializer, GroupSerializer, 
-    PlanSerializer, PlanCreateSerializer, FriendshipSerializer, FriendRequestSerializer, 
+    PlanSerializer, PlanCreateSerializer, FriendshipSerializer, FriendRequestSerializer,
     ChatMessageSerializer, PlanActivitySerializer, ConversationSerializer
 )
 from .permissions import (
@@ -889,14 +889,26 @@ class FriendRequestView(generics.CreateAPIView):
 
 
 class FriendRequestListView(generics.ListAPIView):
+    """
+    API endpoint for listing pending friend requests
+    Uses FriendshipSerializer with special context for friend request display
+    """
     serializer_class = FriendshipSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
+        # Get pending friend requests where current user is the receiver (not initiator)
         return Friendship.objects.filter(
-            friend=self.request.user,
+            models.Q(user_a=self.request.user) | models.Q(user_b=self.request.user),
             status=Friendship.PENDING
-        ).select_related('user', 'friend').order_by('-created_at')
+        ).exclude(
+            initiator=self.request.user
+        ).select_related('user_a', 'user_b', 'initiator').order_by('-created_at')
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['list_friend_requests'] = True
+        return context
 
 
 class FriendRequestActionView(APIView):
@@ -913,18 +925,25 @@ class FriendRequestActionView(APIView):
             )
         
         friendship = get_object_or_404(
-            Friendship.objects.select_related('user', 'friend'),
-            id=request_id,
-            friend=request.user,
-            status=Friendship.PENDING
+            Friendship.objects.filter(
+                id=request_id,
+                status=Friendship.PENDING
+            ).filter(
+                models.Q(user_a=request.user) | models.Q(user_b=request.user)
+            ).exclude(
+                initiator=request.user
+            ).select_related('user_a', 'user_b', 'initiator')
         )
+        
+        # Get the initiator (the one who sent the request)
+        initiator = friendship.initiator
         
         try:
             with transaction.atomic():
                 if action == 'accept':
-                    success, message = UserService.accept_friend_request(request.user, friendship.user)
+                    success, message = UserService.accept_friend_request(request.user, initiator)
                 else:  # action == 'reject'
-                    success, message = UserService.reject_friend_request(request.user, friendship.user)
+                    success, message = UserService.reject_friend_request(request.user, initiator)
 
                 if not success:
                     return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
@@ -933,7 +952,7 @@ class FriendRequestActionView(APIView):
                     # Send notification for acceptance
                     try:
                         NotificationService.notify_friend_request_accepted(
-                            friendship.user.id, 
+                            initiator.id, 
                             request.user.get_full_name()
                         )
                     except Exception:

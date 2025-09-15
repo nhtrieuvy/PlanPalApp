@@ -4,7 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/repositories/friend_repository.dart';
 import '../../../core/dtos/user_summary.dart';
-import '../../../core/dtos/friend_request_detail.dart';
+import '../../../core/dtos/friendship.dart';
 import '../../../core/theme/app_colors.dart';
 import 'user_profile_page.dart';
 
@@ -23,7 +23,7 @@ class _FriendsPageState extends State<FriendsPage>
   bool _loadingFriends = false;
   bool _loadingRequests = false;
   List<UserSummary> _friends = [];
-  List<FriendRequestDetail> _friendRequests = [];
+  List<Friendship> _friendRequests = [];
 
   @override
   void initState() {
@@ -68,11 +68,7 @@ class _FriendsPageState extends State<FriendsPage>
       if (!mounted) return;
       setState(() {
         // Convert from pending friendships to friend request detail objects
-        _friendRequests = requests
-            .map(
-              (friendship) => FriendRequestDetail.fromJson(friendship.toJson()),
-            )
-            .toList();
+        _friendRequests = requests.toList();
         _loadingRequests = false;
       });
     } catch (e) {
@@ -84,7 +80,7 @@ class _FriendsPageState extends State<FriendsPage>
     }
   }
 
-  Future<void> _acceptFriendRequest(FriendRequestDetail request) async {
+  Future<void> _acceptFriendRequest(Friendship request) async {
     try {
       final success = await _friendRepo.acceptFriendRequest(request.id);
       if (!mounted) return;
@@ -92,7 +88,9 @@ class _FriendsPageState extends State<FriendsPage>
       if (success) {
         setState(() {
           _friendRequests.removeWhere((r) => r.id == request.id);
-          _friends.add(request.sender);
+          _friends.add(
+            request.friend,
+          ); // friend field represents the other user (initiator in this case)
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đã chấp nhận lời mời kết bạn')),
@@ -106,7 +104,7 @@ class _FriendsPageState extends State<FriendsPage>
     }
   }
 
-  Future<void> _rejectFriendRequest(FriendRequestDetail request) async {
+  Future<void> _rejectFriendRequest(Friendship request) async {
     try {
       final success = await _friendRepo.rejectFriendRequest(request.id);
       if (!mounted) return;
@@ -324,7 +322,7 @@ class _FriendsPageState extends State<FriendsPage>
     );
   }
 
-  Widget _buildRequestTile(FriendRequestDetail request) {
+  Widget _buildRequestTile(Friendship request) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -335,21 +333,23 @@ class _FriendsPageState extends State<FriendsPage>
           children: [
             Row(
               children: [
-                _buildAvatar(request.sender),
+                _buildAvatar(
+                  request.friend,
+                ), // friend field represents the initiator in friend requests
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        request.senderName,
+                        request.friend.fullName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                         ),
                       ),
                       Text(
-                        '@${request.sender.username}',
+                        '@${request.friend.username}',
                         style: TextStyle(color: Colors.grey[600], fontSize: 14),
                       ),
                       const SizedBox(height: 4),

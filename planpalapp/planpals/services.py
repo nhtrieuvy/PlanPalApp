@@ -105,9 +105,16 @@ class UserService(BaseService):
         
         try:
             with transaction.atomic():
+                # Ensure canonical ordering (user_a has smaller UUID than user_b)
+                if from_user.id < to_user.id:
+                    user_a, user_b = from_user, to_user
+                else:
+                    user_a, user_b = to_user, from_user
+                
                 friendship = Friendship(
-                    user=from_user,
-                    friend=to_user,
+                    user_a=user_a,
+                    user_b=user_b,
+                    initiator=from_user,
                     status=Friendship.PENDING
                 )
                 friendship.full_clean()
@@ -289,11 +296,16 @@ class UserService(BaseService):
     @classmethod
     def accept_friend_request(cls, current_user: User, from_user: User) -> Tuple[bool, str]:
         try:
-            friendship = Friendship.objects.get(
-                user=from_user,
-                friend=current_user,
-                status=Friendship.PENDING
-            )
+            friendship = Friendship.get_friendship(from_user, current_user)
+            
+            if not friendship:
+                return False, "Friend request not found"
+            
+            if friendship.status != Friendship.PENDING:
+                return False, f"Friend request is not pending (status: {friendship.status})"
+            
+            if friendship.initiator != from_user:
+                return False, "You can only accept requests sent to you"
             
             with transaction.atomic():
                 friendship.status = Friendship.ACCEPTED
@@ -306,26 +318,38 @@ class UserService(BaseService):
             
             return True, "Friend request accepted"
             
-        except Friendship.DoesNotExist:
-            return False, "Friend request not found"
+        except Exception as e:
+            return False, f"Error accepting friend request: {str(e)}"
     
     @classmethod
     def reject_friend_request(cls, current_user: User, from_user: User) -> Tuple[bool, str]:
         try:
-            friendship = Friendship.objects.get(
-                user=from_user,
-                friend=current_user,
-                status=Friendship.PENDING
-            )
+            friendship = Friendship.get_friendship(from_user, current_user)
+            
+            if not friendship:
+                return False, "Friend request not found"
+            
+            if friendship.status != Friendship.PENDING:
+                return False, f"Friend request is not pending (status: {friendship.status})"
+            
+            if friendship.initiator != from_user:
+                return False, "You can only reject requests sent to you"
 
             with transaction.atomic():
-                friendship.status = Friendship.REJECTED
-                friendship.save()
+                # Import here to avoid circular import
+                from .models import FriendshipRejection
                 
-                FriendshipRejection.objects.create(
+                # Create rejection record first (while status is still PENDING)
+                rejection = FriendshipRejection(
                     friendship=friendship, 
                     rejected_by=current_user
                 )
+                rejection.full_clean()  # Validate before saving
+                rejection.save()
+                
+                # Then update friendship status
+                friendship.status = Friendship.REJECTED
+                friendship.save()
 
             cls.log_operation("friend_request_rejected", {
                 'user': current_user.id,
@@ -334,8 +358,8 @@ class UserService(BaseService):
             
             return True, "Friend request rejected"
             
-        except Friendship.DoesNotExist:
-            return False, "Friend request not found"
+        except Exception as e:
+            return False, f"Error rejecting friend request: {str(e)}"
     
     @classmethod
     def cancel_friend_request(cls, current_user: User, to_user: User) -> Tuple[bool, str]:
@@ -1343,20 +1367,8 @@ class ChatService(BaseService):
 
         with transaction.atomic():
             if group is not None:
-                conversation = Conversation.objects.filter(group=group).first()
-                if conversation is None:
-                    conversation = Conversation(
-                        conversation_type='group',
-                        group=group,
-                        name=group.name or ''
-                    )
-                    conversation.full_clean()
-                    conversation.save()
-                    try:
-                        conversation.sync_group_participants()
-                    except Exception:
-                        # Best-effort: don't fail the system message creation if sync has issues
-                        pass
+                # Use ConversationService method instead of model method
+                conversation, created = ConversationService.get_or_create_for_group(group)
 
             # Create the system message with validation
             message = ChatMessage(
@@ -1367,9 +1379,6 @@ class ChatService(BaseService):
             )
             message.full_clean()
             message.save()
-
-            if conversation is not None:
-                Conversation.objects.filter(pk=conversation.pk).update(last_message_at=message.created_at)
 
         cls.log_operation("system_message_created", {
             'conversation_id': conversation.id if conversation else None,
@@ -1415,8 +1424,8 @@ class ConversationService(BaseService):
     def send_message_to_conversation(cls, conversation, sender: User, content: str, 
                                    message_type: str = 'text', **kwargs) -> 'ChatMessage':
         
-        sender_id = getattr(sender, 'id', sender)
-        if not conversation.participants.filter(id=sender_id).exists():
+        # Optimized participant check using new methods
+        if not conversation.is_participant(sender):
             raise ValidationError("Sender is not a participant of this conversation")
 
         try:
@@ -1431,11 +1440,9 @@ class ConversationService(BaseService):
                 message.full_clean()  # Use model validation
                 message.save()
                 
-                Conversation.objects.filter(pk=conversation.pk).update(last_message_at=message.created_at)
-                
                 cls.log_operation("conversation_message_sent", {
                     'conversation_id': conversation.id,
-                    'sender_id': sender_id,
+                    'sender_id': sender.id,
                     'message_type': message_type
                 })
                 
@@ -1445,11 +1452,13 @@ class ConversationService(BaseService):
     
     @classmethod
     def update_last_message_time(cls, conversation, timestamp=None):
+        """Update last message timestamp"""
         if timestamp is None:
             timestamp = timezone.now()
-        
-        conversation.last_message_at = timestamp
-        conversation.save(update_fields=['last_message_at'])
+            
+        if not conversation.last_message_at or timestamp > conversation.last_message_at:
+            conversation.last_message_at = timestamp
+            conversation.save(update_fields=['last_message_at'])
     
     @classmethod
     def get_unread_count_for_user(cls, conversation, user):
@@ -1478,58 +1487,89 @@ class ConversationService(BaseService):
         return len(unread_message_ids)
     
     @classmethod
-    def get_or_create_direct_conversation(cls, user1: User, user2: User):        
+    def get_or_create_direct_conversation(cls, user1: User, user2: User):
+        """Get or create direct conversation between two users"""        
         if user1 == user2:
             raise ValueError("Cannot create conversation with yourself")
         
-        conversation = Conversation.objects.get_direct_conversation(user1, user2)
-        
-        if conversation:
-            return conversation, False
-        
         try:
-            conversation = Conversation(conversation_type='direct')
-            conversation.full_clean()
-            conversation.save()
-            conversation.participants.add(user1, user2)
+            # Use optimized query method
+            existing = Conversation.objects.get_direct_conversation(user1, user2)
+            if existing:
+                return existing, False
+                
+            # Create new conversation with canonical ordering
+            conversation = cls.create_direct_conversation(user1, user2)
+            
+            cls.log_operation("direct_conversation_created", {
+                'conversation_id': conversation.id,
+                'user1_id': user1.id,
+                'user2_id': user2.id
+            })
+            
+            return conversation, True
         except ValidationError as e:
             raise ValidationError(f"Conversation creation failed: {str(e)}")
+
+    @classmethod 
+    def create_direct_conversation(cls, user1: User, user2: User) -> 'Conversation':
+        """Create direct conversation between two users with canonical ordering"""
+        if user1.id == user2.id:
+            raise ValidationError("Cannot create conversation with same user")
         
-        cls.log_operation("direct_conversation_created", {
-            'conversation_id': conversation.id,
-            'user1_id': user1.id,
-            'user2_id': user2.id
-        })
-        
-        return conversation, True
-    
-    @classmethod
-    def create_group_conversation(cls, group):        
-        try:
-            conversation = Conversation(
-                conversation_type='group',
-                group=group
+        # Canonical ordering (smaller UUID first)
+        if user1.id < user2.id:
+            conversation = Conversation.objects.create(
+                conversation_type='direct',
+                user_a=user1,
+                user_b=user2
             )
-            conversation.full_clean()
-            conversation.save()
-            
-            conversation.sync_group_participants()
-        except ValidationError as e:
-            raise ValidationError(f"Group conversation creation failed: {str(e)}")
-        
-        cls.log_operation("group_conversation_created", {
-            'conversation_id': conversation.id,
-            'group_id': group.id
-        })
+        else:
+            conversation = Conversation.objects.create(
+                conversation_type='direct',
+                user_a=user2,
+                user_b=user1
+            )
         
         return conversation
     
     @classmethod
-    def get_or_create_for_group(cls, group):        
+    def create_group_conversation(cls, group):
+        """Create or get group conversation"""        
+        try:
+            conversation, created = cls.get_or_create_for_group(group)
+            
+            if created:
+                cls.log_operation("group_conversation_created", {
+                    'conversation_id': conversation.id,
+                    'group_id': group.id
+                })
+            
+            return conversation
+        except ValidationError as e:
+            raise ValidationError(f"Group conversation creation failed: {str(e)}")
+    
+    @classmethod
+    def get_or_create_for_group(cls, group):
+        """Get or create group conversation"""        
         try:
             return group.conversation, False
         except Conversation.DoesNotExist:
-            return cls.create_group_conversation(group), True
+            conversation = Conversation.objects.create(
+                conversation_type='group',
+                group=group
+            )
+            return conversation, True
+
+    @classmethod
+    def update_last_message_time(cls, conversation, timestamp=None):
+        """Update last message timestamp"""
+        if timestamp is None:
+            timestamp = timezone.now()
+            
+        if not conversation.last_message_at or timestamp > conversation.last_message_at:
+            conversation.last_message_at = timestamp
+            conversation.save(update_fields=['last_message_at'])
 
 
 
