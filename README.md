@@ -256,6 +256,6 @@ Key endpoints include:
 ---
 
 ## 📄 Author
-Author: Nguyen Hoang Trieu Vy - @nhtrieuvy
+Author: Nguyen Hoang Trieu Vy - [@nhtrieuvy](https://github.com/nhtrieuvy)
 
 
