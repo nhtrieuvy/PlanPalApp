@@ -796,7 +796,14 @@ class Group(BaseModel):
                 defaults={'role': GroupMembership.ADMIN}
             )
             
-            Conversation.get_or_create_for_group(self)
+            # Create group conversation - avoid circular import by using direct model approach
+            try:
+                self.conversation
+            except Conversation.DoesNotExist:
+                Conversation.objects.create(
+                    conversation_type='group',
+                    group=self
+                )
 
     @property
     def has_avatar(self) -> bool: 
@@ -1566,9 +1573,12 @@ class ConversationQuerySet(models.QuerySet['Conversation']):
         return self.filter(is_active=True)
     
     def for_user(self, user: Union['User', UUID]) -> 'ConversationQuerySet':
+        """Optimized query for user's conversations"""
+        user_id = getattr(user, 'id', user)
         return self.filter(
-            Q(conversation_type='direct', participants=user) |
-            Q(conversation_type='group', group__members=user)
+            Q(conversation_type='group', group__members=user_id) |
+            Q(conversation_type='direct', user_a=user_id) |
+            Q(conversation_type='direct', user_b=user_id)
         ).distinct()
     
     def direct_chats(self) -> 'ConversationQuerySet':
@@ -1587,14 +1597,26 @@ class ConversationQuerySet(models.QuerySet['Conversation']):
             last_message_time=Subquery(last_message_subquery.values('created_at')[:1]),
             last_message_content=Subquery(last_message_subquery.values('content')[:1]),
             last_message_sender_id=Subquery(last_message_subquery.values('sender_id')[:1])
-        ).select_related('group').prefetch_related('participants')
+        ).select_related('group')
 
     def get_direct_conversation(self, user1: Union['User', UUID], user2: Union['User', UUID]) -> Optional['Conversation']:
-        return self.direct_chats().filter(
-            participants=user1
-        ).filter(
-            participants=user2
-        ).first()
+        """Get direct conversation between two users - optimized"""
+        user1_id = getattr(user1, 'id', user1)
+        user2_id = getattr(user2, 'id', user2)
+        
+        # Canonical ordering
+        if user1_id < user2_id:
+            return self.filter(
+                conversation_type='direct',
+                user_a=user1_id,
+                user_b=user2_id
+            ).first()
+        else:
+            return self.filter(
+                conversation_type='direct',
+                user_a=user2_id,
+                user_b=user1_id
+            ).first()
 
 
 class Conversation(BaseModel):
@@ -1619,10 +1641,22 @@ class Conversation(BaseModel):
         help_text="Group (only for group conversations)"
     )
     
-    participants = models.ManyToManyField(
+    user_a = models.ForeignKey(
         User,
-        related_name='conversations',
-        help_text="Participants in the conversation"
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='direct_conversations_as_a',
+        help_text="First participant in direct conversation (smaller UUID)"
+    )
+    
+    user_b = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='direct_conversations_as_b',
+        help_text="Second participant in direct conversation (larger UUID)"
     )
 
     # Conversation metadata
@@ -1647,7 +1681,6 @@ class Conversation(BaseModel):
         help_text="Conversation avatar"
     )
     
-    # Denormalized fields for performance
     last_message_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -1661,9 +1694,28 @@ class Conversation(BaseModel):
 
     class Meta:
         db_table = 'planpal_conversations'
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(conversation_type='group', group__isnull=False) |
+                          ~Q(conversation_type='group'),
+                name='group_conv_must_have_group'
+            ),
+            models.CheckConstraint(
+                condition=Q(conversation_type='direct', user_a__isnull=False, user_b__isnull=False) |
+                          ~Q(conversation_type='direct'),
+                name='direct_conv_must_have_users'
+            ),
+            models.CheckConstraint(
+                condition=Q(conversation_type='group', user_a__isnull=True, user_b__isnull=True) |
+                          Q(conversation_type='direct', group__isnull=True),
+                name='exclusive_conversation_types'
+            ),
+        ]
         indexes = [
             *BaseModel.Meta.indexes,
             models.Index(fields=['conversation_type', 'is_active']),
+            models.Index(fields=['group', 'is_active']),  # Group conversations
+            models.Index(fields=['user_a', 'user_b']),    # Direct conversations
             models.Index(fields=['last_message_at']),
             models.Index(fields=['is_active', 'last_message_at']),
         ]
@@ -1671,12 +1723,8 @@ class Conversation(BaseModel):
     def __str__(self) -> str:
         if self.conversation_type == 'group' and self.group:
             return f"Group: {self.group.name}"
-        elif self.conversation_type == 'direct':
-            participants = list(self.participants.all()[:2])
-            if len(participants) == 2:
-                return f"Direct: {participants[0].username} & {participants[1].username}"
-            elif len(participants) == 1:
-                return f"Direct: {participants[0].username} (incomplete)"
+        elif self.conversation_type == 'direct' and self.user_a and self.user_b:
+            return f"Direct: {self.user_a.username} & {self.user_b.username}"
         return f"Conversation {self.id}"
 
     def clean(self) -> None:
@@ -1685,12 +1733,30 @@ class Conversation(BaseModel):
         
         if self.conversation_type == 'direct' and self.group:
             raise ValidationError("Direct conversation cannot have a group")
+        
+        if self.conversation_type == 'direct' and (not self.user_a or not self.user_b):
+            raise ValidationError("Direct conversation must have both users")
+        
+        if self.conversation_type == 'direct' and self.user_a_id and self.user_b_id:
+            if self.user_a_id > self.user_b_id:
+                raise ValidationError("Direct conversation: user_a must have smaller UUID than user_b")
 
     def save(self, *args: Any, **kwargs: Any) -> None:
+        if self.conversation_type == 'direct' and self.user_a_id and self.user_b_id:
+            if self.user_a_id > self.user_b_id:
+                self.user_a, self.user_b = self.user_b, self.user_a
+        
         self.clean()
         super().save(*args, **kwargs)
 
-    # === Properties ===
+    @property
+    def participants(self) -> QuerySet[User]:
+        if self.conversation_type == 'group' and self.group:
+            return self.group.members.all()
+        elif self.conversation_type == 'direct' and self.user_a and self.user_b:
+            return User.objects.filter(id__in=[self.user_a_id, self.user_b_id])
+        return User.objects.none()
+
     
     def get_avatar_url(self, current_user: Optional['User'] = None) -> Optional[str]:
         if self.avatar:
@@ -1711,28 +1777,22 @@ class Conversation(BaseModel):
     def get_other_participant(self, user: 'User') -> Optional['User']:
         if self.conversation_type != 'direct':
             return None
-        
-        participants = self.participants.exclude(id=user.id)
-        return participants.first()
+        return self.user_b if self.user_a_id == user.id else self.user_a
+
+    def is_participant(self, user: 'User') -> bool:
+        if self.conversation_type == 'group' and self.group:
+            return self.group.is_member(user)
+        elif self.conversation_type == 'direct':
+            return user.id in [self.user_a_id, self.user_b_id]
+        return False
 
     @property
-    def participant_count(self):
+    def participant_count(self) -> int:
         if self.conversation_type == 'group' and self.group:
             return self.group.member_count
-        return self.participants.count()
-
-    
-    def sync_group_participants(self) -> None:
-        if self.conversation_type != 'group' or not self.group:
-            return
-        
-        member_ids = set(self.group.members.values_list('id', flat=True))
-        current_ids = set(self.participants.values_list('id', flat=True))
-        if current_ids == member_ids:
-            return
-
-        with transaction.atomic():
-            self.participants.set(list(member_ids))
+        elif self.conversation_type == 'direct':
+            return 2
+        return 0
 
 
 class ChatMessageQuerySet(models.QuerySet['ChatMessage']):    
@@ -1963,9 +2023,13 @@ class ChatMessage(BaseModel):
             
         super().save(*args, **kwargs)
         
+        # Update conversation's last message time (simple model logic)
         if self.conversation and not self.is_deleted:
-            self.conversation.update_last_message_time(self.created_at)
+            if not self.conversation.last_message_at or self.created_at > self.conversation.last_message_at:
+                self.conversation.last_message_at = self.created_at
+                self.conversation.save(update_fields=['last_message_at'])
         
+        # Clear unread message cache for participants
         if self.conversation:
             participant_ids = list(self.conversation.participants.values_list('id', flat=True))
             User.clear_unread_cache_for_users(participant_ids)

@@ -109,7 +109,7 @@ class ChatMessagePermission(BasePermission):
             elif conversation_id:
                 try:
                     conversation = Conversation.objects.get(id=conversation_id)
-                    return conversation.participants.filter(id=request.user.id).exists()
+                    return conversation.is_participant(request.user)
                 except Conversation.DoesNotExist:
                     return False
         return True  
@@ -118,7 +118,7 @@ class ChatMessagePermission(BasePermission):
         user = request.user
         
         if obj.conversation:
-            if not obj.conversation.participants.filter(id=user.id).exists():
+            if not obj.conversation.is_participant(user):
                 return False
         elif obj.group:  # Legacy group support
             if not obj.group.is_member(user):
@@ -228,7 +228,7 @@ class ConversationPermission(BasePermission):
     def has_object_permission(self, request, view, obj):
         user = request.user
         
-        if not obj.participants.filter(id=user.id).exists():
+        if not obj.is_participant(user):
             return False
         
         if request.method in SAFE_METHODS:
@@ -296,4 +296,4 @@ class IsFriend(BasePermission):
 class IsConversationParticipant(BasePermission):
     def has_object_permission(self, request, view, obj):
         conversation = getattr(obj, 'conversation', obj)
-        return conversation.participants.filter(id=request.user.id).exists()
+        return conversation.is_participant(request.user)

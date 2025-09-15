@@ -5526,3 +5526,1090 @@ INFO 2025-09-14 21:33:16,780 server 20904 29476 HTTP/2 support not enabled (inst
 INFO 2025-09-14 21:33:16,780 server 20904 29476 Configuring endpoint tcp:port=8000:interface=0.0.0.0
 INFO 2025-09-14 21:33:16,782 server 20904 29476 Listening on TCP address 0.0.0.0:8000
 INFO 2025-09-14 21:34:34,761 autoreload 20904 21396 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:30:41,958 selector_events 13572 27204 Using selector: SelectSelector
+DEBUG 2025-09-15 20:30:43,264 selector_events 16232 29960 Using selector: SelectSelector
+INFO 2025-09-15 20:30:43,486 autoreload 16232 29960 Watching for file changes with StatReloader
+INFO 2025-09-15 20:30:44,522 server 16232 16428 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:30:44,523 server 16232 16428 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:30:44,523 server 16232 16428 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 20:30:59,588 selector_events 22420 23640 Using selector: SelectSelector
+DEBUG 2025-09-15 20:31:00,655 functional 22420 23640 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,656 functional 22420 23640 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,657 functional 22420 23640 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,657 functional 22420 23640 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-15 20:31:00,659 functional 22420 23640 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,659 functional 22420 23640 
+def send_plan_reminder(self, plan_id, reminder_type=0):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,661 functional 22420 23640 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,661 functional 22420 23640 
+def bulk_update_plan_statuses(self):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,662 functional 22420 23640 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,662 functional 22420 23640 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,663 functional 22420 23640 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,664 functional 22420 23640 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,664 functional 22420 23640 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-15 20:31:00,665 functional 22420 23640 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-15 20:32:19,378 http_protocol 16232 16428 HTTP b'GET' request for ['127.0.0.1', 57064]
+DEBUG 2025-09-15 20:32:19,417 resource 16232 17196 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CAF9765100>.
+WARNING 2025-09-15 20:32:19,447 log 16232 28860 Unauthorized: /users/profile/
+DEBUG 2025-09-15 20:32:19,448 http_protocol 16232 16428 HTTP 401 response started for ['127.0.0.1', 57064]
+DEBUG 2025-09-15 20:32:19,448 http_protocol 16232 16428 HTTP close for ['127.0.0.1', 57064]
+DEBUG 2025-09-15 20:32:19,448 http_protocol 16232 16428 HTTP response complete for ['127.0.0.1', 57064]
+WARNING 2025-09-15 20:32:19,448 runserver 16232 16428 [31;1mHTTP GET /users/profile/ 401 [0.07, 127.0.0.1:57064][0m
+DEBUG 2025-09-15 20:32:19,528 http_protocol 16232 16428 HTTP b'POST' request for ['127.0.0.1', 57066]
+DEBUG 2025-09-15 20:32:19,534 token 16232 12536 Dispatching grant_type refresh_token request to <oauthlib.oauth2.rfc6749.grant_types.refresh_token.RefreshTokenGrant object at 0x000001CAF9792990>.
+DEBUG 2025-09-15 20:32:19,534 refresh_token 16232 12536 Validating refresh token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-15 20:32:19,543 refresh_token 16232 12536 Validating refresh token aNEMGpAsNvdRTr6b3gMO9kqTGHjW1V for client <Application: PlanPalApp>.
+DEBUG 2025-09-15 20:32:19,608 refresh_token 16232 12536 Issuing new token to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>), {'access_token': 'FGQUxVHWxEGga7FX5FgVQ6TMdQDkhK', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'GBdEluwp1sWyWMCo7NXrwp9A5KgyE5'}.
+DEBUG 2025-09-15 20:32:19,611 http_protocol 16232 16428 HTTP 200 response started for ['127.0.0.1', 57066]
+DEBUG 2025-09-15 20:32:19,611 http_protocol 16232 16428 HTTP close for ['127.0.0.1', 57066]
+DEBUG 2025-09-15 20:32:19,611 http_protocol 16232 16428 HTTP response complete for ['127.0.0.1', 57066]
+INFO 2025-09-15 20:32:19,611 runserver 16232 16428 [mHTTP POST /o/token/ 200 [0.08, 127.0.0.1:57066][0m
+DEBUG 2025-09-15 20:32:19,655 http_protocol 16232 16428 HTTP b'GET' request for ['127.0.0.1', 57068]
+DEBUG 2025-09-15 20:32:19,658 resource 16232 12472 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001CAF97B1000>.
+ERROR 2025-09-15 20:32:20,314 log 16232 28860 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+MySQLdb.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 142, in profile
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 40, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 509, in to_representation
+    attribute = field.get_attribute(instance)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\fields.py", line 446, in get_attribute
+    return get_attribute(instance, self.source_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\fields.py", line 96, in get_attribute
+    instance = getattr(instance, attr)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py", line 382, in unread_messages_count
+    count = unread_messages.count()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 604, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 644, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 626, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+django.db.utils.ProgrammingError: (1146, "Table 'planpaldb.planpal_conversations_participants' doesn't exist")
+DEBUG 2025-09-15 20:32:20,342 http_protocol 16232 16428 HTTP 500 response started for ['127.0.0.1', 57068]
+DEBUG 2025-09-15 20:32:20,342 http_protocol 16232 16428 HTTP response chunk for ['127.0.0.1', 57068]
+DEBUG 2025-09-15 20:32:20,342 http_protocol 16232 16428 HTTP response chunk for ['127.0.0.1', 57068]
+DEBUG 2025-09-15 20:32:20,342 http_protocol 16232 16428 HTTP response chunk for ['127.0.0.1', 57068]
+DEBUG 2025-09-15 20:32:20,342 http_protocol 16232 16428 HTTP close for ['127.0.0.1', 57068]
+DEBUG 2025-09-15 20:32:20,343 http_protocol 16232 16428 HTTP response complete for ['127.0.0.1', 57068]
+ERROR 2025-09-15 20:32:20,343 runserver 16232 16428 [35;1mHTTP GET /users/profile/ 500 [0.69, 127.0.0.1:57068][0m
+INFO 2025-09-15 20:33:35,729 autoreload 16232 29960 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:33:37,032 selector_events 29856 31040 Using selector: SelectSelector
+INFO 2025-09-15 20:33:37,489 autoreload 29856 31040 Watching for file changes with StatReloader
+INFO 2025-09-15 20:33:38,251 server 29856 20828 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:33:38,251 server 29856 20828 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:33:38,251 server 29856 20828 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:33:58,113 autoreload 29856 31040 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:33:59,146 selector_events 24392 30000 Using selector: SelectSelector
+INFO 2025-09-15 20:33:59,520 autoreload 24392 30000 Watching for file changes with StatReloader
+INFO 2025-09-15 20:34:00,110 server 24392 26420 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:34:00,110 server 24392 26420 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:34:00,111 server 24392 26420 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:34:40,544 autoreload 24392 30000 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:34:41,537 selector_events 3588 6996 Using selector: SelectSelector
+INFO 2025-09-15 20:34:41,822 autoreload 3588 6996 Watching for file changes with StatReloader
+INFO 2025-09-15 20:34:42,434 server 3588 27424 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:34:42,435 server 3588 27424 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:34:42,435 server 3588 27424 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:34:47,859 autoreload 3588 6996 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:34:48,777 selector_events 15056 28292 Using selector: SelectSelector
+INFO 2025-09-15 20:34:49,047 autoreload 15056 28292 Watching for file changes with StatReloader
+INFO 2025-09-15 20:34:49,642 server 15056 5008 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:34:49,642 server 15056 5008 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:34:49,643 server 15056 5008 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:35:01,328 autoreload 15056 28292 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 20:35:02,282 selector_events 1520 22980 Using selector: SelectSelector
+INFO 2025-09-15 20:35:02,539 autoreload 1520 22980 Watching for file changes with StatReloader
+INFO 2025-09-15 20:35:03,150 server 1520 30060 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:35:03,150 server 1520 30060 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:35:03,151 server 1520 30060 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:36:23,691 autoreload 1520 22980 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\permissions.py changed, reloading.
+DEBUG 2025-09-15 20:36:24,663 selector_events 20180 29636 Using selector: SelectSelector
+INFO 2025-09-15 20:36:24,945 autoreload 20180 29636 Watching for file changes with StatReloader
+INFO 2025-09-15 20:36:25,573 server 20180 19752 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:36:25,573 server 20180 19752 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:36:25,574 server 20180 19752 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:36:42,332 autoreload 20180 29636 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 20:36:43,344 selector_events 31372 15032 Using selector: SelectSelector
+INFO 2025-09-15 20:36:43,621 autoreload 31372 15032 Watching for file changes with StatReloader
+INFO 2025-09-15 20:36:44,237 server 31372 14148 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:36:44,237 server 31372 14148 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:36:44,238 server 31372 14148 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 20:38:45,276 selector_events 31568 5932 Using selector: SelectSelector
+DEBUG 2025-09-15 20:39:05,181 selector_events 13608 22360 Using selector: SelectSelector
+INFO 2025-09-15 20:41:28,065 autoreload 31372 15032 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:41:29,192 selector_events 11812 22396 Using selector: SelectSelector
+INFO 2025-09-15 20:41:29,518 autoreload 11812 22396 Watching for file changes with StatReloader
+INFO 2025-09-15 20:41:30,254 server 11812 18500 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:41:30,255 server 11812 18500 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:41:30,255 server 11812 18500 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 20:42:32,608 selector_events 30948 2904 Using selector: SelectSelector
+DEBUG 2025-09-15 20:42:33,587 selector_events 27636 24108 Using selector: SelectSelector
+INFO 2025-09-15 20:42:33,833 autoreload 27636 24108 Watching for file changes with StatReloader
+INFO 2025-09-15 20:42:34,479 server 27636 29336 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:42:34,479 server 27636 29336 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:42:34,480 server 27636 29336 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 20:43:01,141 selector_events 15172 7784 Using selector: SelectSelector
+DEBUG 2025-09-15 20:44:04,045 selector_events 24036 28132 Using selector: SelectSelector
+DEBUG 2025-09-15 20:44:26,792 selector_events 14464 3788 Using selector: SelectSelector
+DEBUG 2025-09-15 20:45:56,588 selector_events 5036 12252 Using selector: SelectSelector
+DEBUG 2025-09-15 20:46:58,341 http_protocol 27636 29336 HTTP b'POST' request for ['127.0.0.1', 58708]
+DEBUG 2025-09-15 20:46:58,374 token 27636 11640 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x000002487345A600>.
+DEBUG 2025-09-15 20:46:58,380 resource_owner_password_credentials 27636 11640 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-15 20:46:58,381 resource_owner_password_credentials 27636 11640 Validating username admin.
+DEBUG 2025-09-15 20:46:58,979 resource_owner_password_credentials 27636 11640 Authorizing access to user <User: admin ()>.
+DEBUG 2025-09-15 20:46:58,980 base 27636 11640 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-15 20:46:58,987 resource_owner_password_credentials 27636 11640 Issuing token {'access_token': 'DKaS7hxL1aIATFqsTR3HlpE7L5ziWc', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'q2d60ABc1w6Iw7fPvz7kfQVwxVgiXL'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-09-15 20:46:58,995 http_protocol 27636 29336 HTTP 200 response started for ['127.0.0.1', 58708]
+DEBUG 2025-09-15 20:46:58,995 http_protocol 27636 29336 HTTP close for ['127.0.0.1', 58708]
+DEBUG 2025-09-15 20:46:58,996 http_protocol 27636 29336 HTTP response complete for ['127.0.0.1', 58708]
+INFO 2025-09-15 20:46:58,996 runserver 27636 29336 [mHTTP POST /o/token/ 200 [0.66, 127.0.0.1:58708][0m
+DEBUG 2025-09-15 20:46:59,021 http_protocol 27636 29336 HTTP b'GET' request for ['127.0.0.1', 58711]
+DEBUG 2025-09-15 20:46:59,027 resource 27636 3200 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002487389C480>.
+ERROR 2025-09-15 20:46:59,160 log 27636 24388 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+MySQLdb.OperationalError: (1054, "Unknown column 'planpal_chat_messages.conversation_id' in 'IN/ALL/ANY subquery'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 142, in profile
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 40, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\serializers.py", line 509, in to_representation
+    attribute = field.get_attribute(instance)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\fields.py", line 446, in get_attribute
+    return get_attribute(instance, self.source_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\fields.py", line 96, in get_attribute
+    instance = getattr(instance, attr)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py", line 382, in unread_messages_count
+    count = unread_messages.count()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 604, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 644, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 626, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+django.db.utils.OperationalError: (1054, "Unknown column 'planpal_chat_messages.conversation_id' in 'IN/ALL/ANY subquery'")
+DEBUG 2025-09-15 20:46:59,184 http_protocol 27636 29336 HTTP 500 response started for ['127.0.0.1', 58711]
+DEBUG 2025-09-15 20:46:59,185 http_protocol 27636 29336 HTTP response chunk for ['127.0.0.1', 58711]
+DEBUG 2025-09-15 20:46:59,185 http_protocol 27636 29336 HTTP response chunk for ['127.0.0.1', 58711]
+DEBUG 2025-09-15 20:46:59,186 http_protocol 27636 29336 HTTP response chunk for ['127.0.0.1', 58711]
+DEBUG 2025-09-15 20:46:59,186 http_protocol 27636 29336 HTTP close for ['127.0.0.1', 58711]
+DEBUG 2025-09-15 20:46:59,186 http_protocol 27636 29336 HTTP response complete for ['127.0.0.1', 58711]
+ERROR 2025-09-15 20:46:59,187 runserver 27636 29336 [35;1mHTTP GET /users/profile/ 500 [0.17, 127.0.0.1:58711][0m
+DEBUG 2025-09-15 20:46:59,785 http_protocol 27636 29336 HTTP b'GET' request for ['127.0.0.1', 58715]
+DEBUG 2025-09-15 20:46:59,791 resource 27636 27744 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002487397F480>.
+DEBUG 2025-09-15 20:46:59,825 http_protocol 27636 29336 HTTP 200 response started for ['127.0.0.1', 58715]
+DEBUG 2025-09-15 20:46:59,826 http_protocol 27636 29336 HTTP close for ['127.0.0.1', 58715]
+DEBUG 2025-09-15 20:46:59,826 http_protocol 27636 29336 HTTP response complete for ['127.0.0.1', 58715]
+INFO 2025-09-15 20:46:59,827 runserver 27636 29336 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:58715][0m
+DEBUG 2025-09-15 20:46:59,872 http_protocol 27636 29336 HTTP b'GET' request for ['127.0.0.1', 58718]
+DEBUG 2025-09-15 20:46:59,876 resource 27636 28184 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000248736E2900>.
+DEBUG 2025-09-15 20:46:59,912 http_protocol 27636 29336 HTTP 200 response started for ['127.0.0.1', 58718]
+DEBUG 2025-09-15 20:46:59,913 http_protocol 27636 29336 HTTP close for ['127.0.0.1', 58718]
+DEBUG 2025-09-15 20:46:59,913 http_protocol 27636 29336 HTTP response complete for ['127.0.0.1', 58718]
+INFO 2025-09-15 20:46:59,913 runserver 27636 29336 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:58718][0m
+INFO 2025-09-15 20:54:20,082 autoreload 27636 24108 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:54:21,145 selector_events 25508 27640 Using selector: SelectSelector
+INFO 2025-09-15 20:54:21,438 autoreload 25508 27640 Watching for file changes with StatReloader
+INFO 2025-09-15 20:54:22,060 server 25508 19796 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:54:22,060 server 25508 19796 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:54:22,061 server 25508 19796 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:54:40,874 autoreload 25508 27640 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:54:41,907 selector_events 7968 16844 Using selector: SelectSelector
+INFO 2025-09-15 20:54:42,209 autoreload 7968 16844 Watching for file changes with StatReloader
+INFO 2025-09-15 20:54:42,792 server 7968 21244 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:54:42,793 server 7968 21244 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:54:42,793 server 7968 21244 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:55:09,833 autoreload 7968 16844 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:55:10,783 selector_events 27944 15292 Using selector: SelectSelector
+INFO 2025-09-15 20:55:11,078 autoreload 27944 15292 Watching for file changes with StatReloader
+INFO 2025-09-15 20:55:11,662 server 27944 28384 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:55:11,663 server 27944 28384 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:55:11,663 server 27944 28384 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:55:31,505 autoreload 27944 15292 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:55:32,435 selector_events 14340 1740 Using selector: SelectSelector
+INFO 2025-09-15 20:55:32,744 autoreload 14340 1740 Watching for file changes with StatReloader
+INFO 2025-09-15 20:55:33,327 server 14340 15172 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:55:33,328 server 14340 15172 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:55:33,328 server 14340 15172 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:55:53,158 autoreload 14340 1740 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:55:54,200 selector_events 20016 7852 Using selector: SelectSelector
+INFO 2025-09-15 20:55:54,596 autoreload 20016 7852 Watching for file changes with StatReloader
+INFO 2025-09-15 20:55:55,230 server 20016 15232 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:55:55,230 server 20016 15232 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:55:55,231 server 20016 15232 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:56:08,927 autoreload 20016 7852 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:56:09,918 selector_events 15248 29860 Using selector: SelectSelector
+INFO 2025-09-15 20:56:10,227 autoreload 15248 29860 Watching for file changes with StatReloader
+INFO 2025-09-15 20:56:10,825 server 15248 16748 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:56:10,826 server 15248 16748 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:56:10,826 server 15248 16748 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 20:56:20,392 autoreload 15248 29860 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 20:56:21,330 selector_events 29192 1060 Using selector: SelectSelector
+INFO 2025-09-15 20:56:21,608 autoreload 29192 1060 Watching for file changes with StatReloader
+INFO 2025-09-15 20:56:22,194 server 29192 29228 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 20:56:22,195 server 29192 29228 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 20:56:22,196 server 29192 29228 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 20:56:54,292 selector_events 20348 22816 Using selector: SelectSelector
+DEBUG 2025-09-15 20:59:14,425 selector_events 13876 3468 Using selector: SelectSelector
+DEBUG 2025-09-15 20:59:23,585 selector_events 14520 21596 Using selector: SelectSelector
+INFO 2025-09-15 21:02:18,093 autoreload 29192 1060 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:02:19,251 selector_events 17988 8052 Using selector: SelectSelector
+INFO 2025-09-15 21:02:19,634 autoreload 17988 8052 Watching for file changes with StatReloader
+INFO 2025-09-15 21:02:20,287 server 17988 17780 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:02:20,287 server 17988 17780 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:02:20,288 server 17988 17780 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:02:40,155 autoreload 17988 8052 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:02:41,037 selector_events 13024 1064 Using selector: SelectSelector
+INFO 2025-09-15 21:02:41,352 autoreload 13024 1064 Watching for file changes with StatReloader
+INFO 2025-09-15 21:02:41,985 server 13024 31048 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:02:41,985 server 13024 31048 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:02:41,986 server 13024 31048 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:03:51,971 autoreload 13024 1064 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 21:03:53,870 selector_events 24688 28844 Using selector: SelectSelector
+INFO 2025-09-15 21:03:54,388 autoreload 24688 28844 Watching for file changes with StatReloader
+INFO 2025-09-15 21:03:55,403 server 24688 14192 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:03:55,404 server 24688 14192 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:03:55,404 server 24688 14192 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:04:49,204 autoreload 24688 28844 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 21:04:50,180 selector_events 24040 8728 Using selector: SelectSelector
+INFO 2025-09-15 21:04:50,428 autoreload 24040 8728 Watching for file changes with StatReloader
+INFO 2025-09-15 21:04:51,048 server 24040 16800 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:04:51,049 server 24040 16800 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:04:51,050 server 24040 16800 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:05:19,113 autoreload 24040 8728 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\permissions.py changed, reloading.
+DEBUG 2025-09-15 21:05:20,017 selector_events 21580 6196 Using selector: SelectSelector
+INFO 2025-09-15 21:05:20,233 autoreload 21580 6196 Watching for file changes with StatReloader
+INFO 2025-09-15 21:05:20,854 server 21580 24944 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:05:20,854 server 21580 24944 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:05:20,855 server 21580 24944 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:10:08,545 autoreload 21580 6196 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\permissions.py changed, reloading.
+DEBUG 2025-09-15 21:10:10,653 selector_events 3876 29476 Using selector: SelectSelector
+INFO 2025-09-15 21:10:11,307 autoreload 3876 29476 Watching for file changes with StatReloader
+INFO 2025-09-15 21:10:12,999 server 3876 22360 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:10:13,000 server 3876 22360 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:10:13,001 server 3876 22360 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:11:53,183 autoreload 3876 29476 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\permissions.py changed, reloading.
+DEBUG 2025-09-15 21:11:55,220 selector_events 16248 3080 Using selector: SelectSelector
+INFO 2025-09-15 21:11:55,690 autoreload 16248 3080 Watching for file changes with StatReloader
+INFO 2025-09-15 21:11:56,943 server 16248 2988 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:11:56,943 server 16248 2988 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:11:56,945 server 16248 2988 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:12:03,528 autoreload 16248 3080 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\permissions.py changed, reloading.
+DEBUG 2025-09-15 21:12:05,476 selector_events 24588 25508 Using selector: SelectSelector
+INFO 2025-09-15 21:12:06,065 autoreload 24588 25508 Watching for file changes with StatReloader
+INFO 2025-09-15 21:12:07,602 server 24588 25664 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:12:07,603 server 24588 25664 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:12:07,605 server 24588 25664 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:12:34,178 autoreload 24588 25508 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 21:12:35,129 selector_events 7864 744 Using selector: SelectSelector
+INFO 2025-09-15 21:12:35,396 autoreload 7864 744 Watching for file changes with StatReloader
+INFO 2025-09-15 21:12:36,091 server 7864 22008 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:12:36,092 server 7864 22008 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:12:36,092 server 7864 22008 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:15:55,882 autoreload 7864 744 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 21:15:57,940 selector_events 11560 23384 Using selector: SelectSelector
+INFO 2025-09-15 21:15:58,511 autoreload 11560 23384 Watching for file changes with StatReloader
+INFO 2025-09-15 21:16:00,052 server 11560 28936 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:16:00,053 server 11560 28936 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:16:00,054 server 11560 28936 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:16:08,023 autoreload 11560 23384 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 21:16:10,002 selector_events 22660 23448 Using selector: SelectSelector
+INFO 2025-09-15 21:16:10,704 autoreload 22660 23448 Watching for file changes with StatReloader
+INFO 2025-09-15 21:16:12,367 server 22660 24996 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:16:12,368 server 22660 24996 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:16:12,372 server 22660 24996 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:16:15,180 autoreload 22660 23448 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 21:16:16,079 selector_events 15276 23860 Using selector: SelectSelector
+INFO 2025-09-15 21:16:16,297 autoreload 15276 23860 Watching for file changes with StatReloader
+INFO 2025-09-15 21:16:16,942 server 15276 1056 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:16:16,942 server 15276 1056 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:16:16,943 server 15276 1056 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:16:37,084 autoreload 15276 23860 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:16:39,144 selector_events 7380 2880 Using selector: SelectSelector
+INFO 2025-09-15 21:16:39,910 autoreload 7380 2880 Watching for file changes with StatReloader
+INFO 2025-09-15 21:16:41,566 server 7380 14340 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:16:41,568 server 7380 14340 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:16:41,570 server 7380 14340 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:17:12,887 autoreload 7380 2880 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:17:14,953 selector_events 9608 11724 Using selector: SelectSelector
+INFO 2025-09-15 21:17:15,674 autoreload 9608 11724 Watching for file changes with StatReloader
+INFO 2025-09-15 21:17:17,378 server 9608 6208 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:17:17,380 server 9608 6208 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:17:17,383 server 9608 6208 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:17:39,736 autoreload 9608 11724 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 21:17:41,806 selector_events 16308 18740 Using selector: SelectSelector
+INFO 2025-09-15 21:17:42,486 autoreload 16308 18740 Watching for file changes with StatReloader
+INFO 2025-09-15 21:17:44,207 server 16308 8640 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:17:44,209 server 16308 8640 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:17:44,211 server 16308 8640 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:18:46,860 autoreload 16308 18740 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:18:48,813 selector_events 17284 2576 Using selector: SelectSelector
+INFO 2025-09-15 21:18:49,403 autoreload 17284 2576 Watching for file changes with StatReloader
+INFO 2025-09-15 21:18:50,927 server 17284 25212 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:18:50,927 server 17284 25212 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:18:50,929 server 17284 25212 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 21:21:12,160 selector_events 22576 27476 Using selector: SelectSelector
+INFO 2025-09-15 21:22:03,231 autoreload 17284 2576 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:22:04,123 selector_events 30296 13728 Using selector: SelectSelector
+INFO 2025-09-15 21:22:04,446 autoreload 30296 13728 Watching for file changes with StatReloader
+INFO 2025-09-15 21:22:05,051 server 30296 25088 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:22:05,051 server 30296 25088 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:22:05,052 server 30296 25088 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:22:06,380 autoreload 30296 13728 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 21:22:07,387 selector_events 16628 30944 Using selector: SelectSelector
+INFO 2025-09-15 21:22:07,602 autoreload 16628 30944 Watching for file changes with StatReloader
+INFO 2025-09-15 21:22:08,269 server 16628 9164 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:22:08,269 server 16628 9164 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:22:08,270 server 16628 9164 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:22:39,406 autoreload 16628 30944 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:22:40,360 selector_events 7268 22036 Using selector: SelectSelector
+INFO 2025-09-15 21:22:40,654 autoreload 7268 22036 Watching for file changes with StatReloader
+INFO 2025-09-15 21:22:41,299 server 7268 30788 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:22:41,299 server 7268 30788 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:22:41,299 server 7268 30788 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:22:57,036 autoreload 7268 22036 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:22:58,075 selector_events 31408 2864 Using selector: SelectSelector
+INFO 2025-09-15 21:22:58,404 autoreload 31408 2864 Watching for file changes with StatReloader
+INFO 2025-09-15 21:22:59,020 server 31408 30496 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:22:59,020 server 31408 30496 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:22:59,021 server 31408 30496 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:23:02,447 autoreload 31408 2864 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:23:03,444 selector_events 22000 19680 Using selector: SelectSelector
+INFO 2025-09-15 21:23:03,734 autoreload 22000 19680 Watching for file changes with StatReloader
+INFO 2025-09-15 21:23:04,316 server 22000 13952 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:23:04,317 server 22000 13952 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:23:04,317 server 22000 13952 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:23:07,719 autoreload 22000 19680 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:23:08,722 selector_events 12516 23364 Using selector: SelectSelector
+INFO 2025-09-15 21:23:09,018 autoreload 12516 23364 Watching for file changes with StatReloader
+INFO 2025-09-15 21:23:09,615 server 12516 12996 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:23:09,615 server 12516 12996 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:23:09,616 server 12516 12996 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:23:11,984 autoreload 12516 23364 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:23:12,873 selector_events 25468 6116 Using selector: SelectSelector
+INFO 2025-09-15 21:23:13,134 autoreload 25468 6116 Watching for file changes with StatReloader
+INFO 2025-09-15 21:23:13,688 server 25468 22800 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:23:13,688 server 25468 22800 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:23:13,689 server 25468 22800 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:23:17,117 autoreload 25468 6116 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:23:18,132 selector_events 30000 22496 Using selector: SelectSelector
+INFO 2025-09-15 21:23:18,437 autoreload 30000 22496 Watching for file changes with StatReloader
+INFO 2025-09-15 21:23:19,059 server 30000 25100 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:23:19,060 server 30000 25100 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:23:19,060 server 30000 25100 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:23:20,378 autoreload 30000 22496 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:23:21,398 selector_events 28640 9164 Using selector: SelectSelector
+INFO 2025-09-15 21:23:21,660 autoreload 28640 9164 Watching for file changes with StatReloader
+INFO 2025-09-15 21:23:22,269 server 28640 22740 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:23:22,270 server 28640 22740 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:23:22,270 server 28640 22740 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:23:26,688 autoreload 28640 9164 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:23:27,682 selector_events 7556 22188 Using selector: SelectSelector
+INFO 2025-09-15 21:23:28,017 autoreload 7556 22188 Watching for file changes with StatReloader
+INFO 2025-09-15 21:23:28,679 server 7556 25304 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:23:28,679 server 7556 25304 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:23:28,680 server 7556 25304 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 21:24:24,534 selector_events 23448 31500 Using selector: SelectSelector
+DEBUG 2025-09-15 21:24:36,344 selector_events 30492 13624 Using selector: SelectSelector
+DEBUG 2025-09-15 21:26:12,952 selector_events 10796 28056 Using selector: SelectSelector
+DEBUG 2025-09-15 21:26:22,679 selector_events 1680 13024 Using selector: SelectSelector
+DEBUG 2025-09-15 21:30:15,578 selector_events 2736 13476 Using selector: SelectSelector
+DEBUG 2025-09-15 21:30:26,165 selector_events 23676 17368 Using selector: SelectSelector
+DEBUG 2025-09-15 21:30:51,147 selector_events 23176 29760 Using selector: SelectSelector
+DEBUG 2025-09-15 21:30:58,316 selector_events 14576 5728 Using selector: SelectSelector
+DEBUG 2025-09-15 21:31:38,240 selector_events 16472 18180 Using selector: SelectSelector
+DEBUG 2025-09-15 21:31:54,318 selector_events 20048 30696 Using selector: SelectSelector
+DEBUG 2025-09-15 21:37:45,180 selector_events 8732 13960 Using selector: SelectSelector
+DEBUG 2025-09-15 21:37:51,562 selector_events 21796 8160 Using selector: SelectSelector
+DEBUG 2025-09-15 21:38:05,862 selector_events 21048 17856 Using selector: SelectSelector
+DEBUG 2025-09-15 21:39:27,141 selector_events 2768 27680 Using selector: SelectSelector
+DEBUG 2025-09-15 21:39:36,739 selector_events 5888 27840 Using selector: SelectSelector
+DEBUG 2025-09-15 21:40:23,336 selector_events 14728 21100 Using selector: SelectSelector
+DEBUG 2025-09-15 21:40:24,039 selector_events 25468 13036 Using selector: SelectSelector
+INFO 2025-09-15 21:40:24,209 autoreload 25468 13036 Watching for file changes with StatReloader
+INFO 2025-09-15 21:40:24,603 server 25468 27808 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:40:24,604 server 25468 27808 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:40:24,605 server 25468 27808 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 21:40:42,684 selector_events 24600 17584 Using selector: SelectSelector
+DEBUG 2025-09-15 21:40:43,178 functional 24600 17584 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,179 functional 24600 17584 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,180 functional 24600 17584 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,180 functional 24600 17584 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-15 21:40:43,180 functional 24600 17584 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,181 functional 24600 17584 
+def send_plan_reminder(self, plan_id, reminder_type=0):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,181 functional 24600 17584 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,181 functional 24600 17584 
+def bulk_update_plan_statuses(self):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,181 functional 24600 17584 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,182 functional 24600 17584 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,182 functional 24600 17584 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,182 functional 24600 17584 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,182 functional 24600 17584 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-15 21:40:43,183 functional 24600 17584 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-15 21:41:33,058 http_protocol 25468 27808 HTTP b'GET' request for ['127.0.0.1', 56357]
+DEBUG 2025-09-15 21:41:33,067 resource 25468 7804 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001BA7DBC9700>.
+ERROR 2025-09-15 21:41:33,161 log 25468 21596 Internal Server Error: /users/profile/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+MySQLdb.OperationalError: (1054, "Unknown column 'planpal_chat_messages.conversation_id' in 'IN/ALL/ANY subquery'")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 142, in profile
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 40, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 509, in to_representation
+    attribute = field.get_attribute(instance)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 446, in get_attribute
+    return get_attribute(instance, self.source_attrs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 96, in get_attribute
+    instance = getattr(instance, attr)
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py", line 382, in unread_messages_count
+    count = unread_messages.count()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 604, in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 644, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\query.py", line 626, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1623, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\MySQLdb\connections.py", line 280, in query
+    _mysql.connection.query(self, query)
+django.db.utils.OperationalError: (1054, "Unknown column 'planpal_chat_messages.conversation_id' in 'IN/ALL/ANY subquery'")
+DEBUG 2025-09-15 21:41:33,169 http_protocol 25468 27808 HTTP 500 response started for ['127.0.0.1', 56357]
+DEBUG 2025-09-15 21:41:33,169 http_protocol 25468 27808 HTTP response chunk for ['127.0.0.1', 56357]
+DEBUG 2025-09-15 21:41:33,169 http_protocol 25468 27808 HTTP response chunk for ['127.0.0.1', 56357]
+DEBUG 2025-09-15 21:41:33,169 http_protocol 25468 27808 HTTP response chunk for ['127.0.0.1', 56357]
+DEBUG 2025-09-15 21:41:33,169 http_protocol 25468 27808 HTTP close for ['127.0.0.1', 56357]
+DEBUG 2025-09-15 21:41:33,169 http_protocol 25468 27808 HTTP response complete for ['127.0.0.1', 56357]
+ERROR 2025-09-15 21:41:33,170 runserver 25468 27808 [35;1mHTTP GET /users/profile/ 500 [0.11, 127.0.0.1:56357][0m
+INFO 2025-09-15 21:41:39,013 autoreload 25468 13036 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-15 21:41:39,958 selector_events 3164 13808 Using selector: SelectSelector
+INFO 2025-09-15 21:41:40,201 autoreload 3164 13808 Watching for file changes with StatReloader
+INFO 2025-09-15 21:41:40,664 server 3164 24808 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:41:40,664 server 3164 24808 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:41:40,665 server 3164 24808 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 21:43:02,528 selector_events 14704 31188 Using selector: SelectSelector
+DEBUG 2025-09-15 21:43:44,593 selector_events 12788 2976 Using selector: SelectSelector
+DEBUG 2025-09-15 21:46:07,094 selector_events 29432 20120 Using selector: SelectSelector
+DEBUG 2025-09-15 21:46:33,812 selector_events 22256 18280 Using selector: SelectSelector
+DEBUG 2025-09-15 21:46:34,624 selector_events 13952 4784 Using selector: SelectSelector
+INFO 2025-09-15 21:46:34,800 autoreload 13952 4784 Watching for file changes with StatReloader
+INFO 2025-09-15 21:46:35,274 server 13952 27308 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:46:35,274 server 13952 27308 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:46:35,275 server 13952 27308 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 21:46:45,435 http_protocol 13952 27308 HTTP b'POST' request for ['127.0.0.1', 56166]
+DEBUG 2025-09-15 21:46:45,453 token 13952 25072 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x0000026D9DC0FC80>.
+DEBUG 2025-09-15 21:46:45,462 resource_owner_password_credentials 13952 25072 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-15 21:46:45,462 resource_owner_password_credentials 13952 25072 Validating username admin.
+DEBUG 2025-09-15 21:46:46,044 resource_owner_password_credentials 13952 25072 Authorizing access to user <User: admin ()>.
+DEBUG 2025-09-15 21:46:46,045 base 13952 25072 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-15 21:46:46,057 resource_owner_password_credentials 13952 25072 Issuing token {'access_token': 'B6CRMbjLJMBbPkGfdX81j3o59h92Lf', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'LycRprSb1UYV7WjQgt2T5WoT125v20'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-09-15 21:46:46,065 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 56166]
+DEBUG 2025-09-15 21:46:46,065 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 56166]
+DEBUG 2025-09-15 21:46:46,066 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 56166]
+INFO 2025-09-15 21:46:46,066 runserver 13952 27308 [mHTTP POST /o/token/ 200 [0.63, 127.0.0.1:56166][0m
+DEBUG 2025-09-15 21:46:46,122 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 56168]
+DEBUG 2025-09-15 21:46:46,128 resource 13952 3432 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DD12EC0>.
+DEBUG 2025-09-15 21:46:46,176 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 56168]
+DEBUG 2025-09-15 21:46:46,177 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 56168]
+DEBUG 2025-09-15 21:46:46,177 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 56168]
+INFO 2025-09-15 21:46:46,177 runserver 13952 27308 [mHTTP GET /users/profile/ 200 [0.06, 127.0.0.1:56168][0m
+DEBUG 2025-09-15 21:46:46,594 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 56170]
+DEBUG 2025-09-15 21:46:46,599 resource 13952 28376 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DD29340>.
+DEBUG 2025-09-15 21:46:46,631 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 56170]
+DEBUG 2025-09-15 21:46:46,631 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 56170]
+DEBUG 2025-09-15 21:46:46,632 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 56170]
+INFO 2025-09-15 21:46:46,632 runserver 13952 27308 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:56170][0m
+DEBUG 2025-09-15 21:46:46,679 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 56172]
+DEBUG 2025-09-15 21:46:46,684 resource 13952 22984 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DB49440>.
+DEBUG 2025-09-15 21:46:46,718 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 56172]
+DEBUG 2025-09-15 21:46:46,718 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 56172]
+DEBUG 2025-09-15 21:46:46,719 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 56172]
+INFO 2025-09-15 21:46:46,720 runserver 13952 27308 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:56172][0m
+DEBUG 2025-09-15 21:46:52,791 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 58533]
+DEBUG 2025-09-15 21:46:52,797 resource 13952 11300 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DAE5E80>.
+DEBUG 2025-09-15 21:46:52,825 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 58533]
+DEBUG 2025-09-15 21:46:52,825 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 58533]
+DEBUG 2025-09-15 21:46:52,825 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 58533]
+INFO 2025-09-15 21:46:52,826 runserver 13952 27308 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:58533][0m
+DEBUG 2025-09-15 21:46:55,110 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 55545]
+DEBUG 2025-09-15 21:46:55,115 resource 13952 21472 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DD35F00>.
+DEBUG 2025-09-15 21:46:55,147 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 55545]
+DEBUG 2025-09-15 21:46:55,147 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 55545]
+DEBUG 2025-09-15 21:46:55,148 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 55545]
+INFO 2025-09-15 21:46:55,148 runserver 13952 27308 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:55545][0m
+DEBUG 2025-09-15 21:47:45,115 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 57774]
+DEBUG 2025-09-15 21:47:45,118 resource 13952 25492 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DC5ADC0>.
+DEBUG 2025-09-15 21:47:45,134 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 57774]
+DEBUG 2025-09-15 21:47:45,135 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 57774]
+DEBUG 2025-09-15 21:47:45,135 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 57774]
+INFO 2025-09-15 21:47:45,135 runserver 13952 27308 [mHTTP GET /users/profile/ 200 [0.02, 127.0.0.1:57774][0m
+DEBUG 2025-09-15 21:47:46,442 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 61615]
+DEBUG 2025-09-15 21:47:46,446 resource 13952 7380 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DCE8400>.
+DEBUG 2025-09-15 21:47:46,470 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 61615]
+DEBUG 2025-09-15 21:47:46,471 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 61615]
+DEBUG 2025-09-15 21:47:46,471 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 61615]
+INFO 2025-09-15 21:47:46,471 runserver 13952 27308 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:61615][0m
+DEBUG 2025-09-15 21:47:46,627 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 61617]
+DEBUG 2025-09-15 21:47:46,631 resource 13952 20260 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DD77640>.
+DEBUG 2025-09-15 21:47:46,658 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 61617]
+DEBUG 2025-09-15 21:47:46,659 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 61617]
+DEBUG 2025-09-15 21:47:46,660 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 61617]
+INFO 2025-09-15 21:47:46,660 runserver 13952 27308 [mHTTP GET /groups/ 200 [0.03, 127.0.0.1:61617][0m
+DEBUG 2025-09-15 21:49:36,270 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 50947]
+DEBUG 2025-09-15 21:49:36,275 resource 13952 15096 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DE28540>.
+DEBUG 2025-09-15 21:49:36,304 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 50947]
+DEBUG 2025-09-15 21:49:36,304 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 50947]
+DEBUG 2025-09-15 21:49:36,304 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 50947]
+INFO 2025-09-15 21:49:36,305 runserver 13952 27308 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:50947][0m
+DEBUG 2025-09-15 21:49:39,554 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 50951]
+DEBUG 2025-09-15 21:49:39,557 resource 13952 8700 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DC6BB40>.
+DEBUG 2025-09-15 21:49:39,582 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 50951]
+DEBUG 2025-09-15 21:49:39,582 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 50951]
+DEBUG 2025-09-15 21:49:39,582 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 50951]
+INFO 2025-09-15 21:49:39,583 runserver 13952 27308 [mHTTP GET /groups/ 200 [0.03, 127.0.0.1:50951][0m
+DEBUG 2025-09-15 21:49:44,188 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 58162]
+DEBUG 2025-09-15 21:49:44,195 resource 13952 13808 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DD07000>.
+DEBUG 2025-09-15 21:49:44,224 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 58162]
+DEBUG 2025-09-15 21:49:44,224 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 58162]
+DEBUG 2025-09-15 21:49:44,224 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 58162]
+INFO 2025-09-15 21:49:44,224 runserver 13952 27308 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:58162][0m
+DEBUG 2025-09-15 21:51:00,089 http_protocol 13952 27308 HTTP b'GET' request for ['127.0.0.1', 54577]
+DEBUG 2025-09-15 21:51:00,093 resource 13952 21944 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000026D9DE4D1C0>.
+DEBUG 2025-09-15 21:51:00,128 http_protocol 13952 27308 HTTP 200 response started for ['127.0.0.1', 54577]
+DEBUG 2025-09-15 21:51:00,129 http_protocol 13952 27308 HTTP close for ['127.0.0.1', 54577]
+DEBUG 2025-09-15 21:51:00,130 http_protocol 13952 27308 HTTP response complete for ['127.0.0.1', 54577]
+INFO 2025-09-15 21:51:00,130 runserver 13952 27308 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:54577][0m
+INFO 2025-09-15 21:55:57,821 autoreload 13952 4784 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 21:55:58,878 selector_events 16456 31232 Using selector: SelectSelector
+INFO 2025-09-15 21:55:59,106 autoreload 16456 31232 Watching for file changes with StatReloader
+INFO 2025-09-15 21:55:59,583 server 16456 17492 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:55:59,583 server 16456 17492 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:55:59,584 server 16456 17492 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:56:12,071 autoreload 16456 31232 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 21:56:12,894 selector_events 18984 17344 Using selector: SelectSelector
+INFO 2025-09-15 21:56:13,073 autoreload 18984 17344 Watching for file changes with StatReloader
+INFO 2025-09-15 21:56:13,521 server 18984 15116 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:56:13,521 server 18984 15116 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:56:13,523 server 18984 15116 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:56:25,021 autoreload 18984 17344 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 21:56:25,835 selector_events 14080 23640 Using selector: SelectSelector
+INFO 2025-09-15 21:56:26,064 autoreload 14080 23640 Watching for file changes with StatReloader
+INFO 2025-09-15 21:56:26,580 server 14080 14388 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:56:26,580 server 14080 14388 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:56:26,583 server 14080 14388 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:56:45,278 autoreload 14080 23640 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 21:56:46,084 selector_events 27708 31188 Using selector: SelectSelector
+INFO 2025-09-15 21:56:46,255 autoreload 27708 31188 Watching for file changes with StatReloader
+INFO 2025-09-15 21:56:48,975 autoreload 27708 31188 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 21:56:49,823 selector_events 29820 29420 Using selector: SelectSelector
+INFO 2025-09-15 21:56:49,992 autoreload 29820 29420 Watching for file changes with StatReloader
+INFO 2025-09-15 21:56:50,466 server 29820 29768 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:56:50,467 server 29820 29768 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:56:50,468 server 29820 29768 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 21:57:07,060 autoreload 29820 29420 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 21:57:07,863 selector_events 24308 10540 Using selector: SelectSelector
+INFO 2025-09-15 21:57:08,039 autoreload 24308 10540 Watching for file changes with StatReloader
+INFO 2025-09-15 21:57:21,833 autoreload 24308 10540 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 21:57:22,604 selector_events 18864 1980 Using selector: SelectSelector
+INFO 2025-09-15 21:57:22,801 autoreload 18864 1980 Watching for file changes with StatReloader
+INFO 2025-09-15 21:57:34,515 autoreload 18864 1980 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 21:57:35,282 selector_events 13768 29096 Using selector: SelectSelector
+INFO 2025-09-15 21:57:35,451 autoreload 13768 29096 Watching for file changes with StatReloader
+INFO 2025-09-15 21:57:42,041 autoreload 13768 29096 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 21:57:42,815 selector_events 17624 29348 Using selector: SelectSelector
+INFO 2025-09-15 21:57:42,985 autoreload 17624 29348 Watching for file changes with StatReloader
+INFO 2025-09-15 21:57:50,636 autoreload 17624 29348 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 21:57:51,390 selector_events 28276 19596 Using selector: SelectSelector
+INFO 2025-09-15 21:57:51,569 autoreload 28276 19596 Watching for file changes with StatReloader
+INFO 2025-09-15 21:59:02,381 autoreload 28276 19596 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 21:59:03,348 selector_events 30216 2396 Using selector: SelectSelector
+INFO 2025-09-15 21:59:03,525 autoreload 30216 2396 Watching for file changes with StatReloader
+INFO 2025-09-15 21:59:04,046 server 30216 21220 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 21:59:04,046 server 30216 21220 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 21:59:04,047 server 30216 21220 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:00:58,933 autoreload 30216 2396 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 22:00:59,792 selector_events 8320 16780 Using selector: SelectSelector
+INFO 2025-09-15 22:00:59,971 autoreload 8320 16780 Watching for file changes with StatReloader
+INFO 2025-09-15 22:01:00,455 server 8320 26480 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:01:00,455 server 8320 26480 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:01:00,456 server 8320 26480 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:01:17,098 autoreload 8320 16780 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 22:01:17,911 selector_events 22304 27692 Using selector: SelectSelector
+INFO 2025-09-15 22:01:18,080 autoreload 22304 27692 Watching for file changes with StatReloader
+INFO 2025-09-15 22:01:18,546 server 22304 29784 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:01:18,546 server 22304 29784 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:01:18,547 server 22304 29784 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:01:29,015 autoreload 22304 27692 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 22:01:29,820 selector_events 21064 17864 Using selector: SelectSelector
+INFO 2025-09-15 22:01:29,996 autoreload 21064 17864 Watching for file changes with StatReloader
+INFO 2025-09-15 22:01:30,473 server 21064 20912 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:01:30,474 server 21064 20912 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:01:30,475 server 21064 20912 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:02:01,389 autoreload 21064 17864 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 22:02:02,170 selector_events 14528 22016 Using selector: SelectSelector
+INFO 2025-09-15 22:02:02,348 autoreload 14528 22016 Watching for file changes with StatReloader
+INFO 2025-09-15 22:02:02,814 server 14528 13004 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:02:02,814 server 14528 13004 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:02:02,815 server 14528 13004 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:03:03,442 autoreload 14528 22016 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 22:03:04,253 selector_events 4736 2656 Using selector: SelectSelector
+INFO 2025-09-15 22:03:04,438 autoreload 4736 2656 Watching for file changes with StatReloader
+INFO 2025-09-15 22:03:04,903 server 4736 18868 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:03:04,903 server 4736 18868 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:03:04,904 server 4736 18868 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:03:24,574 autoreload 4736 2656 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 22:03:25,441 selector_events 10260 28140 Using selector: SelectSelector
+INFO 2025-09-15 22:03:25,613 autoreload 10260 28140 Watching for file changes with StatReloader
+INFO 2025-09-15 22:03:26,158 server 10260 24456 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:03:26,158 server 10260 24456 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:03:26,160 server 10260 24456 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:03:40,938 autoreload 10260 28140 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 22:03:42,676 selector_events 23656 23208 Using selector: SelectSelector
+INFO 2025-09-15 22:03:43,286 autoreload 23656 23208 Watching for file changes with StatReloader
+INFO 2025-09-15 22:03:44,479 server 23656 17684 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:03:44,479 server 23656 17684 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:03:44,480 server 23656 17684 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 22:04:37,295 selector_events 11232 29264 Using selector: SelectSelector
+INFO 2025-09-15 22:04:39,183 services 11232 29264 Service operation: friend_request_sent
+INFO 2025-09-15 22:04:58,300 autoreload 23656 23208 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 22:04:59,086 selector_events 18740 12448 Using selector: SelectSelector
+INFO 2025-09-15 22:04:59,266 autoreload 18740 12448 Watching for file changes with StatReloader
+INFO 2025-09-15 22:04:59,728 server 18740 11112 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:04:59,728 server 18740 11112 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:04:59,729 server 18740 11112 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:05:13,264 autoreload 18740 12448 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 22:05:14,032 selector_events 23968 12948 Using selector: SelectSelector
+INFO 2025-09-15 22:05:14,205 autoreload 23968 12948 Watching for file changes with StatReloader
+INFO 2025-09-15 22:05:14,673 server 23968 21912 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:05:14,674 server 23968 21912 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:05:14,674 server 23968 21912 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 22:05:25,558 selector_events 29264 11232 Using selector: SelectSelector
+DEBUG 2025-09-15 22:05:36,061 selector_events 21880 19596 Using selector: SelectSelector
+DEBUG 2025-09-15 22:06:19,369 selector_events 9800 8684 Using selector: SelectSelector
+DEBUG 2025-09-15 22:06:26,260 selector_events 29572 24228 Using selector: SelectSelector
+INFO 2025-09-15 22:06:28,091 services 29572 24228 Service operation: friend_request_sent
+INFO 2025-09-15 22:06:28,117 services 29572 24228 Service operation: friend_request_accepted
+INFO 2025-09-15 22:06:28,131 services 29572 24228 Service operation: friend_request_sent
+INFO 2025-09-15 22:06:40,828 autoreload 23968 12948 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 22:06:41,660 selector_events 18940 10640 Using selector: SelectSelector
+INFO 2025-09-15 22:06:41,821 autoreload 18940 10640 Watching for file changes with StatReloader
+INFO 2025-09-15 22:06:42,327 server 18940 16436 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:06:42,328 server 18940 16436 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:06:42,329 server 18940 16436 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 22:06:59,851 selector_events 22000 24180 Using selector: SelectSelector
+DEBUG 2025-09-15 22:07:23,761 selector_events 25248 9620 Using selector: SelectSelector
+DEBUG 2025-09-15 22:07:51,373 selector_events 27448 8984 Using selector: SelectSelector
+DEBUG 2025-09-15 22:07:59,768 selector_events 1520 18740 Using selector: SelectSelector
+INFO 2025-09-15 22:08:01,573 services 1520 18740 Service operation: friend_request_sent
+INFO 2025-09-15 22:08:01,608 services 1520 18740 Service operation: friend_request_accepted
+INFO 2025-09-15 22:08:01,626 services 1520 18740 Service operation: friend_request_sent
+INFO 2025-09-15 22:08:11,720 autoreload 18940 10640 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 22:08:12,526 selector_events 4632 12316 Using selector: SelectSelector
+INFO 2025-09-15 22:08:12,703 autoreload 4632 12316 Watching for file changes with StatReloader
+INFO 2025-09-15 22:08:13,166 server 4632 18500 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:08:13,166 server 4632 18500 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:08:13,167 server 4632 18500 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 22:08:20,414 selector_events 5332 28052 Using selector: SelectSelector
+DEBUG 2025-09-15 22:08:21,462 selector_events 18576 20232 Using selector: SelectSelector
+INFO 2025-09-15 22:08:23,175 services 18576 20232 Service operation: friend_request_sent
+INFO 2025-09-15 22:08:23,209 services 18576 20232 Service operation: friend_request_accepted
+INFO 2025-09-15 22:08:23,231 services 18576 20232 Service operation: friend_request_sent
+INFO 2025-09-15 22:08:23,252 services 18576 20232 Service operation: friend_request_rejected
+INFO 2025-09-15 22:14:49,432 autoreload 4632 12316 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 22:14:50,253 selector_events 22668 19764 Using selector: SelectSelector
+INFO 2025-09-15 22:14:50,431 autoreload 22668 19764 Watching for file changes with StatReloader
+INFO 2025-09-15 22:14:50,931 server 22668 25272 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:14:50,931 server 22668 25272 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:14:50,932 server 22668 25272 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:15:09,580 autoreload 22668 19764 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 22:15:10,356 selector_events 13752 22136 Using selector: SelectSelector
+INFO 2025-09-15 22:15:10,525 autoreload 13752 22136 Watching for file changes with StatReloader
+INFO 2025-09-15 22:15:10,972 server 13752 23032 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:15:10,972 server 13752 23032 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:15:10,973 server 13752 23032 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:15:17,361 autoreload 13752 22136 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-15 22:15:18,186 selector_events 11232 3468 Using selector: SelectSelector
+INFO 2025-09-15 22:15:18,355 autoreload 11232 3468 Watching for file changes with StatReloader
+INFO 2025-09-15 22:15:18,813 server 11232 27216 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:15:18,814 server 11232 27216 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:15:18,815 server 11232 27216 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-15 22:15:35,418 autoreload 11232 3468 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-15 22:15:36,218 selector_events 14420 17040 Using selector: SelectSelector
+INFO 2025-09-15 22:15:36,386 autoreload 14420 17040 Watching for file changes with StatReloader
+INFO 2025-09-15 22:15:36,842 server 14420 21400 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:15:36,842 server 14420 21400 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:15:36,843 server 14420 21400 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-15 22:20:01,547 selector_events 29288 23432 Using selector: SelectSelector
+DEBUG 2025-09-15 22:20:09,135 selector_events 17416 4504 Using selector: SelectSelector
+DEBUG 2025-09-15 22:20:59,637 selector_events 17484 26144 Using selector: SelectSelector
+INFO 2025-09-15 22:24:14,699 autoreload 14420 17040 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-15 22:24:15,669 selector_events 3208 18984 Using selector: SelectSelector
+INFO 2025-09-15 22:24:15,840 autoreload 3208 18984 Watching for file changes with StatReloader
+INFO 2025-09-15 22:24:16,384 server 3208 6252 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-15 22:24:16,384 server 3208 6252 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-15 22:24:16,386 server 3208 6252 Listening on TCP address 0.0.0.0:8000

@@ -747,22 +747,42 @@ class FriendshipSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             current_user = request.user
-            # Always return current user as 'user'
+            
+            # Check if this is for a friend request list (pending status)
+            list_requests = self.context.get('list_friend_requests', False)
+            
+            if list_requests and instance.status == 'pending':
+                # For friend request lists, 'user' should be the receiver (non-initiator)
+                receiver = instance.get_other_user(instance.initiator)
+                if receiver:
+                    return UserSummarySerializer(receiver, context=self.context).data
+            
+            # For established friendships or other cases, return current user as 'user'
             if current_user in [instance.user_a, instance.user_b]:
                 return UserSummarySerializer(current_user, context=self.context).data
-        # Fallback to initiator
-        return UserSummarySerializer(instance.initiator, context=self.context).data
+        
+        # Fallback to user_a (canonical first user)
+        return UserSummarySerializer(instance.user_a, context=self.context).data
     
     def get_friend(self, instance):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             current_user = request.user
+            
+            # Check if this is for a friend request list (pending status)
+            list_requests = self.context.get('list_friend_requests', False)
+            
+            if list_requests and instance.status == 'pending':
+                # For friend request lists, 'friend' should be the initiator
+                return UserSummarySerializer(instance.initiator, context=self.context).data
+            
+            # For established friendships, return the other user as 'friend'
             other_user = instance.get_other_user(current_user)
             if other_user:
                 return UserSummarySerializer(other_user, context=self.context).data
-        # Fallback
-        non_initiator = instance.user_b if instance.initiator == instance.user_a else instance.user_a
-        return UserSummarySerializer(non_initiator, context=self.context).data
+        
+        # Fallback to user_b (canonical second user)
+        return UserSummarySerializer(instance.user_b, context=self.context).data
 
 
 class FriendRequestSerializer(serializers.Serializer):
@@ -783,7 +803,7 @@ class FriendRequestSerializer(serializers.Serializer):
         if friend_user == user:
             raise serializers.ValidationError("Cannot send friend request to yourself")
         
-        existing = Friendship.between_users(user, friend_user)
+        existing = Friendship.get_friendship(user, friend_user)
         if existing:
             if existing.status == 'pending':
                 raise serializers.ValidationError("Friend request already sent")
@@ -797,11 +817,14 @@ class FriendRequestSerializer(serializers.Serializer):
     
     def create(self, validated_data):
         request = self.context['request']
-        # Use model class method for creation
-        friendship = Friendship.create_request(
-            initiator=request.user,
-            receiver=self.validated_friend
-        )
+        # Use UserService to handle friend request creation
+        from .services import UserService
+        success, message = UserService.send_friend_request(request.user, self.validated_friend)
+        if not success:
+            raise serializers.ValidationError(message)
+        
+        # Return the created friendship
+        friendship = Friendship.get_friendship(request.user, self.validated_friend)
         return friendship
 
 
@@ -960,8 +983,9 @@ class ConversationSummarySerializer(serializers.ModelSerializer):
         if hasattr(obj, 'last_message_content') and obj.last_message_content:
             sender_name = "System"
             if hasattr(obj, 'last_message_sender_id') and obj.last_message_sender_id:
-                # Try to get sender info from prefetched participants
-                for participant in obj.participants.all():
+                # Try to get sender info from participants
+                participants = obj.participants.all()
+                for participant in participants:
                     if participant.id == obj.last_message_sender_id:
                         sender_name = participant.username
                         break

@@ -11,8 +11,7 @@ bool _isValidImageUrl(String? url) {
       (uri.scheme == 'http' || uri.scheme == 'https');
 }
 
-/// Group model matching backend GroupSerializer
-/// Full group details with memberships and permissions
+
 class GroupModel extends Equatable {
   final String id;
   final String name;

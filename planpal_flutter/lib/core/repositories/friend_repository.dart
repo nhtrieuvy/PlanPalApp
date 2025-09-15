@@ -4,7 +4,6 @@ import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import '../dtos/user_summary.dart';
 import '../dtos/friendship.dart';
-import '../dtos/friend_request_detail.dart';
 
 class FriendRepository {
   final AuthProvider auth;
@@ -70,7 +69,7 @@ class FriendRepository {
   }
 
   /// Get pending friend requests (received)
-  Future<List<FriendRequestDetail>> getPendingRequests() async {
+  Future<List<Friendship>> getPendingRequests() async {
     try {
       final Response res = await auth.requestWithAutoRefresh(
         (c) => c.dio.get(Endpoints.friendRequests),
@@ -82,10 +81,7 @@ class FriendRepository {
             : (res.data['results'] ?? []);
         return requests
             .whereType<Map>()
-            .map(
-              (req) =>
-                  FriendRequestDetail.fromJson(Map<String, dynamic>.from(req)),
-            )
+            .map((req) => Friendship.fromJson(Map<String, dynamic>.from(req)))
             .toList();
       }
       return _throwApiError(res);
