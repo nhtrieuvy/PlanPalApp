@@ -37,15 +37,16 @@ class PlanRepository {
 
       if (res.statusCode == 200) {
         final data = res.data;
-        final List<dynamic> rawList = (data is Map && data['plans'] is List)
-            ? List<dynamic>.from(data['plans'] as List)
-            : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
+        // Handle paginated response with 'results' array
+        final List<dynamic> rawList = (data is Map && data['results'] is List)
+            ? List<dynamic>.from(data['results'] as List)
+            : const <dynamic>[];
 
         if (rawList.isEmpty) return const <PlanSummary>[];
         final parsed = <PlanSummary>[];
-        for (final m in rawList) {
-          if (m is Map) {
-            parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(m)));
+        for (final item in rawList) {
+          if (item is Map) {
+            parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(item)));
           }
         }
         return parsed;
@@ -188,15 +189,20 @@ class PlanRepository {
 
       if (res.statusCode == 200) {
         final data = res.data;
-        final List<dynamic> rawList = (data is Map && data['plans'] is List)
-            ? List<dynamic>.from(data['plans'] as List)
-            : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
+        // Handle paginated response with 'results' array
+        final List<dynamic> rawList = (data is Map && data['results'] is List)
+            ? List<dynamic>.from(data['results'] as List)
+            : const <dynamic>[];
 
         if (rawList.isEmpty) return const <PlanSummary>[];
         final parsed = <PlanSummary>[];
-        for (final m in rawList) {
-          if (m is Map) {
-            parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(m)));
+        for (final item in rawList) {
+          if (item is Map) {
+            try {
+              parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(item)));
+            } catch (e) {
+              continue;
+            }
           }
         }
         return parsed;
@@ -216,15 +222,20 @@ class PlanRepository {
 
       if (res.statusCode == 200) {
         final data = res.data;
-        final List<dynamic> rawList = (data is Map && data['plans'] is List)
-            ? List<dynamic>.from(data['plans'] as List)
-            : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
+        // Handle paginated response with 'results' array
+        final List<dynamic> rawList = (data is Map && data['results'] is List)
+            ? List<dynamic>.from(data['results'] as List)
+            : const <dynamic>[];
 
         if (rawList.isEmpty) return const <PlanSummary>[];
         final parsed = <PlanSummary>[];
-        for (final m in rawList) {
-          if (m is Map) {
-            parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(m)));
+        for (final item in rawList) {
+          if (item is Map) {
+            try {
+              parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(item)));
+            } catch (e) {
+              continue;
+            }
           }
         }
         return parsed;
@@ -247,15 +258,20 @@ class PlanRepository {
 
       if (res.statusCode == 200) {
         final data = res.data;
-        final List<dynamic> rawList = (data is Map && data['plans'] is List)
-            ? List<dynamic>.from(data['plans'] as List)
-            : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
+        // Handle paginated response with 'results' array
+        final List<dynamic> rawList = (data is Map && data['results'] is List)
+            ? List<dynamic>.from(data['results'] as List)
+            : const <dynamic>[];
 
         if (rawList.isEmpty) return const <PlanSummary>[];
         final parsed = <PlanSummary>[];
-        for (final m in rawList) {
-          if (m is Map) {
-            parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(m)));
+        for (final item in rawList) {
+          if (item is Map) {
+            try {
+              parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(item)));
+            } catch (e) {
+              continue;
+            }
           }
         }
         return parsed;

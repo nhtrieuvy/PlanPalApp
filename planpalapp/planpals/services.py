@@ -1015,7 +1015,7 @@ class PlanService(BaseService):
     @classmethod
     def get_plan_schedule(cls, plan: 'Plan', user: User) -> Dict[str, Any]:
         
-        activities = plan.activities.select_related('location').order_by('start_time')
+        activities = plan.activities.order_by('start_time')
         
         schedule_by_date = {}
         for activity in activities:

@@ -115,9 +115,9 @@ class GroupMembershipSerializer(serializers.ModelSerializer):
     class Meta:
         model = GroupMembership
         fields = [
-            'id', 'user', 'role', 'joined_at'
+            'id', 'user', 'role', 'created_at'
         ]
-        read_only_fields = ['id', 'joined_at']
+        read_only_fields = ['id', 'created_at']
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -173,6 +173,11 @@ class GroupSerializer(serializers.ModelSerializer):
             return obj.is_member(request.user)
         return False
     
+    def get_user_role(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.get_user_role(request.user)
+        return None
     
     def get_can_edit(self, obj):
         request = self.context.get('request')

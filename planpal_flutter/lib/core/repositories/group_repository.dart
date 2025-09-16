@@ -22,15 +22,15 @@ class GroupRepository {
       );
       if (res.statusCode == 200) {
         final data = res.data;
-        final List<dynamic> rawList = (data is Map && data['groups'] is List)
-            ? List<dynamic>.from(data['groups'] as List)
-            : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
+        final List<dynamic> rawList = (data is Map && data['results'] is List)
+            ? List<dynamic>.from(data['results'] as List)
+            : const <dynamic>[];
 
         if (rawList.isEmpty) return const <GroupSummary>[];
         final parsed = <GroupSummary>[];
-        for (final m in rawList) {
-          if (m is Map) {
-            parsed.add(GroupSummary.fromJson(Map<String, dynamic>.from(m)));
+        for (final item in rawList) {
+          if (item is Map) {
+            parsed.add(GroupSummary.fromJson(Map<String, dynamic>.from(item)));
           }
         }
         return parsed;

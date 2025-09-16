@@ -10,7 +10,6 @@ import '../../../core/dtos/plan_model.dart';
 import '../../../core/dtos/plan_activity.dart';
 import '../plans/activity_form_page.dart';
 import '../plans/plan_schedule_page.dart';
-// Removed local PlanStatus mapping; rely on backend-provided status strings
 
 class PlanDetailsPage extends StatefulWidget {
   final String id;

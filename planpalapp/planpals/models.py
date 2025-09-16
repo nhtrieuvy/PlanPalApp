@@ -898,6 +898,11 @@ class Group(BaseModel):
         except GroupMembership.DoesNotExist:
             return None
     
+    def get_user_role(self, user: Union[UUID, 'User']) -> Optional[str]:
+        """Get the role of a user in this group"""
+        membership = self.get_user_membership(user)
+        return membership.role if membership else None
+    
 
 
     def get_member_roles(self) -> Dict[UUID, str]:
@@ -1552,7 +1557,7 @@ class PlanActivity(BaseModel):
         return conflicts
 
     @property
-    def duration_minutes(self) -> int:
+    def duration_hours(self) -> int:
         if self.start_time and self.end_time:
             return int((self.end_time - self.start_time).total_seconds() / 60)
         return 0
@@ -1567,13 +1572,22 @@ class PlanActivity(BaseModel):
     def can_complete(self) -> bool:
         return self.start_time <= timezone.now() if self.start_time else False
 
+    @property
+    def has_location(self) -> bool:
+        if self.latitude is not None and self.longitude is not None:
+            return True
+        if self.goong_place_id:
+            return bool(str(self.goong_place_id).strip())
+        if self.location_name:
+            return bool(str(self.location_name).strip())
+        return False
+
 
 class ConversationQuerySet(models.QuerySet['Conversation']):    
     def active(self) -> 'ConversationQuerySet':
         return self.filter(is_active=True)
     
     def for_user(self, user: Union['User', UUID]) -> 'ConversationQuerySet':
-        """Optimized query for user's conversations"""
         user_id = getattr(user, 'id', user)
         return self.filter(
             Q(conversation_type='group', group__members=user_id) |
@@ -1600,7 +1614,6 @@ class ConversationQuerySet(models.QuerySet['Conversation']):
         ).select_related('group')
 
     def get_direct_conversation(self, user1: Union['User', UUID], user2: Union['User', UUID]) -> Optional['Conversation']:
-        """Get direct conversation between two users - optimized"""
         user1_id = getattr(user1, 'id', user1)
         user2_id = getattr(user2, 'id', user2)
         
@@ -1629,7 +1642,7 @@ class Conversation(BaseModel):
         max_length=10,
         choices=CONVERSATION_TYPES,
         db_index=True,
-        help_text="Loại cuộc trò chuyện"
+        help_text="Conversation type"
     )
     
     group = models.OneToOneField(

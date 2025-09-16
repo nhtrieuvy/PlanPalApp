@@ -2,6 +2,13 @@ import 'package:equatable/equatable.dart';
 
 /// PlanActivity model matching backend PlanActivitySerializer
 /// Represents individual activities within a plan
+
+double? _parseNullableDouble(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString());
+}
+
 class PlanActivity extends Equatable {
   final String id;
   final String plan;
@@ -68,14 +75,14 @@ class PlanActivity extends Equatable {
           : null,
       locationName: json['location_name']?.toString(),
       locationAddress: json['location_address']?.toString(),
-      latitude: json['latitude']?.toDouble(),
-      longitude: json['longitude']?.toDouble(),
+      latitude: _parseNullableDouble(json['latitude']),
+      longitude: _parseNullableDouble(json['longitude']),
       goongPlaceId: json['goong_place_id']?.toString(),
-      estimatedCost: json['estimated_cost']?.toDouble(),
+      estimatedCost: _parseNullableDouble(json['estimated_cost']),
       notes: json['notes']?.toString(),
       order: json['order']?.toInt() ?? 0,
       isCompleted: json['is_completed'] == true,
-      durationHours: json['duration_hours']?.toDouble() ?? 0.0,
+      durationHours: _parseNullableDouble(json['duration_hours']) ?? 0.0,
       hasLocation: json['has_location'] == true,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'].toString())

@@ -131,13 +131,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      body: isLoading
-          ? _buildLoading()
-          : error != null
-          ? _buildError(context, error!)
-          : _buildContent(context, groupData!, theme),
-    );
+    // Avoid nesting Scaffolds: return loading/error Scaffold directly.
+    if (isLoading) return _buildLoading();
+    if (error != null) return _buildError(context, error!);
+
+    return Scaffold(body: _buildContent(context, groupData!, theme));
   }
 
   Widget _buildLoading() {

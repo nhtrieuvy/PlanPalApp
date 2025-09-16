@@ -57,7 +57,8 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
 
       for (final entry in rawScheduleByDate.entries) {
         final dateKey = entry.key;
-        final activitiesList = entry.value as List<dynamic>? ?? [];
+        final dateData = entry.value as Map<String, dynamic>? ?? {};
+        final activitiesList = dateData['activities'] as List<dynamic>? ?? [];
 
         parsedSchedule[dateKey] = activitiesList
             .whereType<Map<String, dynamic>>()
