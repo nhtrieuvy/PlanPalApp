@@ -26,7 +26,7 @@ class AppCard extends StatelessWidget {
   });
 
   /// Creates a list item card with standard spacing
-  AppCard.listItem({
+  const AppCard.listItem({
     super.key,
     required this.child,
     this.onTap,
@@ -39,7 +39,7 @@ class AppCard extends StatelessWidget {
        margin = const EdgeInsets.only(bottom: 12);
 
   /// Creates a section card with more spacing
-  AppCard.section({
+  const AppCard.section({
     super.key,
     required this.child,
     this.onTap,
@@ -52,7 +52,7 @@ class AppCard extends StatelessWidget {
        margin = const EdgeInsets.symmetric(vertical: 8);
 
   /// Creates a compact card for small items
-  AppCard.compact({
+  const AppCard.compact({
     super.key,
     required this.child,
     this.onTap,
@@ -81,10 +81,10 @@ class AppCard extends StatelessWidget {
         border: border,
         boxShadow: showShadow && defaultElevation > 0
             ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: defaultElevation * 2,
-                  offset: Offset(0, defaultElevation),
+                const BoxShadow(
+                  color: Color.fromRGBO(0, 0, 0, 0.1),
+                  blurRadius: 4.0,
+                  offset: Offset(0, 2),
                 ),
               ]
             : null,

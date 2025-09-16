@@ -336,7 +336,7 @@ class PlanActivityAdmin(admin.ModelAdmin):
     duration_hours.short_description = 'Thời lượng'
     
     def has_location(self, obj):
-        return "✓" if obj.has_location() else "✗"
+        return "✓" if obj.has_location else "✗"
     has_location.short_description = 'GPS'
     has_location.boolean = True
 

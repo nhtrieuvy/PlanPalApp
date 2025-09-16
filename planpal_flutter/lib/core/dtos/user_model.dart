@@ -10,7 +10,7 @@ bool _isValidImageUrl(String? url) {
 }
 
 /// User model matching backend UserSerializer
-class User extends Equatable {
+class UserModel extends Equatable {
   final String id;
   final String username;
   final String? email;
@@ -37,7 +37,7 @@ class User extends Equatable {
   final String fullName;
   final String initials;
 
-  const User({
+  const UserModel({
     required this.id,
     required this.username,
     this.email,
@@ -65,14 +65,14 @@ class User extends Equatable {
     required this.initials,
   });
 
-  factory User.fromJson(Map<String, dynamic> json) {
+  factory UserModel.fromJson(Map<String, dynamic> json) {
     String? validatedAvatarUrl;
     final rawAvatarUrl = json['avatar_url']?.toString();
     if (_isValidImageUrl(rawAvatarUrl)) {
       validatedAvatarUrl = rawAvatarUrl;
     }
 
-    return User(
+    return UserModel(
       id: json['id']?.toString() ?? '',
       username: json['username']?.toString() ?? '',
       email: json['email']?.toString(),
@@ -137,7 +137,7 @@ class User extends Equatable {
     };
   }
 
-  User copyWith({
+  UserModel copyWith({
     String? id,
     String? username,
     String? email,
@@ -164,7 +164,7 @@ class User extends Equatable {
     String? fullName,
     String? initials,
   }) {
-    return User(
+    return UserModel(
       id: id ?? this.id,
       username: username ?? this.username,
       email: email ?? this.email,

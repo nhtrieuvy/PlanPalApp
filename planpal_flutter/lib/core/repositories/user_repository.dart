@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import '../services/apis.dart';
-import '../dtos/user.dart';
+import '../dtos/user_model.dart';
 import '../services/api_error.dart';
 
 class UserRepository {
@@ -11,13 +11,13 @@ class UserRepository {
 
   Never _throwApiError(Response res) => throw buildApiException(res);
 
-  Future<User> getProfile() async {
+  Future<UserModel> getProfile() async {
     try {
       final Response res = await auth.requestWithAutoRefresh(
         (c) => c.dio.get(Endpoints.profile),
       );
       if (res.statusCode == 200 && res.data is Map) {
-        final user = User.fromJson(Map<String, dynamic>.from(res.data as Map));
+        final user = UserModel.fromJson(Map<String, dynamic>.from(res.data as Map));
         auth.setUser(user);
         return user;
       }
@@ -29,7 +29,7 @@ class UserRepository {
     }
   }
 
-  Future<User> updateProfile({
+  Future<UserModel> updateProfile({
     String? firstName,
     String? lastName,
     String? email,
@@ -54,7 +54,7 @@ class UserRepository {
         (c) => c.dio.patch(Endpoints.updateProfile, data: formData),
       );
       if (res.statusCode == 200 && res.data is Map) {
-        final updatedUser = User.fromJson(
+        final updatedUser = UserModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
         auth.setUser(updatedUser); // Update cached user in auth provider

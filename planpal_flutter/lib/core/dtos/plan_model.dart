@@ -3,6 +3,12 @@ import 'user_summary.dart';
 import 'group_summary.dart';
 import 'plan_activity.dart';
 
+double _parseDoubleSafe(dynamic v, {double defaultValue = 0.0}) {
+  if (v == null) return defaultValue;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString()) ?? defaultValue;
+}
+
 /// PlanModel model matching backend PlanSerializer
 /// Full plan details with activities and permissions
 class PlanModel extends Equatable {
@@ -86,7 +92,7 @@ class PlanModel extends Equatable {
       activities: activities,
       durationDays: json['duration_days']?.toInt() ?? 0,
       activitiesCount: json['activities_count']?.toInt() ?? 0,
-      totalEstimatedCost: json['total_estimated_cost']?.toDouble() ?? 0.0,
+      totalEstimatedCost: _parseDoubleSafe(json['total_estimated_cost']),
       canView: json['can_view'] == true,
       canEdit: json['can_edit'] == true,
       collaborators: collaborators,

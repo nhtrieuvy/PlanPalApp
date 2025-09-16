@@ -34,7 +34,7 @@ class CoverImageHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final defaultOverlayColor = overlayColor ?? Colors.black;
 
-    return Container(
+    return SizedBox(
       height: height,
       width: double.infinity,
       child: Stack(
@@ -122,7 +122,10 @@ class CoverImageHeader extends StatelessWidget {
             Positioned.fill(
               child: Material(
                 color: Colors.transparent,
-                child: InkWell(onTap: onImageTap, child: Container()),
+                child: InkWell(
+                  onTap: onImageTap,
+                  child: const SizedBox.expand(),
+                ),
               ),
             ),
         ],

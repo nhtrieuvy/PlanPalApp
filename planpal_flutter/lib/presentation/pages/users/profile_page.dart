@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
-import 'package:planpal_flutter/core/dtos/user.dart';
+import 'package:planpal_flutter/core/dtos/user_model.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:getwidget/getwidget.dart';
 import 'dart:io';
@@ -43,7 +43,7 @@ class _ProfilePageState extends State<ProfilePage> {
     // Use Selector instead of watch so only this subtree rebuilds on user changes
     return Scaffold(
       appBar: AppBar(title: const Text('Trang cá nhân'), centerTitle: true),
-      body: Selector<AuthProvider, User?>(
+      body: Selector<AuthProvider, UserModel?>(
         selector: (_, p) => p.user,
         builder: (context, user, _) {
           if (user == null) {
@@ -72,7 +72,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // Widget builders
-  Widget _buildAvatarSection(User user, ColorScheme colorScheme) {
+  Widget _buildAvatarSection(UserModel user, ColorScheme colorScheme) {
     return Stack(
       children: [
         // Avatar with placeholder and error handling
@@ -151,7 +151,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildUserNameSection(
-    User user,
+    UserModel user,
     ThemeData theme,
     ColorScheme colorScheme,
   ) {
@@ -168,7 +168,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   List<Widget> _buildStatisticsCards(
-    User user,
+    UserModel user,
     ColorScheme colorScheme,
     ThemeData theme,
   ) {
@@ -251,7 +251,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildPersonalInfoCard(
-    User user,
+    UserModel user,
     ThemeData theme,
     ColorScheme colorScheme,
   ) {
@@ -327,7 +327,7 @@ class _ProfilePageState extends State<ProfilePage> {
   // Helper methods
   Future<void> _showEditProfileDialog(
     BuildContext pageContext,
-    User user,
+    UserModel user,
   ) async {
     final TextEditingController firstNameController = TextEditingController(
       text: user.firstName,

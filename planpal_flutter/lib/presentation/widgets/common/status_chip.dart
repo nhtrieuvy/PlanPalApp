@@ -51,7 +51,7 @@ class StatusChip extends StatelessWidget {
        icon = _getActivityTypeIcon(activityType);
 
   /// Creates a success-styled chip
-  StatusChip.success({
+  const StatusChip.success({
     super.key,
     required this.label,
     this.icon,
@@ -63,7 +63,7 @@ class StatusChip extends StatelessWidget {
        textColor = Colors.white;
 
   /// Creates an error-styled chip
-  StatusChip.error({
+  const StatusChip.error({
     super.key,
     required this.label,
     this.icon,
@@ -75,7 +75,7 @@ class StatusChip extends StatelessWidget {
        textColor = Colors.white;
 
   /// Creates a warning-styled chip
-  StatusChip.warning({
+  const StatusChip.warning({
     super.key,
     required this.label,
     this.icon,

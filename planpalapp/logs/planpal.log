@@ -6613,3 +6613,1361 @@ INFO 2025-09-15 22:24:15,840 autoreload 3208 18984 Watching for file changes wit
 INFO 2025-09-15 22:24:16,384 server 3208 6252 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
 INFO 2025-09-15 22:24:16,384 server 3208 6252 Configuring endpoint tcp:port=8000:interface=0.0.0.0
 INFO 2025-09-15 22:24:16,386 server 3208 6252 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 16:39:51,362 selector_events 22900 22992 Using selector: SelectSelector
+DEBUG 2025-09-16 16:39:52,086 selector_events 24276 15524 Using selector: SelectSelector
+INFO 2025-09-16 16:39:52,244 autoreload 24276 15524 Watching for file changes with StatReloader
+INFO 2025-09-16 16:39:52,730 server 24276 18412 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 16:39:52,731 server 24276 18412 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 16:39:52,731 server 24276 18412 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 16:40:10,062 selector_events 17532 30140 Using selector: SelectSelector
+DEBUG 2025-09-16 16:40:10,559 functional 17532 30140 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,560 functional 17532 30140 
+def bulk_update_plan_statuses(self):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,560 functional 17532 30140 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,561 functional 17532 30140 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-16 16:40:10,561 functional 17532 30140 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,561 functional 17532 30140 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,562 functional 17532 30140 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,563 functional 17532 30140 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,563 functional 17532 30140 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,563 functional 17532 30140 
+def send_plan_reminder(self, plan_id, reminder_type=0):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,563 functional 17532 30140 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,564 functional 17532 30140 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,565 functional 17532 30140 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-16 16:40:10,565 functional 17532 30140 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-16 16:41:35,618 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 55214]
+DEBUG 2025-09-16 16:41:35,708 resource 24276 25020 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A63EDE40>.
+WARNING 2025-09-16 16:41:35,813 log 24276 22656 Unauthorized: /users/profile/
+DEBUG 2025-09-16 16:41:35,816 http_protocol 24276 18412 HTTP 401 response started for ['127.0.0.1', 55214]
+DEBUG 2025-09-16 16:41:35,818 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 55214]
+DEBUG 2025-09-16 16:41:35,820 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 55214]
+WARNING 2025-09-16 16:41:35,821 runserver 24276 18412 [31;1mHTTP GET /users/profile/ 401 [0.20, 127.0.0.1:55214][0m
+DEBUG 2025-09-16 16:41:35,924 http_protocol 24276 18412 HTTP b'POST' request for ['127.0.0.1', 55216]
+DEBUG 2025-09-16 16:41:35,955 token 24276 29888 Dispatching grant_type refresh_token request to <oauthlib.oauth2.rfc6749.grant_types.refresh_token.RefreshTokenGrant object at 0x00000274A642AC90>.
+DEBUG 2025-09-16 16:41:35,956 refresh_token 24276 29888 Validating refresh token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-16 16:41:35,976 refresh_token 24276 29888 Validating refresh token LycRprSb1UYV7WjQgt2T5WoT125v20 for client <Application: PlanPalApp>.
+DEBUG 2025-09-16 16:41:36,054 refresh_token 24276 29888 Issuing new token to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>), {'access_token': '9GaPf4jZCqkgTtgtETi3jTzDJiIuqX', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': '1Mj7o8Ggm0XqJzaPp5F4EaP9EKqmpl'}.
+DEBUG 2025-09-16 16:41:36,061 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 55216]
+DEBUG 2025-09-16 16:41:36,063 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 55216]
+DEBUG 2025-09-16 16:41:36,063 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 55216]
+INFO 2025-09-16 16:41:36,063 runserver 24276 18412 [mHTTP POST /o/token/ 200 [0.14, 127.0.0.1:55216][0m
+DEBUG 2025-09-16 16:41:36,111 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 55218]
+DEBUG 2025-09-16 16:41:36,121 resource 24276 28228 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A6483580>.
+DEBUG 2025-09-16 16:41:36,227 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 55218]
+DEBUG 2025-09-16 16:41:36,228 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 55218]
+DEBUG 2025-09-16 16:41:36,228 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 55218]
+INFO 2025-09-16 16:41:36,228 runserver 24276 18412 [mHTTP GET /users/profile/ 200 [0.12, 127.0.0.1:55218][0m
+DEBUG 2025-09-16 16:41:37,501 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 54564]
+DEBUG 2025-09-16 16:41:37,507 resource 24276 30132 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A62BCF00>.
+DEBUG 2025-09-16 16:41:37,558 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 54564]
+DEBUG 2025-09-16 16:41:37,559 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 54564]
+DEBUG 2025-09-16 16:41:37,559 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 54564]
+INFO 2025-09-16 16:41:37,559 runserver 24276 18412 [mHTTP GET /plans/ 200 [0.06, 127.0.0.1:54564][0m
+DEBUG 2025-09-16 16:41:37,704 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 54567]
+DEBUG 2025-09-16 16:41:37,709 resource 24276 30004 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A6483E80>.
+DEBUG 2025-09-16 16:41:37,750 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 54567]
+DEBUG 2025-09-16 16:41:37,751 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 54567]
+DEBUG 2025-09-16 16:41:37,751 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 54567]
+INFO 2025-09-16 16:41:37,751 runserver 24276 18412 [mHTTP GET /groups/ 200 [0.05, 127.0.0.1:54567][0m
+DEBUG 2025-09-16 16:42:04,072 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 57147]
+DEBUG 2025-09-16 16:42:04,073 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 57148]
+DEBUG 2025-09-16 16:42:04,080 resource 24276 28276 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A649EE00>.
+DEBUG 2025-09-16 16:42:04,081 resource 24276 9524 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A649E200>.
+DEBUG 2025-09-16 16:42:04,110 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 57148]
+DEBUG 2025-09-16 16:42:04,110 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 57148]
+DEBUG 2025-09-16 16:42:04,112 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 57148]
+INFO 2025-09-16 16:42:04,113 runserver 24276 18412 [mHTTP GET /friends/requests/ 200 [0.04, 127.0.0.1:57148][0m
+DEBUG 2025-09-16 16:42:04,117 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 57147]
+DEBUG 2025-09-16 16:42:04,118 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 57147]
+DEBUG 2025-09-16 16:42:04,118 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 57147]
+INFO 2025-09-16 16:42:04,119 runserver 24276 18412 [mHTTP GET /friends/ 200 [0.05, 127.0.0.1:57147][0m
+DEBUG 2025-09-16 16:42:07,409 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 59378]
+DEBUG 2025-09-16 16:42:07,417 resource 24276 31732 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A6530240>.
+DEBUG 2025-09-16 16:42:07,450 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 59378]
+DEBUG 2025-09-16 16:42:07,451 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 59378]
+DEBUG 2025-09-16 16:42:07,451 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 59378]
+INFO 2025-09-16 16:42:07,451 runserver 24276 18412 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:59378][0m
+DEBUG 2025-09-16 16:42:09,446 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 59381]
+DEBUG 2025-09-16 16:42:09,451 resource 24276 12988 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A6463A40>.
+DEBUG 2025-09-16 16:42:09,492 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 59381]
+DEBUG 2025-09-16 16:42:09,493 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 59381]
+DEBUG 2025-09-16 16:42:09,493 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 59381]
+INFO 2025-09-16 16:42:09,494 runserver 24276 18412 [mHTTP GET /groups/ 200 [0.05, 127.0.0.1:59381][0m
+DEBUG 2025-09-16 16:45:07,473 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:45:07,479 resource 24276 19384 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A637CB00>.
+DEBUG 2025-09-16 16:45:07,534 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:45:07,534 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:45:07,535 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+INFO 2025-09-16 16:45:07,535 runserver 24276 18412 [mHTTP GET /groups/ 200 [0.06, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:45:39,718 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:45:39,816 log 24276 22656 Not Found: //
+DEBUG 2025-09-16 16:45:39,817 http_protocol 24276 18412 HTTP 404 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:45:39,818 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:45:39,818 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:45:39,818 runserver 24276 18412 [33mHTTP GET // 404 [0.10, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:45:46,335 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:45:46,360 log 24276 22656 Not Found: /plan/
+DEBUG 2025-09-16 16:45:46,361 http_protocol 24276 18412 HTTP 404 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:45:46,361 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:45:46,362 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:45:46,362 runserver 24276 18412 [33mHTTP GET /plan/ 404 [0.03, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:46:08,036 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:46:08,065 log 24276 22656 Not Found: //
+DEBUG 2025-09-16 16:46:08,066 http_protocol 24276 18412 HTTP 404 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:08,066 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:08,067 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:46:08,067 runserver 24276 18412 [33mHTTP GET // 404 [0.03, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:46:11,532 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:46:11,572 log 24276 22656 Not Found: //
+DEBUG 2025-09-16 16:46:11,573 http_protocol 24276 18412 HTTP 404 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:11,574 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:11,575 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:46:11,575 runserver 24276 18412 [33mHTTP GET // 404 [0.04, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:46:44,641 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:44,648 resource 24276 12752 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A654BC40>.
+DEBUG 2025-09-16 16:46:44,754 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:44,755 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:44,755 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+INFO 2025-09-16 16:46:44,755 runserver 24276 18412 [mHTTP GET / 200 [0.11, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:46:53,068 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:53,073 resource 24276 14484 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A6586E00>.
+DEBUG 2025-09-16 16:46:53,153 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:53,155 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:53,155 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+INFO 2025-09-16 16:46:53,156 runserver 24276 18412 [mHTTP GET /groups/ 200 [0.09, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:46:57,365 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:46:57,396 log 24276 22656 Not Found: //
+DEBUG 2025-09-16 16:46:57,397 http_protocol 24276 18412 HTTP 404 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:57,398 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:46:57,398 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:46:57,400 runserver 24276 18412 [33mHTTP GET // 404 [0.03, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:47:01,976 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:47:02,018 log 24276 22656 Not Found: //
+DEBUG 2025-09-16 16:47:02,020 http_protocol 24276 18412 HTTP 404 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:47:02,021 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:47:02,022 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:47:02,023 runserver 24276 18412 [33mHTTP GET // 404 [0.05, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:47:05,880 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:47:05,912 log 24276 22656 Not Found: //
+DEBUG 2025-09-16 16:47:05,913 http_protocol 24276 18412 HTTP 404 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:47:05,915 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:47:05,915 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+WARNING 2025-09-16 16:47:05,917 runserver 24276 18412 [33mHTTP GET // 404 [0.04, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:47:10,296 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:47:10,303 resource 24276 21248 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A6653E80>.
+DEBUG 2025-09-16 16:47:10,354 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:47:10,355 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 51666]
+DEBUG 2025-09-16 16:47:10,356 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 51666]
+INFO 2025-09-16 16:47:10,357 runserver 24276 18412 [mHTTP GET /plans/ 200 [0.06, 127.0.0.1:51666][0m
+DEBUG 2025-09-16 16:57:21,257 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 52429]
+DEBUG 2025-09-16 16:57:21,335 resource 24276 31832 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A6639980>.
+DEBUG 2025-09-16 16:57:21,537 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 52429]
+DEBUG 2025-09-16 16:57:21,538 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 52429]
+DEBUG 2025-09-16 16:57:21,539 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 52429]
+INFO 2025-09-16 16:57:21,540 runserver 24276 18412 [mHTTP GET /users/profile/ 200 [0.29, 127.0.0.1:52429][0m
+DEBUG 2025-09-16 16:57:22,935 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 61363]
+DEBUG 2025-09-16 16:57:22,944 resource 24276 31836 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A65A1180>.
+DEBUG 2025-09-16 16:57:23,002 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 61363]
+DEBUG 2025-09-16 16:57:23,002 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 61363]
+DEBUG 2025-09-16 16:57:23,003 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 61363]
+INFO 2025-09-16 16:57:23,003 runserver 24276 18412 [mHTTP GET /plans/ 200 [0.07, 127.0.0.1:61363][0m
+DEBUG 2025-09-16 16:57:23,230 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 61365]
+DEBUG 2025-09-16 16:57:23,236 resource 24276 31772 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A6657EC0>.
+DEBUG 2025-09-16 16:57:23,288 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 61365]
+DEBUG 2025-09-16 16:57:23,288 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 61365]
+DEBUG 2025-09-16 16:57:23,289 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 61365]
+INFO 2025-09-16 16:57:23,289 runserver 24276 18412 [mHTTP GET /groups/ 200 [0.06, 127.0.0.1:61365][0m
+DEBUG 2025-09-16 16:57:26,239 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 61374]
+DEBUG 2025-09-16 16:57:26,244 resource 24276 32300 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A6669000>.
+DEBUG 2025-09-16 16:57:26,290 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 61374]
+DEBUG 2025-09-16 16:57:26,290 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 61374]
+DEBUG 2025-09-16 16:57:26,290 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 61374]
+INFO 2025-09-16 16:57:26,290 runserver 24276 18412 [mHTTP GET /groups/ 200 [0.05, 127.0.0.1:61374][0m
+DEBUG 2025-09-16 16:57:31,575 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 62756]
+DEBUG 2025-09-16 16:57:31,580 resource 24276 10948 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A66B3EC0>.
+ERROR 2025-09-16 16:57:31,827 log 24276 22656 Internal Server Error: /groups/409c47c0-e754-4456-9820-b74b3d7672f5/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 56, in retrieve
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 156, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 507, in to_representation
+    for field in fields:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 368, in _readable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 356, in fields
+    for key, value in self.get_fields().items():
+                      ^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 1076, in get_fields
+    field_class, field_kwargs = self.build_field(
+                                ^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 1222, in build_field
+    return self.build_unknown_field(field_name, model_class)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 1340, in build_unknown_field
+    raise ImproperlyConfigured(
+django.core.exceptions.ImproperlyConfigured: Field name `joined_at` is not valid for model `GroupMembership`.
+DEBUG 2025-09-16 16:57:31,866 http_protocol 24276 18412 HTTP 500 response started for ['127.0.0.1', 62756]
+DEBUG 2025-09-16 16:57:31,866 http_protocol 24276 18412 HTTP response chunk for ['127.0.0.1', 62756]
+DEBUG 2025-09-16 16:57:31,866 http_protocol 24276 18412 HTTP response chunk for ['127.0.0.1', 62756]
+DEBUG 2025-09-16 16:57:31,868 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 62756]
+DEBUG 2025-09-16 16:57:31,868 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 62756]
+ERROR 2025-09-16 16:57:31,868 runserver 24276 18412 [35;1mHTTP GET /groups/409c47c0-e754-4456-9820-b74b3d7672f5/ 500 [0.29, 127.0.0.1:62756][0m
+DEBUG 2025-09-16 16:57:41,660 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 52657]
+DEBUG 2025-09-16 16:57:41,664 resource 24276 24204 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A66DB800>.
+DEBUG 2025-09-16 16:57:41,699 http_protocol 24276 18412 HTTP 200 response started for ['127.0.0.1', 52657]
+DEBUG 2025-09-16 16:57:41,700 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 52657]
+DEBUG 2025-09-16 16:57:41,701 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 52657]
+INFO 2025-09-16 16:57:41,701 runserver 24276 18412 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:52657][0m
+DEBUG 2025-09-16 16:57:46,098 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 61919]
+DEBUG 2025-09-16 16:57:46,105 resource 24276 32232 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A65AAEC0>.
+ERROR 2025-09-16 16:57:46,174 log 24276 22656 Internal Server Error: /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 56, in retrieve
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 433, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 329, in to_representation
+    data['duration_display'] = self._get_duration_display(instance)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 335, in _get_duration_display
+    hours = instance.duration_hours
+            ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'PlanActivity' object has no attribute 'duration_hours'. Did you mean: 'duration_minutes'?
+DEBUG 2025-09-16 16:57:46,180 http_protocol 24276 18412 HTTP 500 response started for ['127.0.0.1', 61919]
+DEBUG 2025-09-16 16:57:46,180 http_protocol 24276 18412 HTTP response chunk for ['127.0.0.1', 61919]
+DEBUG 2025-09-16 16:57:46,180 http_protocol 24276 18412 HTTP response chunk for ['127.0.0.1', 61919]
+DEBUG 2025-09-16 16:57:46,180 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 61919]
+DEBUG 2025-09-16 16:57:46,181 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 61919]
+ERROR 2025-09-16 16:57:46,182 runserver 24276 18412 [35;1mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/ 500 [0.08, 127.0.0.1:61919][0m
+DEBUG 2025-09-16 17:00:14,111 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 49644]
+DEBUG 2025-09-16 17:00:14,118 resource 24276 31032 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A65AB400>.
+ERROR 2025-09-16 17:00:14,179 log 24276 22656 Internal Server Error: /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 56, in retrieve
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 433, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 329, in to_representation
+    data['duration_display'] = self._get_duration_display(instance)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 335, in _get_duration_display
+    hours = instance.duration_hours
+            ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'PlanActivity' object has no attribute 'duration_hours'. Did you mean: 'duration_minutes'?
+DEBUG 2025-09-16 17:00:14,189 http_protocol 24276 18412 HTTP 500 response started for ['127.0.0.1', 49644]
+DEBUG 2025-09-16 17:00:14,189 http_protocol 24276 18412 HTTP response chunk for ['127.0.0.1', 49644]
+DEBUG 2025-09-16 17:00:14,189 http_protocol 24276 18412 HTTP response chunk for ['127.0.0.1', 49644]
+DEBUG 2025-09-16 17:00:14,190 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 49644]
+DEBUG 2025-09-16 17:00:14,190 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 49644]
+ERROR 2025-09-16 17:00:14,190 runserver 24276 18412 [35;1mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/ 500 [0.08, 127.0.0.1:49644][0m
+DEBUG 2025-09-16 17:00:26,083 http_protocol 24276 18412 HTTP b'GET' request for ['127.0.0.1', 52505]
+DEBUG 2025-09-16 17:00:26,089 resource 24276 16168 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000274A6374C00>.
+ERROR 2025-09-16 17:00:26,343 log 24276 22656 Internal Server Error: /groups/409c47c0-e754-4456-9820-b74b3d7672f5/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 56, in retrieve
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 156, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 507, in to_representation
+    for field in fields:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 368, in _readable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\utils\functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 356, in fields
+    for key, value in self.get_fields().items():
+                      ^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 1076, in get_fields
+    field_class, field_kwargs = self.build_field(
+                                ^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 1222, in build_field
+    return self.build_unknown_field(field_name, model_class)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 1340, in build_unknown_field
+    raise ImproperlyConfigured(
+django.core.exceptions.ImproperlyConfigured: Field name `joined_at` is not valid for model `GroupMembership`.
+DEBUG 2025-09-16 17:00:26,348 http_protocol 24276 18412 HTTP 500 response started for ['127.0.0.1', 52505]
+DEBUG 2025-09-16 17:00:26,348 http_protocol 24276 18412 HTTP response chunk for ['127.0.0.1', 52505]
+DEBUG 2025-09-16 17:00:26,348 http_protocol 24276 18412 HTTP response chunk for ['127.0.0.1', 52505]
+DEBUG 2025-09-16 17:00:26,349 http_protocol 24276 18412 HTTP close for ['127.0.0.1', 52505]
+DEBUG 2025-09-16 17:00:26,349 http_protocol 24276 18412 HTTP response complete for ['127.0.0.1', 52505]
+ERROR 2025-09-16 17:00:26,349 runserver 24276 18412 [35;1mHTTP GET /groups/409c47c0-e754-4456-9820-b74b3d7672f5/ 500 [0.27, 127.0.0.1:52505][0m
+INFO 2025-09-16 17:01:00,390 autoreload 24276 15524 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-16 17:01:01,715 selector_events 18296 13496 Using selector: SelectSelector
+INFO 2025-09-16 17:01:01,966 autoreload 18296 13496 Watching for file changes with StatReloader
+INFO 2025-09-16 17:01:04,641 autoreload 18296 13496 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-16 17:01:05,404 selector_events 15912 8528 Using selector: SelectSelector
+INFO 2025-09-16 17:01:05,571 autoreload 15912 8528 Watching for file changes with StatReloader
+INFO 2025-09-16 17:01:06,065 server 15912 31804 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:01:06,065 server 15912 31804 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:01:06,066 server 15912 31804 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:01:08,330 autoreload 15912 8528 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-16 17:01:09,104 selector_events 17864 19588 Using selector: SelectSelector
+INFO 2025-09-16 17:01:09,272 autoreload 17864 19588 Watching for file changes with StatReloader
+INFO 2025-09-16 17:01:09,696 server 17864 25028 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:01:09,696 server 17864 25028 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:01:09,697 server 17864 25028 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 17:01:16,662 http_protocol 17864 25028 HTTP b'GET' request for ['127.0.0.1', 51333]
+DEBUG 2025-09-16 17:01:16,677 resource 17864 9484 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001C1E9A20180>.
+ERROR 2025-09-16 17:01:16,751 log 17864 32160 Internal Server Error: /groups/409c47c0-e754-4456-9820-b74b3d7672f5/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 56, in retrieve
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 156, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 1837, in to_representation
+    method = getattr(self.parent, self.method_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'GroupSerializer' object has no attribute 'get_user_role'
+DEBUG 2025-09-16 17:01:16,763 http_protocol 17864 25028 HTTP 500 response started for ['127.0.0.1', 51333]
+DEBUG 2025-09-16 17:01:16,764 http_protocol 17864 25028 HTTP response chunk for ['127.0.0.1', 51333]
+DEBUG 2025-09-16 17:01:16,765 http_protocol 17864 25028 HTTP close for ['127.0.0.1', 51333]
+DEBUG 2025-09-16 17:01:16,765 http_protocol 17864 25028 HTTP response complete for ['127.0.0.1', 51333]
+ERROR 2025-09-16 17:01:16,765 runserver 17864 25028 [35;1mHTTP GET /groups/409c47c0-e754-4456-9820-b74b3d7672f5/ 500 [0.10, 127.0.0.1:51333][0m
+INFO 2025-09-16 17:02:05,385 autoreload 17864 19588 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-16 17:02:06,221 selector_events 32084 21012 Using selector: SelectSelector
+INFO 2025-09-16 17:02:06,406 autoreload 32084 21012 Watching for file changes with StatReloader
+INFO 2025-09-16 17:02:06,893 server 32084 32440 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:02:06,893 server 32084 32440 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:02:06,894 server 32084 32440 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:02:40,871 autoreload 32084 21012 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:02:41,676 selector_events 27340 32152 Using selector: SelectSelector
+INFO 2025-09-16 17:02:41,939 autoreload 27340 32152 Watching for file changes with StatReloader
+INFO 2025-09-16 17:02:42,343 server 27340 2108 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:02:42,343 server 27340 2108 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:02:42,344 server 27340 2108 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:03:39,822 autoreload 27340 32152 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:03:40,637 selector_events 24172 23428 Using selector: SelectSelector
+INFO 2025-09-16 17:03:40,863 autoreload 24172 23428 Watching for file changes with StatReloader
+INFO 2025-09-16 17:03:41,327 server 24172 32672 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:03:41,328 server 24172 32672 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:03:41,329 server 24172 32672 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:03:44,721 autoreload 24172 23428 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-16 17:03:45,471 selector_events 31952 31980 Using selector: SelectSelector
+INFO 2025-09-16 17:03:45,625 autoreload 31952 31980 Watching for file changes with StatReloader
+INFO 2025-09-16 17:03:46,031 server 31952 24244 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:03:46,031 server 31952 24244 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:03:46,032 server 31952 24244 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:03:55,473 autoreload 31952 31980 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-16 17:03:56,238 selector_events 28276 1948 Using selector: SelectSelector
+INFO 2025-09-16 17:03:56,402 autoreload 28276 1948 Watching for file changes with StatReloader
+INFO 2025-09-16 17:03:56,839 server 28276 16012 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:03:56,839 server 28276 16012 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:03:56,840 server 28276 16012 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:03:58,103 autoreload 28276 1948 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-16 17:03:59,162 selector_events 25532 24212 Using selector: SelectSelector
+INFO 2025-09-16 17:03:59,420 autoreload 25532 24212 Watching for file changes with StatReloader
+INFO 2025-09-16 17:03:59,937 server 25532 16004 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:03:59,938 server 25532 16004 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:03:59,938 server 25532 16004 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 17:04:15,331 http_protocol 25532 16004 HTTP b'GET' request for ['127.0.0.1', 52002]
+DEBUG 2025-09-16 17:04:15,342 resource 25532 28712 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC9FBB9480>.
+DEBUG 2025-09-16 17:04:15,377 http_protocol 25532 16004 HTTP 200 response started for ['127.0.0.1', 52002]
+DEBUG 2025-09-16 17:04:15,377 http_protocol 25532 16004 HTTP close for ['127.0.0.1', 52002]
+DEBUG 2025-09-16 17:04:15,378 http_protocol 25532 16004 HTTP response complete for ['127.0.0.1', 52002]
+INFO 2025-09-16 17:04:15,378 runserver 25532 16004 [mHTTP GET /users/profile/ 200 [0.05, 127.0.0.1:52002][0m
+DEBUG 2025-09-16 17:04:16,470 http_protocol 25532 16004 HTTP b'GET' request for ['127.0.0.1', 52004]
+DEBUG 2025-09-16 17:04:16,476 resource 25532 5156 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC9F82AA40>.
+DEBUG 2025-09-16 17:04:16,499 http_protocol 25532 16004 HTTP 200 response started for ['127.0.0.1', 52004]
+DEBUG 2025-09-16 17:04:16,500 http_protocol 25532 16004 HTTP close for ['127.0.0.1', 52004]
+DEBUG 2025-09-16 17:04:16,500 http_protocol 25532 16004 HTTP response complete for ['127.0.0.1', 52004]
+INFO 2025-09-16 17:04:16,500 runserver 25532 16004 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:52004][0m
+DEBUG 2025-09-16 17:04:16,653 http_protocol 25532 16004 HTTP b'GET' request for ['127.0.0.1', 52006]
+DEBUG 2025-09-16 17:04:16,657 resource 25532 18164 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC9FAB3E00>.
+DEBUG 2025-09-16 17:04:16,683 http_protocol 25532 16004 HTTP 200 response started for ['127.0.0.1', 52006]
+DEBUG 2025-09-16 17:04:16,684 http_protocol 25532 16004 HTTP close for ['127.0.0.1', 52006]
+DEBUG 2025-09-16 17:04:16,684 http_protocol 25532 16004 HTTP response complete for ['127.0.0.1', 52006]
+INFO 2025-09-16 17:04:16,684 runserver 25532 16004 [mHTTP GET /groups/ 200 [0.03, 127.0.0.1:52006][0m
+DEBUG 2025-09-16 17:04:32,960 http_protocol 25532 16004 HTTP b'GET' request for ['127.0.0.1', 50061]
+DEBUG 2025-09-16 17:04:32,965 resource 25532 14780 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC9FAB2800>.
+ERROR 2025-09-16 17:04:33,037 log 25532 15192 Internal Server Error: /groups/bb67fa97-7139-4be0-934d-9ee98a9c1d6d/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 56, in retrieve
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 156, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\fields.py", line 1837, in to_representation
+    method = getattr(self.parent, self.method_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'GroupSerializer' object has no attribute 'get_user_role'
+DEBUG 2025-09-16 17:04:33,051 http_protocol 25532 16004 HTTP 500 response started for ['127.0.0.1', 50061]
+DEBUG 2025-09-16 17:04:33,051 http_protocol 25532 16004 HTTP response chunk for ['127.0.0.1', 50061]
+DEBUG 2025-09-16 17:04:33,051 http_protocol 25532 16004 HTTP close for ['127.0.0.1', 50061]
+DEBUG 2025-09-16 17:04:33,052 http_protocol 25532 16004 HTTP response complete for ['127.0.0.1', 50061]
+ERROR 2025-09-16 17:04:33,052 runserver 25532 16004 [35;1mHTTP GET /groups/bb67fa97-7139-4be0-934d-9ee98a9c1d6d/ 500 [0.09, 127.0.0.1:50061][0m
+INFO 2025-09-16 17:04:40,337 autoreload 25532 24212 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-16 17:04:41,288 selector_events 17804 25280 Using selector: SelectSelector
+INFO 2025-09-16 17:04:41,551 autoreload 17804 25280 Watching for file changes with StatReloader
+INFO 2025-09-16 17:04:42,259 server 17804 23664 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:04:42,260 server 17804 23664 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:04:42,261 server 17804 23664 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 17:04:43,164 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 60335]
+DEBUG 2025-09-16 17:04:43,179 resource 17804 29388 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC7019FC80>.
+DEBUG 2025-09-16 17:04:43,212 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 60335]
+DEBUG 2025-09-16 17:04:43,213 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 60335]
+DEBUG 2025-09-16 17:04:43,213 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 60335]
+INFO 2025-09-16 17:04:43,213 runserver 17804 23664 [mHTTP GET /groups/0a3998ae-351f-415b-9238-9106c2d14486/ 200 [0.05, 127.0.0.1:60335][0m
+DEBUG 2025-09-16 17:04:43,327 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 60337]
+DEBUG 2025-09-16 17:04:43,332 resource 17804 24280 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC701DC380>.
+DEBUG 2025-09-16 17:04:43,363 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 60337]
+DEBUG 2025-09-16 17:04:43,363 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 60337]
+DEBUG 2025-09-16 17:04:43,363 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 60337]
+INFO 2025-09-16 17:04:43,364 runserver 17804 23664 [mHTTP GET /groups/0a3998ae-351f-415b-9238-9106c2d14486/plans/ 200 [0.04, 127.0.0.1:60337][0m
+DEBUG 2025-09-16 17:04:50,863 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 49249]
+DEBUG 2025-09-16 17:04:50,869 resource 17804 13296 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70326680>.
+DEBUG 2025-09-16 17:04:50,910 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 49249]
+DEBUG 2025-09-16 17:04:50,911 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 49249]
+DEBUG 2025-09-16 17:04:50,911 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 49249]
+INFO 2025-09-16 17:04:50,912 runserver 17804 23664 [mHTTP GET /groups/409c47c0-e754-4456-9820-b74b3d7672f5/ 200 [0.05, 127.0.0.1:49249][0m
+DEBUG 2025-09-16 17:04:50,926 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 49253]
+DEBUG 2025-09-16 17:04:50,932 resource 17804 15908 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70337800>.
+DEBUG 2025-09-16 17:04:50,965 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 49253]
+DEBUG 2025-09-16 17:04:50,966 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 49253]
+DEBUG 2025-09-16 17:04:50,966 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 49253]
+INFO 2025-09-16 17:04:50,967 runserver 17804 23664 [mHTTP GET /groups/409c47c0-e754-4456-9820-b74b3d7672f5/plans/ 200 [0.04, 127.0.0.1:49253][0m
+DEBUG 2025-09-16 17:05:00,863 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 61950]
+DEBUG 2025-09-16 17:05:00,868 resource 17804 24228 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC703671C0>.
+DEBUG 2025-09-16 17:05:00,896 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 61950]
+DEBUG 2025-09-16 17:05:00,897 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 61950]
+DEBUG 2025-09-16 17:05:00,897 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 61950]
+INFO 2025-09-16 17:05:00,897 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:61950][0m
+DEBUG 2025-09-16 17:05:03,095 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 61955]
+DEBUG 2025-09-16 17:05:03,102 resource 17804 30288 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70389F00>.
+DEBUG 2025-09-16 17:05:03,128 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 61955]
+DEBUG 2025-09-16 17:05:03,129 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 61955]
+DEBUG 2025-09-16 17:05:03,129 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 61955]
+INFO 2025-09-16 17:05:03,129 runserver 17804 23664 [mHTTP GET /plans/0c591bdf-d680-4d82-a8c5-32da672c2f2d/ 200 [0.03, 127.0.0.1:61955][0m
+DEBUG 2025-09-16 17:14:02,428 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 57423]
+DEBUG 2025-09-16 17:14:02,513 resource 17804 28036 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC703C8F80>.
+DEBUG 2025-09-16 17:14:02,721 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 57423]
+DEBUG 2025-09-16 17:14:02,722 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 57423]
+DEBUG 2025-09-16 17:14:02,724 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 57423]
+INFO 2025-09-16 17:14:02,725 runserver 17804 23664 [mHTTP GET /users/profile/ 200 [0.30, 127.0.0.1:57423][0m
+DEBUG 2025-09-16 17:14:03,859 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 63148]
+DEBUG 2025-09-16 17:14:03,865 resource 17804 19252 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC703BC600>.
+DEBUG 2025-09-16 17:14:03,920 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 63148]
+DEBUG 2025-09-16 17:14:03,920 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 63148]
+DEBUG 2025-09-16 17:14:03,920 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 63148]
+INFO 2025-09-16 17:14:03,920 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.06, 127.0.0.1:63148][0m
+DEBUG 2025-09-16 17:14:04,112 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 63151]
+DEBUG 2025-09-16 17:14:04,117 resource 17804 21444 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC703D4600>.
+DEBUG 2025-09-16 17:14:04,160 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 63151]
+DEBUG 2025-09-16 17:14:04,160 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 63151]
+DEBUG 2025-09-16 17:14:04,160 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 63151]
+INFO 2025-09-16 17:14:04,161 runserver 17804 23664 [mHTTP GET /groups/ 200 [0.05, 127.0.0.1:63151][0m
+DEBUG 2025-09-16 17:14:08,781 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 61908]
+DEBUG 2025-09-16 17:14:08,787 resource 17804 31936 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC7021D3C0>.
+DEBUG 2025-09-16 17:14:08,833 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 61908]
+DEBUG 2025-09-16 17:14:08,833 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 61908]
+DEBUG 2025-09-16 17:14:08,833 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 61908]
+INFO 2025-09-16 17:14:08,833 runserver 17804 23664 [mHTTP GET /groups/409c47c0-e754-4456-9820-b74b3d7672f5/ 200 [0.05, 127.0.0.1:61908][0m
+DEBUG 2025-09-16 17:14:08,900 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 61910]
+DEBUG 2025-09-16 17:14:08,905 resource 17804 9484 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC7034A4C0>.
+DEBUG 2025-09-16 17:14:08,937 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 61910]
+DEBUG 2025-09-16 17:14:08,938 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 61910]
+DEBUG 2025-09-16 17:14:08,938 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 61910]
+INFO 2025-09-16 17:14:08,939 runserver 17804 23664 [mHTTP GET /groups/409c47c0-e754-4456-9820-b74b3d7672f5/plans/ 200 [0.04, 127.0.0.1:61910][0m
+DEBUG 2025-09-16 17:14:13,389 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 65050]
+DEBUG 2025-09-16 17:14:13,394 resource 17804 26720 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70369480>.
+DEBUG 2025-09-16 17:14:13,428 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 65050]
+DEBUG 2025-09-16 17:14:13,428 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 65050]
+DEBUG 2025-09-16 17:14:13,428 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 65050]
+INFO 2025-09-16 17:14:13,428 runserver 17804 23664 [mHTTP GET /plans/0c591bdf-d680-4d82-a8c5-32da672c2f2d/ 200 [0.04, 127.0.0.1:65050][0m
+DEBUG 2025-09-16 17:14:20,474 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 57142]
+DEBUG 2025-09-16 17:14:20,477 resource 17804 19928 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70421640>.
+DEBUG 2025-09-16 17:14:20,499 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 57142]
+DEBUG 2025-09-16 17:14:20,499 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 57142]
+DEBUG 2025-09-16 17:14:20,499 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 57142]
+INFO 2025-09-16 17:14:20,501 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:57142][0m
+DEBUG 2025-09-16 17:16:10,428 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 56758]
+DEBUG 2025-09-16 17:16:10,433 resource 17804 21708 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70410600>.
+DEBUG 2025-09-16 17:16:10,452 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 56758]
+DEBUG 2025-09-16 17:16:10,454 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 56758]
+DEBUG 2025-09-16 17:16:10,454 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 56758]
+INFO 2025-09-16 17:16:10,454 runserver 17804 23664 [mHTTP GET /plans/0c591bdf-d680-4d82-a8c5-32da672c2f2d/ 200 [0.03, 127.0.0.1:56758][0m
+DEBUG 2025-09-16 17:16:12,326 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 58254]
+DEBUG 2025-09-16 17:16:12,331 resource 17804 26340 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC7046E5C0>.
+ERROR 2025-09-16 17:16:12,436 log 17804 19336 Internal Server Error: /plans/0c591bdf-d680-4d82-a8c5-32da672c2f2d/schedule/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 664, in schedule
+    schedule_data = PlanService.get_plan_schedule(plan, request.user)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py", line 1021, in get_plan_schedule
+    for activity in activities:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 384, in __iter__
+    self._fetch_all()
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 1949, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 91, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1610, in execute_sql
+    sql, params = self.as_sql()
+                  ^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 766, in as_sql
+    extra_select, order_by, group_by = self.pre_sql_setup(
+                                       ^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 85, in pre_sql_setup
+    self.setup_query(with_col_aliases=with_col_aliases)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 74, in setup_query
+    self.select, self.klass_info, self.annotation_col_map = self.get_select(
+                                                            ^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 299, in get_select
+    related_klass_infos = self.get_related_selections(select, select_mask)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1396, in get_related_selections
+    raise FieldError(
+django.core.exceptions.FieldError: Invalid field name(s) given in select_related: 'location'. Choices are: plan
+DEBUG 2025-09-16 17:16:12,451 http_protocol 17804 23664 HTTP 500 response started for ['127.0.0.1', 58254]
+DEBUG 2025-09-16 17:16:12,451 http_protocol 17804 23664 HTTP response chunk for ['127.0.0.1', 58254]
+DEBUG 2025-09-16 17:16:12,452 http_protocol 17804 23664 HTTP response chunk for ['127.0.0.1', 58254]
+DEBUG 2025-09-16 17:16:12,452 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 58254]
+DEBUG 2025-09-16 17:16:12,452 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 58254]
+ERROR 2025-09-16 17:16:12,453 runserver 17804 23664 [35;1mHTTP GET /plans/0c591bdf-d680-4d82-a8c5-32da672c2f2d/schedule/ 500 [0.13, 127.0.0.1:58254][0m
+DEBUG 2025-09-16 17:17:12,012 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 56431]
+DEBUG 2025-09-16 17:17:12,016 resource 17804 12512 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC7045CCC0>.
+DEBUG 2025-09-16 17:17:12,051 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 56431]
+DEBUG 2025-09-16 17:17:12,051 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 56431]
+DEBUG 2025-09-16 17:17:12,051 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 56431]
+INFO 2025-09-16 17:17:12,052 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:56431][0m
+DEBUG 2025-09-16 17:17:25,491 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 50629]
+DEBUG 2025-09-16 17:17:25,496 resource 17804 6956 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70287880>.
+DEBUG 2025-09-16 17:17:25,523 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 50629]
+DEBUG 2025-09-16 17:17:25,524 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 50629]
+DEBUG 2025-09-16 17:17:25,524 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 50629]
+INFO 2025-09-16 17:17:25,524 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:50629][0m
+DEBUG 2025-09-16 17:17:26,438 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 58303]
+DEBUG 2025-09-16 17:17:26,442 resource 17804 7076 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70263E80>.
+DEBUG 2025-09-16 17:17:26,466 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 58303]
+DEBUG 2025-09-16 17:17:26,466 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 58303]
+DEBUG 2025-09-16 17:17:26,466 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 58303]
+INFO 2025-09-16 17:17:26,467 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:58303][0m
+DEBUG 2025-09-16 17:17:33,291 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 49737]
+DEBUG 2025-09-16 17:17:33,296 resource 17804 14132 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70227D80>.
+DEBUG 2025-09-16 17:17:33,327 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 49737]
+DEBUG 2025-09-16 17:17:33,328 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 49737]
+DEBUG 2025-09-16 17:17:33,328 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 49737]
+INFO 2025-09-16 17:17:33,329 runserver 17804 23664 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:49737][0m
+DEBUG 2025-09-16 17:17:40,211 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 51678]
+DEBUG 2025-09-16 17:17:40,217 resource 17804 23732 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70327640>.
+DEBUG 2025-09-16 17:17:40,245 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 51678]
+DEBUG 2025-09-16 17:17:40,246 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 51678]
+DEBUG 2025-09-16 17:17:40,246 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 51678]
+INFO 2025-09-16 17:17:40,246 runserver 17804 23664 [mHTTP GET /groups/ 200 [0.03, 127.0.0.1:51678][0m
+DEBUG 2025-09-16 17:17:44,073 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 58998]
+DEBUG 2025-09-16 17:17:44,078 resource 17804 17236 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC702E8E00>.
+DEBUG 2025-09-16 17:17:44,104 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 58998]
+DEBUG 2025-09-16 17:17:44,105 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 58998]
+DEBUG 2025-09-16 17:17:44,105 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 58998]
+INFO 2025-09-16 17:17:44,105 runserver 17804 23664 [mHTTP GET /groups/ 200 [0.03, 127.0.0.1:58998][0m
+DEBUG 2025-09-16 17:17:49,311 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 54301]
+DEBUG 2025-09-16 17:17:49,318 resource 17804 32592 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC7022FD40>.
+DEBUG 2025-09-16 17:17:49,348 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 54301]
+DEBUG 2025-09-16 17:17:49,348 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 54301]
+DEBUG 2025-09-16 17:17:49,349 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 54301]
+INFO 2025-09-16 17:17:49,349 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:54301][0m
+DEBUG 2025-09-16 17:18:28,531 http_protocol 17804 23664 HTTP b'POST' request for ['127.0.0.1', 62722]
+DEBUG 2025-09-16 17:18:28,536 resource 17804 13336 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70205AC0>.
+INFO 2025-09-16 17:18:28,545 services 17804 13336 Service operation: user_logout_failed
+ERROR 2025-09-16 17:18:28,548 log 17804 19336 Internal Server Error: /auth/logout/
+DEBUG 2025-09-16 17:18:28,548 http_protocol 17804 23664 HTTP 500 response started for ['127.0.0.1', 62722]
+DEBUG 2025-09-16 17:18:28,549 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 62722]
+DEBUG 2025-09-16 17:18:28,549 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 62722]
+ERROR 2025-09-16 17:18:28,549 runserver 17804 23664 [35;1mHTTP POST /auth/logout/ 500 [0.02, 127.0.0.1:62722][0m
+DEBUG 2025-09-16 17:18:32,501 http_protocol 17804 23664 HTTP b'POST' request for ['127.0.0.1', 55037]
+DEBUG 2025-09-16 17:18:32,510 token 17804 26804 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x000001FC70297CE0>.
+DEBUG 2025-09-16 17:18:32,517 resource_owner_password_credentials 17804 26804 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-16 17:18:32,522 resource_owner_password_credentials 17804 26804 Validating username u1.
+DEBUG 2025-09-16 17:18:32,985 resource_owner_password_credentials 17804 26804 Authorizing access to user <User: u1 (Nguyen Vy)>.
+DEBUG 2025-09-16 17:18:32,987 base 17804 26804 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-16 17:18:33,015 resource_owner_password_credentials 17804 26804 Issuing token {'access_token': '0WDlMGoMO0qn04UL9F7owuE6vFjILs', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'SRmwK27TXWuzjD5fWLHx6T1FcHmslV'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username u1.
+DEBUG 2025-09-16 17:18:33,020 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 55037]
+DEBUG 2025-09-16 17:18:33,020 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 55037]
+DEBUG 2025-09-16 17:18:33,021 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 55037]
+INFO 2025-09-16 17:18:33,021 runserver 17804 23664 [mHTTP POST /o/token/ 200 [0.52, 127.0.0.1:55037][0m
+DEBUG 2025-09-16 17:18:33,050 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 55039]
+DEBUG 2025-09-16 17:18:33,056 resource 17804 28060 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70607E80>.
+DEBUG 2025-09-16 17:18:33,083 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 55039]
+DEBUG 2025-09-16 17:18:33,083 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 55039]
+DEBUG 2025-09-16 17:18:33,084 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 55039]
+INFO 2025-09-16 17:18:33,084 runserver 17804 23664 [mHTTP GET /users/profile/ 200 [0.03, 127.0.0.1:55039][0m
+DEBUG 2025-09-16 17:18:33,198 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 55041]
+DEBUG 2025-09-16 17:18:33,204 resource 17804 16936 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC706061C0>.
+DEBUG 2025-09-16 17:18:33,229 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 55041]
+DEBUG 2025-09-16 17:18:33,230 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 55041]
+DEBUG 2025-09-16 17:18:33,230 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 55041]
+INFO 2025-09-16 17:18:33,230 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:55041][0m
+DEBUG 2025-09-16 17:18:33,282 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 55043]
+DEBUG 2025-09-16 17:18:33,286 resource 17804 15524 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC705DBE80>.
+DEBUG 2025-09-16 17:18:33,307 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 55043]
+DEBUG 2025-09-16 17:18:33,308 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 55043]
+DEBUG 2025-09-16 17:18:33,308 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 55043]
+INFO 2025-09-16 17:18:33,309 runserver 17804 23664 [mHTTP GET /groups/ 200 [0.03, 127.0.0.1:55043][0m
+DEBUG 2025-09-16 17:18:38,712 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 58336]
+DEBUG 2025-09-16 17:18:38,716 resource 17804 31576 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70186700>.
+DEBUG 2025-09-16 17:18:38,731 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 58336]
+DEBUG 2025-09-16 17:18:38,731 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 58336]
+DEBUG 2025-09-16 17:18:38,731 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 58336]
+INFO 2025-09-16 17:18:38,732 runserver 17804 23664 [mHTTP GET /groups/ 200 [0.02, 127.0.0.1:58336][0m
+DEBUG 2025-09-16 17:18:39,413 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 58338]
+DEBUG 2025-09-16 17:18:39,422 resource 17804 12408 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC705F7480>.
+DEBUG 2025-09-16 17:18:39,450 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 58338]
+DEBUG 2025-09-16 17:18:39,451 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 58338]
+DEBUG 2025-09-16 17:18:39,452 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 58338]
+INFO 2025-09-16 17:18:39,452 runserver 17804 23664 [mHTTP GET /groups/409c47c0-e754-4456-9820-b74b3d7672f5/ 200 [0.04, 127.0.0.1:58338][0m
+DEBUG 2025-09-16 17:18:39,463 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 58340]
+DEBUG 2025-09-16 17:18:39,469 resource 17804 32680 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70324500>.
+DEBUG 2025-09-16 17:18:39,491 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 58340]
+DEBUG 2025-09-16 17:18:39,491 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 58340]
+DEBUG 2025-09-16 17:18:39,492 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 58340]
+INFO 2025-09-16 17:18:39,492 runserver 17804 23664 [mHTTP GET /groups/409c47c0-e754-4456-9820-b74b3d7672f5/plans/ 200 [0.03, 127.0.0.1:58340][0m
+DEBUG 2025-09-16 17:20:55,430 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 49941]
+DEBUG 2025-09-16 17:20:55,433 resource 17804 23736 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC7021C980>.
+DEBUG 2025-09-16 17:20:55,454 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 49941]
+DEBUG 2025-09-16 17:20:55,455 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 49941]
+DEBUG 2025-09-16 17:20:55,455 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 49941]
+INFO 2025-09-16 17:20:55,455 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:49941][0m
+DEBUG 2025-09-16 17:21:10,090 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 57782]
+DEBUG 2025-09-16 17:21:10,095 resource 17804 28812 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC702863C0>.
+DEBUG 2025-09-16 17:21:10,112 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 57782]
+DEBUG 2025-09-16 17:21:10,112 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 57782]
+DEBUG 2025-09-16 17:21:10,113 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 57782]
+INFO 2025-09-16 17:21:10,113 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.02, 127.0.0.1:57782][0m
+DEBUG 2025-09-16 17:21:14,103 http_protocol 17804 23664 HTTP b'POST' request for ['127.0.0.1', 52581]
+DEBUG 2025-09-16 17:21:14,106 resource 17804 23608 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70618F40>.
+INFO 2025-09-16 17:21:14,111 services 17804 23608 Service operation: user_logout_failed
+ERROR 2025-09-16 17:21:14,114 log 17804 19336 Internal Server Error: /auth/logout/
+DEBUG 2025-09-16 17:21:14,116 http_protocol 17804 23664 HTTP 500 response started for ['127.0.0.1', 52581]
+DEBUG 2025-09-16 17:21:14,117 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 52581]
+DEBUG 2025-09-16 17:21:14,117 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 52581]
+ERROR 2025-09-16 17:21:14,117 runserver 17804 23664 [35;1mHTTP POST /auth/logout/ 500 [0.01, 127.0.0.1:52581][0m
+DEBUG 2025-09-16 17:21:17,102 http_protocol 17804 23664 HTTP b'POST' request for ['127.0.0.1', 52585]
+DEBUG 2025-09-16 17:21:17,106 token 17804 13320 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x000001FC70297CE0>.
+DEBUG 2025-09-16 17:21:17,111 resource_owner_password_credentials 17804 13320 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-16 17:21:17,111 resource_owner_password_credentials 17804 13320 Validating username admin.
+DEBUG 2025-09-16 17:21:17,538 resource_owner_password_credentials 17804 13320 Authorizing access to user <User: admin ()>.
+DEBUG 2025-09-16 17:21:17,539 base 17804 13320 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-16 17:21:17,545 resource_owner_password_credentials 17804 13320 Issuing token {'access_token': 't1zrXe0fnamupwcOwDK1MQlEunUNIS', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'ALbpLFNrbv2c6xVZ2KvuPJ9JZctjze'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-09-16 17:21:17,550 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 52585]
+DEBUG 2025-09-16 17:21:17,550 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 52585]
+DEBUG 2025-09-16 17:21:17,551 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 52585]
+INFO 2025-09-16 17:21:17,551 runserver 17804 23664 [mHTTP POST /o/token/ 200 [0.45, 127.0.0.1:52585][0m
+DEBUG 2025-09-16 17:21:17,576 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 52587]
+DEBUG 2025-09-16 17:21:17,580 resource 17804 18560 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC7019F080>.
+DEBUG 2025-09-16 17:21:17,602 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 52587]
+DEBUG 2025-09-16 17:21:17,602 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 52587]
+DEBUG 2025-09-16 17:21:17,603 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 52587]
+INFO 2025-09-16 17:21:17,603 runserver 17804 23664 [mHTTP GET /users/profile/ 200 [0.03, 127.0.0.1:52587][0m
+DEBUG 2025-09-16 17:21:17,696 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 52590]
+DEBUG 2025-09-16 17:21:17,702 resource 17804 22684 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70253E80>.
+DEBUG 2025-09-16 17:21:17,725 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 52590]
+DEBUG 2025-09-16 17:21:17,725 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 52590]
+DEBUG 2025-09-16 17:21:17,725 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 52590]
+INFO 2025-09-16 17:21:17,726 runserver 17804 23664 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:52590][0m
+DEBUG 2025-09-16 17:21:17,796 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 52592]
+DEBUG 2025-09-16 17:21:17,801 resource 17804 32428 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC70227D40>.
+DEBUG 2025-09-16 17:21:17,831 http_protocol 17804 23664 HTTP 200 response started for ['127.0.0.1', 52592]
+DEBUG 2025-09-16 17:21:17,832 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 52592]
+DEBUG 2025-09-16 17:21:17,832 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 52592]
+INFO 2025-09-16 17:21:17,832 runserver 17804 23664 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:52592][0m
+DEBUG 2025-09-16 17:21:20,195 http_protocol 17804 23664 HTTP b'GET' request for ['127.0.0.1', 49168]
+DEBUG 2025-09-16 17:21:20,198 resource 17804 32312 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001FC702B7640>.
+ERROR 2025-09-16 17:21:20,253 log 17804 19336 Internal Server Error: /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 56, in retrieve
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 438, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 334, in to_representation
+    data['duration_display'] = self._get_duration_display(instance)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 340, in _get_duration_display
+    hours = instance.duration_hours
+            ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'PlanActivity' object has no attribute 'duration_hours'. Did you mean: 'duration_minutes'?
+DEBUG 2025-09-16 17:21:20,260 http_protocol 17804 23664 HTTP 500 response started for ['127.0.0.1', 49168]
+DEBUG 2025-09-16 17:21:20,260 http_protocol 17804 23664 HTTP response chunk for ['127.0.0.1', 49168]
+DEBUG 2025-09-16 17:21:20,260 http_protocol 17804 23664 HTTP response chunk for ['127.0.0.1', 49168]
+DEBUG 2025-09-16 17:21:20,260 http_protocol 17804 23664 HTTP close for ['127.0.0.1', 49168]
+DEBUG 2025-09-16 17:21:20,261 http_protocol 17804 23664 HTTP response complete for ['127.0.0.1', 49168]
+ERROR 2025-09-16 17:21:20,261 runserver 17804 23664 [35;1mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/ 500 [0.07, 127.0.0.1:49168][0m
+INFO 2025-09-16 17:22:55,370 autoreload 17804 25280 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:22:56,561 selector_events 7252 30216 Using selector: SelectSelector
+INFO 2025-09-16 17:22:56,848 autoreload 7252 30216 Watching for file changes with StatReloader
+INFO 2025-09-16 17:22:57,341 server 7252 31828 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:22:57,342 server 7252 31828 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:22:57,343 server 7252 31828 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 17:23:00,373 http_protocol 7252 31828 HTTP b'GET' request for ['127.0.0.1', 60730]
+DEBUG 2025-09-16 17:23:00,384 resource 7252 22868 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000020EE019FB80>.
+ERROR 2025-09-16 17:23:00,452 log 7252 25248 Internal Server Error: /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\mixins.py", line 56, in retrieve
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 555, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 253, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 438, in to_representation
+    data = super().to_representation(instance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 522, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\serializers.py", line 687, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 336, in to_representation
+    data['maps_url'] = self._get_maps_url(instance)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py", line 372, in _get_maps_url
+    if instance.has_location:
+       ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'PlanActivity' object has no attribute 'has_location'
+DEBUG 2025-09-16 17:23:00,464 http_protocol 7252 31828 HTTP 500 response started for ['127.0.0.1', 60730]
+DEBUG 2025-09-16 17:23:00,465 http_protocol 7252 31828 HTTP response chunk for ['127.0.0.1', 60730]
+DEBUG 2025-09-16 17:23:00,465 http_protocol 7252 31828 HTTP response chunk for ['127.0.0.1', 60730]
+DEBUG 2025-09-16 17:23:00,465 http_protocol 7252 31828 HTTP close for ['127.0.0.1', 60730]
+DEBUG 2025-09-16 17:23:00,466 http_protocol 7252 31828 HTTP response complete for ['127.0.0.1', 60730]
+ERROR 2025-09-16 17:23:00,466 runserver 7252 31828 [35;1mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/ 500 [0.09, 127.0.0.1:60730][0m
+INFO 2025-09-16 17:24:31,907 autoreload 7252 30216 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:24:33,328 selector_events 24136 28028 Using selector: SelectSelector
+INFO 2025-09-16 17:24:33,671 autoreload 24136 28028 Watching for file changes with StatReloader
+INFO 2025-09-16 17:24:34,432 server 24136 26708 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:24:34,433 server 24136 26708 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:24:34,434 server 24136 26708 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:25:47,940 autoreload 24136 28028 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\admin.py changed, reloading.
+DEBUG 2025-09-16 17:25:48,876 selector_events 32604 10108 Using selector: SelectSelector
+INFO 2025-09-16 17:25:49,125 autoreload 32604 10108 Watching for file changes with StatReloader
+INFO 2025-09-16 17:25:49,595 server 32604 24340 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:25:49,596 server 32604 24340 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:25:49,596 server 32604 24340 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:26:09,263 autoreload 32604 10108 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:26:10,041 selector_events 15596 29392 Using selector: SelectSelector
+INFO 2025-09-16 17:26:10,303 autoreload 15596 29392 Watching for file changes with StatReloader
+INFO 2025-09-16 17:26:10,694 server 15596 32260 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:26:10,694 server 15596 32260 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:26:10,696 server 15596 32260 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:26:33,331 autoreload 15596 29392 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\admin.py changed, reloading.
+DEBUG 2025-09-16 17:26:34,070 selector_events 21444 4932 Using selector: SelectSelector
+INFO 2025-09-16 17:26:34,243 autoreload 21444 4932 Watching for file changes with StatReloader
+INFO 2025-09-16 17:26:34,603 server 21444 16744 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:26:34,603 server 21444 16744 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:26:34,604 server 21444 16744 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:26:44,020 autoreload 21444 4932 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:26:44,805 selector_events 30696 23500 Using selector: SelectSelector
+INFO 2025-09-16 17:26:45,022 autoreload 30696 23500 Watching for file changes with StatReloader
+INFO 2025-09-16 17:26:45,419 server 30696 15352 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:26:45,419 server 30696 15352 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:26:45,420 server 30696 15352 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:26:48,742 autoreload 30696 23500 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:26:49,510 selector_events 32472 16352 Using selector: SelectSelector
+INFO 2025-09-16 17:26:49,715 autoreload 32472 16352 Watching for file changes with StatReloader
+INFO 2025-09-16 17:26:50,203 server 32472 3464 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:26:50,203 server 32472 3464 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:26:50,204 server 32472 3464 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:26:51,485 autoreload 32472 16352 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:26:52,224 selector_events 28812 32660 Using selector: SelectSelector
+INFO 2025-09-16 17:26:52,416 autoreload 28812 32660 Watching for file changes with StatReloader
+INFO 2025-09-16 17:26:52,786 server 28812 26368 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:26:52,786 server 28812 26368 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:26:52,786 server 28812 26368 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:26:58,137 autoreload 28812 32660 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:26:59,002 selector_events 8736 15272 Using selector: SelectSelector
+INFO 2025-09-16 17:26:59,224 autoreload 8736 15272 Watching for file changes with StatReloader
+INFO 2025-09-16 17:26:59,700 server 8736 23824 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:26:59,701 server 8736 23824 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:26:59,702 server 8736 23824 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:27:01,083 autoreload 8736 15272 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:27:01,826 selector_events 14400 8900 Using selector: SelectSelector
+INFO 2025-09-16 17:27:02,045 autoreload 14400 8900 Watching for file changes with StatReloader
+INFO 2025-09-16 17:27:02,479 server 14400 28788 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:27:02,479 server 14400 28788 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:27:02,480 server 14400 28788 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:27:03,764 autoreload 14400 8900 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:27:04,523 selector_events 19264 24096 Using selector: SelectSelector
+INFO 2025-09-16 17:27:04,721 autoreload 19264 24096 Watching for file changes with StatReloader
+INFO 2025-09-16 17:27:05,159 server 19264 32144 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:27:05,159 server 19264 32144 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:27:05,159 server 19264 32144 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:27:07,453 autoreload 19264 24096 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:27:08,193 selector_events 9904 17804 Using selector: SelectSelector
+INFO 2025-09-16 17:27:08,389 autoreload 9904 17804 Watching for file changes with StatReloader
+INFO 2025-09-16 17:27:08,774 server 9904 22656 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:27:08,775 server 9904 22656 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:27:08,776 server 9904 22656 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:27:14,140 autoreload 9904 17804 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\models.py changed, reloading.
+DEBUG 2025-09-16 17:27:14,897 selector_events 19304 31876 Using selector: SelectSelector
+INFO 2025-09-16 17:27:15,105 autoreload 19304 31876 Watching for file changes with StatReloader
+INFO 2025-09-16 17:27:15,492 server 19304 21744 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:27:15,492 server 19304 21744 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:27:15,493 server 19304 21744 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 17:27:24,760 http_protocol 19304 21744 HTTP b'GET' request for ['127.0.0.1', 60265]
+DEBUG 2025-09-16 17:27:24,774 resource 19304 21344 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D8C737CEC0>.
+DEBUG 2025-09-16 17:27:24,811 http_protocol 19304 21744 HTTP 200 response started for ['127.0.0.1', 60265]
+DEBUG 2025-09-16 17:27:24,811 http_protocol 19304 21744 HTTP close for ['127.0.0.1', 60265]
+DEBUG 2025-09-16 17:27:24,811 http_protocol 19304 21744 HTTP response complete for ['127.0.0.1', 60265]
+INFO 2025-09-16 17:27:24,811 runserver 19304 21744 [mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/ 200 [0.05, 127.0.0.1:60265][0m
+DEBUG 2025-09-16 17:27:28,247 http_protocol 19304 21744 HTTP b'GET' request for ['127.0.0.1', 58729]
+DEBUG 2025-09-16 17:27:28,252 resource 19304 22948 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001D8C73C4E80>.
+ERROR 2025-09-16 17:27:28,303 log 19304 31832 Internal Server Error: /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/schedule/
+Traceback (most recent call last):
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 664, in schedule
+    schedule_data = PlanService.get_plan_schedule(plan, request.user)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py", line 1021, in get_plan_schedule
+    for activity in activities:
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 384, in __iter__
+    self._fetch_all()
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 1949, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\query.py", line 91, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1610, in execute_sql
+    sql, params = self.as_sql()
+                  ^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 766, in as_sql
+    extra_select, order_by, group_by = self.pre_sql_setup(
+                                       ^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 85, in pre_sql_setup
+    self.setup_query(with_col_aliases=with_col_aliases)
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 74, in setup_query
+    self.select, self.klass_info, self.annotation_col_map = self.get_select(
+                                                            ^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 299, in get_select
+    related_klass_infos = self.get_related_selections(select, select_mask)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1396, in get_related_selections
+    raise FieldError(
+django.core.exceptions.FieldError: Invalid field name(s) given in select_related: 'location'. Choices are: plan
+DEBUG 2025-09-16 17:27:28,310 http_protocol 19304 21744 HTTP 500 response started for ['127.0.0.1', 58729]
+DEBUG 2025-09-16 17:27:28,311 http_protocol 19304 21744 HTTP response chunk for ['127.0.0.1', 58729]
+DEBUG 2025-09-16 17:27:28,311 http_protocol 19304 21744 HTTP response chunk for ['127.0.0.1', 58729]
+DEBUG 2025-09-16 17:27:28,311 http_protocol 19304 21744 HTTP close for ['127.0.0.1', 58729]
+DEBUG 2025-09-16 17:27:28,311 http_protocol 19304 21744 HTTP response complete for ['127.0.0.1', 58729]
+ERROR 2025-09-16 17:27:28,312 runserver 19304 21744 [35;1mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/schedule/ 500 [0.06, 127.0.0.1:58729][0m
+INFO 2025-09-16 17:28:49,570 autoreload 19304 31876 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-16 17:28:50,922 selector_events 30172 21764 Using selector: SelectSelector
+INFO 2025-09-16 17:28:51,253 autoreload 30172 21764 Watching for file changes with StatReloader
+INFO 2025-09-16 17:28:52,098 server 30172 7752 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:28:52,099 server 30172 7752 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:28:52,100 server 30172 7752 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:29:15,652 autoreload 30172 21764 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\admin.py changed, reloading.
+DEBUG 2025-09-16 17:29:16,819 selector_events 32388 5324 Using selector: SelectSelector
+INFO 2025-09-16 17:29:17,138 autoreload 32388 5324 Watching for file changes with StatReloader
+INFO 2025-09-16 17:29:17,781 server 32388 26752 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:29:17,781 server 32388 26752 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:29:17,785 server 32388 26752 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:31:13,474 autoreload 32388 5324 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-16 17:31:14,212 selector_events 32640 19056 Using selector: SelectSelector
+INFO 2025-09-16 17:31:14,407 autoreload 32640 19056 Watching for file changes with StatReloader
+INFO 2025-09-16 17:31:14,799 server 32640 19884 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:31:14,800 server 32640 19884 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:31:14,800 server 32640 19884 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:31:18,142 autoreload 32640 19056 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\admin.py changed, reloading.
+DEBUG 2025-09-16 17:31:18,925 selector_events 16264 30676 Using selector: SelectSelector
+INFO 2025-09-16 17:31:19,104 autoreload 16264 30676 Watching for file changes with StatReloader
+INFO 2025-09-16 17:31:19,537 server 16264 30340 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:31:19,538 server 16264 30340 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:31:19,538 server 16264 30340 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 17:31:24,883 autoreload 16264 30676 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\admin.py changed, reloading.
+DEBUG 2025-09-16 17:31:25,570 selector_events 5752 16892 Using selector: SelectSelector
+INFO 2025-09-16 17:31:25,754 autoreload 5752 16892 Watching for file changes with StatReloader
+INFO 2025-09-16 17:31:26,165 server 5752 26152 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 17:31:26,165 server 5752 26152 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 17:31:26,166 server 5752 26152 Listening on TCP address 0.0.0.0:8000
