@@ -34,12 +34,32 @@ class _UserProfilePageState extends State<UserProfilePage> {
       final status = await _friendRepo.getFriendshipStatus(widget.user.id);
       if (!mounted) return;
       setState(() {
-        _friendshipStatus = status;
+        // Map backend status values to frontend expected values
+        _friendshipStatus = _mapBackendStatusToFrontend(status);
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        // Set default status when API fails - assume no relationship exists
+        _friendshipStatus = 'none';
+        _loading = false;
+      });
+    }
+  }
+
+  /// Maps backend status response to frontend expected values
+  String? _mapBackendStatusToFrontend(String? backendStatus) {
+    switch (backendStatus) {
+      case 'friends':
+        return 'accepted';
+      case 'pending_sent':
+      case 'pending_received':
+        return 'pending';
+      case 'blocked':
+        return 'blocked';
+      default:
+        return 'none'; 
     }
   }
 

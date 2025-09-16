@@ -24,13 +24,10 @@ class FriendRepository {
       );
 
       if (res.statusCode == 200) {
-        final data = res.data;
-        final List<dynamic> users = data['users'] ?? [];
-        return users
-            .whereType<Map>()
-            .map(
-              (user) => UserSummary.fromJson(Map<String, dynamic>.from(user)),
-            )
+        final List<dynamic> results =
+            (res.data as Map<String, dynamic>)['results'] as List<dynamic>;
+        return results
+            .map((u) => UserSummary.fromJson(Map<String, dynamic>.from(u)))
             .toList();
       }
       return _throwApiError(res);
@@ -224,7 +221,7 @@ class FriendRepository {
       }
       return null;
     } on DioException catch (_) {
-      return null; // No friendship exists
+      return null; // No friendship exists or network error
     }
   }
 }

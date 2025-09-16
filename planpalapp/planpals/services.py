@@ -254,9 +254,10 @@ class UserService(BaseService):
     
     @classmethod
     def unblock_user(cls, current_user: User, target_user: User) -> Tuple[bool, str]:
+        # Find the blocked friendship between the users
         friendship = Friendship.objects.filter(
-            user=current_user,
-            friend=target_user,
+            models.Q(user_a=current_user, user_b=target_user) |
+            models.Q(user_a=target_user, user_b=current_user),
             status=Friendship.BLOCKED
         ).first()
         
@@ -388,16 +389,28 @@ class UserService(BaseService):
             return False, "Cannot block yourself"
         
         with transaction.atomic():
+            # Delete any existing friendship between the users
             Friendship.objects.filter(
-                models.Q(user=current_user, friend=target_user) |
-                models.Q(user=target_user, friend=current_user)
+                models.Q(user_a=current_user, user_b=target_user) |
+                models.Q(user_a=target_user, user_b=current_user)
             ).delete()
             
-            Friendship.objects.create(
-                user=current_user,
-                friend=target_user,
-                status=Friendship.BLOCKED
-            )
+            # Create a new blocked relationship
+            # Use canonical ordering (smaller UUID as user_a)
+            if current_user.id < target_user.id:
+                friendship = Friendship.objects.create(
+                    user_a=current_user,
+                    user_b=target_user,
+                    initiator=current_user,
+                    status=Friendship.BLOCKED
+                )
+            else:
+                friendship = Friendship.objects.create(
+                    user_a=target_user,
+                    user_b=current_user,
+                    initiator=current_user,
+                    status=Friendship.BLOCKED
+                )
         
         cls.log_operation("user_blocked", {
             'blocker': current_user.id,
@@ -425,6 +438,28 @@ class UserService(BaseService):
     @classmethod
     def is_group_member(cls, user: User, group: 'Group') -> bool:
         return group.is_member(user)
+    
+    @classmethod
+    def can_view_profile(cls, current_user: User, target_user: User) -> bool:
+        """Check if current_user can view target_user's profile"""
+        if current_user == target_user:
+            return True
+        
+        if getattr(target_user, 'is_profile_public', True):
+            return True
+        
+        return Friendship.are_friends(current_user, target_user)
+    
+    @classmethod
+    def validate_search_query(cls, query: str, min_length: int = 2) -> Tuple[bool, str]:
+        """Validate search query parameters"""
+        if not query:
+            return False, 'Search query (q) parameter required'
+        
+        if len(query) < min_length:
+            return False, f'Search query must be at least {min_length} characters'
+        
+        return True, 'Valid query'
 
 
 # ============================================================================
@@ -494,6 +529,16 @@ class GroupService(BaseService):
         })
         
         return True, f"User added to group as {role}"
+    
+    @classmethod
+    def add_member_by_id(cls, group: Group, user_id: str, added_by: User = None) -> Tuple[bool, str]:
+        """Add a member to group by user ID with proper validation"""
+        try:
+            target_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return False, "User not found"
+        
+        return cls.add_member_to_group(group, target_user, added_by=added_by)
     
     @classmethod
     def remove_member_from_group(cls, group: Group, user: User, 
@@ -608,6 +653,24 @@ class GroupService(BaseService):
             models.Q(name__icontains=query) |
             models.Q(description__icontains=query)
     ).select_related('admin').prefetch_related('members', 'memberships__user').with_full_stats()
+    
+    @classmethod
+    def get_group_plans(cls, group: 'Group', user: User) -> Dict[str, Any]:
+        """Get all plans for a group with metadata"""
+        from .models import Plan  # Import here to avoid circular imports
+        
+        # Get all plans for this group with optimizations
+        plans = Plan.objects.filter(group=group).select_related(
+            'creator', 'group'
+        ).prefetch_related('activities').order_by('-created_at')
+        
+        return {
+            'plans': plans,
+            'group_id': str(group.id),
+            'group_name': group.name,
+            'count': len(plans),
+            'can_create_plan': group.is_admin(user)  # Only admins can create
+        }
 
 # ============================================================================
 # PLAN SERVICE
@@ -1235,9 +1298,179 @@ class PlanService(BaseService):
             pass
         except Exception as e:
             logger.warning(f"Failed to schedule completion task: {e}")
+    
+    @classmethod
+    def update_activity(cls, plan: 'Plan', activity_id: str, user: User, data: Dict[str, Any]) -> Tuple[bool, str, Optional['PlanActivity']]:
+        """Update a specific activity in a plan"""
+        from .models import PlanActivity  # Import here to avoid circular imports
+        
+        if not cls.can_edit_plan(plan, user):
+            return False, "You do not have permission to modify this plan", None
+        
+        try:
+            plan_activity = plan.activities.get(id=activity_id)
+        except PlanActivity.DoesNotExist:
+            return False, "Activity not found in this plan", None
+        
+        # Update fields
+        for field, value in data.items():
+            if hasattr(plan_activity, field):
+                setattr(plan_activity, field, value)
+        
+        plan_activity.save()
+        
+        cls.log_operation("activity_updated", {
+            'plan_id': plan.id,
+            'activity_id': activity_id,
+            'user_id': user.id
+        })
+        
+        return True, "Activity updated successfully", plan_activity
+    
+    @classmethod
+    def remove_activity(cls, plan: 'Plan', activity_id: str, user: User) -> Tuple[bool, str]:
+        """Remove a specific activity from a plan"""
+        from .models import PlanActivity  # Import here to avoid circular imports
+        
+        if not cls.can_edit_plan(plan, user):
+            return False, "You do not have permission to modify this plan"
+        
+        try:
+            plan_activity = plan.activities.get(id=activity_id)
+        except PlanActivity.DoesNotExist:
+            return False, "Activity not found in this plan"
+        
+        activity_title = plan_activity.title
+        plan_activity.delete()
+        
+        cls.log_operation("activity_removed", {
+            'plan_id': plan.id,
+            'activity_id': activity_id,
+            'activity_title': activity_title,
+            'user_id': user.id
+        })
+        
+        return True, f'Activity "{activity_title}" removed from plan'
+    
+    @classmethod
+    def toggle_activity_completion(cls, plan: 'Plan', activity_id: str, user: User) -> Tuple[bool, str, Optional['PlanActivity']]:
+        """Toggle completion status of a specific activity"""
+        from .models import PlanActivity  # Import here to avoid circular imports
+        
+        if not cls.can_edit_plan(plan, user):
+            return False, "You do not have permission to modify this plan", None
+        
+        try:
+            plan_activity = plan.activities.get(id=activity_id)
+        except PlanActivity.DoesNotExist:
+            return False, "Activity not found in this plan", None
+        
+        plan_activity.is_completed = not plan_activity.is_completed
+        plan_activity.completed_at = timezone.now() if plan_activity.is_completed else None
+        plan_activity.save()
+        
+        status_text = "completed" if plan_activity.is_completed else "incomplete"
+        
+        cls.log_operation("activity_completion_toggled", {
+            'plan_id': plan.id,
+            'activity_id': activity_id,
+            'is_completed': plan_activity.is_completed,
+            'user_id': user.id
+        })
+        
+        return True, f'Activity marked as {status_text}', plan_activity
+    
+    @classmethod
+    def get_joined_plans(cls, user: User, search: str = None):
+        """Get plans that user has joined (group plans where user is member but not creator)"""
+        from .models import Plan  # Import here to avoid circular imports
+        
+        group_plans = Plan.objects.filter(
+            plan_type='group',
+            group__members=user
+        ).exclude(creator=user).distinct()
+        
+        if search:
+            group_plans = group_plans.filter(
+                models.Q(title__icontains=search) |
+                models.Q(description__icontains=search)
+            )
+        
+        return group_plans
+    
+    @classmethod
+    def get_public_plans(cls, user: User, search: str = None):
+        """Get public plans that user can discover"""
+        from .models import Plan  # Import here to avoid circular imports
+        
+        public_plans = Plan.objects.filter(
+            is_public=True,
+            status__in=['upcoming', 'ongoing']
+        ).exclude(creator=user)
+        
+        # Exclude group plans where user is already a member
+        public_plans = public_plans.exclude(
+            plan_type='group',
+            group__members=user
+        )
+        
+        if search:
+            public_plans = public_plans.filter(
+                models.Q(title__icontains=search) |
+                models.Q(description__icontains=search)
+            )
+        
+        return public_plans.order_by('-created_at')
+    
+    @classmethod
+    def join_plan(cls, plan: 'Plan', user: User) -> Tuple[bool, str]:
+        """Join a plan (typically for group plans)"""
+        from .models import GroupMembership  # Import here to avoid circular imports
+        
+        if plan.creator == user:
+            return False, "Cannot join your own plan"
+        
+        # For group plans
+        if plan.plan_type == 'group' and plan.group:
+            # Check if user is already a member
+            if plan.group.members.filter(id=user.id).exists():
+                return False, "You are already a member of this plan"
+            
+            # Add user to group
+            GroupMembership.objects.create(
+                group=plan.group,
+                user=user,
+                role=GroupMembership.MEMBER
+            )
+            
+            cls.log_operation("plan_joined", {
+                'plan_id': plan.id,
+                'user_id': user.id,
+                'group_id': plan.group.id
+            })
+            
+            return True, f'Successfully joined plan "{plan.title}"'
+        
+        # For personal plans, typically not joinable unless they become public collaborations
+        return False, "This plan is not joinable"
 
 
 class ChatService(BaseService):
+    
+    @classmethod
+    def send_message_to_group(cls, sender: User, group_id: str, content: str, 
+                             message_type: str = 'user') -> Tuple[bool, str, Optional['ChatMessage']]:
+        """Send a message to a group with proper validation"""
+        try:
+            group = Group.objects.get(id=group_id, members=sender)
+        except Group.DoesNotExist:
+            return False, "Cannot send message to this group", None
+        
+        try:
+            message = cls.send_message(sender, group, content, message_type)
+            return True, "Message sent successfully", message
+        except ValidationError as e:
+            return False, str(e), None
     
     @classmethod
     def send_message(cls, sender: User, group: 'Group', content: str, 

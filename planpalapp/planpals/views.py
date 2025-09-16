@@ -25,7 +25,9 @@ from .serializers import (
 from .permissions import (
     IsAuthenticatedAndActive, PlanPermission, GroupPermission,
     ChatMessagePermission, FriendshipPermission, UserProfilePermission,
-    IsGroupMember, IsGroupAdmin, PlanActivityPermission, ConversationPermission
+    IsGroupMember, IsGroupAdmin, PlanActivityPermission, ConversationPermission,
+    CanNotTargetSelf, CanViewUserProfile, CanManageFriendship, 
+    CanEditMyPlans, IsOwnerOrGroupAdmin, CanJoinPlan, CanAccessPlan, CanModifyPlan
 )
 
 from .services import UserService, GroupService, PlanService, ChatService
@@ -82,6 +84,10 @@ class UserViewSet(viewsets.GenericViewSet,
             permission_classes = [AllowAny]
         elif self.action in ['update', 'partial_update', 'destroy']:
             permission_classes = [IsAuthenticated, UserProfilePermission]
+        elif self.action == 'retrieve':
+            permission_classes = [IsAuthenticated, CanViewUserProfile]
+        elif self.action in ['unfriend', 'block', 'unblock']:
+            permission_classes = [IsAuthenticated, CanManageFriendship]
         else:
             permission_classes = [IsAuthenticatedAndActive]
         return [permission() for permission in permission_classes]
@@ -112,9 +118,11 @@ class UserViewSet(viewsets.GenericViewSet,
     @action(detail=False, methods=['get'])
     def search(self, request):
         query = request.query_params.get('q')
-        if not query or len(query) < 2:
+        is_valid, message = UserService.validate_search_query(query)
+        
+        if not is_valid:
             return Response(
-                {'error': 'Search query (q) parameter required (min 2 characters)'}, 
+                {'error': message}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -232,6 +240,7 @@ class UserViewSet(viewsets.GenericViewSet,
     def retrieve(self, request, pk=None):
         user = get_object_or_404(User, id=pk)
         
+        # Permission is handled by CanViewUserProfile
         self.check_object_permissions(request, user)
         
         serializer = UserSummarySerializer(user, context={'request': request})
@@ -242,7 +251,7 @@ class UserViewSet(viewsets.GenericViewSet,
         target_user = get_object_or_404(User, id=pk)
         current_user = request.user
         
-        status_info = current_user.get_friendship_status(target_user)
+        status_info = UserService.get_friendship_status(current_user, target_user)
         
         return Response(status_info)
     
@@ -250,10 +259,6 @@ class UserViewSet(viewsets.GenericViewSet,
     def unfriend(self, request, pk=None):        
         target_user = get_object_or_404(User, id=pk)
         current_user = request.user
-        
-        if current_user == target_user:
-            return Response({'error': 'Cannot unfriend yourself'}, 
-                          status=status.HTTP_400_BAD_REQUEST)
         
         success, message = UserService.unfriend_user(current_user, target_user)
         
@@ -268,10 +273,6 @@ class UserViewSet(viewsets.GenericViewSet,
         target_user = get_object_or_404(User, id=pk)
         current_user = request.user
         
-        if current_user == target_user:
-            return Response({'error': 'Cannot block yourself'}, 
-                          status=status.HTTP_400_BAD_REQUEST)
-        
         success, message = UserService.block_user(current_user, target_user)
         
         if not success:
@@ -285,10 +286,6 @@ class UserViewSet(viewsets.GenericViewSet,
         target_user = get_object_or_404(User, id=pk)
         current_user = request.user
         
-        if current_user == target_user:
-            return Response({'error': 'Cannot unblock yourself'}, 
-                          status=status.HTTP_400_BAD_REQUEST)
-        
         success, message = UserService.unblock_user(current_user, target_user)
         
         if not success:
@@ -296,16 +293,7 @@ class UserViewSet(viewsets.GenericViewSet,
                           status=status.HTTP_400_BAD_REQUEST)
         
         return Response({'message': message})
-    
-    def _can_view_profile(self, current_user, target_user):
-        if current_user == target_user:
-            return True
-        
-        if getattr(target_user, 'is_profile_public', True):
-            return True
-        
-        return Friendship.are_friends(current_user, target_user)
-        
+
 
 class GroupViewSet(viewsets.GenericViewSet,
                    mixins.CreateModelMixin,
@@ -445,22 +433,14 @@ class GroupViewSet(viewsets.GenericViewSet,
             return Response({'error': 'user_id required'}, 
                           status=status.HTTP_400_BAD_REQUEST)
         
-        try:
-            target_user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response({'error': 'User not found'}, 
-                          status=status.HTTP_404_NOT_FOUND)
-        
-        # Use service layer for adding member
-        success, message = GroupService.add_member_to_group(group, target_user)
+        # Use service layer for business logic
+        success, message = GroupService.add_member_by_id(group, user_id, added_by=request.user)
         
         if not success:
-            return Response({'error': message}, 
-                          status=status.HTTP_400_BAD_REQUEST)
+            status_code = status.HTTP_404_NOT_FOUND if "not found" in message else status.HTTP_400_BAD_REQUEST
+            return Response({'error': message}, status=status_code)
         
-        return Response({
-            'message': f'Added {target_user.username} to group successfully'
-        })
+        return Response({'message': message})
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupMember])
     def send_message(self, request, pk=None):
@@ -520,19 +500,17 @@ class GroupViewSet(viewsets.GenericViewSet,
     def plans(self, request, pk=None):
         group = self.get_object()
         
-        # Get all plans for this group with optimizations
-        plans = Plan.objects.filter(group=group).select_related(
-            'creator', 'group'
-        ).prefetch_related('activities').order_by('-created_at')
+        # Use service layer for business logic
+        plans_data = GroupService.get_group_plans(group, request.user)
         
-        serializer = PlanSummarySerializer(plans, many=True, context={'request': request})
+        serializer = PlanSummarySerializer(plans_data['plans'], many=True, context={'request': request})
         
         return Response({
             'plans': serializer.data,
-            'group_id': str(group.id),
-            'group_name': group.name,
-            'count': len(serializer.data),
-            'can_create_plan': group.is_admin(request.user)  # Only admins can create
+            'group_id': plans_data['group_id'],
+            'group_name': plans_data['group_name'],
+            'count': plans_data['count'],
+            'can_create_plan': plans_data['can_create_plan']
         })
 
 class PlanViewSet(viewsets.ModelViewSet):
@@ -581,11 +559,12 @@ class PlanViewSet(viewsets.ModelViewSet):
         serializer.instance = plan
     
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, CanEditMyPlans])
     def my_plans(self, request):
         queryset = self.get_queryset()
         plan_type = request.query_params.get('type', 'all')
         
+        # Filter logic moved to permission validation
         if plan_type == 'personal':
             queryset = queryset.filter(group__isnull=True)
         elif plan_type == 'group':
@@ -599,7 +578,7 @@ class PlanViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, CanAccessPlan])
     def activities_by_date(self, request, pk=None):
         plan = self.get_object()
         
@@ -619,7 +598,7 @@ class PlanViewSet(viewsets.ModelViewSet):
         
     
     #API lấy người tham gia kế hoạch
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, CanAccessPlan])
     def collaborators(self, request, pk=None):
         """Get plan collaborators - OPTIMIZED using property"""
         plan = self.get_object()
@@ -635,7 +614,7 @@ class PlanViewSet(viewsets.ModelViewSet):
         
     
     #API thêm hoạt động vào kế hoạch - OPTIMIZED
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanModifyPlan])
     def add_activity(self, request, pk=None):
         plan = self.get_object()
         
@@ -649,7 +628,7 @@ class PlanViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     #API lấy tóm tắt kế hoạch
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, CanAccessPlan])
     def summary(self, request, pk=None):
         """Get plan summary - delegate to service"""
         plan = self.get_object()
@@ -657,14 +636,14 @@ class PlanViewSet(viewsets.ModelViewSet):
         summary = PlanService.get_plan_statistics(plan)
         return Response(summary)
     
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, CanAccessPlan])
     def schedule(self, request, pk=None):
         plan = self.get_object()
         
         schedule_data = PlanService.get_plan_schedule(plan, request.user)
         return Response(schedule_data)
     
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanModifyPlan])
     def create_activity(self, request, pk=None):
         plan = self.get_object()
         
@@ -678,95 +657,55 @@ class PlanViewSet(viewsets.ModelViewSet):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     
-    @action(detail=True, methods=['put', 'patch'], url_path='activities/(?P<activity_id>[^/.]+)')
+    @action(detail=True, methods=['put', 'patch'], url_path='activities/(?P<activity_id>[^/.]+)', 
+            permission_classes=[IsAuthenticated, CanModifyPlan])
     def update_activity(self, request, pk=None, activity_id=None):
         plan = self.get_object()
         
+        success, message, activity = PlanService.update_activity(plan, activity_id, request.user, request.data)
         
-        try:
-            plan_activity = plan.activities.get(id=activity_id)
-        except PlanActivity.DoesNotExist:
-            return Response(
-                {'error': 'Activity not found in this plan'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        activity_serializer = PlanActivitySerializer(
-            plan_activity, 
-            data=request.data, 
-            partial=True
-        )
-        
-        if activity_serializer.is_valid():
-            activity_serializer.save()
-            return Response({
-                'message': 'Activity updated successfully',
-                'activity': activity_serializer.data
-            })
-        
-        return Response(activity_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=True, methods=['delete'], url_path='activities/(?P<activity_id>[^/.]+)')
-    def remove_activity(self, request, pk=None, activity_id=None):
-        plan = self.get_object()
-       
-        try:
-            plan_activity = plan.activities.get(id=activity_id)
-        except PlanActivity.DoesNotExist:
-            return Response(
-                {'error': 'Activity not found in this plan'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        activity_title = plan_activity.title
-        plan_activity.delete()
+        if not success:
+            status_code = status.HTTP_403_FORBIDDEN if "permission" in message else status.HTTP_404_NOT_FOUND
+            return Response({'error': message}, status=status_code)
         
         return Response({
-            'message': f'Activity "{activity_title}" removed from plan'
+            'message': message,
+            'activity': PlanActivitySerializer(activity).data
         })
     
-    @action(detail=True, methods=['post'], url_path='activities/(?P<activity_id>[^/.]+)/complete')
+    @action(detail=True, methods=['delete'], url_path='activities/(?P<activity_id>[^/.]+)',
+            permission_classes=[IsAuthenticated, CanModifyPlan])
+    def remove_activity(self, request, pk=None, activity_id=None):
+        plan = self.get_object()
+        
+        success, message = PlanService.remove_activity(plan, activity_id, request.user)
+        
+        if not success:
+            status_code = status.HTTP_403_FORBIDDEN if "permission" in message else status.HTTP_404_NOT_FOUND
+            return Response({'error': message}, status=status_code)
+        
+        return Response({'message': message})
+    
+    @action(detail=True, methods=['post'], url_path='activities/(?P<activity_id>[^/.]+)/complete',
+            permission_classes=[IsAuthenticated, CanModifyPlan])
     def toggle_activity_completion(self, request, pk=None, activity_id=None):
         plan = self.get_object()
         
-        if not self._can_user_edit_plan(plan, request.user):
-            return Response(
-                {'error': 'You do not have permission to modify this plan'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
+        success, message, activity = PlanService.toggle_activity_completion(plan, activity_id, request.user)
         
-        try:
-            plan_activity = plan.activities.get(id=activity_id)
-        except PlanActivity.DoesNotExist:
-            return Response(
-                {'error': 'Activity not found in this plan'}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        plan_activity.is_completed = not plan_activity.is_completed
-        plan_activity.completed_at = timezone.now() if plan_activity.is_completed else None
-        plan_activity.save()
+        if not success:
+            status_code = status.HTTP_403_FORBIDDEN if "permission" in message else status.HTTP_404_NOT_FOUND
+            return Response({'error': message}, status=status_code)
         
         return Response({
-            'message': f'Activity marked as {"completed" if plan_activity.is_completed else "incomplete"}',
-            'activity': PlanActivitySerializer(plan_activity).data
+            'message': message,
+            'activity': PlanActivitySerializer(activity).data
         })
 
     @action(detail=False, methods=['get'])
     def joined(self, request):
-        user = request.user
-        
-        group_plans = Plan.objects.filter(
-            plan_type='group',
-            group__members=user
-        ).exclude(creator=user).distinct()
-        
         search = request.query_params.get('search', None)
-        if search:
-            group_plans = group_plans.filter(
-                models.Q(title__icontains=search) |
-                models.Q(description__icontains=search)
-            )
+        group_plans = PlanService.get_joined_plans(request.user, search)
         
         serializer = PlanSummarySerializer(group_plans, many=True, context={'request': request})
         return Response({
@@ -776,72 +715,37 @@ class PlanViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def public(self, request):
-        user = request.user
-        
-        public_plans = Plan.objects.filter(
-            is_public=True,
-            status__in=['upcoming', 'ongoing']
-        ).exclude(creator=user)
-        
-        public_plans = public_plans.exclude(
-            plan_type='group',
-            group__members=user
-        )
-        
         search = request.query_params.get('search', None)
-        if search:
-            public_plans = public_plans.filter(
-                models.Q(title__icontains=search) |
-                models.Q(description__icontains=search)
-            )
-        
-        public_plans = public_plans.order_by('-created_at')
+        public_plans = PlanService.get_public_plans(request.user, search)
         
         serializer = PlanSummarySerializer(public_plans, many=True, context={'request': request})
         return Response({
             'results': serializer.data,
             'count': public_plans.count()
         })
+        return Response({
+            'results': serializer.data,
+            'count': public_plans.count()
+        })
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanJoinPlan])
     def join(self, request, pk=None):
         plan = self.get_object()
         user = request.user
         
-        # Check if plan is public
-        if not plan.is_public:
+        # Permission validation is handled by CanJoinPlan
+        success, message = PlanService.join_plan(plan, user)
+        
+        if not success:
             return Response(
-                {'error': 'This plan is not public'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        
-        
-        # For group plans, add user to the group
-        if plan.plan_type == 'group' and plan.group:
-            # Check if user is already a member
-            if plan.group.members.filter(id=user.id).exists():
-                return Response(
-                    {'error': 'You are already a member of this plan'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Add user to group
-            GroupMembership.objects.create(
-                group=plan.group,
-                user=user,
-                role='member'
-            )
-            
-            return Response({
-                'message': f'Successfully joined plan "{plan.title}"',
-                'plan': PlanSerializer(plan, context={'request': request}).data
-            })
-        else:
-            return Response(
-                {'error': 'Can only join group plans'}, 
+                {'error': message}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        return Response({
+            'message': message,
+            'plan': PlanSerializer(plan, context={'request': request}).data
+        })
         
 
 
@@ -1011,25 +915,20 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        try:
-            group = Group.objects.get(id=group_id, members=request.user)
-            message = ChatService.send_message(
-                sender=request.user,
-                group=group,
-                content=content,
-                message_type=message_type
-            )
-            
-            serializer = self.get_serializer(message)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-            
-        except Group.DoesNotExist:
-            return Response(
-                {'error': 'Cannot send message to this group'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        except ValidationError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        # Use service layer for business logic
+        success, error_message, message = ChatService.send_message_to_group(
+            sender=request.user,
+            group_id=group_id,
+            content=content,
+            message_type=message_type
+        )
+        
+        if not success:
+            status_code = status.HTTP_403_FORBIDDEN if "Cannot send message" in error_message else status.HTTP_400_BAD_REQUEST
+            return Response({'error': error_message}, status=status_code)
+        
+        serializer = self.get_serializer(message)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     def perform_create(self, serializer):
         serializer.save(sender=self.request.user)
@@ -1037,7 +936,7 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
     def update(self, request, *args, **kwargs):
         message = self.get_object()
         
-        success, error_message = chat_service.edit_message(message, request.user, request.data.get('content', ''))
+        success, error_message = ChatService.edit_message(message, request.user, request.data.get('content', ''))
         
         if not success:
             return Response(
@@ -1051,7 +950,7 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
         message = self.get_object()
         
         # Use service layer for delete validation
-        success, error_message = chat_service.delete_message(message, request.user)
+        success, error_message = ChatService.delete_message(message, request.user)
         
         if not success:
             return Response(

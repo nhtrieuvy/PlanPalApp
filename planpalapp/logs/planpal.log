@@ -7971,3 +7971,1335 @@ INFO 2025-09-16 17:31:25,754 autoreload 5752 16892 Watching for file changes wit
 INFO 2025-09-16 17:31:26,165 server 5752 26152 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
 INFO 2025-09-16 17:31:26,165 server 5752 26152 Configuring endpoint tcp:port=8000:interface=0.0.0.0
 INFO 2025-09-16 17:31:26,166 server 5752 26152 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 17:31:32,448 http_protocol 5752 26152 HTTP b'GET' request for ['127.0.0.1', 56844]
+DEBUG 2025-09-16 17:31:32,463 resource 5752 16796 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000012FC3F3C7C0>.
+DEBUG 2025-09-16 17:31:32,487 http_protocol 5752 26152 HTTP 200 response started for ['127.0.0.1', 56844]
+DEBUG 2025-09-16 17:31:32,487 http_protocol 5752 26152 HTTP close for ['127.0.0.1', 56844]
+DEBUG 2025-09-16 17:31:32,487 http_protocol 5752 26152 HTTP response complete for ['127.0.0.1', 56844]
+INFO 2025-09-16 17:31:32,488 runserver 5752 26152 [mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/schedule/ 200 [0.04, 127.0.0.1:56844][0m
+DEBUG 2025-09-16 17:35:09,631 http_protocol 5752 26152 HTTP b'GET' request for ['127.0.0.1', 49563]
+DEBUG 2025-09-16 17:35:09,636 resource 5752 32120 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000012FC3F2B340>.
+DEBUG 2025-09-16 17:35:09,658 http_protocol 5752 26152 HTTP 200 response started for ['127.0.0.1', 49563]
+DEBUG 2025-09-16 17:35:09,658 http_protocol 5752 26152 HTTP close for ['127.0.0.1', 49563]
+DEBUG 2025-09-16 17:35:09,659 http_protocol 5752 26152 HTTP response complete for ['127.0.0.1', 49563]
+INFO 2025-09-16 17:35:09,659 runserver 5752 26152 [mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/schedule/ 200 [0.03, 127.0.0.1:49563][0m
+DEBUG 2025-09-16 17:35:12,117 http_protocol 5752 26152 HTTP b'GET' request for ['127.0.0.1', 49355]
+DEBUG 2025-09-16 17:35:12,123 resource 5752 31920 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000012FC3EE0C40>.
+DEBUG 2025-09-16 17:35:12,143 http_protocol 5752 26152 HTTP 200 response started for ['127.0.0.1', 49355]
+DEBUG 2025-09-16 17:35:12,143 http_protocol 5752 26152 HTTP close for ['127.0.0.1', 49355]
+DEBUG 2025-09-16 17:35:12,143 http_protocol 5752 26152 HTTP response complete for ['127.0.0.1', 49355]
+INFO 2025-09-16 17:35:12,143 runserver 5752 26152 [mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/schedule/ 200 [0.03, 127.0.0.1:49355][0m
+DEBUG 2025-09-16 17:35:24,826 http_protocol 5752 26152 HTTP b'GET' request for ['127.0.0.1', 60967]
+DEBUG 2025-09-16 17:35:24,830 resource 5752 23736 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000012FC3E222C0>.
+DEBUG 2025-09-16 17:35:24,849 http_protocol 5752 26152 HTTP 200 response started for ['127.0.0.1', 60967]
+DEBUG 2025-09-16 17:35:24,849 http_protocol 5752 26152 HTTP close for ['127.0.0.1', 60967]
+DEBUG 2025-09-16 17:35:24,849 http_protocol 5752 26152 HTTP response complete for ['127.0.0.1', 60967]
+INFO 2025-09-16 17:35:24,850 runserver 5752 26152 [mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/schedule/ 200 [0.02, 127.0.0.1:60967][0m
+DEBUG 2025-09-16 17:35:28,597 http_protocol 5752 26152 HTTP b'GET' request for ['127.0.0.1', 49912]
+DEBUG 2025-09-16 17:35:28,602 resource 5752 14020 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000012FC3F0FBC0>.
+DEBUG 2025-09-16 17:35:28,625 http_protocol 5752 26152 HTTP 200 response started for ['127.0.0.1', 49912]
+DEBUG 2025-09-16 17:35:28,626 http_protocol 5752 26152 HTTP close for ['127.0.0.1', 49912]
+DEBUG 2025-09-16 17:35:28,626 http_protocol 5752 26152 HTTP response complete for ['127.0.0.1', 49912]
+INFO 2025-09-16 17:35:28,626 runserver 5752 26152 [mHTTP GET /plans/a5426c75-d0cd-4ff2-ad64-f31cd5aebdd6/schedule/ 200 [0.03, 127.0.0.1:49912][0m
+DEBUG 2025-09-16 18:28:58,106 selector_events 25988 9796 Using selector: SelectSelector
+DEBUG 2025-09-16 18:28:59,249 selector_events 26044 22040 Using selector: SelectSelector
+INFO 2025-09-16 18:28:59,456 autoreload 26044 22040 Watching for file changes with StatReloader
+INFO 2025-09-16 18:29:00,446 server 26044 15724 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 18:29:00,446 server 26044 15724 Configuring endpoint tcp:port=8000:interface=127.0.0.1
+INFO 2025-09-16 18:29:00,448 server 26044 15724 Listening on TCP address 127.0.0.1:8000
+DEBUG 2025-09-16 18:29:15,210 selector_events 16472 20112 Using selector: SelectSelector
+DEBUG 2025-09-16 18:29:16,362 selector_events 15552 24572 Using selector: SelectSelector
+INFO 2025-09-16 18:29:16,961 autoreload 15552 24572 Watching for file changes with StatReloader
+INFO 2025-09-16 18:29:18,432 server 15552 26208 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 18:29:18,432 server 15552 26208 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 18:29:18,433 server 15552 26208 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 18:30:23,239 selector_events 28476 30828 Using selector: SelectSelector
+DEBUG 2025-09-16 18:30:23,901 functional 28476 30828 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,901 functional 28476 30828 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,901 functional 28476 30828 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,902 functional 28476 30828 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,902 functional 28476 30828 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,902 functional 28476 30828 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,902 functional 28476 30828 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,903 functional 28476 30828 
+def send_plan_reminder(self, plan_id, reminder_type=0):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,903 functional 28476 30828 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,903 functional 28476 30828 
+def bulk_update_plan_statuses(self):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,903 functional 28476 30828 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,905 functional 28476 30828 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-16 18:30:23,906 functional 28476 30828 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-16 18:30:23,906 functional 28476 30828 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-16 18:34:25,108 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 60799]
+DEBUG 2025-09-16 18:34:25,188 resource 15552 18576 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8896A8C40>.
+WARNING 2025-09-16 18:34:25,278 log 15552 26224 Unauthorized: /users/profile/
+DEBUG 2025-09-16 18:34:25,279 http_protocol 15552 26208 HTTP 401 response started for ['127.0.0.1', 60799]
+DEBUG 2025-09-16 18:34:25,280 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 60799]
+DEBUG 2025-09-16 18:34:25,281 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 60799]
+WARNING 2025-09-16 18:34:25,282 runserver 15552 26208 [31;1mHTTP GET /users/profile/ 401 [0.17, 127.0.0.1:60799][0m
+DEBUG 2025-09-16 18:34:25,492 http_protocol 15552 26208 HTTP b'POST' request for ['127.0.0.1', 60803]
+DEBUG 2025-09-16 18:34:25,510 token 15552 24044 Dispatching grant_type refresh_token request to <oauthlib.oauth2.rfc6749.grant_types.refresh_token.RefreshTokenGrant object at 0x000001B88970CE00>.
+DEBUG 2025-09-16 18:34:25,511 refresh_token 15552 24044 Validating refresh token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-16 18:34:25,525 refresh_token 15552 24044 Validating refresh token ALbpLFNrbv2c6xVZ2KvuPJ9JZctjze for client <Application: PlanPalApp>.
+DEBUG 2025-09-16 18:34:25,575 refresh_token 15552 24044 Issuing new token to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>), {'access_token': 'qJ1C4ugi9njPdU2LXuR452jRvPF87m', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'RCFQyEyl6G2tnWxsznNvvH8od3coCt'}.
+DEBUG 2025-09-16 18:34:25,580 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 60803]
+DEBUG 2025-09-16 18:34:25,581 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 60803]
+DEBUG 2025-09-16 18:34:25,582 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 60803]
+INFO 2025-09-16 18:34:25,582 runserver 15552 26208 [mHTTP POST /o/token/ 200 [0.09, 127.0.0.1:60803][0m
+DEBUG 2025-09-16 18:34:25,719 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 60805]
+DEBUG 2025-09-16 18:34:25,727 resource 15552 16684 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889708240>.
+DEBUG 2025-09-16 18:34:25,805 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 60805]
+DEBUG 2025-09-16 18:34:25,806 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 60805]
+DEBUG 2025-09-16 18:34:25,806 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 60805]
+INFO 2025-09-16 18:34:25,807 runserver 15552 26208 [mHTTP GET /users/profile/ 200 [0.09, 127.0.0.1:60805][0m
+DEBUG 2025-09-16 18:34:29,046 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 60808]
+DEBUG 2025-09-16 18:34:29,053 resource 15552 17528 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889679740>.
+DEBUG 2025-09-16 18:34:29,104 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 60808]
+DEBUG 2025-09-16 18:34:29,104 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 60808]
+DEBUG 2025-09-16 18:34:29,105 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 60808]
+INFO 2025-09-16 18:34:29,105 runserver 15552 26208 [mHTTP GET /plans/ 200 [0.06, 127.0.0.1:60808][0m
+DEBUG 2025-09-16 18:34:29,313 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 60810]
+DEBUG 2025-09-16 18:34:29,318 resource 15552 19572 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8898800C0>.
+DEBUG 2025-09-16 18:34:29,367 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 60810]
+DEBUG 2025-09-16 18:34:29,367 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 60810]
+DEBUG 2025-09-16 18:34:29,367 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 60810]
+INFO 2025-09-16 18:34:29,368 runserver 15552 26208 [mHTTP GET /groups/ 200 [0.06, 127.0.0.1:60810][0m
+DEBUG 2025-09-16 18:34:40,159 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 52902]
+DEBUG 2025-09-16 18:34:40,161 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 52903]
+DEBUG 2025-09-16 18:34:40,168 resource 15552 19396 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889885A40>.
+DEBUG 2025-09-16 18:34:40,168 resource 15552 12124 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889887D80>.
+DEBUG 2025-09-16 18:34:40,196 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 52903]
+DEBUG 2025-09-16 18:34:40,197 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 52903]
+DEBUG 2025-09-16 18:34:40,197 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 52903]
+INFO 2025-09-16 18:34:40,198 runserver 15552 26208 [mHTTP GET /friends/requests/ 200 [0.04, 127.0.0.1:52903][0m
+DEBUG 2025-09-16 18:34:40,211 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 52902]
+DEBUG 2025-09-16 18:34:40,211 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 52902]
+DEBUG 2025-09-16 18:34:40,212 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 52902]
+INFO 2025-09-16 18:34:40,212 runserver 15552 26208 [mHTTP GET /friends/ 200 [0.05, 127.0.0.1:52902][0m
+DEBUG 2025-09-16 18:34:46,444 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 55339]
+DEBUG 2025-09-16 18:34:46,449 resource 15552 24264 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889884800>.
+DEBUG 2025-09-16 18:34:46,469 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 55339]
+DEBUG 2025-09-16 18:34:46,469 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 55339]
+DEBUG 2025-09-16 18:34:46,469 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 55339]
+INFO 2025-09-16 18:34:46,470 runserver 15552 26208 [mHTTP GET /users/search/?q=u1 200 [0.03, 127.0.0.1:55339][0m
+DEBUG 2025-09-16 18:34:50,963 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 61857]
+DEBUG 2025-09-16 18:34:50,968 resource 15552 22784 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8892E0380>.
+DEBUG 2025-09-16 18:34:50,987 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 61857]
+DEBUG 2025-09-16 18:34:50,987 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 61857]
+DEBUG 2025-09-16 18:34:50,988 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 61857]
+INFO 2025-09-16 18:34:50,989 runserver 15552 26208 [mHTTP GET /users/search/?q=u2 200 [0.03, 127.0.0.1:61857][0m
+DEBUG 2025-09-16 18:35:40,893 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59480]
+DEBUG 2025-09-16 18:35:40,899 resource 15552 25832 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889768600>.
+WARNING 2025-09-16 18:35:40,915 log 15552 26224 Unauthorized: /users/search/
+DEBUG 2025-09-16 18:35:40,916 http_protocol 15552 26208 HTTP 401 response started for ['127.0.0.1', 59480]
+DEBUG 2025-09-16 18:35:40,917 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59480]
+DEBUG 2025-09-16 18:35:40,917 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59480]
+WARNING 2025-09-16 18:35:40,918 runserver 15552 26208 [31;1mHTTP GET /users/search/?q=u2 401 [0.03, 127.0.0.1:59480][0m
+DEBUG 2025-09-16 18:35:57,031 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59480]
+DEBUG 2025-09-16 18:35:57,038 resource 15552 25700 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889848B80>.
+DEBUG 2025-09-16 18:35:57,072 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59480]
+DEBUG 2025-09-16 18:35:57,072 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59480]
+DEBUG 2025-09-16 18:35:57,073 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59480]
+INFO 2025-09-16 18:35:57,073 runserver 15552 26208 [mHTTP GET /users/search/?q=u2 200 [0.04, 127.0.0.1:59480][0m
+DEBUG 2025-09-16 18:37:06,350 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59572]
+DEBUG 2025-09-16 18:37:06,355 resource 15552 9516 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8898800C0>.
+DEBUG 2025-09-16 18:37:06,369 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59572]
+DEBUG 2025-09-16 18:37:06,370 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59572]
+DEBUG 2025-09-16 18:37:06,370 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59572]
+INFO 2025-09-16 18:37:06,370 runserver 15552 26208 [mHTTP GET /users/search/?q=y1 200 [0.02, 127.0.0.1:59572][0m
+DEBUG 2025-09-16 18:38:06,484 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59619]
+DEBUG 2025-09-16 18:38:06,489 resource 15552 18104 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889871040>.
+DEBUG 2025-09-16 18:38:06,505 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59619]
+DEBUG 2025-09-16 18:38:06,505 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59619]
+DEBUG 2025-09-16 18:38:06,506 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59619]
+INFO 2025-09-16 18:38:06,506 runserver 15552 26208 [mHTTP GET /users/search/?q=u1 200 [0.02, 127.0.0.1:59619][0m
+DEBUG 2025-09-16 18:38:32,549 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59640]
+DEBUG 2025-09-16 18:38:32,553 resource 15552 29008 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8892E0380>.
+DEBUG 2025-09-16 18:38:32,564 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59640]
+DEBUG 2025-09-16 18:38:32,564 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59640]
+DEBUG 2025-09-16 18:38:32,564 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59640]
+INFO 2025-09-16 18:38:32,564 runserver 15552 26208 [mHTTP GET /users/search/?q=ad 200 [0.02, 127.0.0.1:59640][0m
+DEBUG 2025-09-16 18:38:32,714 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59642]
+DEBUG 2025-09-16 18:38:32,717 resource 15552 32212 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889834040>.
+DEBUG 2025-09-16 18:38:32,728 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59642]
+DEBUG 2025-09-16 18:38:32,728 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59642]
+DEBUG 2025-09-16 18:38:32,728 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59642]
+INFO 2025-09-16 18:38:32,728 runserver 15552 26208 [mHTTP GET /users/search/?q=adm 200 [0.01, 127.0.0.1:59642][0m
+DEBUG 2025-09-16 18:38:32,858 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59644]
+DEBUG 2025-09-16 18:38:32,862 resource 15552 16348 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889885C40>.
+DEBUG 2025-09-16 18:38:32,875 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59644]
+DEBUG 2025-09-16 18:38:32,876 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59644]
+DEBUG 2025-09-16 18:38:32,876 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59644]
+INFO 2025-09-16 18:38:32,876 runserver 15552 26208 [mHTTP GET /users/search/?q=admi 200 [0.02, 127.0.0.1:59644][0m
+DEBUG 2025-09-16 18:38:32,947 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59646]
+DEBUG 2025-09-16 18:38:32,951 resource 15552 22792 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8892E0380>.
+DEBUG 2025-09-16 18:38:32,959 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59646]
+DEBUG 2025-09-16 18:38:32,960 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59646]
+DEBUG 2025-09-16 18:38:32,960 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59646]
+INFO 2025-09-16 18:38:32,960 runserver 15552 26208 [mHTTP GET /users/search/?q=admin 200 [0.01, 127.0.0.1:59646][0m
+DEBUG 2025-09-16 18:38:33,290 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59649]
+DEBUG 2025-09-16 18:38:33,295 resource 15552 25112 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889836240>.
+DEBUG 2025-09-16 18:38:33,302 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59649]
+DEBUG 2025-09-16 18:38:33,302 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59649]
+DEBUG 2025-09-16 18:38:33,302 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59649]
+INFO 2025-09-16 18:38:33,304 runserver 15552 26208 [mHTTP GET /users/search/?q=admi 200 [0.01, 127.0.0.1:59649][0m
+DEBUG 2025-09-16 18:38:33,464 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59651]
+DEBUG 2025-09-16 18:38:33,468 resource 15552 7144 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B88984F580>.
+DEBUG 2025-09-16 18:38:33,475 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59651]
+DEBUG 2025-09-16 18:38:33,476 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59651]
+DEBUG 2025-09-16 18:38:33,476 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59651]
+INFO 2025-09-16 18:38:33,476 runserver 15552 26208 [mHTTP GET /users/search/?q=adm 200 [0.01, 127.0.0.1:59651][0m
+DEBUG 2025-09-16 18:38:33,628 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59653]
+DEBUG 2025-09-16 18:38:33,634 resource 15552 15840 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B88984CA40>.
+DEBUG 2025-09-16 18:38:33,646 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59653]
+DEBUG 2025-09-16 18:38:33,646 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59653]
+DEBUG 2025-09-16 18:38:33,646 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59653]
+INFO 2025-09-16 18:38:33,646 runserver 15552 26208 [mHTTP GET /users/search/?q=ad 200 [0.02, 127.0.0.1:59653][0m
+DEBUG 2025-09-16 18:41:36,573 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59845]
+DEBUG 2025-09-16 18:41:36,577 resource 15552 16600 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B88984EB80>.
+DEBUG 2025-09-16 18:41:36,591 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 59845]
+DEBUG 2025-09-16 18:41:36,593 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59845]
+DEBUG 2025-09-16 18:41:36,594 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59845]
+INFO 2025-09-16 18:41:36,594 runserver 15552 26208 [mHTTP GET /users/search/?q=u1 200 [0.02, 127.0.0.1:59845][0m
+DEBUG 2025-09-16 18:49:46,365 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 50707]
+DEBUG 2025-09-16 18:49:46,370 resource 15552 31308 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889769F80>.
+DEBUG 2025-09-16 18:49:46,389 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 50707]
+DEBUG 2025-09-16 18:49:46,389 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 50707]
+DEBUG 2025-09-16 18:49:46,390 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 50707]
+INFO 2025-09-16 18:49:46,390 runserver 15552 26208 [mHTTP GET /users/search/?q=u1 200 [0.03, 127.0.0.1:50707][0m
+DEBUG 2025-09-16 18:49:47,474 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 50710]
+DEBUG 2025-09-16 18:49:47,479 resource 15552 14680 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8897FF1C0>.
+ERROR 2025-09-16 18:49:47,755 log 15552 26224 Internal Server Error: /users/3f5a493f-77f1-4342-801f-02129644f95b/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 245, in friendship_status
+    status_info = current_user.get_friendship_status(target_user)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'User' object has no attribute 'get_friendship_status'
+DEBUG 2025-09-16 18:49:47,834 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 50710]
+DEBUG 2025-09-16 18:49:47,834 http_protocol 15552 26208 HTTP response chunk for ['127.0.0.1', 50710]
+DEBUG 2025-09-16 18:49:47,835 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 50710]
+DEBUG 2025-09-16 18:49:47,836 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 50710]
+ERROR 2025-09-16 18:49:47,837 runserver 15552 26208 [35;1mHTTP GET /users/3f5a493f-77f1-4342-801f-02129644f95b/friendship_status/ 500 [0.36, 127.0.0.1:50710][0m
+DEBUG 2025-09-16 18:49:49,478 http_protocol 15552 26208 HTTP b'POST' request for ['127.0.0.1', 50713]
+DEBUG 2025-09-16 18:49:49,484 resource 15552 22488 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889832600>.
+INFO 2025-09-16 18:49:49,542 services 15552 22488 Service operation: friend_request_sent
+DEBUG 2025-09-16 18:49:49,562 http_protocol 15552 26208 HTTP 201 response started for ['127.0.0.1', 50713]
+DEBUG 2025-09-16 18:49:49,562 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 50713]
+DEBUG 2025-09-16 18:49:49,563 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 50713]
+INFO 2025-09-16 18:49:49,563 runserver 15552 26208 [mHTTP POST /friends/request/ 201 [0.08, 127.0.0.1:50713][0m
+DEBUG 2025-09-16 18:49:53,316 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59556]
+DEBUG 2025-09-16 18:49:53,322 resource 15552 23488 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889520E80>.
+ERROR 2025-09-16 18:49:53,364 log 15552 26224 Internal Server Error: /users/3f5a493f-77f1-4342-801f-02129644f95b/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 245, in friendship_status
+    status_info = current_user.get_friendship_status(target_user)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'User' object has no attribute 'get_friendship_status'
+DEBUG 2025-09-16 18:49:53,385 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 59556]
+DEBUG 2025-09-16 18:49:53,385 http_protocol 15552 26208 HTTP response chunk for ['127.0.0.1', 59556]
+DEBUG 2025-09-16 18:49:53,386 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59556]
+DEBUG 2025-09-16 18:49:53,386 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59556]
+ERROR 2025-09-16 18:49:53,387 runserver 15552 26208 [35;1mHTTP GET /users/3f5a493f-77f1-4342-801f-02129644f95b/friendship_status/ 500 [0.07, 127.0.0.1:59556][0m
+DEBUG 2025-09-16 18:50:02,023 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 59100]
+DEBUG 2025-09-16 18:50:02,029 resource 15552 31640 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889522280>.
+ERROR 2025-09-16 18:50:02,083 log 15552 26224 Internal Server Error: /users/3f5a493f-77f1-4342-801f-02129644f95b/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 245, in friendship_status
+    status_info = current_user.get_friendship_status(target_user)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'User' object has no attribute 'get_friendship_status'
+DEBUG 2025-09-16 18:50:02,108 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 59100]
+DEBUG 2025-09-16 18:50:02,109 http_protocol 15552 26208 HTTP response chunk for ['127.0.0.1', 59100]
+DEBUG 2025-09-16 18:50:02,109 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 59100]
+DEBUG 2025-09-16 18:50:02,110 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 59100]
+ERROR 2025-09-16 18:50:02,110 runserver 15552 26208 [35;1mHTTP GET /users/3f5a493f-77f1-4342-801f-02129644f95b/friendship_status/ 500 [0.09, 127.0.0.1:59100][0m
+DEBUG 2025-09-16 18:54:01,261 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 50223]
+DEBUG 2025-09-16 18:54:01,268 resource 15552 23656 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889837D40>.
+ERROR 2025-09-16 18:54:01,313 log 15552 26224 Internal Server Error: /users/3f5a493f-77f1-4342-801f-02129644f95b/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 245, in friendship_status
+    status_info = current_user.get_friendship_status(target_user)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'User' object has no attribute 'get_friendship_status'
+DEBUG 2025-09-16 18:54:01,334 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 50223]
+DEBUG 2025-09-16 18:54:01,335 http_protocol 15552 26208 HTTP response chunk for ['127.0.0.1', 50223]
+DEBUG 2025-09-16 18:54:01,335 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 50223]
+DEBUG 2025-09-16 18:54:01,335 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 50223]
+ERROR 2025-09-16 18:54:01,335 runserver 15552 26208 [35;1mHTTP GET /users/3f5a493f-77f1-4342-801f-02129644f95b/friendship_status/ 500 [0.07, 127.0.0.1:50223][0m
+DEBUG 2025-09-16 18:54:01,975 http_protocol 15552 26208 HTTP b'POST' request for ['127.0.0.1', 50227]
+DEBUG 2025-09-16 18:54:01,983 resource 15552 2912 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889599800>.
+WARNING 2025-09-16 18:54:02,009 log 15552 26224 Bad Request: /friends/request/
+DEBUG 2025-09-16 18:54:02,010 http_protocol 15552 26208 HTTP 400 response started for ['127.0.0.1', 50227]
+DEBUG 2025-09-16 18:54:02,011 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 50227]
+DEBUG 2025-09-16 18:54:02,011 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 50227]
+WARNING 2025-09-16 18:54:02,011 runserver 15552 26208 [31;1mHTTP POST /friends/request/ 400 [0.04, 127.0.0.1:50227][0m
+DEBUG 2025-09-16 18:54:08,911 http_protocol 15552 26208 HTTP b'POST' request for ['127.0.0.1', 55139]
+DEBUG 2025-09-16 18:54:08,920 resource 15552 14948 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8895F9180>.
+INFO 2025-09-16 18:54:08,930 services 15552 14948 Service operation: user_logout_failed
+ERROR 2025-09-16 18:54:08,935 log 15552 26224 Internal Server Error: /auth/logout/
+DEBUG 2025-09-16 18:54:08,937 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 55139]
+DEBUG 2025-09-16 18:54:08,937 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 55139]
+DEBUG 2025-09-16 18:54:08,938 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 55139]
+ERROR 2025-09-16 18:54:08,938 runserver 15552 26208 [35;1mHTTP POST /auth/logout/ 500 [0.03, 127.0.0.1:55139][0m
+DEBUG 2025-09-16 18:54:17,153 http_protocol 15552 26208 HTTP b'POST' request for ['127.0.0.1', 64728]
+DEBUG 2025-09-16 18:54:17,162 token 15552 13612 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x000001B88970CD40>.
+DEBUG 2025-09-16 18:54:17,171 resource_owner_password_credentials 15552 13612 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-16 18:54:17,172 resource_owner_password_credentials 15552 13612 Validating username u1.
+DEBUG 2025-09-16 18:54:18,095 resource_owner_password_credentials 15552 13612 Authorizing access to user <User: u1 (Nguyen Vy)>.
+DEBUG 2025-09-16 18:54:18,095 base 15552 13612 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-16 18:54:18,112 resource_owner_password_credentials 15552 13612 Issuing token {'access_token': 'GSBLvvFqrMU7gM3foyEGKaAGzEEuZ9', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': 'pbKmOJ9yR5H4MMawkHiGKcoWoEoDne'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username u1.
+DEBUG 2025-09-16 18:54:18,121 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64728]
+DEBUG 2025-09-16 18:54:18,122 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64728]
+DEBUG 2025-09-16 18:54:18,122 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64728]
+INFO 2025-09-16 18:54:18,123 runserver 15552 26208 [mHTTP POST /o/token/ 200 [0.97, 127.0.0.1:64728][0m
+DEBUG 2025-09-16 18:54:18,147 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64732]
+DEBUG 2025-09-16 18:54:18,152 resource 15552 22480 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8895F7880>.
+DEBUG 2025-09-16 18:54:18,195 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64732]
+DEBUG 2025-09-16 18:54:18,195 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64732]
+DEBUG 2025-09-16 18:54:18,196 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64732]
+INFO 2025-09-16 18:54:18,197 runserver 15552 26208 [mHTTP GET /users/profile/ 200 [0.05, 127.0.0.1:64732][0m
+DEBUG 2025-09-16 18:54:18,321 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64734]
+DEBUG 2025-09-16 18:54:18,326 resource 15552 9932 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8895FB280>.
+DEBUG 2025-09-16 18:54:18,354 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64734]
+DEBUG 2025-09-16 18:54:18,354 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64734]
+DEBUG 2025-09-16 18:54:18,355 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64734]
+INFO 2025-09-16 18:54:18,355 runserver 15552 26208 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:64734][0m
+DEBUG 2025-09-16 18:54:18,390 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64736]
+DEBUG 2025-09-16 18:54:18,397 resource 15552 31908 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8895BE6C0>.
+DEBUG 2025-09-16 18:54:18,427 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64736]
+DEBUG 2025-09-16 18:54:18,428 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64736]
+DEBUG 2025-09-16 18:54:18,428 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64736]
+INFO 2025-09-16 18:54:18,428 runserver 15552 26208 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:64736][0m
+DEBUG 2025-09-16 18:54:22,548 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64742]
+DEBUG 2025-09-16 18:54:22,549 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64743]
+DEBUG 2025-09-16 18:54:22,556 resource 15552 3248 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889582780>.
+DEBUG 2025-09-16 18:54:22,556 resource 15552 14932 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889581D40>.
+DEBUG 2025-09-16 18:54:22,592 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64742]
+DEBUG 2025-09-16 18:54:22,593 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64742]
+DEBUG 2025-09-16 18:54:22,593 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64742]
+INFO 2025-09-16 18:54:22,594 runserver 15552 26208 [mHTTP GET /friends/ 200 [0.05, 127.0.0.1:64742][0m
+DEBUG 2025-09-16 18:54:22,594 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64743]
+DEBUG 2025-09-16 18:54:22,594 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64743]
+DEBUG 2025-09-16 18:54:22,594 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64743]
+INFO 2025-09-16 18:54:22,596 runserver 15552 26208 [mHTTP GET /friends/requests/ 200 [0.05, 127.0.0.1:64743][0m
+DEBUG 2025-09-16 18:54:28,986 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64751]
+DEBUG 2025-09-16 18:54:28,991 resource 15552 13680 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8898A4840>.
+DEBUG 2025-09-16 18:54:29,008 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64751]
+DEBUG 2025-09-16 18:54:29,010 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64751]
+DEBUG 2025-09-16 18:54:29,010 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64751]
+INFO 2025-09-16 18:54:29,010 runserver 15552 26208 [mHTTP GET /users/search/?q=ad 200 [0.02, 127.0.0.1:64751][0m
+DEBUG 2025-09-16 18:54:34,194 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64756]
+DEBUG 2025-09-16 18:54:34,198 resource 15552 30948 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B88994E340>.
+DEBUG 2025-09-16 18:54:34,216 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64756]
+DEBUG 2025-09-16 18:54:34,216 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64756]
+DEBUG 2025-09-16 18:54:34,217 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64756]
+INFO 2025-09-16 18:54:34,219 runserver 15552 26208 [mHTTP GET /users/search/?q=ad 200 [0.03, 127.0.0.1:64756][0m
+DEBUG 2025-09-16 18:54:36,974 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64761]
+DEBUG 2025-09-16 18:54:36,981 resource 15552 7972 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889881800>.
+DEBUG 2025-09-16 18:54:37,002 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64761]
+DEBUG 2025-09-16 18:54:37,003 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64761]
+DEBUG 2025-09-16 18:54:37,003 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64761]
+INFO 2025-09-16 18:54:37,003 runserver 15552 26208 [mHTTP GET /users/search/?q=u1 200 [0.03, 127.0.0.1:64761][0m
+DEBUG 2025-09-16 18:54:38,936 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64765]
+DEBUG 2025-09-16 18:54:38,949 resource 15552 20516 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B88994D840>.
+DEBUG 2025-09-16 18:54:38,969 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64765]
+DEBUG 2025-09-16 18:54:38,970 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64765]
+DEBUG 2025-09-16 18:54:38,971 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64765]
+INFO 2025-09-16 18:54:38,972 runserver 15552 26208 [mHTTP GET /users/search/?q=u1 200 [0.04, 127.0.0.1:64765][0m
+DEBUG 2025-09-16 18:54:40,475 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64767]
+DEBUG 2025-09-16 18:54:40,483 resource 15552 20176 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8897F3A40>.
+DEBUG 2025-09-16 18:54:40,507 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 64767]
+DEBUG 2025-09-16 18:54:40,508 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64767]
+DEBUG 2025-09-16 18:54:40,508 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64767]
+INFO 2025-09-16 18:54:40,508 runserver 15552 26208 [mHTTP GET /users/search/?q=u2 200 [0.03, 127.0.0.1:64767][0m
+DEBUG 2025-09-16 18:54:42,243 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64770]
+DEBUG 2025-09-16 18:54:42,248 resource 15552 22676 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889580F40>.
+ERROR 2025-09-16 18:54:42,290 log 15552 26224 Internal Server Error: /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 245, in friendship_status
+    status_info = current_user.get_friendship_status(target_user)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'User' object has no attribute 'get_friendship_status'
+DEBUG 2025-09-16 18:54:42,306 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 64770]
+DEBUG 2025-09-16 18:54:42,306 http_protocol 15552 26208 HTTP response chunk for ['127.0.0.1', 64770]
+DEBUG 2025-09-16 18:54:42,307 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64770]
+DEBUG 2025-09-16 18:54:42,307 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64770]
+ERROR 2025-09-16 18:54:42,307 runserver 15552 26208 [35;1mHTTP GET /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 500 [0.06, 127.0.0.1:64770][0m
+DEBUG 2025-09-16 18:54:44,114 http_protocol 15552 26208 HTTP b'POST' request for ['127.0.0.1', 64774]
+DEBUG 2025-09-16 18:54:44,119 resource 15552 32312 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B88970A380>.
+INFO 2025-09-16 18:54:44,165 services 15552 32312 Service operation: friend_request_sent
+DEBUG 2025-09-16 18:54:44,180 http_protocol 15552 26208 HTTP 201 response started for ['127.0.0.1', 64774]
+DEBUG 2025-09-16 18:54:44,181 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64774]
+DEBUG 2025-09-16 18:54:44,181 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64774]
+INFO 2025-09-16 18:54:44,182 runserver 15552 26208 [mHTTP POST /friends/request/ 201 [0.07, 127.0.0.1:64774][0m
+DEBUG 2025-09-16 18:54:47,975 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 64783]
+DEBUG 2025-09-16 18:54:47,989 resource 15552 31068 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B88970A380>.
+ERROR 2025-09-16 18:54:48,038 log 15552 26224 Internal Server Error: /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 245, in friendship_status
+    status_info = current_user.get_friendship_status(target_user)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'User' object has no attribute 'get_friendship_status'
+DEBUG 2025-09-16 18:54:48,055 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 64783]
+DEBUG 2025-09-16 18:54:48,056 http_protocol 15552 26208 HTTP response chunk for ['127.0.0.1', 64783]
+DEBUG 2025-09-16 18:54:48,056 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 64783]
+DEBUG 2025-09-16 18:54:48,057 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 64783]
+ERROR 2025-09-16 18:54:48,057 runserver 15552 26208 [35;1mHTTP GET /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 500 [0.08, 127.0.0.1:64783][0m
+DEBUG 2025-09-16 18:57:41,088 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 65027]
+DEBUG 2025-09-16 18:57:41,093 resource 15552 7448 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889884E40>.
+ERROR 2025-09-16 18:57:41,132 log 15552 26224 Internal Server Error: /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 245, in friendship_status
+    status_info = current_user.get_friendship_status(target_user)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'User' object has no attribute 'get_friendship_status'
+DEBUG 2025-09-16 18:57:41,149 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 65027]
+DEBUG 2025-09-16 18:57:41,149 http_protocol 15552 26208 HTTP response chunk for ['127.0.0.1', 65027]
+DEBUG 2025-09-16 18:57:41,150 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65027]
+DEBUG 2025-09-16 18:57:41,150 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65027]
+ERROR 2025-09-16 18:57:41,150 runserver 15552 26208 [35;1mHTTP GET /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 500 [0.06, 127.0.0.1:65027][0m
+DEBUG 2025-09-16 18:57:46,760 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 65034]
+DEBUG 2025-09-16 18:57:46,763 resource 15552 2876 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B88976A7C0>.
+DEBUG 2025-09-16 18:57:46,784 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 65034]
+DEBUG 2025-09-16 18:57:46,784 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65034]
+DEBUG 2025-09-16 18:57:46,784 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65034]
+INFO 2025-09-16 18:57:46,785 runserver 15552 26208 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:65034][0m
+DEBUG 2025-09-16 18:57:49,933 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 65039]
+DEBUG 2025-09-16 18:57:49,938 resource 15552 30860 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8895D9200>.
+DEBUG 2025-09-16 18:57:49,950 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 65039]
+DEBUG 2025-09-16 18:57:49,950 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65039]
+DEBUG 2025-09-16 18:57:49,951 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65039]
+INFO 2025-09-16 18:57:49,951 runserver 15552 26208 [mHTTP GET /users/search/?q=u1 200 [0.02, 127.0.0.1:65039][0m
+DEBUG 2025-09-16 18:57:51,964 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 65041]
+DEBUG 2025-09-16 18:57:51,968 resource 15552 26892 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8897F20C0>.
+DEBUG 2025-09-16 18:57:51,982 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 65041]
+DEBUG 2025-09-16 18:57:51,982 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65041]
+DEBUG 2025-09-16 18:57:51,983 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65041]
+INFO 2025-09-16 18:57:51,983 runserver 15552 26208 [mHTTP GET /users/search/?q=ad 200 [0.02, 127.0.0.1:65041][0m
+DEBUG 2025-09-16 18:57:52,358 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 65043]
+DEBUG 2025-09-16 18:57:52,361 resource 15552 7328 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889882740>.
+ERROR 2025-09-16 18:57:52,399 log 15552 26224 Internal Server Error: /users/9d8e21b5-052e-4776-9b4c-45af8d3d6f2a/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 245, in friendship_status
+    status_info = current_user.get_friendship_status(target_user)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'User' object has no attribute 'get_friendship_status'
+DEBUG 2025-09-16 18:57:52,413 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 65043]
+DEBUG 2025-09-16 18:57:52,414 http_protocol 15552 26208 HTTP response chunk for ['127.0.0.1', 65043]
+DEBUG 2025-09-16 18:57:52,414 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65043]
+DEBUG 2025-09-16 18:57:52,414 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65043]
+ERROR 2025-09-16 18:57:52,415 runserver 15552 26208 [35;1mHTTP GET /users/9d8e21b5-052e-4776-9b4c-45af8d3d6f2a/friendship_status/ 500 [0.06, 127.0.0.1:65043][0m
+DEBUG 2025-09-16 18:57:53,523 http_protocol 15552 26208 HTTP b'POST' request for ['127.0.0.1', 65046]
+DEBUG 2025-09-16 18:57:53,530 resource 15552 13412 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889611100>.
+WARNING 2025-09-16 18:57:53,546 log 15552 26224 Bad Request: /friends/request/
+DEBUG 2025-09-16 18:57:53,547 http_protocol 15552 26208 HTTP 400 response started for ['127.0.0.1', 65046]
+DEBUG 2025-09-16 18:57:53,547 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65046]
+DEBUG 2025-09-16 18:57:53,548 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65046]
+WARNING 2025-09-16 18:57:53,548 runserver 15552 26208 [31;1mHTTP POST /friends/request/ 400 [0.03, 127.0.0.1:65046][0m
+DEBUG 2025-09-16 18:58:23,774 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 65073]
+DEBUG 2025-09-16 18:58:23,778 resource 15552 20240 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B88630DBC0>.
+DEBUG 2025-09-16 18:58:23,796 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 65073]
+DEBUG 2025-09-16 18:58:23,796 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65073]
+DEBUG 2025-09-16 18:58:23,796 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65073]
+INFO 2025-09-16 18:58:23,796 runserver 15552 26208 [mHTTP GET /users/search/?q=ad 200 [0.02, 127.0.0.1:65073][0m
+DEBUG 2025-09-16 18:58:24,335 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 65075]
+DEBUG 2025-09-16 18:58:24,339 resource 15552 14356 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B88971A800>.
+DEBUG 2025-09-16 18:58:24,350 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 65075]
+DEBUG 2025-09-16 18:58:24,351 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65075]
+DEBUG 2025-09-16 18:58:24,351 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65075]
+INFO 2025-09-16 18:58:24,351 runserver 15552 26208 [mHTTP GET /users/search/?q=adm 200 [0.02, 127.0.0.1:65075][0m
+DEBUG 2025-09-16 18:58:24,440 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 65077]
+DEBUG 2025-09-16 18:58:24,444 resource 15552 10400 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889613580>.
+DEBUG 2025-09-16 18:58:24,460 http_protocol 15552 26208 HTTP 200 response started for ['127.0.0.1', 65077]
+DEBUG 2025-09-16 18:58:24,460 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65077]
+DEBUG 2025-09-16 18:58:24,460 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65077]
+INFO 2025-09-16 18:58:24,460 runserver 15552 26208 [mHTTP GET /users/search/?q=admi 200 [0.02, 127.0.0.1:65077][0m
+DEBUG 2025-09-16 18:58:24,980 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 65079]
+DEBUG 2025-09-16 18:58:24,985 resource 15552 17688 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B8895BE980>.
+ERROR 2025-09-16 18:58:25,020 log 15552 26224 Internal Server Error: /users/9d8e21b5-052e-4776-9b4c-45af8d3d6f2a/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 245, in friendship_status
+    status_info = current_user.get_friendship_status(target_user)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'User' object has no attribute 'get_friendship_status'
+DEBUG 2025-09-16 18:58:25,036 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 65079]
+DEBUG 2025-09-16 18:58:25,037 http_protocol 15552 26208 HTTP response chunk for ['127.0.0.1', 65079]
+DEBUG 2025-09-16 18:58:25,037 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65079]
+DEBUG 2025-09-16 18:58:25,037 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65079]
+ERROR 2025-09-16 18:58:25,038 runserver 15552 26208 [35;1mHTTP GET /users/9d8e21b5-052e-4776-9b4c-45af8d3d6f2a/friendship_status/ 500 [0.06, 127.0.0.1:65079][0m
+DEBUG 2025-09-16 18:58:25,755 http_protocol 15552 26208 HTTP b'POST' request for ['127.0.0.1', 65081]
+DEBUG 2025-09-16 18:58:25,760 resource 15552 11300 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889678FC0>.
+INFO 2025-09-16 18:58:25,792 services 15552 11300 Service operation: friend_request_sent
+DEBUG 2025-09-16 18:58:25,800 http_protocol 15552 26208 HTTP 201 response started for ['127.0.0.1', 65081]
+DEBUG 2025-09-16 18:58:25,800 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65081]
+DEBUG 2025-09-16 18:58:25,801 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65081]
+INFO 2025-09-16 18:58:25,801 runserver 15552 26208 [mHTTP POST /friends/request/ 201 [0.05, 127.0.0.1:65081][0m
+DEBUG 2025-09-16 18:58:27,865 http_protocol 15552 26208 HTTP b'GET' request for ['127.0.0.1', 65085]
+DEBUG 2025-09-16 18:58:27,870 resource 15552 31812 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000001B889582880>.
+ERROR 2025-09-16 18:58:27,914 log 15552 26224 Internal Server Error: /users/9d8e21b5-052e-4776-9b4c-45af8d3d6f2a/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 245, in friendship_status
+    status_info = current_user.get_friendship_status(target_user)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'User' object has no attribute 'get_friendship_status'
+DEBUG 2025-09-16 18:58:27,929 http_protocol 15552 26208 HTTP 500 response started for ['127.0.0.1', 65085]
+DEBUG 2025-09-16 18:58:27,929 http_protocol 15552 26208 HTTP response chunk for ['127.0.0.1', 65085]
+DEBUG 2025-09-16 18:58:27,929 http_protocol 15552 26208 HTTP close for ['127.0.0.1', 65085]
+DEBUG 2025-09-16 18:58:27,930 http_protocol 15552 26208 HTTP response complete for ['127.0.0.1', 65085]
+ERROR 2025-09-16 18:58:27,930 runserver 15552 26208 [35;1mHTTP GET /users/9d8e21b5-052e-4776-9b4c-45af8d3d6f2a/friendship_status/ 500 [0.07, 127.0.0.1:65085][0m
+INFO 2025-09-16 19:02:14,841 autoreload 15552 24572 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-16 19:02:16,289 selector_events 15420 28852 Using selector: SelectSelector
+INFO 2025-09-16 19:02:16,652 autoreload 15420 28852 Watching for file changes with StatReloader
+INFO 2025-09-16 19:02:17,505 server 15420 25612 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 19:02:17,505 server 15420 25612 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 19:02:17,506 server 15420 25612 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 19:02:57,157 selector_events 20768 17196 Using selector: SelectSelector
+INFO 2025-09-16 19:07:26,797 autoreload 15420 28852 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-16 19:07:27,759 selector_events 14932 18056 Using selector: SelectSelector
+INFO 2025-09-16 19:07:28,011 autoreload 14932 18056 Watching for file changes with StatReloader
+INFO 2025-09-16 19:07:28,651 server 14932 20736 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 19:07:28,652 server 14932 20736 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 19:07:28,652 server 14932 20736 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-16 19:07:43,303 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 54905]
+DEBUG 2025-09-16 19:07:43,344 resource 14932 25100 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E3BEA00>.
+DEBUG 2025-09-16 19:07:43,365 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 54905]
+DEBUG 2025-09-16 19:07:43,365 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 54905]
+DEBUG 2025-09-16 19:07:43,366 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 54905]
+INFO 2025-09-16 19:07:43,366 runserver 14932 20736 [mHTTP GET /users/9d8e21b5-052e-4776-9b4c-45af8d3d6f2a/friendship_status/ 200 [0.06, 127.0.0.1:54905][0m
+DEBUG 2025-09-16 19:08:27,373 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 54956]
+DEBUG 2025-09-16 19:08:27,378 resource 14932 7624 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E3F8400>.
+DEBUG 2025-09-16 19:08:27,398 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 54956]
+DEBUG 2025-09-16 19:08:27,399 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 54956]
+DEBUG 2025-09-16 19:08:27,399 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 54956]
+INFO 2025-09-16 19:08:27,399 runserver 14932 20736 [mHTTP GET /users/9d8e21b5-052e-4776-9b4c-45af8d3d6f2a/friendship_status/ 200 [0.03, 127.0.0.1:54956][0m
+DEBUG 2025-09-16 19:08:38,132 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 54968]
+DEBUG 2025-09-16 19:08:38,138 resource 14932 26084 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E408400>.
+DEBUG 2025-09-16 19:08:38,156 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 54968]
+DEBUG 2025-09-16 19:08:38,156 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 54968]
+DEBUG 2025-09-16 19:08:38,156 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 54968]
+INFO 2025-09-16 19:08:38,156 runserver 14932 20736 [mHTTP GET /users/9d8e21b5-052e-4776-9b4c-45af8d3d6f2a/friendship_status/ 200 [0.02, 127.0.0.1:54968][0m
+DEBUG 2025-09-16 19:08:45,323 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 54987]
+DEBUG 2025-09-16 19:08:45,328 resource 14932 25520 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E27B840>.
+DEBUG 2025-09-16 19:08:45,344 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 54987]
+DEBUG 2025-09-16 19:08:45,344 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 54987]
+DEBUG 2025-09-16 19:08:45,345 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 54987]
+INFO 2025-09-16 19:08:45,345 runserver 14932 20736 [mHTTP GET /users/9d8e21b5-052e-4776-9b4c-45af8d3d6f2a/friendship_status/ 200 [0.02, 127.0.0.1:54987][0m
+DEBUG 2025-09-16 19:10:07,302 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:07,307 resource 14932 29272 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E297480>.
+ERROR 2025-09-16 19:10:07,561 log 14932 19496 Internal Server Error: /users/$4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
+    return uuid.UUID(**{input_form: value})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 178, in __init__
+    raise ValueError('badly formed hexadecimal UUID string')
+ValueError: badly formed hexadecimal UUID string
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 242, in friendship_status
+    target_user = get_object_or_404(User, id=pk)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\shortcuts.py", line 90, in get_object_or_404
+    return queryset.get(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 619, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 410, in get_prep_lookup
+    return super().get_prep_lookup()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 96, in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
+    return self.to_python(value)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
+    raise exceptions.ValidationError(
+django.core.exceptions.ValidationError: ['“$4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9” is not a valid UUID.']
+DEBUG 2025-09-16 19:10:07,577 http_protocol 14932 20736 HTTP 500 response started for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:07,578 http_protocol 14932 20736 HTTP response chunk for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:07,578 http_protocol 14932 20736 HTTP response chunk for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:07,579 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:07,579 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55065]
+ERROR 2025-09-16 19:10:07,579 runserver 14932 20736 [35;1mHTTP GET /users/$4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 500 [0.28, 127.0.0.1:55065][0m
+DEBUG 2025-09-16 19:10:31,707 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55102]
+DEBUG 2025-09-16 19:10:31,715 resource 14932 24948 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E536B00>.
+DEBUG 2025-09-16 19:10:31,734 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55102]
+DEBUG 2025-09-16 19:10:31,735 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55102]
+DEBUG 2025-09-16 19:10:31,736 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55102]
+INFO 2025-09-16 19:10:31,736 runserver 14932 20736 [mHTTP GET /users/search/?q=adm 200 [0.03, 127.0.0.1:55102][0m
+DEBUG 2025-09-16 19:10:31,793 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55104]
+DEBUG 2025-09-16 19:10:31,800 resource 14932 32404 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E536380>.
+DEBUG 2025-09-16 19:10:31,817 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55104]
+DEBUG 2025-09-16 19:10:31,817 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55104]
+DEBUG 2025-09-16 19:10:31,817 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55104]
+INFO 2025-09-16 19:10:31,818 runserver 14932 20736 [mHTTP GET /users/search/?q=ad 200 [0.02, 127.0.0.1:55104][0m
+DEBUG 2025-09-16 19:10:32,665 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55106]
+DEBUG 2025-09-16 19:10:32,671 resource 14932 18968 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE67948240>.
+DEBUG 2025-09-16 19:10:32,694 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55106]
+DEBUG 2025-09-16 19:10:32,695 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55106]
+DEBUG 2025-09-16 19:10:32,697 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55106]
+INFO 2025-09-16 19:10:32,698 runserver 14932 20736 [mHTTP GET /users/search/?q=u2 200 [0.03, 127.0.0.1:55106][0m
+DEBUG 2025-09-16 19:10:32,861 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55108]
+DEBUG 2025-09-16 19:10:32,866 resource 14932 16096 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E46CA80>.
+DEBUG 2025-09-16 19:10:32,885 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55108]
+DEBUG 2025-09-16 19:10:32,885 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55108]
+DEBUG 2025-09-16 19:10:32,886 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55108]
+INFO 2025-09-16 19:10:32,886 runserver 14932 20736 [mHTTP GET /users/search/?q=u2 200 [0.02, 127.0.0.1:55108][0m
+DEBUG 2025-09-16 19:10:33,860 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55110]
+DEBUG 2025-09-16 19:10:33,867 resource 14932 29664 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E3EDA80>.
+DEBUG 2025-09-16 19:10:33,888 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55110]
+DEBUG 2025-09-16 19:10:33,889 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55110]
+DEBUG 2025-09-16 19:10:33,889 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55110]
+INFO 2025-09-16 19:10:33,890 runserver 14932 20736 [mHTTP GET /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 200 [0.03, 127.0.0.1:55110][0m
+DEBUG 2025-09-16 19:10:34,808 http_protocol 14932 20736 HTTP b'POST' request for ['127.0.0.1', 55115]
+DEBUG 2025-09-16 19:10:34,813 resource 14932 22636 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E3ECD80>.
+INFO 2025-09-16 19:10:34,850 services 14932 22636 Service operation: friend_request_sent
+DEBUG 2025-09-16 19:10:34,863 http_protocol 14932 20736 HTTP 201 response started for ['127.0.0.1', 55115]
+DEBUG 2025-09-16 19:10:34,864 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55115]
+DEBUG 2025-09-16 19:10:34,864 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55115]
+INFO 2025-09-16 19:10:34,864 runserver 14932 20736 [mHTTP POST /friends/request/ 201 [0.06, 127.0.0.1:55115][0m
+DEBUG 2025-09-16 19:10:36,755 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55117]
+DEBUG 2025-09-16 19:10:36,760 resource 14932 30244 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E43BE00>.
+DEBUG 2025-09-16 19:10:36,784 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55117]
+DEBUG 2025-09-16 19:10:36,784 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55117]
+DEBUG 2025-09-16 19:10:36,785 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55117]
+INFO 2025-09-16 19:10:36,785 runserver 14932 20736 [mHTTP GET /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 200 [0.03, 127.0.0.1:55117][0m
+DEBUG 2025-09-16 19:10:42,173 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:42,177 resource 14932 7160 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E3BCB00>.
+ERROR 2025-09-16 19:10:42,242 log 14932 19496 Internal Server Error: /users/$4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2766, in to_python
+    return uuid.UUID(**{input_form: value})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\uuid.py", line 178, in __init__
+    raise ValueError('badly formed hexadecimal UUID string')
+ValueError: badly formed hexadecimal UUID string
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 242, in friendship_status
+    target_user = get_object_or_404(User, id=pk)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\shortcuts.py", line 90, in get_object_or_404
+    return queryset.get(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 619, in get
+    clone = self._chain() if self.query.combinator else self.filter(*args, **kwargs)
+                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1588, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1415, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 38, in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 410, in get_prep_lookup
+    return super().get_prep_lookup()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 96, in get_prep_lookup
+    return self.lhs.output_field.get_prep_value(self.rhs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2750, in get_prep_value
+    return self.to_python(value)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2768, in to_python
+    raise exceptions.ValidationError(
+django.core.exceptions.ValidationError: ['“$4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9” is not a valid UUID.']
+DEBUG 2025-09-16 19:10:42,250 http_protocol 14932 20736 HTTP 500 response started for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:42,250 http_protocol 14932 20736 HTTP response chunk for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:42,250 http_protocol 14932 20736 HTTP response chunk for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:42,251 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:42,251 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55065]
+ERROR 2025-09-16 19:10:42,251 runserver 14932 20736 [35;1mHTTP GET /users/$4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 500 [0.08, 127.0.0.1:55065][0m
+DEBUG 2025-09-16 19:10:54,587 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:54,590 resource 14932 8504 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E39A980>.
+DEBUG 2025-09-16 19:10:54,607 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:54,608 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:54,609 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55065]
+INFO 2025-09-16 19:10:54,610 runserver 14932 20736 [mHTTP GET /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 200 [0.02, 127.0.0.1:55065][0m
+DEBUG 2025-09-16 19:10:58,851 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:58,855 resource 14932 19520 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E403600>.
+DEBUG 2025-09-16 19:10:58,867 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:58,868 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:10:58,869 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55065]
+INFO 2025-09-16 19:10:58,869 runserver 14932 20736 [mHTTP GET /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 200 [0.02, 127.0.0.1:55065][0m
+DEBUG 2025-09-16 19:11:12,324 http_protocol 14932 20736 HTTP b'POST' request for ['127.0.0.1', 55167]
+DEBUG 2025-09-16 19:11:12,329 resource 14932 30672 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E6DF740>.
+INFO 2025-09-16 19:11:12,343 services 14932 30672 Service operation: user_logout_failed
+ERROR 2025-09-16 19:11:12,348 log 14932 19496 Internal Server Error: /auth/logout/
+DEBUG 2025-09-16 19:11:12,348 http_protocol 14932 20736 HTTP 500 response started for ['127.0.0.1', 55167]
+DEBUG 2025-09-16 19:11:12,349 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55167]
+DEBUG 2025-09-16 19:11:12,349 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55167]
+ERROR 2025-09-16 19:11:12,350 runserver 14932 20736 [35;1mHTTP POST /auth/logout/ 500 [0.03, 127.0.0.1:55167][0m
+DEBUG 2025-09-16 19:11:15,570 http_protocol 14932 20736 HTTP b'POST' request for ['127.0.0.1', 55172]
+DEBUG 2025-09-16 19:11:15,583 token 14932 2228 Dispatching grant_type password request to <oauthlib.oauth2.rfc6749.grant_types.resource_owner_password_credentials.ResourceOwnerPasswordCredentialsGrant object at 0x000002AE6E47FFE0>.
+DEBUG 2025-09-16 19:11:15,589 resource_owner_password_credentials 14932 2228 Validating access token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-16 19:11:15,590 resource_owner_password_credentials 14932 2228 Validating username admin.
+DEBUG 2025-09-16 19:11:16,348 resource_owner_password_credentials 14932 2228 Authorizing access to user <User: admin ()>.
+DEBUG 2025-09-16 19:11:16,348 base 14932 2228 Validating access to scopes ['read', 'write'] for client 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>).
+DEBUG 2025-09-16 19:11:16,365 resource_owner_password_credentials 14932 2228 Issuing token {'access_token': 'O1kjuwGVNmvn6IdixOV99Nhim1k2OZ', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': '535hpZF2YMkkEyoE19xThbcSEQRl3b'} to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>) and username admin.
+DEBUG 2025-09-16 19:11:16,372 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55172]
+DEBUG 2025-09-16 19:11:16,373 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55172]
+DEBUG 2025-09-16 19:11:16,374 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55172]
+INFO 2025-09-16 19:11:16,374 runserver 14932 20736 [mHTTP POST /o/token/ 200 [0.80, 127.0.0.1:55172][0m
+DEBUG 2025-09-16 19:11:16,401 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55174]
+DEBUG 2025-09-16 19:11:16,408 resource 14932 27676 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E5E6EC0>.
+DEBUG 2025-09-16 19:11:16,440 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55174]
+DEBUG 2025-09-16 19:11:16,440 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55174]
+DEBUG 2025-09-16 19:11:16,441 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55174]
+INFO 2025-09-16 19:11:16,441 runserver 14932 20736 [mHTTP GET /users/profile/ 200 [0.04, 127.0.0.1:55174][0m
+DEBUG 2025-09-16 19:11:16,527 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55177]
+DEBUG 2025-09-16 19:11:16,532 resource 14932 28300 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E438380>.
+DEBUG 2025-09-16 19:11:16,562 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55177]
+DEBUG 2025-09-16 19:11:16,563 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55177]
+DEBUG 2025-09-16 19:11:16,563 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55177]
+INFO 2025-09-16 19:11:16,563 runserver 14932 20736 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:55177][0m
+DEBUG 2025-09-16 19:11:16,643 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55179]
+DEBUG 2025-09-16 19:11:16,648 resource 14932 12684 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E464400>.
+DEBUG 2025-09-16 19:11:16,679 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55179]
+DEBUG 2025-09-16 19:11:16,679 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55179]
+DEBUG 2025-09-16 19:11:16,680 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55179]
+INFO 2025-09-16 19:11:16,680 runserver 14932 20736 [mHTTP GET /groups/ 200 [0.04, 127.0.0.1:55179][0m
+DEBUG 2025-09-16 19:11:20,729 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55185]
+DEBUG 2025-09-16 19:11:20,736 resource 14932 25044 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E4AF280>.
+DEBUG 2025-09-16 19:11:20,760 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55185]
+DEBUG 2025-09-16 19:11:20,760 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55185]
+DEBUG 2025-09-16 19:11:20,761 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55185]
+INFO 2025-09-16 19:11:20,761 runserver 14932 20736 [mHTTP GET /users/search/?q=u2 200 [0.03, 127.0.0.1:55185][0m
+DEBUG 2025-09-16 19:11:21,293 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55187]
+DEBUG 2025-09-16 19:11:21,298 resource 14932 18736 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E3B9980>.
+DEBUG 2025-09-16 19:11:21,313 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55187]
+DEBUG 2025-09-16 19:11:21,313 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55187]
+DEBUG 2025-09-16 19:11:21,314 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55187]
+INFO 2025-09-16 19:11:21,314 runserver 14932 20736 [mHTTP GET /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 200 [0.02, 127.0.0.1:55187][0m
+DEBUG 2025-09-16 19:11:22,099 http_protocol 14932 20736 HTTP b'POST' request for ['127.0.0.1', 55189]
+DEBUG 2025-09-16 19:11:22,105 resource 14932 20688 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E4C8380>.
+INFO 2025-09-16 19:11:22,152 services 14932 20688 Service operation: friend_request_sent
+DEBUG 2025-09-16 19:11:22,171 http_protocol 14932 20736 HTTP 201 response started for ['127.0.0.1', 55189]
+DEBUG 2025-09-16 19:11:22,172 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55189]
+DEBUG 2025-09-16 19:11:22,172 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55189]
+INFO 2025-09-16 19:11:22,172 runserver 14932 20736 [mHTTP POST /friends/request/ 201 [0.07, 127.0.0.1:55189][0m
+DEBUG 2025-09-16 19:11:23,553 http_protocol 14932 20736 HTTP b'GET' request for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:11:23,557 resource 14932 18484 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E460240>.
+DEBUG 2025-09-16 19:11:23,574 http_protocol 14932 20736 HTTP 200 response started for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:11:23,575 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55065]
+DEBUG 2025-09-16 19:11:23,575 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55065]
+INFO 2025-09-16 19:11:23,575 runserver 14932 20736 [mHTTP GET /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/friendship_status/ 200 [0.02, 127.0.0.1:55065][0m
+DEBUG 2025-09-16 19:15:15,858 http_protocol 14932 20736 HTTP b'POST' request for ['127.0.0.1', 55409]
+DEBUG 2025-09-16 19:15:15,863 resource 14932 31700 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x000002AE6E4C8500>.
+ERROR 2025-09-16 19:15:15,991 log 14932 19496 Internal Server Error: /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/block/
+Traceback (most recent call last):
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 42, in inner
+    response = await get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 489, in thread_handler
+    raise exc_info[1]
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 253, in _get_response_async
+    response = await wrapped_callback(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 439, in __call__
+    ret = await asyncio.shield(exec_coro)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\current_thread_executor.py", line 40, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\asgiref\sync.py", line 493, in thread_handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\viewsets.py", line 125, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py", line 275, in block
+    success, message = UserService.block_user(current_user, target_user)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py", line 391, in block_user
+    Friendship.objects.filter(
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1493, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1511, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1518, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1646, in add_q
+    clause, _ = self._add_q(q_object, can_reuse)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1503, in build_filter
+    return self._add_q(
+           ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1503, in build_filter
+    return self._add_q(
+           ^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1678, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1526, in build_filter
+    lookups, parts, reffed_expression = self.solve_lookup_type(arg, summarize)
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1333, in solve_lookup_type
+    _, field, _, lookup_parts = self.names_to_path(lookup_splitted, self.get_meta())
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nhanh\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1805, in names_to_path
+    raise FieldError(
+django.core.exceptions.FieldError: Cannot resolve keyword 'friend' into field. Choices are: created_at, id, initiator, initiator_id, is_active, rejections, status, updated_at, user_a, user_a_id, user_b, user_b_id
+DEBUG 2025-09-16 19:15:15,997 http_protocol 14932 20736 HTTP 500 response started for ['127.0.0.1', 55409]
+DEBUG 2025-09-16 19:15:15,998 http_protocol 14932 20736 HTTP response chunk for ['127.0.0.1', 55409]
+DEBUG 2025-09-16 19:15:15,998 http_protocol 14932 20736 HTTP response chunk for ['127.0.0.1', 55409]
+DEBUG 2025-09-16 19:15:15,998 http_protocol 14932 20736 HTTP close for ['127.0.0.1', 55409]
+DEBUG 2025-09-16 19:15:15,998 http_protocol 14932 20736 HTTP response complete for ['127.0.0.1', 55409]
+ERROR 2025-09-16 19:15:15,998 runserver 14932 20736 [35;1mHTTP POST /users/4f5c1207-f0c6-44fb-aab7-9b0927bbf3a9/block/ 500 [0.14, 127.0.0.1:55409][0m
+INFO 2025-09-16 19:16:30,210 autoreload 14932 18056 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-16 19:16:31,294 selector_events 24196 10724 Using selector: SelectSelector
+INFO 2025-09-16 19:16:31,551 autoreload 24196 10724 Watching for file changes with StatReloader
+INFO 2025-09-16 19:16:32,167 server 24196 24992 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 19:16:32,167 server 24196 24992 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 19:16:32,167 server 24196 24992 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 19:16:44,786 autoreload 24196 10724 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-16 19:16:45,727 selector_events 24308 2500 Using selector: SelectSelector
+INFO 2025-09-16 19:16:45,969 autoreload 24308 2500 Watching for file changes with StatReloader
+INFO 2025-09-16 19:16:46,596 server 24308 29840 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 19:16:46,597 server 24308 29840 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 19:16:46,597 server 24308 29840 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-16 20:19:59,551 autoreload 24308 2500 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-16 20:20:02,196 selector_events 19712 16304 Using selector: SelectSelector
+INFO 2025-09-16 20:20:02,647 autoreload 19712 16304 Watching for file changes with StatReloader
+DEBUG 2025-09-16 20:20:43,440 selector_events 26868 11928 Using selector: SelectSelector
+DEBUG 2025-09-16 20:20:54,671 selector_events 25528 18032 Using selector: SelectSelector
+DEBUG 2025-09-16 21:08:00,656 selector_events 20700 28604 Using selector: SelectSelector
+DEBUG 2025-09-16 21:08:37,091 selector_events 11788 18528 Using selector: SelectSelector
+INFO 2025-09-16 21:08:37,731 services 11788 18528 Service operation: user_blocked
+INFO 2025-09-16 21:08:37,739 services 11788 18528 Service operation: user_unblocked
+DEBUG 2025-09-16 21:37:36,390 selector_events 2768 15420 Using selector: SelectSelector
+DEBUG 2025-09-16 21:39:24,613 selector_events 20864 28700 Using selector: SelectSelector
+DEBUG 2025-09-16 21:59:49,350 selector_events 26500 28680 Using selector: SelectSelector
+DEBUG 2025-09-16 21:59:50,494 selector_events 15124 28332 Using selector: SelectSelector
+INFO 2025-09-16 21:59:50,713 autoreload 15124 28332 Watching for file changes with StatReloader
+INFO 2025-09-16 21:59:51,553 server 15124 29564 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-16 21:59:51,553 server 15124 29564 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-16 21:59:51,554 server 15124 29564 Listening on TCP address 0.0.0.0:8000
