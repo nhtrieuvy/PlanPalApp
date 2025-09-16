@@ -30,7 +30,7 @@ class NetworkAvatar extends StatelessWidget {
   });
 
   /// Creates a small avatar (32px) for list items
-  NetworkAvatar.small({
+  const NetworkAvatar.small({
     super.key,
     this.imageUrl,
     required this.initials,
@@ -44,7 +44,7 @@ class NetworkAvatar extends StatelessWidget {
        fontSize = 14;
 
   /// Creates a medium avatar (48px) for cards
-  NetworkAvatar.medium({
+  const NetworkAvatar.medium({
     super.key,
     this.imageUrl,
     required this.initials,
@@ -58,7 +58,7 @@ class NetworkAvatar extends StatelessWidget {
        fontSize = 16;
 
   /// Creates a large avatar (80px) for profiles
-  NetworkAvatar.large({
+  const NetworkAvatar.large({
     super.key,
     this.imageUrl,
     required this.initials,

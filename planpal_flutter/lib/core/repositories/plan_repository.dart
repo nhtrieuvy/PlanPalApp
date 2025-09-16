@@ -4,23 +4,23 @@ import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/dtos/plan_requests.dart';
 import '../dtos/plan_summary.dart';
-import '../dtos/plan_detail.dart';
+import '../dtos/plan_model.dart';
 
 class PlanRepository {
   final AuthProvider _auth;
-  final Map<String, PlanDetail> _detailCache = {};
+  final Map<String, PlanModel> _detailCache = {};
 
   PlanRepository(this._auth);
 
   // Plan CRUD operations
-  Future<PlanDetail> createPlan(CreatePlanRequest request) async {
+  Future<PlanModel> createPlan(CreatePlanRequest request) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(
         (c) => c.dio.post(Endpoints.plans, data: request.toJson()),
       );
 
       if (res.statusCode == 201 && res.data is Map) {
-        return PlanDetail.fromJson(Map<String, dynamic>.from(res.data as Map));
+        return PlanModel.fromJson(Map<String, dynamic>.from(res.data as Map));
       }
       throw buildApiException(res);
     } on DioException catch (e) {
@@ -57,7 +57,7 @@ class PlanRepository {
     }
   }
 
-  Future<PlanDetail> getPlanDetail(String id) async {
+  Future<PlanModel> getPlanDetail(String id) async {
     if (_detailCache.containsKey(id)) {
       return _detailCache[id]!;
     }
@@ -68,7 +68,7 @@ class PlanRepository {
       );
 
       if (res.statusCode == 200 && res.data is Map) {
-        final detail = PlanDetail.fromJson(
+        final detail = PlanModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
         _detailCache[id] = detail;
@@ -81,17 +81,14 @@ class PlanRepository {
     }
   }
 
-  Future<PlanDetail> updatePlan(
-    String planId,
-    UpdatePlanRequest request,
-  ) async {
+  Future<PlanModel> updatePlan(String planId, UpdatePlanRequest request) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(
         (c) => c.dio.put(Endpoints.planDetails(planId), data: request.toJson()),
       );
 
       if (res.statusCode == 200 && res.data is Map) {
-        final detail = PlanDetail.fromJson(
+        final detail = PlanModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
         _detailCache[planId] = detail;
@@ -163,14 +160,14 @@ class PlanRepository {
     }
   }
 
-  Future<PlanDetail> joinPlan(String planId) async {
+  Future<PlanModel> joinPlan(String planId) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(
         (c) => c.dio.post(Endpoints.planJoin(planId)),
       );
 
       if (res.statusCode == 200 && res.data is Map) {
-        final detail = PlanDetail.fromJson(
+        final detail = PlanModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
         _detailCache[planId] = detail;

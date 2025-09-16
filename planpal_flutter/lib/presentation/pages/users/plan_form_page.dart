@@ -7,7 +7,7 @@ import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/dtos/plan_requests.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import '../../../core/dtos/group_summary.dart';
-import '../../../core/dtos/plan_detail.dart';
+import '../../../core/dtos/plan_model.dart';
 
 class PlanFormPage extends StatefulWidget {
   final Map<String, dynamic>? initial;
@@ -126,7 +126,7 @@ class _PlanFormPageState extends State<PlanFormPage> {
     }
     setState(() => _submitting = true);
     try {
-      PlanDetail result;
+      PlanModel result;
       if (widget.initial == null) {
         final request = CreatePlanRequest(
           title: _titleCtrl.text.trim(),

@@ -7,7 +7,7 @@ import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import '../../../core/dtos/group_detail.dart';
+import '../../../core/dtos/group_model.dart';
 import '../../../core/dtos/user_summary.dart';
 
 class GroupFormPage extends StatefulWidget {
@@ -102,7 +102,7 @@ class _GroupFormPageState extends State<GroupFormPage> {
         payload['member_ids'] = _selectedMembers.map((m) => m.id).toList();
       }
 
-      GroupDetail result;
+      GroupModel result;
       if (widget.initial == null) {
         // When creating a new group, only send avatar (no cover image)
         result = await _repo.createGroup(payload, avatar: _avatarFile);

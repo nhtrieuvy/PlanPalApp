@@ -4,7 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:getwidget/getwidget.dart';
 import '../../../core/providers/theme_provider.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
-import 'package:planpal_flutter/core/dtos/user.dart';
+import 'package:planpal_flutter/core/dtos/user_model.dart';
 import 'package:planpal_flutter/core/dtos/plan_summary.dart';
 import 'package:planpal_flutter/core/dtos/group_summary.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -236,7 +236,7 @@ class _HomeContentState extends State<_HomeContent> {
   }
 
   Widget _buildDrawerHeader() {
-    return Selector<AuthProvider, User?>(
+    return Selector<AuthProvider, UserModel?>(
       selector: (_, auth) => auth.user,
       builder: (context, user, _) {
         return DrawerHeader(

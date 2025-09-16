@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:planpal_flutter/core/dtos/group_model.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
@@ -8,7 +9,6 @@ import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import '../../../core/dtos/group_detail.dart';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/plan_summary.dart';
 import 'plan_form_page.dart';
@@ -25,7 +25,7 @@ class GroupDetailsPage extends StatefulWidget {
 class _GroupDetailsPageState extends State<GroupDetailsPage> {
   late final GroupRepository repo;
   late final PlanRepository planRepo;
-  GroupDetail? groupData;
+  GroupModel? groupData;
   List<PlanSummary> groupPlans = [];
   bool isLoading = true;
   bool isLoadingPlans = false;
@@ -211,15 +211,15 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  Widget _buildContent(BuildContext context, GroupDetail g, ThemeData theme) {
+  Widget _buildContent(BuildContext context, GroupModel g, ThemeData theme) {
     final name = g.name;
     final desc = g.description;
     final membersCount = g.memberCount;
     final members = g.members;
-    final UserSummary? admin = g.admin;
-    final adminName = admin?.fullName ?? '';
-    final adminAvatar = admin?.avatarUrl ?? '';
-    final adminInitials = admin?.initials ?? '';
+    final UserSummary admin = g.admin;
+    final adminName = admin.fullName;
+    final adminAvatar = admin.avatarUrl ?? '';
+    final adminInitials = admin.initials;
     final coverUrl = g.coverImageUrl;
 
     return NestedScrollView(
@@ -628,7 +628,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  Widget _buildPlansCard(GroupDetail g) {
+  Widget _buildPlansCard(GroupModel g) {
     return Card(
       elevation: 2,
       shadowColor: Colors.black26,
@@ -754,7 +754,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  void _navigateToCreatePlan(GroupDetail group) {
+  void _navigateToCreatePlan(GroupModel group) {
     Navigator.of(context)
         .push(
           MaterialPageRoute(
@@ -862,7 +862,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, GroupDetail g) {
+  Widget _buildActionButtons(BuildContext context, GroupModel g) {
     return Row(
       children: [
         Expanded(

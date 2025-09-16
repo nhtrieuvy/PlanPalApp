@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
-import '../dtos/user.dart';
+import '../dtos/user_model.dart';
 import '../repositories/user_repository.dart';
 
 // ChangeNotifier cho phép lắng nghe khi dữ liệu thay đổi
@@ -18,10 +18,10 @@ class AuthProvider extends ChangeNotifier {
   // Chỗ lưu bảo mật của thư viện flutter_secure_storage
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
-  User? _user; // cached User model
+  UserModel? _user; // cached User model
   String? _token;
   String? _refreshToken; // OAuth2 refresh token
-  User? get user => _user;
+  UserModel? get user => _user;
   String? get token => _token; // Getter để lấy token
   String? get refreshToken => _refreshToken;
   bool get isLoggedIn => _user != null && _token != null;
@@ -45,7 +45,7 @@ class AuthProvider extends ChangeNotifier {
           final Map<String, dynamic> map = Map<String, dynamic>.from(
             jsonDecode(cached) as Map,
           );
-          final cachedUser = User.fromJson(map);
+          final cachedUser = UserModel.fromJson(map);
           // Set synchronously so UI can show immediately; repo will refresh later
           _user = cachedUser;
           notifyListeners();
@@ -102,7 +102,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setUser(User userData) {
+  void setUser(UserModel userData) {
     if (_user == userData) return; // Tránh rebuild không cần thiết
     _user = userData;
     // Persist cached user asynchronously (don't block callers)

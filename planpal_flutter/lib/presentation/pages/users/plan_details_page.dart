@@ -6,7 +6,7 @@ import 'package:getwidget/getwidget.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import '../../../core/dtos/plan_detail.dart';
+import '../../../core/dtos/plan_model.dart';
 import '../../../core/dtos/plan_activity.dart';
 import '../plans/activity_form_page.dart';
 import '../plans/plan_schedule_page.dart';
@@ -22,7 +22,7 @@ class PlanDetailsPage extends StatefulWidget {
 
 class _PlanDetailsPageState extends State<PlanDetailsPage> {
   late final PlanRepository _repo;
-  PlanDetail? _detail;
+  PlanModel? _detail;
   Object? _error;
   bool _loading = true;
   final _df = DateFormat('dd/MM/yyyy HH:mm');

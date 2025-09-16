@@ -4,14 +4,14 @@ import 'dart:io';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import '../dtos/group_summary.dart';
-import '../dtos/group_detail.dart';
+import '../dtos/group_model.dart';
 
 class GroupRepository {
   final AuthProvider auth;
   GroupRepository(this.auth); // Constructor
 
   // Simple in-memory cache for group details
-  final Map<String, GroupDetail> _detailCache = {};
+  final Map<String, GroupModel> _detailCache = {};
 
   Never _throwApiError(Response res) => throw buildApiException(res);
 
@@ -43,7 +43,7 @@ class GroupRepository {
     }
   }
 
-  Future<GroupDetail> getGroupDetail(
+  Future<GroupModel> getGroupDetail(
     String id, {
     bool forceRefresh = false,
   }) async {
@@ -56,7 +56,7 @@ class GroupRepository {
         (c) => c.dio.get(Endpoints.groupDetails(id)),
       );
       if (res.statusCode == 200 && res.data is Map) {
-        final detail = GroupDetail.fromJson(
+        final detail = GroupModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
         _detailCache[id] = detail;
@@ -70,7 +70,7 @@ class GroupRepository {
     }
   }
 
-  Future<GroupDetail> createGroup(
+  Future<GroupModel> createGroup(
     Map<String, dynamic> payload, {
     File? avatar,
     File? coverImage,
@@ -97,7 +97,7 @@ class GroupRepository {
         return c.dio.post(Endpoints.groups, data: payload);
       });
       if ((res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300) {
-        final detail = GroupDetail.fromJson(
+        final detail = GroupModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
         _detailCache[detail.id] = detail;
@@ -111,7 +111,7 @@ class GroupRepository {
     }
   }
 
-  Future<GroupDetail> updateGroup(
+  Future<GroupModel> updateGroup(
     String id,
     Map<String, dynamic> payload, {
     File? avatar,
@@ -139,7 +139,7 @@ class GroupRepository {
         return c.dio.patch(Endpoints.groupDetails(id), data: payload);
       });
       if (res.statusCode == 200) {
-        final detail = GroupDetail.fromJson(
+        final detail = GroupModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
         _detailCache[id] = detail;
