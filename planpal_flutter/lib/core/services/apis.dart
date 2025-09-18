@@ -38,6 +38,7 @@ class Endpoints {
 
   static String activityDetails(String activityId) =>
       '/activities/$activityId/';
+  static String activityDetail(String activityId) => '/activities/$activityId/';
   static String activityToggleCompletion(String planId, String activityId) =>
       '/plans/$planId/activities/$activityId/complete/';
 

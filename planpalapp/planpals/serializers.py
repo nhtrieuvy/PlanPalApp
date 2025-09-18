@@ -317,6 +317,58 @@ class GroupSummarySerializer(serializers.ModelSerializer):
         return instance.name[:2].upper()
 
 
+class PlanActivitySummarySerializer(serializers.ModelSerializer):
+    """
+    Lightweight serializer for schedule overview - only essential fields for performance
+    """
+    # Essential display fields
+    duration_display = serializers.SerializerMethodField()
+    activity_type_display = serializers.SerializerMethodField()
+    has_location = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = PlanActivity
+        fields = [
+            'id', 'title', 'activity_type', 'activity_type_display',
+            'start_time', 'end_time', 'duration_display',
+            'estimated_cost', 'is_completed', 'has_location', 'order'
+        ]
+    
+    def get_duration_display(self, instance):
+        """Get formatted duration display"""
+        hours = instance.duration_hours
+        if hours == 0:
+            return "Chưa xác định"
+        elif hours < 1:
+            minutes = int(hours * 60)
+            return f"{minutes} phút"
+        elif hours < 24:
+            return f"{hours:.1f} giờ"
+        else:
+            days = int(hours / 24)
+            remaining_hours = hours % 24
+            if remaining_hours == 0:
+                return f"{days} ngày"
+            return f"{days} ngày {remaining_hours:.1f} giờ"
+    
+    def get_activity_type_display(self, instance):
+        """Get activity type display name"""
+        type_names = {
+            'eating': 'Ăn uống',
+            'resting': 'Nghỉ ngơi', 
+            'moving': 'Di chuyển',
+            'sightseeing': 'Tham quan',
+            'shopping': 'Mua sắm',
+            'entertainment': 'Giải trí',
+            'event': 'Sự kiện',
+            'sport': 'Thể thao',
+            'study': 'Học tập',
+            'work': 'Công việc',
+            'other': 'Khác',
+        }
+        return type_names.get(instance.activity_type, instance.activity_type)
+
+
 class PlanActivitySerializer(serializers.ModelSerializer):
     # Use model properties directly
     duration_hours = serializers.FloatField(read_only=True)

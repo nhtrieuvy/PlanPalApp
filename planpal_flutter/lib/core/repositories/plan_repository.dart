@@ -162,6 +162,23 @@ class PlanRepository {
     }
   }
 
+  /// Get full activity details for dialog display
+  Future<Map<String, dynamic>> getActivityDetail(String activityId) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.activityDetail(activityId)),
+      );
+
+      if (res.statusCode == 200) {
+        return res.data;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
   Future<PlanModel> joinPlan(String planId) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(

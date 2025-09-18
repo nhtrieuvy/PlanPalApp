@@ -16049,3 +16049,355 @@ INFO 2025-09-18 19:07:53,837 autoreload 34604 14168 Watching for file changes wi
 INFO 2025-09-18 19:07:54,326 server 34604 28356 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
 INFO 2025-09-18 19:07:54,326 server 34604 28356 Configuring endpoint tcp:port=8000:interface=0.0.0.0
 INFO 2025-09-18 19:07:54,327 server 34604 28356 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-18 19:08:04,849 http_protocol 34604 28356 HTTP b'POST' request for ['127.0.0.1', 56261]
+DEBUG 2025-09-18 19:08:04,871 resource 34604 25560 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000016DAEFE6440>.
+DEBUG 2025-09-18 19:08:04,927 http_protocol 34604 28356 HTTP 201 response started for ['127.0.0.1', 56261]
+DEBUG 2025-09-18 19:08:04,928 http_protocol 34604 28356 HTTP close for ['127.0.0.1', 56261]
+DEBUG 2025-09-18 19:08:04,928 http_protocol 34604 28356 HTTP response complete for ['127.0.0.1', 56261]
+INFO 2025-09-18 19:08:04,928 runserver 34604 28356 [mHTTP POST /activities/ 201 [0.08, 127.0.0.1:56261][0m
+DEBUG 2025-09-18 19:08:05,496 http_protocol 34604 28356 HTTP b'GET' request for ['127.0.0.1', 56263]
+DEBUG 2025-09-18 19:08:05,502 resource 34604 27024 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000016DAEFDC6C0>.
+DEBUG 2025-09-18 19:08:05,545 http_protocol 34604 28356 HTTP 200 response started for ['127.0.0.1', 56263]
+DEBUG 2025-09-18 19:08:05,546 http_protocol 34604 28356 HTTP close for ['127.0.0.1', 56263]
+DEBUG 2025-09-18 19:08:05,546 http_protocol 34604 28356 HTTP response complete for ['127.0.0.1', 56263]
+INFO 2025-09-18 19:08:05,546 runserver 34604 28356 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/ 200 [0.05, 127.0.0.1:56263][0m
+DEBUG 2025-09-18 19:08:26,411 http_protocol 34604 28356 HTTP b'GET' request for ['127.0.0.1', 50133]
+DEBUG 2025-09-18 19:08:26,415 resource 34604 25664 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000016DAF02D000>.
+DEBUG 2025-09-18 19:08:26,448 http_protocol 34604 28356 HTTP 200 response started for ['127.0.0.1', 50133]
+DEBUG 2025-09-18 19:08:26,449 http_protocol 34604 28356 HTTP close for ['127.0.0.1', 50133]
+DEBUG 2025-09-18 19:08:26,450 http_protocol 34604 28356 HTTP response complete for ['127.0.0.1', 50133]
+INFO 2025-09-18 19:08:26,450 runserver 34604 28356 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/ 200 [0.04, 127.0.0.1:50133][0m
+DEBUG 2025-09-18 19:08:27,155 http_protocol 34604 28356 HTTP b'GET' request for ['127.0.0.1', 50135]
+DEBUG 2025-09-18 19:08:27,159 resource 34604 29368 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x0000016DAEECEF40>.
+DEBUG 2025-09-18 19:08:27,191 http_protocol 34604 28356 HTTP 200 response started for ['127.0.0.1', 50135]
+DEBUG 2025-09-18 19:08:27,191 http_protocol 34604 28356 HTTP close for ['127.0.0.1', 50135]
+DEBUG 2025-09-18 19:08:27,191 http_protocol 34604 28356 HTTP response complete for ['127.0.0.1', 50135]
+INFO 2025-09-18 19:08:27,192 runserver 34604 28356 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.04, 127.0.0.1:50135][0m
+DEBUG 2025-09-18 21:23:07,284 selector_events 34388 22716 Using selector: SelectSelector
+DEBUG 2025-09-18 21:23:08,559 selector_events 15572 22440 Using selector: SelectSelector
+INFO 2025-09-18 21:23:08,781 autoreload 15572 22440 Watching for file changes with StatReloader
+INFO 2025-09-18 21:23:09,807 server 15572 15800 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-18 21:23:09,808 server 15572 15800 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-18 21:23:09,808 server 15572 15800 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-18 21:24:08,409 selector_events 5536 22940 Using selector: SelectSelector
+DEBUG 2025-09-18 21:24:09,112 functional 5536 22940 
+def chain(*args, **kwargs):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,113 functional 5536 22940 
+def xstarmap(task, it):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,113 functional 5536 22940 
+def accumulate(self, *args, **kwargs):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,114 functional 5536 22940 
+def debug_task(self):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,114 functional 5536 22940 
+def start_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,114 functional 5536 22940 
+def chord(self, header, body, partial_args=0, interval=1, countdown=2, max_retries=3, eager=4, **kwargs):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,114 functional 5536 22940 
+def chunks(task, it, n):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,115 functional 5536 22940 
+def unlock_chord(self, group_id, callback, interval=0, max_retries=1, result=2, Result=3, GroupResult=4, result_from_tuple=5, **kwargs):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,115 functional 5536 22940 
+def complete_plan_task(self, plan_id):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,115 functional 5536 22940 
+def group(self, tasks, result, group_id, partial_args, add_to_parent=0):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,116 functional 5536 22940 
+def bulk_update_plan_statuses(self):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,116 functional 5536 22940 
+def xmap(task, it):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,116 functional 5536 22940 
+def send_plan_reminder(self, plan_id, reminder_type=0):
+    return 1
+
+DEBUG 2025-09-18 21:24:09,117 functional 5536 22940 
+def backend_cleanup():
+    return 1
+
+DEBUG 2025-09-18 21:25:25,388 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 61582]
+DEBUG 2025-09-18 21:25:25,436 resource 15572 32404 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED784D40>.
+WARNING 2025-09-18 21:25:25,476 log 15572 24332 Unauthorized: /users/profile/
+DEBUG 2025-09-18 21:25:25,477 http_protocol 15572 15800 HTTP 401 response started for ['127.0.0.1', 61582]
+DEBUG 2025-09-18 21:25:25,477 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 61582]
+DEBUG 2025-09-18 21:25:25,477 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 61582]
+WARNING 2025-09-18 21:25:25,478 runserver 15572 15800 [31;1mHTTP GET /users/profile/ 401 [0.09, 127.0.0.1:61582][0m
+DEBUG 2025-09-18 21:25:25,788 http_protocol 15572 15800 HTTP b'POST' request for ['127.0.0.1', 61584]
+DEBUG 2025-09-18 21:25:25,796 token 15572 24644 Dispatching grant_type refresh_token request to <oauthlib.oauth2.rfc6749.grant_types.refresh_token.RefreshTokenGrant object at 0x00000202ED7B6DB0>.
+DEBUG 2025-09-18 21:25:25,797 refresh_token 15572 24644 Validating refresh token request, <oauthlib.Request SANITIZED>.
+DEBUG 2025-09-18 21:25:25,807 refresh_token 15572 24644 Validating refresh token 1ogzUnP7Czq1JbrJxAdHLQBn6wCDKs for client <Application: PlanPalApp>.
+DEBUG 2025-09-18 21:25:25,859 refresh_token 15572 24644 Issuing new token to client id 'NFVLDGda54u8nx2KtilbKHqNRFOUHCfvXplqKZbK' (<Application: PlanPalApp>), {'access_token': 'UJqDKRMAlL2rgEY6RMtYumdraVoUln', 'expires_in': 3600, 'token_type': 'Bearer', 'scope': 'read write', 'refresh_token': '1UZ65PoHlEpkqRFORbuRnO1hEf4UQY'}.
+DEBUG 2025-09-18 21:25:25,861 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 61584]
+DEBUG 2025-09-18 21:25:25,863 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 61584]
+DEBUG 2025-09-18 21:25:25,863 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 61584]
+INFO 2025-09-18 21:25:25,863 runserver 15572 15800 [mHTTP POST /o/token/ 200 [0.07, 127.0.0.1:61584][0m
+DEBUG 2025-09-18 21:25:25,946 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 61587]
+DEBUG 2025-09-18 21:25:25,949 resource 15572 9664 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED7B3440>.
+DEBUG 2025-09-18 21:25:26,001 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 61587]
+DEBUG 2025-09-18 21:25:26,002 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 61587]
+DEBUG 2025-09-18 21:25:26,002 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 61587]
+INFO 2025-09-18 21:25:26,002 runserver 15572 15800 [mHTTP GET /users/profile/ 200 [0.06, 127.0.0.1:61587][0m
+DEBUG 2025-09-18 21:25:29,519 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 61594]
+DEBUG 2025-09-18 21:25:29,522 resource 15572 23892 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED7FA200>.
+DEBUG 2025-09-18 21:25:29,561 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 61594]
+DEBUG 2025-09-18 21:25:29,561 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 61594]
+DEBUG 2025-09-18 21:25:29,561 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 61594]
+INFO 2025-09-18 21:25:29,562 runserver 15572 15800 [mHTTP GET /plans/ 200 [0.04, 127.0.0.1:61594][0m
+DEBUG 2025-09-18 21:25:30,145 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 55491]
+DEBUG 2025-09-18 21:25:30,149 resource 15572 31236 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED6A6F80>.
+DEBUG 2025-09-18 21:25:30,171 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 55491]
+DEBUG 2025-09-18 21:25:30,172 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 55491]
+DEBUG 2025-09-18 21:25:30,172 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 55491]
+INFO 2025-09-18 21:25:30,172 runserver 15572 15800 [mHTTP GET /groups/ 200 [0.03, 127.0.0.1:55491][0m
+DEBUG 2025-09-18 21:27:35,770 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 56402]
+DEBUG 2025-09-18 21:27:35,776 resource 15572 24436 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED6C3900>.
+DEBUG 2025-09-18 21:27:35,822 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 56402]
+DEBUG 2025-09-18 21:27:35,822 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 56402]
+DEBUG 2025-09-18 21:27:35,822 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 56402]
+INFO 2025-09-18 21:27:35,822 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/ 200 [0.05, 127.0.0.1:56402][0m
+DEBUG 2025-09-18 21:27:38,328 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 56407]
+DEBUG 2025-09-18 21:27:38,332 resource 15572 24780 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED617A00>.
+DEBUG 2025-09-18 21:27:38,366 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 56407]
+DEBUG 2025-09-18 21:27:38,366 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 56407]
+DEBUG 2025-09-18 21:27:38,367 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 56407]
+INFO 2025-09-18 21:27:38,367 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.04, 127.0.0.1:56407][0m
+DEBUG 2025-09-18 21:29:18,514 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 61666]
+DEBUG 2025-09-18 21:29:18,521 resource 15572 7264 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED615480>.
+DEBUG 2025-09-18 21:29:18,556 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 61666]
+DEBUG 2025-09-18 21:29:18,558 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 61666]
+DEBUG 2025-09-18 21:29:18,558 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 61666]
+INFO 2025-09-18 21:29:18,558 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.05, 127.0.0.1:61666][0m
+DEBUG 2025-09-18 21:44:55,231 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 60620]
+DEBUG 2025-09-18 21:44:55,246 resource 15572 17172 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED7E5F80>.
+DEBUG 2025-09-18 21:44:55,297 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 60620]
+DEBUG 2025-09-18 21:44:55,297 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 60620]
+DEBUG 2025-09-18 21:44:55,298 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 60620]
+INFO 2025-09-18 21:44:55,299 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.07, 127.0.0.1:60620][0m
+DEBUG 2025-09-18 21:45:20,732 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 51392]
+DEBUG 2025-09-18 21:45:20,740 resource 15572 31276 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED614CC0>.
+DEBUG 2025-09-18 21:45:20,769 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 51392]
+DEBUG 2025-09-18 21:45:20,770 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 51392]
+DEBUG 2025-09-18 21:45:20,771 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 51392]
+INFO 2025-09-18 21:45:20,771 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.04, 127.0.0.1:51392][0m
+DEBUG 2025-09-18 21:46:06,867 http_protocol 15572 15800 HTTP b'POST' request for ['127.0.0.1', 50685]
+DEBUG 2025-09-18 21:46:06,872 resource 15572 25092 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED785200>.
+DEBUG 2025-09-18 21:46:06,919 connectionpool 15572 25092 Starting new HTTPS connection (1): rsapi.goong.io:443
+DEBUG 2025-09-18 21:46:07,247 connectionpool 15572 25092 https://rsapi.goong.io:443 "GET /Geocode?latlng=10.762622114642397%2C106.65749095380306&api_key=A5Xm95jZ86a7jl8lZZIJtQ6iV6YFokz8dHyxD4yo HTTP/11" 200 None
+DEBUG 2025-09-18 21:46:07,256 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 50685]
+DEBUG 2025-09-18 21:46:07,257 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 50685]
+DEBUG 2025-09-18 21:46:07,257 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 50685]
+INFO 2025-09-18 21:46:07,258 runserver 15572 15800 [mHTTP POST /location/reverse-geocode/ 200 [0.39, 127.0.0.1:50685][0m
+DEBUG 2025-09-18 21:46:12,866 http_protocol 15572 15800 HTTP b'POST' request for ['127.0.0.1', 64101]
+DEBUG 2025-09-18 21:46:12,872 resource 15572 31728 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED7B1D80>.
+DEBUG 2025-09-18 21:46:12,917 http_protocol 15572 15800 HTTP 201 response started for ['127.0.0.1', 64101]
+DEBUG 2025-09-18 21:46:12,917 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 64101]
+DEBUG 2025-09-18 21:46:12,917 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 64101]
+INFO 2025-09-18 21:46:12,917 runserver 15572 15800 [mHTTP POST /activities/ 201 [0.05, 127.0.0.1:64101][0m
+DEBUG 2025-09-18 21:46:13,194 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 64103]
+DEBUG 2025-09-18 21:46:13,200 resource 15572 28196 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED95C680>.
+DEBUG 2025-09-18 21:46:13,236 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 64103]
+DEBUG 2025-09-18 21:46:13,236 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 64103]
+DEBUG 2025-09-18 21:46:13,237 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 64103]
+INFO 2025-09-18 21:46:13,238 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/ 200 [0.04, 127.0.0.1:64103][0m
+DEBUG 2025-09-18 21:46:15,189 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 64107]
+DEBUG 2025-09-18 21:46:15,193 resource 15572 34664 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED7D0C80>.
+DEBUG 2025-09-18 21:46:15,221 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 64107]
+DEBUG 2025-09-18 21:46:15,222 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 64107]
+DEBUG 2025-09-18 21:46:15,222 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 64107]
+INFO 2025-09-18 21:46:15,222 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.03, 127.0.0.1:64107][0m
+DEBUG 2025-09-18 21:47:19,829 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 64477]
+DEBUG 2025-09-18 21:47:19,834 resource 15572 29280 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED764D80>.
+DEBUG 2025-09-18 21:47:19,867 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 64477]
+DEBUG 2025-09-18 21:47:19,868 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 64477]
+DEBUG 2025-09-18 21:47:19,868 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 64477]
+INFO 2025-09-18 21:47:19,868 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.04, 127.0.0.1:64477][0m
+DEBUG 2025-09-18 21:51:03,511 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 57090]
+DEBUG 2025-09-18 21:51:03,516 resource 15572 19016 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED76AF80>.
+DEBUG 2025-09-18 21:51:03,544 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 57090]
+DEBUG 2025-09-18 21:51:03,544 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 57090]
+DEBUG 2025-09-18 21:51:03,544 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 57090]
+INFO 2025-09-18 21:51:03,545 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.04, 127.0.0.1:57090][0m
+DEBUG 2025-09-18 21:51:20,326 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 56113]
+DEBUG 2025-09-18 21:51:20,330 resource 15572 27228 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED7D0340>.
+DEBUG 2025-09-18 21:51:20,366 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 56113]
+DEBUG 2025-09-18 21:51:20,366 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 56113]
+DEBUG 2025-09-18 21:51:20,367 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 56113]
+INFO 2025-09-18 21:51:20,367 runserver 15572 15800 [mHTTP GET /groups/9544059b-36c1-4e73-a7f3-f2de335630e0/ 200 [0.04, 127.0.0.1:56113][0m
+DEBUG 2025-09-18 21:51:20,383 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 56115]
+DEBUG 2025-09-18 21:51:20,387 resource 15572 34808 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED93E980>.
+DEBUG 2025-09-18 21:51:20,416 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 56115]
+DEBUG 2025-09-18 21:51:20,418 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 56115]
+DEBUG 2025-09-18 21:51:20,418 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 56115]
+INFO 2025-09-18 21:51:20,418 runserver 15572 15800 [mHTTP GET /groups/9544059b-36c1-4e73-a7f3-f2de335630e0/plans/ 200 [0.03, 127.0.0.1:56115][0m
+DEBUG 2025-09-18 21:51:22,597 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 56117]
+DEBUG 2025-09-18 21:51:22,602 resource 15572 30340 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED7E7600>.
+DEBUG 2025-09-18 21:51:22,630 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 56117]
+DEBUG 2025-09-18 21:51:22,631 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 56117]
+DEBUG 2025-09-18 21:51:22,631 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 56117]
+INFO 2025-09-18 21:51:22,631 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/ 200 [0.03, 127.0.0.1:56117][0m
+DEBUG 2025-09-18 21:52:43,094 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 50561]
+DEBUG 2025-09-18 21:52:43,097 resource 15572 13808 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED8EE980>.
+DEBUG 2025-09-18 21:52:43,115 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 50561]
+DEBUG 2025-09-18 21:52:43,115 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 50561]
+DEBUG 2025-09-18 21:52:43,115 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 50561]
+INFO 2025-09-18 21:52:43,116 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.02, 127.0.0.1:50561][0m
+DEBUG 2025-09-18 21:52:56,994 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 62916]
+DEBUG 2025-09-18 21:52:56,999 resource 15572 12512 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED9CCB00>.
+DEBUG 2025-09-18 21:52:57,019 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 62916]
+DEBUG 2025-09-18 21:52:57,019 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 62916]
+DEBUG 2025-09-18 21:52:57,020 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 62916]
+INFO 2025-09-18 21:52:57,020 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/ 200 [0.03, 127.0.0.1:62916][0m
+DEBUG 2025-09-18 21:52:58,246 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 62918]
+DEBUG 2025-09-18 21:52:58,251 resource 15572 12004 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED92AFC0>.
+DEBUG 2025-09-18 21:52:58,277 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 62918]
+DEBUG 2025-09-18 21:52:58,278 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 62918]
+DEBUG 2025-09-18 21:52:58,278 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 62918]
+INFO 2025-09-18 21:52:58,278 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.03, 127.0.0.1:62918][0m
+DEBUG 2025-09-18 21:55:10,039 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 49788]
+DEBUG 2025-09-18 21:55:10,045 resource 15572 15408 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED8DE0C0>.
+DEBUG 2025-09-18 21:55:10,123 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 49788]
+DEBUG 2025-09-18 21:55:10,123 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 49788]
+DEBUG 2025-09-18 21:55:10,123 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 49788]
+INFO 2025-09-18 21:55:10,124 runserver 15572 15800 [mHTTP GET /users/profile/ 200 [0.08, 127.0.0.1:49788][0m
+DEBUG 2025-09-18 21:55:11,461 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 49790]
+DEBUG 2025-09-18 21:55:11,468 resource 15572 15604 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED8D2A00>.
+DEBUG 2025-09-18 21:55:11,511 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 49790]
+DEBUG 2025-09-18 21:55:11,511 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 49790]
+DEBUG 2025-09-18 21:55:11,512 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 49790]
+INFO 2025-09-18 21:55:11,512 runserver 15572 15800 [mHTTP GET /plans/ 200 [0.05, 127.0.0.1:49790][0m
+DEBUG 2025-09-18 21:55:11,721 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 49797]
+DEBUG 2025-09-18 21:55:11,726 resource 15572 5156 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED8D02C0>.
+DEBUG 2025-09-18 21:55:11,743 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 49797]
+DEBUG 2025-09-18 21:55:11,743 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 49797]
+DEBUG 2025-09-18 21:55:11,743 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 49797]
+INFO 2025-09-18 21:55:11,743 runserver 15572 15800 [mHTTP GET /groups/ 200 [0.02, 127.0.0.1:49797][0m
+DEBUG 2025-09-18 21:55:23,687 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 63171]
+DEBUG 2025-09-18 21:55:23,693 resource 15572 30668 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED8DE300>.
+DEBUG 2025-09-18 21:55:23,713 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 63171]
+DEBUG 2025-09-18 21:55:23,714 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 63171]
+DEBUG 2025-09-18 21:55:23,714 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 63171]
+INFO 2025-09-18 21:55:23,714 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/ 200 [0.03, 127.0.0.1:63171][0m
+DEBUG 2025-09-18 21:55:25,232 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 64104]
+DEBUG 2025-09-18 21:55:25,236 resource 15572 15524 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED622500>.
+DEBUG 2025-09-18 21:55:25,266 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 64104]
+DEBUG 2025-09-18 21:55:25,266 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 64104]
+DEBUG 2025-09-18 21:55:25,267 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 64104]
+INFO 2025-09-18 21:55:25,267 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.04, 127.0.0.1:64104][0m
+DEBUG 2025-09-18 21:56:00,875 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 51911]
+DEBUG 2025-09-18 21:56:00,879 resource 15572 23960 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED76B080>.
+DEBUG 2025-09-18 21:56:00,908 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 51911]
+DEBUG 2025-09-18 21:56:00,909 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 51911]
+DEBUG 2025-09-18 21:56:00,909 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 51911]
+INFO 2025-09-18 21:56:00,909 runserver 15572 15800 [mHTTP GET /users/profile/ 200 [0.04, 127.0.0.1:51911][0m
+DEBUG 2025-09-18 21:56:02,069 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 51913]
+DEBUG 2025-09-18 21:56:02,074 resource 15572 3772 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED6F1280>.
+DEBUG 2025-09-18 21:56:02,100 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 51913]
+DEBUG 2025-09-18 21:56:02,100 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 51913]
+DEBUG 2025-09-18 21:56:02,101 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 51913]
+INFO 2025-09-18 21:56:02,101 runserver 15572 15800 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:51913][0m
+DEBUG 2025-09-18 21:56:02,278 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 51915]
+DEBUG 2025-09-18 21:56:02,281 resource 15572 27532 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED914380>.
+DEBUG 2025-09-18 21:56:02,306 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 51915]
+DEBUG 2025-09-18 21:56:02,307 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 51915]
+DEBUG 2025-09-18 21:56:02,307 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 51915]
+INFO 2025-09-18 21:56:02,307 runserver 15572 15800 [mHTTP GET /groups/ 200 [0.03, 127.0.0.1:51915][0m
+DEBUG 2025-09-18 21:56:10,308 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 49630]
+DEBUG 2025-09-18 21:56:10,315 resource 15572 31144 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED889AC0>.
+DEBUG 2025-09-18 21:56:10,350 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 49630]
+DEBUG 2025-09-18 21:56:10,350 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 49630]
+DEBUG 2025-09-18 21:56:10,350 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 49630]
+INFO 2025-09-18 21:56:10,351 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/ 200 [0.04, 127.0.0.1:49630][0m
+DEBUG 2025-09-18 21:56:12,406 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 49632]
+DEBUG 2025-09-18 21:56:12,411 resource 15572 13956 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED8A6C40>.
+DEBUG 2025-09-18 21:56:12,437 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 49632]
+DEBUG 2025-09-18 21:56:12,437 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 49632]
+DEBUG 2025-09-18 21:56:12,438 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 49632]
+INFO 2025-09-18 21:56:12,438 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.03, 127.0.0.1:49632][0m
+DEBUG 2025-09-18 21:58:22,612 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 50135]
+DEBUG 2025-09-18 21:58:22,618 resource 15572 10276 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED86DDC0>.
+DEBUG 2025-09-18 21:58:22,667 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 50135]
+DEBUG 2025-09-18 21:58:22,668 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 50135]
+DEBUG 2025-09-18 21:58:22,668 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 50135]
+INFO 2025-09-18 21:58:22,669 runserver 15572 15800 [mHTTP GET /users/profile/ 200 [0.06, 127.0.0.1:50135][0m
+DEBUG 2025-09-18 21:58:23,860 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 50139]
+DEBUG 2025-09-18 21:58:23,864 resource 15572 21188 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED8A5280>.
+DEBUG 2025-09-18 21:58:23,890 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 50139]
+DEBUG 2025-09-18 21:58:23,890 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 50139]
+DEBUG 2025-09-18 21:58:23,891 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 50139]
+INFO 2025-09-18 21:58:23,891 runserver 15572 15800 [mHTTP GET /plans/ 200 [0.03, 127.0.0.1:50139][0m
+DEBUG 2025-09-18 21:58:24,088 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 50141]
+DEBUG 2025-09-18 21:58:24,093 resource 15572 14100 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202EA3457C0>.
+DEBUG 2025-09-18 21:58:24,117 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 50141]
+DEBUG 2025-09-18 21:58:24,117 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 50141]
+DEBUG 2025-09-18 21:58:24,117 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 50141]
+INFO 2025-09-18 21:58:24,118 runserver 15572 15800 [mHTTP GET /groups/ 200 [0.03, 127.0.0.1:50141][0m
+DEBUG 2025-09-18 21:58:26,000 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 50144]
+DEBUG 2025-09-18 21:58:26,005 resource 15572 15760 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED7ED500>.
+DEBUG 2025-09-18 21:58:26,036 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 50144]
+DEBUG 2025-09-18 21:58:26,036 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 50144]
+DEBUG 2025-09-18 21:58:26,036 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 50144]
+INFO 2025-09-18 21:58:26,037 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/ 200 [0.04, 127.0.0.1:50144][0m
+DEBUG 2025-09-18 21:58:27,658 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 53213]
+DEBUG 2025-09-18 21:58:27,663 resource 15572 28336 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED6C3F40>.
+DEBUG 2025-09-18 21:58:27,691 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 53213]
+DEBUG 2025-09-18 21:58:27,692 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 53213]
+DEBUG 2025-09-18 21:58:27,692 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 53213]
+INFO 2025-09-18 21:58:27,693 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.04, 127.0.0.1:53213][0m
+DEBUG 2025-09-18 22:04:06,371 http_protocol 15572 15800 HTTP b'GET' request for ['127.0.0.1', 53539]
+DEBUG 2025-09-18 22:04:06,380 resource 15572 31748 Dispatching token_type Bearer request to <oauthlib.oauth2.rfc6749.tokens.BearerToken object at 0x00000202ED9149C0>.
+DEBUG 2025-09-18 22:04:06,419 http_protocol 15572 15800 HTTP 200 response started for ['127.0.0.1', 53539]
+DEBUG 2025-09-18 22:04:06,419 http_protocol 15572 15800 HTTP close for ['127.0.0.1', 53539]
+DEBUG 2025-09-18 22:04:06,420 http_protocol 15572 15800 HTTP response complete for ['127.0.0.1', 53539]
+INFO 2025-09-18 22:04:06,420 runserver 15572 15800 [mHTTP GET /plans/e5c990d6-8653-4c4c-8327-37e211676b48/schedule/ 200 [0.05, 127.0.0.1:53539][0m
+INFO 2025-09-18 22:12:36,681 autoreload 15572 22440 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\serializers.py changed, reloading.
+DEBUG 2025-09-18 22:12:38,512 selector_events 22972 34784 Using selector: SelectSelector
+INFO 2025-09-18 22:12:38,918 autoreload 22972 34784 Watching for file changes with StatReloader
+INFO 2025-09-18 22:12:39,760 server 22972 2688 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-18 22:12:39,760 server 22972 2688 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-18 22:12:39,761 server 22972 2688 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-18 22:13:35,620 autoreload 22972 34784 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-18 22:13:36,600 selector_events 1052 15920 Using selector: SelectSelector
+INFO 2025-09-18 22:13:36,894 autoreload 1052 15920 Watching for file changes with StatReloader
+INFO 2025-09-18 22:13:37,514 server 1052 33768 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-18 22:13:37,514 server 1052 33768 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-18 22:13:37,514 server 1052 33768 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-18 22:14:16,918 autoreload 1052 15920 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-18 22:14:17,888 selector_events 22392 14092 Using selector: SelectSelector
+INFO 2025-09-18 22:14:18,137 autoreload 22392 14092 Watching for file changes with StatReloader
+INFO 2025-09-18 22:14:18,774 server 22392 18816 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-18 22:14:18,774 server 22392 18816 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-18 22:14:18,775 server 22392 18816 Listening on TCP address 0.0.0.0:8000
+INFO 2025-09-18 22:14:37,610 autoreload 22392 14092 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\views.py changed, reloading.
+DEBUG 2025-09-18 22:14:38,499 selector_events 32432 24980 Using selector: SelectSelector
+INFO 2025-09-18 22:14:38,736 autoreload 32432 24980 Watching for file changes with StatReloader
+INFO 2025-09-18 22:14:39,364 server 32432 2228 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-18 22:14:39,364 server 32432 2228 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-18 22:14:39,365 server 32432 2228 Listening on TCP address 0.0.0.0:8000
+DEBUG 2025-09-18 22:17:14,928 selector_events 21796 18044 Using selector: SelectSelector
+INFO 2025-09-18 22:19:34,346 autoreload 32432 24980 D:\Study\DoAnNganh\PlanPal\planpalapp\planpals\services.py changed, reloading.
+DEBUG 2025-09-18 22:19:35,452 selector_events 7076 30340 Using selector: SelectSelector
+INFO 2025-09-18 22:19:35,724 autoreload 7076 30340 Watching for file changes with StatReloader
+INFO 2025-09-18 22:19:36,571 server 7076 26256 HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+INFO 2025-09-18 22:19:36,571 server 7076 26256 Configuring endpoint tcp:port=8000:interface=0.0.0.0
+INFO 2025-09-18 22:19:36,572 server 7076 26256 Listening on TCP address 0.0.0.0:8000

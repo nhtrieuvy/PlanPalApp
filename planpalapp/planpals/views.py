@@ -21,7 +21,8 @@ from .serializers import (
     GroupCreateSerializer, GroupSummarySerializer, PlanSummarySerializer, 
     UserSerializer, UserCreateSerializer, UserSummarySerializer, GroupSerializer, 
     PlanSerializer, PlanCreateSerializer, FriendshipSerializer, FriendRequestSerializer,
-    ChatMessageSerializer, PlanActivitySerializer, PlanActivityCreateSerializer, ConversationSerializer
+    ChatMessageSerializer, PlanActivitySerializer, PlanActivitySummarySerializer,
+    PlanActivityCreateSerializer, ConversationSerializer
 )
 from .permissions import (
     IsAuthenticatedAndActive, PlanPermission, GroupPermission,
@@ -1066,6 +1067,13 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
     
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
+    
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Get full activity details - returns complete PlanActivitySerializer data
+        This is called when user opens activity detail dialog
+        """
+        return super().retrieve(request, *args, **kwargs)
     
     
     #API lấy hoạt động theo kế hoạch - OPTIMIZED

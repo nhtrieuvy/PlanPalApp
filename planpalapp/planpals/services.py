@@ -1132,6 +1132,11 @@ class PlanService(BaseService):
     
     @classmethod
     def get_plan_schedule(cls, plan: 'Plan', user: User) -> Dict[str, Any]:
+        """
+        Get plan schedule with summary data - optimized for performance
+        Uses PlanActivitySummarySerializer for lightweight response
+        """
+        from .serializers import PlanActivitySummarySerializer
         
         activities = plan.activities.order_by('start_time')
         
@@ -1147,25 +1152,9 @@ class PlanService(BaseService):
                         'activities': []
                     }
                 
-                duration_minutes = 0
-                if activity.start_time and activity.end_time:
-                    duration_delta = activity.end_time - activity.start_time
-                    duration_minutes = int(duration_delta.total_seconds() / 60)
-                
-                schedule_by_date[date_str]['activities'].append({
-                    'id': str(activity.id),
-                    'title': activity.title,
-                    'description': activity.description,
-                    'activity_type': activity.activity_type,
-                    'start_time': activity.start_time,
-                    'end_time': activity.end_time,
-                    'duration_minutes': duration_minutes,
-                    'estimated_cost': float(activity.estimated_cost) if activity.estimated_cost else 0,
-                    'location_name': activity.location_name,
-                    'location_address': activity.location_address,
-                    'notes': activity.notes,
-                    'is_completed': activity.is_completed
-                })
+                # Use summary serializer for lightweight data
+                activity_data = PlanActivitySummarySerializer(activity).data
+                schedule_by_date[date_str]['activities'].append(activity_data)
         
         total_activities = activities.count()
         completed_activities = activities.filter(is_completed=True).count()
