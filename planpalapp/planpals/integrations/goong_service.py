@@ -90,20 +90,34 @@ class GoongMapService:
             
             result = data.get('result', {})
             if result:
-                return {
+                # Extract coordinates from geometry for easier frontend access
+                geometry = result.get('geometry', {})
+                location = geometry.get('location', {})
+                lat = location.get('lat')
+                lng = location.get('lng')
+                
+                place_details = {
                     'place_id': place_id,
                     'name': result.get('name'),
                     'address': result.get('formatted_address'),
+                    'formatted_address': result.get('formatted_address'),
                     'phone': result.get('formatted_phone_number'),
                     'website': result.get('website'),
                     'rating': result.get('rating'),
                     'user_ratings_total': result.get('user_ratings_total'),
-                    'geometry': result.get('geometry', {}),
+                    'geometry': geometry,
                     'types': result.get('types', []),
                     'opening_hours': result.get('opening_hours', {}),
                     'photos': self._extract_photos(result.get('photos', [])),
                     'business_status': result.get('business_status')
                 }
+                
+                # Add direct coordinates for frontend convenience
+                if lat is not None and lng is not None:
+                    place_details['latitude'] = lat
+                    place_details['longitude'] = lng
+                    
+                return place_details
             
             return None
             

@@ -674,7 +674,10 @@ class GroupQuerySet(models.QuerySet['Group']):
     
     def with_member_count(self) -> 'GroupQuerySet':
         return self.annotate(
-            member_count_annotated=Count('members', distinct=True)
+            admin_count_annotated=Count(
+                'memberships',
+                distinct=True
+            )
         )
     
     def with_admin_count(self) -> 'GroupQuerySet':
@@ -838,7 +841,7 @@ class Group(BaseModel):
     def member_count(self) -> int:
         if hasattr(self, 'member_count_annotated'):
             return self.member_count_annotated
-        return self.members.count()
+        return self.memberships.count()
 
     @property
     def admin_count(self) -> int:

@@ -54,6 +54,12 @@ class Endpoints {
   static String userUnfriend(String userId) => '/users/$userId/unfriend/';
   static String userBlock(String userId) => '/users/$userId/block/';
   static String userUnblock(String userId) => '/users/$userId/unblock/';
+
+  // Location endpoints
+  static const String locationReverseGeocode = '/location/reverse-geocode/';
+  static const String locationSearch = '/location/search/';
+  static const String locationAutocomplete = '/location/autocomplete/';
+  static const String locationPlaceDetails = '/location/place-details/';
 }
 
 class ApiClient {

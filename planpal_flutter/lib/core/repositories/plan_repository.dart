@@ -189,9 +189,9 @@ class PlanRepository {
 
       if (res.statusCode == 200) {
         final data = res.data;
-        // Handle paginated response with 'results' array
-        final List<dynamic> rawList = (data is Map && data['results'] is List)
-            ? List<dynamic>.from(data['results'] as List)
+        // Handle response with 'plans' array
+        final List<dynamic> rawList = (data is Map && data['plans'] is List)
+            ? List<dynamic>.from(data['plans'] as List)
             : const <dynamic>[];
 
         if (rawList.isEmpty) return const <PlanSummary>[];

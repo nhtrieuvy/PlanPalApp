@@ -15,6 +15,7 @@ from .realtime_publisher import RealtimeEventPublisher
 from .tasks import start_plan_task, complete_plan_task
 from celery import current_app
 from .paginators import ManualCursorPaginator
+from .serializers import UserSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,6 @@ class UserService(BaseService):
     
     @classmethod
     def get_friendship_status(cls, current_user: User, target_user: User) -> Dict[str, Any]:
-        # Self-check
         if current_user == target_user:
             return {'status': 'self'}
 
@@ -55,11 +55,25 @@ class UserService(BaseService):
             return {'status': 'friends', 'since': friendship.created_at}
         if status == Friendship.PENDING:
             direction = 'pending_sent' if friendship.is_initiated_by(current_user) else 'pending_received'
-            return {'status': direction}
+            result = {'status': direction, 'created_at': friendship.created_at}
+            if direction == 'pending_received':
+                result['friendship_id'] = str(friendship.id)
+            return result
         if status == Friendship.REJECTED:
-            return {'status': 'rejected'}
+            return {'status': 'rejected', 'rejected_at': friendship.updated_at}
         if status == Friendship.BLOCKED:
-            return {'status': 'blocked'}
+            if friendship.initiator == current_user:
+                return {
+                    'status': 'blocked_by_me',
+                    'can_unblock': True,
+                    'blocked_at': friendship.updated_at
+                }
+            else:
+                return {
+                    'status': 'blocked_by_them',
+                    'can_unblock': False, 
+                    'blocked_at': friendship.updated_at
+                }
 
         return {'status': 'unknown'}
     
@@ -76,7 +90,11 @@ class UserService(BaseService):
             elif existing.status == Friendship.PENDING:
                 return False, "Friend request already sent"
             elif existing.status == Friendship.BLOCKED:
-                return False, "Cannot send friend request"
+                # Check who blocked whom
+                if existing.initiator == to_user:
+                    return False, "Cannot send friend request - you have been blocked"
+                else:
+                    return False, "Cannot send friend request - you have blocked this user"
             elif existing.status == Friendship.REJECTED:
                 rejection_count = existing.get_rejection_count()
                 last_rejection = existing.get_last_rejection()
@@ -96,7 +114,8 @@ class UserService(BaseService):
                         return False, f"Cannot resend friend request yet. {cooldown_msg}. Time remaining: {remaining_time}"
                 
                 existing.status = Friendship.PENDING
-                existing.save()
+                existing.initiator = from_user
+                existing.save(update_fields=['status', 'initiator', 'updated_at'])
                 cls.log_operation("friend_request_resent", {
                     'from_user': from_user.id,
                     'to_user': to_user.id
@@ -105,7 +124,6 @@ class UserService(BaseService):
         
         try:
             with transaction.atomic():
-                # Ensure canonical ordering (user_a has smaller UUID than user_b)
                 if from_user.id < to_user.id:
                     user_a, user_b = from_user, to_user
                 else:
@@ -178,8 +196,6 @@ class UserService(BaseService):
     def update_user_profile(cls, user: User, data: Dict[str, Any]) -> Tuple[User, bool]:
         try:
             with transaction.atomic():
-                # Import locally to avoid circular import with serializers.py
-                from .serializers import UserSerializer
 
                 serializer = UserSerializer(user, data=data, partial=True)
                 if serializer.is_valid():
@@ -254,15 +270,14 @@ class UserService(BaseService):
     
     @classmethod
     def unblock_user(cls, current_user: User, target_user: User) -> Tuple[bool, str]:
-        # Find the blocked friendship between the users
-        friendship = Friendship.objects.filter(
-            models.Q(user_a=current_user, user_b=target_user) |
-            models.Q(user_a=target_user, user_b=current_user),
-            status=Friendship.BLOCKED
-        ).first()
+        """Unblock a user. Only the blocker can unblock."""
+        friendship = Friendship.get_friendship(current_user, target_user)
         
-        if not friendship:
+        if not friendship or friendship.status != Friendship.BLOCKED:
             return False, "User is not blocked"
+        
+        if friendship.initiator != current_user:
+            return False, "Only the person who blocked can unblock"
         
         friendship.delete()
         
@@ -337,18 +352,13 @@ class UserService(BaseService):
                 return False, "You can only reject requests sent to you"
 
             with transaction.atomic():
-                # Import here to avoid circular import
-                from .models import FriendshipRejection
-                
-                # Create rejection record first (while status is still PENDING)
                 rejection = FriendshipRejection(
                     friendship=friendship, 
                     rejected_by=current_user
                 )
-                rejection.full_clean()  # Validate before saving
+                rejection.full_clean()
                 rejection.save()
                 
-                # Then update friendship status
                 friendship.status = Friendship.REJECTED
                 friendship.save()
 
@@ -365,11 +375,16 @@ class UserService(BaseService):
     @classmethod
     def cancel_friend_request(cls, current_user: User, to_user: User) -> Tuple[bool, str]:
         try:
-            friendship = Friendship.objects.get(
-                user=current_user,
-                friend=to_user,
-                status=Friendship.PENDING
-            )
+            friendship = Friendship.get_friendship(current_user, to_user)
+            
+            if not friendship:
+                return False, "Friend request not found"
+            
+            if friendship.status != Friendship.PENDING:
+                return False, "Friend request is not pending"
+            
+            if friendship.initiator != current_user:
+                return False, "You can only cancel requests you sent"
 
             friendship.delete()
 
@@ -380,8 +395,8 @@ class UserService(BaseService):
             
             return True, "Friend request cancelled"
             
-        except Friendship.DoesNotExist:
-            return False, "Friend request not found"
+        except Exception as e:
+            return False, f"Error cancelling friend request: {str(e)}"
 
     @classmethod
     def block_user(cls, current_user: User, target_user: User) -> Tuple[bool, str]:
@@ -389,28 +404,33 @@ class UserService(BaseService):
             return False, "Cannot block yourself"
         
         with transaction.atomic():
-            # Delete any existing friendship between the users
-            Friendship.objects.filter(
-                models.Q(user_a=current_user, user_b=target_user) |
-                models.Q(user_a=target_user, user_b=current_user)
-            ).delete()
+            friendship = Friendship.get_friendship(current_user, target_user)
             
-            # Create a new blocked relationship
-            # Use canonical ordering (smaller UUID as user_a)
-            if current_user.id < target_user.id:
-                friendship = Friendship.objects.create(
-                    user_a=current_user,
-                    user_b=target_user,
-                    initiator=current_user,
-                    status=Friendship.BLOCKED
-                )
+            if friendship:
+                if friendship.status == Friendship.BLOCKED and friendship.initiator == current_user:
+                    return False, "User is already blocked"
+                
+                if friendship.status == Friendship.BLOCKED and friendship.initiator == target_user:
+                    return False, "You cannot block this user as they have blocked you"
+                
+                friendship.status = Friendship.BLOCKED
+                friendship.initiator = current_user  # Set current user as the blocker
+                friendship.save(update_fields=['status', 'initiator', 'updated_at'])
             else:
-                friendship = Friendship.objects.create(
-                    user_a=target_user,
-                    user_b=current_user,
-                    initiator=current_user,
-                    status=Friendship.BLOCKED
-                )
+                if current_user.id < target_user.id:
+                    friendship = Friendship.objects.create(
+                        user_a=current_user,
+                        user_b=target_user,
+                        initiator=current_user,
+                        status=Friendship.BLOCKED
+                    )
+                else:
+                    friendship = Friendship.objects.create(
+                        user_a=target_user,
+                        user_b=current_user,
+                        initiator=current_user,
+                        status=Friendship.BLOCKED
+                    )
         
         cls.log_operation("user_blocked", {
             'blocker': current_user.id,
@@ -441,9 +461,13 @@ class UserService(BaseService):
     
     @classmethod
     def can_view_profile(cls, current_user: User, target_user: User) -> bool:
-        """Check if current_user can view target_user's profile"""
         if current_user == target_user:
             return True
+        
+        friendship = Friendship.get_friendship(current_user, target_user)
+        if friendship and friendship.status == Friendship.BLOCKED:
+            if friendship.initiator == target_user:
+                return False
         
         if getattr(target_user, 'is_profile_public', True):
             return True
@@ -451,8 +475,48 @@ class UserService(BaseService):
         return Friendship.are_friends(current_user, target_user)
     
     @classmethod
+    def get_block_status(cls, current_user: User, target_user: User) -> Dict[str, Any]:
+        if current_user == target_user:
+            return {'status': 'self'}
+        
+        friendship = Friendship.get_friendship(current_user, target_user)
+        
+        if not friendship or friendship.status != Friendship.BLOCKED:
+            return {'status': 'not_blocked'}
+        
+        if friendship.initiator == current_user:
+            return {
+                'status': 'blocked_by_me',
+                'can_unblock': True,
+                'blocked_at': friendship.updated_at
+            }
+        else:
+            return {
+                'status': 'blocked_by_them', 
+                'can_unblock': False,
+                'blocked_at': friendship.updated_at
+            }
+    
+    @classmethod
+    def is_blocked_by(cls, current_user: User, target_user: User) -> bool:
+        """Check if current_user is blocked by target_user"""
+        friendship = Friendship.get_friendship(current_user, target_user)
+        return (
+            friendship and 
+            friendship.status == Friendship.BLOCKED and 
+            friendship.initiator == target_user
+        )
+    
+    @classmethod 
+    def has_blocked(cls, current_user: User, target_user: User) -> bool:
+        friendship = Friendship.get_friendship(current_user, target_user)
+        return (
+            friendship and 
+            friendship.status == Friendship.BLOCKED and 
+            friendship.initiator == current_user
+        )
+    @classmethod
     def validate_search_query(cls, query: str, min_length: int = 2) -> Tuple[bool, str]:
-        """Validate search query parameters"""
         if not query:
             return False, 'Search query (q) parameter required'
         
@@ -516,7 +580,7 @@ class GroupService(BaseService):
                 user=user,
                 role=role
             )
-            membership.full_clean()  # Use model validation
+            membership.full_clean() 
             membership.save()
         except ValidationError as e:
             return False, str(e)
@@ -532,7 +596,6 @@ class GroupService(BaseService):
     
     @classmethod
     def add_member_by_id(cls, group: Group, user_id: str, added_by: User = None) -> Tuple[bool, str]:
-        """Add a member to group by user ID with proper validation"""
         try:
             target_user = User.objects.get(id=user_id)
         except User.DoesNotExist:
@@ -656,10 +719,6 @@ class GroupService(BaseService):
     
     @classmethod
     def get_group_plans(cls, group: 'Group', user: User) -> Dict[str, Any]:
-        """Get all plans for a group with metadata"""
-        from .models import Plan  # Import here to avoid circular imports
-        
-        # Get all plans for this group with optimizations
         plans = Plan.objects.filter(group=group).select_related(
             'creator', 'group'
         ).prefetch_related('activities').order_by('-created_at')
@@ -669,12 +728,9 @@ class GroupService(BaseService):
             'group_id': str(group.id),
             'group_name': group.name,
             'count': len(plans),
-            'can_create_plan': group.is_admin(user)  # Only admins can create
+            'can_create_plan': group.is_admin(user)
         }
 
-# ============================================================================
-# PLAN SERVICE
-# ============================================================================
 
 class PlanService(BaseService):    
     @classmethod
@@ -700,10 +756,9 @@ class PlanService(BaseService):
                     is_public=is_public,
                     status='upcoming'
                 )
-                plan.full_clean()  # Use model validation
+                plan.full_clean()
                 plan.save()
                 
-                # Schedule any necessary tasks
                 cls._schedule_plan_tasks(plan)
         except ValidationError as e:
             raise ValidationError(f"Plan creation failed: {str(e)}")
@@ -1060,7 +1115,7 @@ class PlanService(BaseService):
             },
             'budget': {
                 'estimated': float(total_cost),
-                'over_budget': False  # Add budget comparison logic if needed
+                'over_budget': False
             },
             'duration': {
                 'days': plan.duration_days,
@@ -1148,8 +1203,6 @@ class PlanService(BaseService):
     def get_plans_needing_updates(cls):
         return Plan.objects.plans_need_status_update()
     
-    
-
     @classmethod
     def revoke_scheduled_tasks(cls, plan: Plan) -> None:
         
@@ -1300,10 +1353,7 @@ class PlanService(BaseService):
             logger.warning(f"Failed to schedule completion task: {e}")
     
     @classmethod
-    def update_activity(cls, plan: 'Plan', activity_id: str, user: User, data: Dict[str, Any]) -> Tuple[bool, str, Optional['PlanActivity']]:
-        """Update a specific activity in a plan"""
-        from .models import PlanActivity  # Import here to avoid circular imports
-        
+    def update_activity(cls, plan: 'Plan', activity_id: str, user: User, data: Dict[str, Any]) -> Tuple[bool, str, Optional['PlanActivity']]:        
         if not cls.can_edit_plan(plan, user):
             return False, "You do not have permission to modify this plan", None
         
@@ -1328,10 +1378,7 @@ class PlanService(BaseService):
         return True, "Activity updated successfully", plan_activity
     
     @classmethod
-    def remove_activity(cls, plan: 'Plan', activity_id: str, user: User) -> Tuple[bool, str]:
-        """Remove a specific activity from a plan"""
-        from .models import PlanActivity  # Import here to avoid circular imports
-        
+    def remove_activity(cls, plan: 'Plan', activity_id: str, user: User) -> Tuple[bool, str]:        
         if not cls.can_edit_plan(plan, user):
             return False, "You do not have permission to modify this plan"
         
@@ -1353,10 +1400,7 @@ class PlanService(BaseService):
         return True, f'Activity "{activity_title}" removed from plan'
     
     @classmethod
-    def toggle_activity_completion(cls, plan: 'Plan', activity_id: str, user: User) -> Tuple[bool, str, Optional['PlanActivity']]:
-        """Toggle completion status of a specific activity"""
-        from .models import PlanActivity  # Import here to avoid circular imports
-        
+    def toggle_activity_completion(cls, plan: 'Plan', activity_id: str, user: User) -> Tuple[bool, str, Optional['PlanActivity']]:        
         if not cls.can_edit_plan(plan, user):
             return False, "You do not have permission to modify this plan", None
         
@@ -1381,10 +1425,7 @@ class PlanService(BaseService):
         return True, f'Activity marked as {status_text}', plan_activity
     
     @classmethod
-    def get_joined_plans(cls, user: User, search: str = None):
-        """Get plans that user has joined (group plans where user is member but not creator)"""
-        from .models import Plan  # Import here to avoid circular imports
-        
+    def get_joined_plans(cls, user: User, search: str = None):        
         group_plans = Plan.objects.filter(
             plan_type='group',
             group__members=user
@@ -1400,15 +1441,12 @@ class PlanService(BaseService):
     
     @classmethod
     def get_public_plans(cls, user: User, search: str = None):
-        """Get public plans that user can discover"""
-        from .models import Plan  # Import here to avoid circular imports
         
         public_plans = Plan.objects.filter(
             is_public=True,
             status__in=['upcoming', 'ongoing']
         ).exclude(creator=user)
         
-        # Exclude group plans where user is already a member
         public_plans = public_plans.exclude(
             plan_type='group',
             group__members=user
@@ -1424,9 +1462,7 @@ class PlanService(BaseService):
     
     @classmethod
     def join_plan(cls, plan: 'Plan', user: User) -> Tuple[bool, str]:
-        """Join a plan (typically for group plans)"""
-        from .models import GroupMembership  # Import here to avoid circular imports
-        
+
         if plan.creator == user:
             return False, "Cannot join your own plan"
         
@@ -1451,16 +1487,13 @@ class PlanService(BaseService):
             
             return True, f'Successfully joined plan "{plan.title}"'
         
-        # For personal plans, typically not joinable unless they become public collaborations
         return False, "This plan is not joinable"
 
 
 class ChatService(BaseService):
-    
     @classmethod
     def send_message_to_group(cls, sender: User, group_id: str, content: str, 
                              message_type: str = 'user') -> Tuple[bool, str, Optional['ChatMessage']]:
-        """Send a message to a group with proper validation"""
         try:
             group = Group.objects.get(id=group_id, members=sender)
         except Group.DoesNotExist:
@@ -1551,7 +1584,6 @@ class ChatService(BaseService):
     
     @classmethod
     def delete_message(cls, message: ChatMessage, user: User) -> Tuple[bool, str]:        
-        # Sender or group admin can delete
         can_delete = (
             message.sender == user or 
             (hasattr(message, 'group') and message.group and message.group.is_admin(user))
@@ -1560,7 +1592,6 @@ class ChatService(BaseService):
         if not can_delete:
             return False, "Permission denied. Only sender or group admin can delete messages"
         
-        # Use model's soft delete method
         message.soft_delete()
         
         cls.log_operation("message_deleted", {
@@ -1600,10 +1631,8 @@ class ChatService(BaseService):
 
         with transaction.atomic():
             if group is not None:
-                # Use ConversationService method instead of model method
                 conversation, created = ConversationService.get_or_create_for_group(group)
 
-            # Create the system message with validation
             message = ChatMessage(
                 conversation=conversation,
                 sender=None,
@@ -1621,10 +1650,6 @@ class ChatService(BaseService):
 
         return message
 
-
-# ============================================================================
-# NOTIFICATION SERVICE
-# ============================================================================
 
 class NotificationService(BaseService):
     
@@ -1657,7 +1682,6 @@ class ConversationService(BaseService):
     def send_message_to_conversation(cls, conversation, sender: User, content: str, 
                                    message_type: str = 'text', **kwargs) -> 'ChatMessage':
         
-        # Optimized participant check using new methods
         if not conversation.is_participant(sender):
             raise ValidationError("Sender is not a participant of this conversation")
 
@@ -1670,7 +1694,7 @@ class ConversationService(BaseService):
                     message_type=message_type,
                     **kwargs
                 )
-                message.full_clean()  # Use model validation
+                message.full_clean()
                 message.save()
                 
                 cls.log_operation("conversation_message_sent", {
@@ -1685,7 +1709,6 @@ class ConversationService(BaseService):
     
     @classmethod
     def update_last_message_time(cls, conversation, timestamp=None):
-        """Update last message timestamp"""
         if timestamp is None:
             timestamp = timezone.now()
             
@@ -1721,17 +1744,14 @@ class ConversationService(BaseService):
     
     @classmethod
     def get_or_create_direct_conversation(cls, user1: User, user2: User):
-        """Get or create direct conversation between two users"""        
         if user1 == user2:
             raise ValueError("Cannot create conversation with yourself")
         
         try:
-            # Use optimized query method
             existing = Conversation.objects.get_direct_conversation(user1, user2)
             if existing:
                 return existing, False
                 
-            # Create new conversation with canonical ordering
             conversation = cls.create_direct_conversation(user1, user2)
             
             cls.log_operation("direct_conversation_created", {
@@ -1746,11 +1766,9 @@ class ConversationService(BaseService):
 
     @classmethod 
     def create_direct_conversation(cls, user1: User, user2: User) -> 'Conversation':
-        """Create direct conversation between two users with canonical ordering"""
         if user1.id == user2.id:
             raise ValidationError("Cannot create conversation with same user")
         
-        # Canonical ordering (smaller UUID first)
         if user1.id < user2.id:
             conversation = Conversation.objects.create(
                 conversation_type='direct',
@@ -1768,7 +1786,6 @@ class ConversationService(BaseService):
     
     @classmethod
     def create_group_conversation(cls, group):
-        """Create or get group conversation"""        
         try:
             conversation, created = cls.get_or_create_for_group(group)
             
@@ -1784,7 +1801,6 @@ class ConversationService(BaseService):
     
     @classmethod
     def get_or_create_for_group(cls, group):
-        """Get or create group conversation"""        
         try:
             return group.conversation, False
         except Conversation.DoesNotExist:

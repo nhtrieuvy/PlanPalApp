@@ -224,4 +224,20 @@ class FriendRepository {
       return null; // No friendship exists or network error
     }
   }
+
+  /// Get full friendship details with a user (including friendship_id)
+  Future<Map<String, dynamic>?> getFriendshipDetails(String userId) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.userFriendshipStatus(userId)),
+      );
+
+      if (res.statusCode == 200) {
+        return Map<String, dynamic>.from(res.data);
+      }
+      return null;
+    } on DioException catch (_) {
+      return null; // No friendship exists or network error
+    }
+  }
 }

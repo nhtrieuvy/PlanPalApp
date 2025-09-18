@@ -5,6 +5,7 @@ class CreatePlanRequest {
   final String endDate;
   final bool isPublic;
   final String planType;
+  final String? groupId;
 
   CreatePlanRequest({
     required this.title,
@@ -13,16 +14,23 @@ class CreatePlanRequest {
     required this.endDate,
     required this.isPublic,
     required this.planType,
+    this.groupId,
   });
 
-  Map<String, dynamic> toJson() => {
-    'title': title,
-    'description': description,
-    'start_date': startDate,
-    'end_date': endDate,
-    'is_public': isPublic,
-    'plan_type': planType,
-  };
+  Map<String, dynamic> toJson() {
+    final json = {
+      'title': title,
+      'description': description,
+      'start_date': startDate,
+      'end_date': endDate,
+      'is_public': isPublic,
+      'plan_type': planType,
+    };
+    if (groupId != null && groupId!.isNotEmpty) {
+      json['group_id'] = groupId!;
+    }
+    return json;
+  }
 }
 
 class CreateActivityRequest {
@@ -31,6 +39,9 @@ class CreateActivityRequest {
   final String description;
   final String? locationName;
   final String? locationAddress;
+  final double? latitude;
+  final double? longitude;
+  final String? goongPlaceId;
   final String startTime;
   final String endTime;
   final String activityType;
@@ -43,6 +54,9 @@ class CreateActivityRequest {
     required this.description,
     this.locationName,
     this.locationAddress,
+    this.latitude,
+    this.longitude,
+    this.goongPlaceId,
     required this.startTime,
     required this.endTime,
     required this.activityType,
@@ -56,6 +70,9 @@ class CreateActivityRequest {
     'description': description,
     'location_name': locationName,
     'location_address': locationAddress,
+    'latitude': latitude,
+    'longitude': longitude,
+    'goong_place_id': goongPlaceId,
     'start_time': startTime,
     'end_time': endTime,
     'activity_type': activityType,

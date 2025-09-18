@@ -100,14 +100,14 @@ class UserViewSet(viewsets.GenericViewSet,
             id=self.request.user.id
         ).with_counts()
     
-    def get_serializer_class(self) -> type:
+    def get_serializer_class(self):
         if self.action == 'create':
             return UserCreateSerializer
         if self.action == "list":
             return UserSummarySerializer
         return UserSerializer
     
-    def list(self, request: Request) -> Response:
+    def list(self, request):
         user = User.objects.with_counts().get(id=request.user.id)
         user_serializer = self.get_serializer(user)
         return Response({
@@ -115,7 +115,7 @@ class UserViewSet(viewsets.GenericViewSet,
             'message': 'User profile retrieved successfully'
         })
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def search(self, request):
         query = request.query_params.get('q')
         is_valid, message = UserService.validate_search_query(query)
@@ -127,6 +127,21 @@ class UserViewSet(viewsets.GenericViewSet,
             )
         
         users_queryset = UserService.search_users(query, request.user)
+        
+        # Apply blocking filter using Django's built-in QuerySet exclude
+        blocked_by_user_ids = Friendship.objects.filter(
+            models.Q(user_a=request.user) | models.Q(user_b=request.user),
+            status=Friendship.BLOCKED
+        ).exclude(
+            initiator=request.user
+        ).values_list(
+            models.Case(
+                models.When(user_a=request.user, then='user_b'),
+                default='user_a'
+            ), 
+            flat=True
+        )
+        users_queryset = users_queryset.exclude(id__in=blocked_by_user_ids)
         
         paginator = SearchResultsPagination()
         paginator.set_search_query(query)
@@ -144,13 +159,13 @@ class UserViewSet(viewsets.GenericViewSet,
         })
     
     @action(detail=False, methods=['get'])
-    def profile(self, request: Request) -> Response:
+    def profile(self, request):
         user = UserService.get_user_with_counts(request.user.id)
         serializer = self.get_serializer(user) 
         return Response(serializer.data)
     
     @action(detail=False, methods=['put', 'patch'])
-    def update_profile(self, request: Request) -> Response:
+    def update_profile(self, request):
         user, updated = UserService.update_user_profile(request.user, request.data)
         
         if updated:
@@ -240,7 +255,6 @@ class UserViewSet(viewsets.GenericViewSet,
     def retrieve(self, request, pk=None):
         user = get_object_or_404(User, id=pk)
         
-        # Permission is handled by CanViewUserProfile
         self.check_object_permissions(request, user)
         
         serializer = UserSummarySerializer(user, context={'request': request})
@@ -278,7 +292,7 @@ class UserViewSet(viewsets.GenericViewSet,
         if not success:
             return Response({'error': message}, 
                           status=status.HTTP_400_BAD_REQUEST)
-        
+
         return Response({'message': message})
     
     @action(detail=True, methods=['delete'])
@@ -317,7 +331,6 @@ class GroupViewSet(viewsets.GenericViewSet,
         ).select_related(
             'admin'
         ).prefetch_related(
-            'members',
             'memberships__user'
         ).with_full_stats()
     
@@ -433,7 +446,6 @@ class GroupViewSet(viewsets.GenericViewSet,
             return Response({'error': 'user_id required'}, 
                           status=status.HTTP_400_BAD_REQUEST)
         
-        # Use service layer for business logic
         success, message = GroupService.add_member_by_id(group, user_id, added_by=request.user)
         
         if not success:
@@ -500,7 +512,6 @@ class GroupViewSet(viewsets.GenericViewSet,
     def plans(self, request, pk=None):
         group = self.get_object()
         
-        # Use service layer for business logic
         plans_data = GroupService.get_group_plans(group, request.user)
         
         serializer = PlanSummarySerializer(plans_data['plans'], many=True, context={'request': request})
@@ -539,10 +550,8 @@ class PlanViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         data = serializer.validated_data
         
-        # Get group from validated data (already resolved by serializer)
         group = data.get('group')
         
-        # Create plan using service layer within transaction
         with transaction.atomic():
             plan = PlanService.create_plan(
                 creator=self.request.user,
@@ -564,7 +573,6 @@ class PlanViewSet(viewsets.ModelViewSet):
         queryset = self.get_queryset()
         plan_type = request.query_params.get('type', 'all')
         
-        # Filter logic moved to permission validation
         if plan_type == 'personal':
             queryset = queryset.filter(group__isnull=True)
         elif plan_type == 'group':
@@ -582,7 +590,7 @@ class PlanViewSet(viewsets.ModelViewSet):
     def activities_by_date(self, request, pk=None):
         plan = self.get_object()
         
-        activities_by_date = plan.activities_by_date  # Using property
+        activities_by_date = plan.activities_by_date
         
         result = {}
         for date, activities in activities_by_date.items():
@@ -593,7 +601,7 @@ class PlanViewSet(viewsets.ModelViewSet):
         return Response({
             'activities_by_date': result,
             'plan_id': str(plan.id),
-            'total_activities': plan.activities_count  # Using property
+            'total_activities': plan.activities_count
         })
         
     
@@ -602,7 +610,7 @@ class PlanViewSet(viewsets.ModelViewSet):
     def collaborators(self, request, pk=None):
         """Get plan collaborators - OPTIMIZED using property"""
         plan = self.get_object()
-        collaborators = plan.collaborators  # Using property
+        collaborators = plan.collaborators
         
         serializer = UserSerializer(collaborators, many=True, context={'request': request})
         
@@ -613,7 +621,7 @@ class PlanViewSet(viewsets.ModelViewSet):
         })
         
     
-    #API thêm hoạt động vào kế hoạch - OPTIMIZED
+    #API thêm hoạt động vào kế hoạch
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanModifyPlan])
     def add_activity(self, request, pk=None):
         plan = self.get_object()
@@ -723,17 +731,13 @@ class PlanViewSet(viewsets.ModelViewSet):
             'results': serializer.data,
             'count': public_plans.count()
         })
-        return Response({
-            'results': serializer.data,
-            'count': public_plans.count()
-        })
+
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanJoinPlan])
     def join(self, request, pk=None):
         plan = self.get_object()
         user = request.user
         
-        # Permission validation is handled by CanJoinPlan
         success, message = PlanService.join_plan(plan, user)
         
         if not success:
@@ -773,14 +777,13 @@ class FriendRequestView(generics.CreateAPIView):
             if not success:
                 return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Send notification via service
             try:
                 NotificationService.notify_friend_request(
                     friend_id, 
                     request.user.get_full_name()
                 )
             except Exception:
-                pass  # Don't fail request if notification fails
+                pass
             
             friendship = Friendship.objects.between_users(request.user, friend).first()
             return Response({
@@ -793,15 +796,10 @@ class FriendRequestView(generics.CreateAPIView):
 
 
 class FriendRequestListView(generics.ListAPIView):
-    """
-    API endpoint for listing pending friend requests
-    Uses FriendshipSerializer with special context for friend request display
-    """
     serializer_class = FriendshipSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        # Get pending friend requests where current user is the receiver (not initiator)
         return Friendship.objects.filter(
             models.Q(user_a=self.request.user) | models.Q(user_b=self.request.user),
             status=Friendship.PENDING
@@ -839,30 +837,27 @@ class FriendRequestActionView(APIView):
             ).select_related('user_a', 'user_b', 'initiator')
         )
         
-        # Get the initiator (the one who sent the request)
         initiator = friendship.initiator
         
         try:
             with transaction.atomic():
                 if action == 'accept':
                     success, message = UserService.accept_friend_request(request.user, initiator)
-                else:  # action == 'reject'
+                else:
                     success, message = UserService.reject_friend_request(request.user, initiator)
 
                 if not success:
                     return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
 
                 if action == 'accept':
-                    # Send notification for acceptance
                     try:
                         NotificationService.notify_friend_request_accepted(
                             initiator.id, 
                             request.user.get_full_name()
                         )
                     except Exception:
-                        pass  # Don't fail action if notification fails
+                        pass
                 
-                # Refresh friendship state from DB
                 friendship.refresh_from_db()
                 
                 return Response({
@@ -895,7 +890,7 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
                          mixins.DestroyModelMixin):
     serializer_class = ChatMessageSerializer
     permission_classes = [IsAuthenticated, ChatMessagePermission]
-    pagination_class = ChatMessageCursorPagination  # Use cursor pagination for messages
+    pagination_class = ChatMessageCursorPagination
     
     def get_queryset(self):
         return ChatMessage.objects.filter(
@@ -915,7 +910,6 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Use service layer for business logic
         success, error_message, message = ChatService.send_message_to_group(
             sender=request.user,
             group_id=group_id,
@@ -1541,4 +1535,216 @@ class EnhancedPlanViewSet(PlanViewSet):
             return Response(
                 {'error': str(e)}, 
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+# ============================================================================
+# MINIMAP LOCATION VIEWS - Enhanced location services for minimap integration
+# ============================================================================
+
+class LocationReverseGeocodeView(APIView):
+    """
+    API endpoint for reverse geocoding coordinates to address
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            latitude = request.data.get('latitude')
+            longitude = request.data.get('longitude')
+            
+            if latitude is None or longitude is None:
+                return Response(
+                    {'error': 'Latitude and longitude are required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Convert to float and validate
+            try:
+                lat = float(latitude)
+                lng = float(longitude)
+                
+                if not (-90 <= lat <= 90):
+                    return Response(
+                        {'error': 'Latitude must be between -90 and 90'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                if not (-180 <= lng <= 180):
+                    return Response(
+                        {'error': 'Longitude must be between -180 and 180'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+            except (ValueError, TypeError):
+                return Response(
+                    {'error': 'Invalid latitude or longitude format'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Use Goong service for reverse geocoding
+            goong_service = GoongMapService()
+            
+            if goong_service.is_available():
+                result = goong_service.reverse_geocode(lat, lng)
+                
+                if result:
+                    return Response({
+                        'formatted_address': result.get('formatted_address', ''),
+                        'location_name': result.get('formatted_address', 'Vị trí đã chọn'),
+                        'latitude': lat,
+                        'longitude': lng,
+                        'place_id': result.get('place_id'),
+                        'address_components': result.get('address_components', []),
+                        'compound': result.get('compound', {})
+                    })
+            
+            # Fallback response if Goong service is not available
+            return Response({
+                'formatted_address': f'{lat:.6f}, {lng:.6f}',
+                'location_name': 'Vị trí đã chọn',
+                'latitude': lat,
+                'longitude': lng,
+                'place_id': None,
+                'address_components': [],
+                'compound': {}
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': 'Internal server error'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class LocationSearchView(APIView):
+    """
+    API endpoint for searching places
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            query = request.query_params.get('q', '').strip()
+            
+            if not query:
+                return Response(
+                    {'error': 'Search query is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if len(query) < 2:
+                return Response(
+                    {'error': 'Search query must be at least 2 characters'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Use Goong service for place search
+            goong_service = GoongMapService()
+            
+            if goong_service.is_available():
+                results = goong_service.search_places(query)
+                return Response({'results': results})
+            else:
+                return Response({
+                    'results': [],
+                    'message': 'Location search service is not available'
+                })
+                
+        except Exception as e:
+            return Response(
+                {'error': 'Internal server error'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class LocationAutocompleteView(APIView):
+    """
+    API endpoint for place autocomplete suggestions
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            input_text = request.query_params.get('input', '').strip()
+            
+            if not input_text:
+                return Response({'predictions': []})
+            
+            if len(input_text) < 2:
+                return Response({'predictions': []})
+            
+            # Use Goong service for autocomplete
+            goong_service = GoongMapService()
+            
+            if goong_service.is_available():
+                suggestions = goong_service.autocomplete(input_text)
+                
+                # Format suggestions for frontend
+                predictions = []
+                for suggestion in suggestions:
+                    predictions.append({
+                        'place_id': suggestion.get('place_id'),
+                        'description': suggestion.get('description', ''),
+                        'structured_formatting': suggestion.get('structured_formatting', {}),
+                        'types': suggestion.get('types', []),
+                        # Note: Goong autocomplete doesn't return coordinates directly
+                        # You would need to call place details API to get coordinates
+                        'latitude': None,
+                        'longitude': None,
+                    })
+                
+                return Response({'predictions': predictions})
+            else:
+                return Response({
+                    'predictions': [],
+                    'message': 'Autocomplete service is not available'
+                })
+                
+        except Exception as e:
+            return Response(
+                {'error': 'Internal server error'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class LocationPlaceDetailsView(APIView):
+    """
+    API endpoint for getting place details by place_id
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            place_id = request.query_params.get('place_id', '').strip()
+            
+            if not place_id:
+                return Response(
+                    {'error': 'place_id is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Use Goong service for place details
+            goong_service = GoongMapService()
+            
+            if goong_service.is_available():
+                details = goong_service.get_place_details(place_id)
+                
+                if details:
+                    return Response(details)
+                else:
+                    return Response(
+                        {'error': 'Place not found'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                return Response(
+                    {'error': 'Place details service is not available'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+                
+        except Exception as e:
+            return Response(
+                {'error': 'Internal server error'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

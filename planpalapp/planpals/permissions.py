@@ -1,6 +1,7 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.db import models
 from .models import Friendship, Group, Plan, Conversation
 from .services import GroupService, PlanService
 User = get_user_model()
@@ -312,15 +313,11 @@ class CanViewUserProfile(BasePermission):
         target_user = obj
         current_user = request.user
         
-        # Can always view own profile
-        if current_user == target_user:
-            return True
+        # Import here to avoid circular import
+        from .services import UserService
         
-        # Check if profile is public or if they are friends
-        if getattr(target_user, 'is_profile_public', True):
-            return True
-        
-        return Friendship.are_friends(current_user, target_user)
+        # Use the updated logic from UserService
+        return UserService.can_view_profile(current_user, target_user)
 
 
 class CanManageFriendship(BasePermission):

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/dtos/plan_requests.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/presentation/pages/location/location_picker_page.dart';
 
 class ActivityFormPage extends StatefulWidget {
   final String planId;
@@ -27,10 +29,14 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
   // Form controllers
   late final TextEditingController _titleCtrl;
   late final TextEditingController _descriptionCtrl;
-  late final TextEditingController _locationNameCtrl;
-  late final TextEditingController _locationAddressCtrl;
   late final TextEditingController _estimatedCostCtrl;
   late final TextEditingController _notesCtrl;
+
+  // Location data
+  double? _latitude;
+  double? _longitude;
+  String? _locationName;
+  String? _locationAddress;
 
   // Form data
   DateTime? _startTime;
@@ -54,8 +60,6 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
     _repo = PlanRepository(context.read<AuthProvider>());
     _titleCtrl = TextEditingController();
     _descriptionCtrl = TextEditingController();
-    _locationNameCtrl = TextEditingController();
-    _locationAddressCtrl = TextEditingController();
     _estimatedCostCtrl = TextEditingController();
     _notesCtrl = TextEditingController();
   }
@@ -64,8 +68,6 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
   void dispose() {
     _titleCtrl.dispose();
     _descriptionCtrl.dispose();
-    _locationNameCtrl.dispose();
-    _locationAddressCtrl.dispose();
     _estimatedCostCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
@@ -275,30 +277,153 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
 
               const SizedBox(height: 16),
 
-              // Location section
+              // Location section with minimap
               const Text(
                 'Địa điểm',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
 
-              TextFormField(
-                controller: _locationNameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Tên địa điểm',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.place),
+              // Minimap for location selection
+              Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
                 ),
-              ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    children: [
+                      // Google Map or placeholder
+                      _latitude != null && _longitude != null
+                          ? GoogleMap(
+                              initialCameraPosition: CameraPosition(
+                                target: LatLng(_latitude!, _longitude!),
+                                zoom: 16,
+                              ),
+                              markers: {
+                                Marker(
+                                  markerId: const MarkerId('selected_location'),
+                                  position: LatLng(_latitude!, _longitude!),
+                                  infoWindow: InfoWindow(
+                                    title: _locationName ?? 'Vị trí đã chọn',
+                                    snippet: _locationAddress,
+                                  ),
+                                ),
+                              },
+                              onTap: (_) => _showLocationPicker(),
+                              zoomControlsEnabled: false,
+                              mapToolbarEnabled: false,
+                              myLocationButtonEnabled: false,
+                              scrollGesturesEnabled: false,
+                              zoomGesturesEnabled: false,
+                              tiltGesturesEnabled: false,
+                              rotateGesturesEnabled: false,
+                            )
+                          : Container(
+                              width: double.infinity,
+                              height: double.infinity,
+                              color: Colors.grey.shade100,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.add_location_alt,
+                                    size: 48,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Chạm để chọn vị trí',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Sử dụng bản đồ để chọn vị trí chính xác',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
 
-              const SizedBox(height: 16),
+                      // Location info overlay (only when location is selected)
+                      if (_latitude != null && _longitude != null)
+                        Positioned(
+                          bottom: 8,
+                          left: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _locationName ?? 'Vị trí đã chọn',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (_locationAddress != null)
+                                  Text(
+                                    _locationAddress!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Chạm để thay đổi vị trí',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.blue.shade600,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
 
-              TextFormField(
-                controller: _locationAddressCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Địa chỉ',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.location_on),
+                      // Tap overlay for when no location is selected
+                      if (_latitude == null || _longitude == null)
+                        Positioned.fill(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _showLocationPicker,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -435,6 +560,88 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
     }
   }
 
+  void _showLocationPicker() async {
+    // Show dialog to choose between map view or manual input
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Location Method'),
+        content: const Text('Choose how you want to select the location:'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'map'),
+            child: const Text('Interactive Map'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'manual'),
+            child: const Text('Manual Input'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == null) return;
+
+    Map<String, dynamic>? result;
+
+    if (choice == 'map') {
+      // Try Google Maps first
+      try {
+        result = await Navigator.of(context).push<Map<String, dynamic>>(
+          MaterialPageRoute(
+            builder: (context) => LocationPickerPage(
+              initialLatitude: _latitude,
+              initialLongitude: _longitude,
+              initialLocationName: _locationName,
+            ),
+          ),
+        );
+      } catch (e) {
+        // If Google Maps fails, show error and fallback to manual
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Map error: $e. Using manual input.')),
+          );
+          result = await Navigator.of(context).push<Map<String, dynamic>>(
+            MaterialPageRoute(
+              builder: (context) => LocationPickerPage(
+                initialLatitude: _latitude,
+                initialLongitude: _longitude,
+                initialLocationName: _locationName,
+              ),
+            ),
+          );
+        }
+      }
+    } else {
+      // Manual input - now use the same LocationPickerPage
+      result = await Navigator.of(context).push<Map<String, dynamic>>(
+        MaterialPageRoute(
+          builder: (context) => LocationPickerPage(
+            initialLatitude: _latitude,
+            initialLongitude: _longitude,
+            initialLocationName: _locationName,
+          ),
+        ),
+      );
+    }
+
+    if (result != null) {
+      _handleLocationResult(result);
+    }
+  }
+
+  void _handleLocationResult(Map<String, dynamic> data) {
+    setState(() {
+      _latitude = (data['latitude'] as num?)?.toDouble();
+      _longitude = (data['longitude'] as num?)?.toDouble();
+      _locationName =
+          data['location_name']?.toString() ?? data['address']?.toString();
+      _locationAddress =
+          data['location_address']?.toString() ?? data['address']?.toString();
+    });
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -470,12 +677,10 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
         activityType: _activityType,
         startTime: _startTime!.toIso8601String(),
         endTime: _endTime!.toIso8601String(),
-        locationName: _locationNameCtrl.text.trim().isNotEmpty
-            ? _locationNameCtrl.text.trim()
-            : null,
-        locationAddress: _locationAddressCtrl.text.trim().isNotEmpty
-            ? _locationAddressCtrl.text.trim()
-            : null,
+        locationName: _locationName,
+        locationAddress: _locationAddress,
+        latitude: _latitude,
+        longitude: _longitude,
         estimatedCost: _estimatedCostCtrl.text.trim().isNotEmpty
             ? double.tryParse(_estimatedCostCtrl.text.trim())
             : null,

@@ -127,7 +127,10 @@ class _PlanFormPageState extends State<PlanFormPage> {
     setState(() => _submitting = true);
     try {
       PlanModel result;
-      if (widget.initial == null) {
+      // Check if we have an ID to determine edit vs create mode
+      final planId = widget.initial?['id']?.toString();
+      if (planId == null || planId.isEmpty) {
+        // Create mode
         final request = CreatePlanRequest(
           title: _titleCtrl.text.trim(),
           description: _descriptionCtrl.text.trim(),
@@ -135,6 +138,7 @@ class _PlanFormPageState extends State<PlanFormPage> {
           endDate: _endDate?.toIso8601String() ?? '',
           isPublic: _isPublic,
           planType: _planType,
+          groupId: _selectedGroupId,
         );
         result = await _repo.createPlan(request);
         if (!mounted) return;
@@ -151,7 +155,7 @@ class _PlanFormPageState extends State<PlanFormPage> {
           },
         });
       } else {
-        final id = widget.initial!['id'];
+        // Edit mode
         final request = UpdatePlanRequest(
           title: _titleCtrl.text.trim(),
           description: _descriptionCtrl.text.trim(),
@@ -160,7 +164,7 @@ class _PlanFormPageState extends State<PlanFormPage> {
           isPublic: _isPublic,
           planType: _planType,
         );
-        result = await _repo.updatePlan(id, request);
+        result = await _repo.updatePlan(planId, request);
         if (!mounted) return;
         Navigator.of(context).pop({
           'action': 'updated',
@@ -189,7 +193,9 @@ class _PlanFormPageState extends State<PlanFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isEdit = widget.initial != null;
+    // Check if we have an ID to determine edit vs create mode
+    final planId = widget.initial?['id']?.toString();
+    final isEdit = planId != null && planId.isNotEmpty;
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Sửa kế hoạch' : 'Tạo kế hoạch'),
