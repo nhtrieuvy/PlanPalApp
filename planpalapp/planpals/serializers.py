@@ -5,6 +5,8 @@ from .models import (
     Friendship, PlanActivity, MessageReadStatus
 )
 
+
+
 User = get_user_model()
 
 
@@ -279,9 +281,11 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         
         group = super().create(validated_data)
         
+        from .services import GroupService
+        
         for user_id in initial_members:
             user = User.objects.get(id=user_id)
-            group.add_member(user, role='member')
+            GroupService.add_member(group, user, role='member')
         
         return group
 
@@ -379,24 +383,74 @@ class PlanActivitySerializer(serializers.ModelSerializer):
         start_time = attrs.get('start_time')
         end_time = attrs.get('end_time')
         
-        # Basic time validation
-        if start_time and end_time and end_time <= start_time:
-            raise serializers.ValidationError(
-                "End time must be after start time"
-            )
+        # Validate required fields
+        if not start_time:
+            raise serializers.ValidationError({'start_time': 'Start time is required'})
+        if not end_time:
+            raise serializers.ValidationError({'end_time': 'End time is required'})
         
-        # Delegate complex validation to model
-        plan = attrs.get('plan') or (self.instance and self.instance.plan)
-        if plan and start_time and end_time:
-            # Use model method for overlap checking
-            if hasattr(plan, 'check_activity_overlap'):
-                exclude_id = self.instance.id if self.instance else None
-                if plan.check_activity_overlap(start_time, end_time, exclude_id):
-                    raise serializers.ValidationError(
-                        "Activity overlaps with another activity"
-                    )
+        # Basic time validation - end time must be after start time
+        if end_time <= start_time:
+            raise serializers.ValidationError({
+                'end_time': 'End time must be after start time'
+            })
+        
+        # Duration validation (max 24 hours)
+        duration = end_time - start_time
+        if duration.total_seconds() > 24 * 3600:
+            raise serializers.ValidationError({
+                'end_time': 'Activity duration cannot exceed 24 hours'
+            })
+        
+        # Simple coordinate validation if provided
+        latitude = attrs.get('latitude')
+        longitude = attrs.get('longitude')
+        if latitude is not None and not (-90 <= latitude <= 90):
+            raise serializers.ValidationError({
+                'latitude': 'Latitude must be between -90 and 90'
+            })
+        if longitude is not None and not (-180 <= longitude <= 180):
+            raise serializers.ValidationError({
+                'longitude': 'Longitude must be between -180 and 180'
+            })
+        
+        # Validate estimated cost
+        estimated_cost = attrs.get('estimated_cost')
+        if estimated_cost is not None and estimated_cost < 0:
+            raise serializers.ValidationError({
+                'estimated_cost': 'Estimated cost must be non-negative'
+            })
         
         return attrs
+
+
+class PlanActivityCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating PlanActivity - simple approach like PlanCreateSerializer
+    """
+    plan_id = serializers.UUIDField(write_only=True, required=True)
+    
+    class Meta:
+        model = PlanActivity
+        fields = [
+            'plan_id', 'title', 'description', 'activity_type',
+            'start_time', 'end_time', 'location_name', 'location_address',
+            'latitude', 'longitude', 'goong_place_id', 'estimated_cost', 'notes'
+        ]
+    
+    def validate(self, attrs):
+        plan_id = attrs.get('plan_id')
+        if plan_id:
+            try:
+                plan = Plan.objects.get(id=plan_id)
+                attrs['plan'] = plan
+            except Plan.DoesNotExist:
+                raise serializers.ValidationError({'plan_id': 'Plan does not exist'})
+        return attrs
+    
+    def create(self, validated_data):
+        validated_data.pop('plan_id', None)
+        return super().create(validated_data)
 
 
 class PlanSerializer(serializers.ModelSerializer):

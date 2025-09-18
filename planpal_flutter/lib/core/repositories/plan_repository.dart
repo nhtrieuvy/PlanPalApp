@@ -5,6 +5,7 @@ import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/dtos/plan_requests.dart';
 import '../dtos/plan_summary.dart';
 import '../dtos/plan_model.dart';
+import '../dtos/plan_activity_requests.dart';
 
 class PlanRepository {
   final AuthProvider _auth;
@@ -285,7 +286,7 @@ class PlanRepository {
 
   // Activity CRUD operations
   Future<Map<String, dynamic>> createActivity(
-    CreateActivityRequest request,
+    CreatePlanActivityRequest request,
   ) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(
@@ -304,7 +305,7 @@ class PlanRepository {
 
   Future<Map<String, dynamic>> updateActivity(
     String activityId,
-    UpdateActivityRequest request,
+    UpdatePlanActivityRequest request,
   ) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(

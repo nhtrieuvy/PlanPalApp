@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/plan_summary.dart';
+import '../../../core/dtos/group_requests.dart';
 import 'plan_form_page.dart';
 import 'plan_details_page.dart';
 
@@ -100,8 +101,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
               const Center(child: CircularProgressIndicator()),
         );
 
-        // Update group with new cover image
-        await repo.updateGroup(widget.id, {}, coverImage: coverFile);
+        // Update group with new cover image using DTO (no changes to name/description)
+        final req = UpdateGroupRequest();
+        await repo.updateGroup(widget.id, req, coverImage: coverFile);
 
         // Close loading dialog
         if (!mounted) return;
@@ -937,7 +939,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           final navigator = Navigator.of(context);
 
           try {
-            await repo.addMember(widget.id, friendId);
+            final req = AddMemberRequest(userId: friendId);
+            await repo.addMember(widget.id, req);
             if (!mounted) return;
             navigator.pop();
             _loadGroupData(); // Reload group data

@@ -5,6 +5,7 @@ import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import '../dtos/group_summary.dart';
 import '../dtos/group_model.dart';
+import '../dtos/group_requests.dart';
 
 class GroupRepository {
   final AuthProvider auth;
@@ -71,14 +72,14 @@ class GroupRepository {
   }
 
   Future<GroupModel> createGroup(
-    Map<String, dynamic> payload, {
+    CreateGroupRequest request, {
     File? avatar,
     File? coverImage,
   }) async {
     try {
       final Response res = await auth.requestWithAutoRefresh((c) {
         if (avatar != null || coverImage != null) {
-          final formMap = <String, dynamic>{...payload};
+          final formMap = <String, dynamic>{...request.toJson()};
           if (avatar != null) {
             formMap['avatar'] = MultipartFile.fromFileSync(
               avatar.path,
@@ -94,7 +95,7 @@ class GroupRepository {
           final form = FormData.fromMap(formMap);
           return c.dio.post(Endpoints.groups, data: form);
         }
-        return c.dio.post(Endpoints.groups, data: payload);
+        return c.dio.post(Endpoints.groups, data: request.toJson());
       });
       if ((res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300) {
         final detail = GroupModel.fromJson(
@@ -113,14 +114,14 @@ class GroupRepository {
 
   Future<GroupModel> updateGroup(
     String id,
-    Map<String, dynamic> payload, {
+    UpdateGroupRequest request, {
     File? avatar,
     File? coverImage,
   }) async {
     try {
       final Response res = await auth.requestWithAutoRefresh((c) {
         if (avatar != null || coverImage != null) {
-          final formMap = <String, dynamic>{...payload};
+          final formMap = <String, dynamic>{...request.toJson()};
           if (avatar != null) {
             formMap['avatar'] = MultipartFile.fromFileSync(
               avatar.path,
@@ -136,7 +137,7 @@ class GroupRepository {
           final form = FormData.fromMap(formMap);
           return c.dio.patch(Endpoints.groupDetails(id), data: form);
         }
-        return c.dio.patch(Endpoints.groupDetails(id), data: payload);
+        return c.dio.patch(Endpoints.groupDetails(id), data: request.toJson());
       });
       if (res.statusCode == 200) {
         final detail = GroupModel.fromJson(
@@ -169,12 +170,12 @@ class GroupRepository {
     }
   }
 
-  Future<void> addMember(String groupId, String userId) async {
+  Future<void> addMember(String groupId, AddMemberRequest request) async {
     try {
       final Response res = await auth.requestWithAutoRefresh(
         (c) => c.dio.post(
           Endpoints.groupAddMember(groupId),
-          data: {'user_id': userId},
+          data: request.toJson(),
         ),
       );
       if (res.statusCode == 200 || res.statusCode == 201) {
@@ -186,6 +187,26 @@ class GroupRepository {
     } on DioException catch (e) {
       final r = e.response;
       if (r != null) _throwApiError(r);
+      rethrow;
+    }
+  }
+
+  Future<GroupModel> joinGroup(JoinGroupRequest request) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(Endpoints.groupJoin, data: request.toJson()),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        final detail = GroupModel.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+        _detailCache[detail.id] = detail;
+        return detail;
+      }
+      return _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) return _throwApiError(r);
       rethrow;
     }
   }

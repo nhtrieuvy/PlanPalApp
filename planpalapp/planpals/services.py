@@ -551,7 +551,7 @@ class GroupService(BaseService):
             if initial_members:
                 for user in initial_members:
                     if user != creator:
-                        cls.add_member_to_group(group, user, role=GroupMembership.MEMBER)
+                        cls.add_member(group, user, role=GroupMembership.MEMBER)
         
         cls.log_operation("group_created", {
             'group_id': group.id,
@@ -562,7 +562,7 @@ class GroupService(BaseService):
         return group
     
     @classmethod
-    def add_member_to_group(cls, group: Group, user: User, 
+    def add_member(cls, group: Group, user: User, 
                            role: str = None, added_by: User = None) -> Tuple[bool, str]:        
         if role is None:
             role = GroupMembership.MEMBER
@@ -601,7 +601,7 @@ class GroupService(BaseService):
         except User.DoesNotExist:
             return False, "User not found"
         
-        return cls.add_member_to_group(group, target_user, added_by=added_by)
+        return cls.add_member(group, target_user, added_by=added_by)
     
     @classmethod
     def remove_member_from_group(cls, group: Group, user: User, 
@@ -631,7 +631,7 @@ class GroupService(BaseService):
         if group.is_member(user):
             return False, "Already a member"
         
-        return cls.add_member_to_group(group, user, GroupMembership.MEMBER)
+        return cls.add_member(group, user, GroupMembership.MEMBER)
     
     @classmethod
     def can_manage_members(cls, group: Group, user: User) -> bool:

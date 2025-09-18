@@ -50,7 +50,6 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
 
       final scheduleData = await _planRepo.getPlanSchedule(widget.planId);
 
-      // Parse schedule by date correctly
       final rawScheduleByDate =
           scheduleData['schedule_by_date'] as Map<String, dynamic>? ?? {};
       final Map<String, List<PlanActivity>> parsedSchedule = {};

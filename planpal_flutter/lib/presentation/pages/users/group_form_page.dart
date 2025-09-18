@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/dtos/group_model.dart';
 import '../../../core/dtos/user_summary.dart';
+import '../../../core/dtos/group_requests.dart';
 
 class GroupFormPage extends StatefulWidget {
   final Map<String, dynamic>? initial;
@@ -92,20 +93,15 @@ class _GroupFormPageState extends State<GroupFormPage> {
 
     setState(() => _submitting = true);
     try {
-      final payload = <String, dynamic>{
-        'name': _nameCtrl.text.trim(),
-        'description': _descCtrl.text.trim(),
-      };
-
-      // Add member IDs for new group
-      if (widget.initial == null) {
-        payload['member_ids'] = _selectedMembers.map((m) => m.id).toList();
-      }
-
       GroupModel result;
       if (widget.initial == null) {
-        // When creating a new group, only send avatar (no cover image)
-        result = await _repo.createGroup(payload, avatar: _avatarFile);
+        // Create new group using DTO
+        final request = CreateGroupRequest(
+          name: _nameCtrl.text.trim(),
+          description: _descCtrl.text.trim(),
+          initialMembers: _selectedMembers.map((m) => m.id).toList(),
+        );
+        result = await _repo.createGroup(request, avatar: _avatarFile);
         if (!mounted) return;
 
         // Evict any cached images for the returned URLs to avoid stale images
@@ -132,10 +128,15 @@ class _GroupFormPageState extends State<GroupFormPage> {
           },
         });
       } else {
+        // Update existing group using DTO
         final id = widget.initial!['id']; // id là String
+        final updateRequest = UpdateGroupRequest(
+          name: _nameCtrl.text.trim(),
+          description: _descCtrl.text.trim(),
+        );
         result = await _repo.updateGroup(
           id,
-          payload,
+          updateRequest,
           avatar: _avatarFile,
           coverImage: _coverFile,
         );

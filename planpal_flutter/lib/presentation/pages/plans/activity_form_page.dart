@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
-import 'package:planpal_flutter/core/dtos/plan_requests.dart';
+import 'package:planpal_flutter/core/dtos/plan_activity_requests.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/presentation/pages/location/location_picker_page.dart';
 
@@ -41,16 +41,20 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
   // Form data
   DateTime? _startTime;
   DateTime? _endTime;
-  String _activityType = 'sightseeing';
+  String _activityType = 'eating';
   bool _isSubmitting = false;
 
   final List<Map<String, String>> _activityTypes = [
+    {'value': 'eating', 'label': 'Ăn uống'},
+    {'value': 'resting', 'label': 'Nghỉ ngơi'},
+    {'value': 'moving', 'label': 'Di chuyển'},
     {'value': 'sightseeing', 'label': 'Tham quan'},
-    {'value': 'dining', 'label': 'Ăn uống'},
-    {'value': 'accommodation', 'label': 'Nghỉ ngơi'},
-    {'value': 'transportation', 'label': 'Di chuyển'},
-    {'value': 'entertainment', 'label': 'Giải trí'},
     {'value': 'shopping', 'label': 'Mua sắm'},
+    {'value': 'entertainment', 'label': 'Giải trí'},
+    {'value': 'event', 'label': 'Sự kiện'},
+    {'value': 'sport', 'label': 'Thể thao'},
+    {'value': 'study', 'label': 'Học tập'},
+    {'value': 'work', 'label': 'Công việc'},
     {'value': 'other', 'label': 'Khác'},
   ];
 
@@ -76,11 +80,7 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tạo hoạt động mới'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
+      appBar: _buildAppBar(),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -88,416 +88,361 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Plan info
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.event_note,
-                        color: AppColors.primary,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Kế hoạch:',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            Text(
-                              widget.planTitle,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
+              _buildPlanInfoCard(),
               const SizedBox(height: 24),
-
-              // Title field
-              TextFormField(
-                controller: _titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Tên hoạt động *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.title),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Vui lòng nhập tên hoạt động';
-                  }
-                  return null;
-                },
-              ),
-
+              _buildTitleField(),
               const SizedBox(height: 16),
-
-              // Activity type
-              DropdownButtonFormField<String>(
-                value: _activityType,
-                decoration: const InputDecoration(
-                  labelText: 'Loại hoạt động',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.category),
-                ),
-                items: _activityTypes.map((type) {
-                  return DropdownMenuItem(
-                    value: type['value'],
-                    child: Text(type['label']!),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _activityType = value!;
-                  });
-                },
-              ),
-
+              _buildActivityTypeDropdown(),
               const SizedBox(height: 16),
-
-              // Description field
-              TextFormField(
-                controller: _descriptionCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.description),
-                ),
-                maxLines: 3,
-              ),
-
+              _buildDescriptionField(),
               const SizedBox(height: 16),
+              _buildTimeSection(),
+              const SizedBox(height: 16),
+              _buildLocationSection(),
+              const SizedBox(height: 16),
+              _buildEstimatedCostField(),
+              const SizedBox(height: 16),
+              _buildNotesField(),
+              const SizedBox(height: 32),
+              _buildSubmitButton(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-              // Time section
-              const Text(
-                'Thời gian',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: const Text('Tạo hoạt động mới'),
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+    );
+  }
 
-              Row(
+  Widget _buildPlanInfoCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.event_note, color: AppColors.primary, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: _pickStartTime,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Bắt đầu *',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _startTime != null
-                                  ? DateFormat(
-                                      'dd/MM/yyyy HH:mm',
-                                    ).format(_startTime!)
-                                  : 'Chọn thời gian',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: _startTime != null
-                                    ? Colors.black
-                                    : Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  const Text(
+                    'Kế hoạch:',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: InkWell(
-                      onTap: _pickEndTime,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey[300]!),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Kết thúc *',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _endTime != null
-                                  ? DateFormat(
-                                      'dd/MM/yyyy HH:mm',
-                                    ).format(_endTime!)
-                                  : 'Chọn thời gian',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: _endTime != null
-                                    ? Colors.black
-                                    : Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  Text(
+                    widget.planTitle,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              const SizedBox(height: 16),
+  Widget _buildTitleField() {
+    return TextFormField(
+      controller: _titleCtrl,
+      decoration: const InputDecoration(
+        labelText: 'Tên hoạt động *',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.title),
+      ),
+      validator: (value) =>
+          value?.trim().isEmpty == true ? 'Vui lòng nhập tên hoạt động' : null,
+    );
+  }
 
-              // Location section with minimap
-              const Text(
-                'Địa điểm',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+  Widget _buildActivityTypeDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _activityType,
+      decoration: const InputDecoration(
+        labelText: 'Loại hoạt động',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.category),
+      ),
+      items: _activityTypes.map((type) {
+        return DropdownMenuItem(
+          value: type['value'],
+          child: Text(type['label']!),
+        );
+      }).toList(),
+      onChanged: (value) => setState(() => _activityType = value!),
+    );
+  }
+
+  Widget _buildDescriptionField() {
+    return TextFormField(
+      controller: _descriptionCtrl,
+      decoration: const InputDecoration(
+        labelText: 'Mô tả',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.description),
+      ),
+      maxLines: 3,
+    );
+  }
+
+  Widget _buildTimeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Thời gian',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildTimeField('Bắt đầu *', _startTime, _pickStartTime),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildTimeField('Kết thúc *', _endTime, _pickEndTime),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeField(String label, DateTime? time, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              time != null
+                  ? DateFormat('dd/MM/yyyy HH:mm').format(time)
+                  : 'Chọn thời gian',
+              style: TextStyle(
+                fontSize: 16,
+                color: time != null ? Colors.black : Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Địa điểm',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        _buildLocationMap(),
+      ],
+    );
+  }
+
+  Widget _buildLocationMap() {
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: _latitude != null && _longitude != null
+            ? _buildMapWithLocation()
+            : _buildLocationPlaceholder(),
+      ),
+    );
+  }
+
+  Widget _buildMapWithLocation() {
+    return Stack(
+      children: [
+        GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: LatLng(_latitude!, _longitude!),
+            zoom: 16,
+          ),
+          markers: {
+            Marker(
+              markerId: const MarkerId('selected_location'),
+              position: LatLng(_latitude!, _longitude!),
+              infoWindow: InfoWindow(
+                title: _locationName ?? 'Vị trí đã chọn',
+                snippet: _locationAddress,
+              ),
+            ),
+          },
+          onTap: (_) => _showLocationPicker(),
+          zoomControlsEnabled: false,
+          mapToolbarEnabled: false,
+          myLocationButtonEnabled: false,
+          scrollGesturesEnabled: false,
+          zoomGesturesEnabled: false,
+          tiltGesturesEnabled: false,
+          rotateGesturesEnabled: false,
+        ),
+        _buildLocationInfoOverlay(),
+      ],
+    );
+  }
+
+  Widget _buildLocationPlaceholder() {
+    return Material(
+      color: Colors.grey.shade100,
+      child: InkWell(
+        onTap: _showLocationPicker,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.add_location_alt,
+                size: 48,
+                color: Colors.grey.shade400,
               ),
               const SizedBox(height: 8),
-
-              // Minimap for location selection
-              Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-                    children: [
-                      // Google Map or placeholder
-                      _latitude != null && _longitude != null
-                          ? GoogleMap(
-                              initialCameraPosition: CameraPosition(
-                                target: LatLng(_latitude!, _longitude!),
-                                zoom: 16,
-                              ),
-                              markers: {
-                                Marker(
-                                  markerId: const MarkerId('selected_location'),
-                                  position: LatLng(_latitude!, _longitude!),
-                                  infoWindow: InfoWindow(
-                                    title: _locationName ?? 'Vị trí đã chọn',
-                                    snippet: _locationAddress,
-                                  ),
-                                ),
-                              },
-                              onTap: (_) => _showLocationPicker(),
-                              zoomControlsEnabled: false,
-                              mapToolbarEnabled: false,
-                              myLocationButtonEnabled: false,
-                              scrollGesturesEnabled: false,
-                              zoomGesturesEnabled: false,
-                              tiltGesturesEnabled: false,
-                              rotateGesturesEnabled: false,
-                            )
-                          : Container(
-                              width: double.infinity,
-                              height: double.infinity,
-                              color: Colors.grey.shade100,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.add_location_alt,
-                                    size: 48,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Chạm để chọn vị trí',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Sử dụng bản đồ để chọn vị trí chính xác',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade500,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                      // Location info overlay (only when location is selected)
-                      if (_latitude != null && _longitude != null)
-                        Positioned(
-                          bottom: 8,
-                          left: 8,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _locationName ?? 'Vị trí đã chọn',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (_locationAddress != null)
-                                  Text(
-                                    _locationAddress!,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Chạm để thay đổi vị trí',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.blue.shade600,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                      // Tap overlay for when no location is selected
-                      if (_latitude == null || _longitude == null)
-                        Positioned.fill(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: _showLocationPicker,
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Estimated cost
-              TextFormField(
-                controller: _estimatedCostCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Chi phí dự kiến (VND)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.attach_money),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-
-              const SizedBox(height: 16),
-
-              // Notes
-              TextFormField(
-                controller: _notesCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Ghi chú',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.note),
-                ),
-                maxLines: 2,
-              ),
-
-              const SizedBox(height: 32),
-
-              // Submit button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _isSubmitting
-                      ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Text('Đang tạo...'),
-                          ],
-                        )
-                      : const Text(
-                          'Tạo hoạt động',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+              Text(
+                'Chạm để chọn vị trí',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLocationInfoOverlay() {
+    return Positioned(
+      bottom: 8,
+      left: 8,
+      right: 8,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _locationName ?? 'Vị trí đã chọn',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (_locationAddress != null)
+              Text(
+                _locationAddress!,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEstimatedCostField() {
+    return TextFormField(
+      controller: _estimatedCostCtrl,
+      decoration: const InputDecoration(
+        labelText: 'Chi phí dự kiến (VND)',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.attach_money),
+      ),
+      keyboardType: TextInputType.number,
+    );
+  }
+
+  Widget _buildNotesField() {
+    return TextFormField(
+      controller: _notesCtrl,
+      decoration: const InputDecoration(
+        labelText: 'Ghi chú',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.note),
+      ),
+      maxLines: 2,
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isSubmitting ? null : _submitForm,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: _isSubmitting
+            ? const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text('Đang tạo...'),
+                ],
+              )
+            : const Text(
+                'Tạo hoạt động',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
       ),
     );
   }
@@ -561,70 +506,15 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
   }
 
   void _showLocationPicker() async {
-    // Show dialog to choose between map view or manual input
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Location Method'),
-        content: const Text('Choose how you want to select the location:'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, 'map'),
-            child: const Text('Interactive Map'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, 'manual'),
-            child: const Text('Manual Input'),
-          ),
-        ],
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (context) => LocationPickerPage(
+          initialLatitude: _latitude,
+          initialLongitude: _longitude,
+          initialLocationName: _locationName,
+        ),
       ),
     );
-
-    if (choice == null) return;
-
-    Map<String, dynamic>? result;
-
-    if (choice == 'map') {
-      // Try Google Maps first
-      try {
-        result = await Navigator.of(context).push<Map<String, dynamic>>(
-          MaterialPageRoute(
-            builder: (context) => LocationPickerPage(
-              initialLatitude: _latitude,
-              initialLongitude: _longitude,
-              initialLocationName: _locationName,
-            ),
-          ),
-        );
-      } catch (e) {
-        // If Google Maps fails, show error and fallback to manual
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Map error: $e. Using manual input.')),
-          );
-          result = await Navigator.of(context).push<Map<String, dynamic>>(
-            MaterialPageRoute(
-              builder: (context) => LocationPickerPage(
-                initialLatitude: _latitude,
-                initialLongitude: _longitude,
-                initialLocationName: _locationName,
-              ),
-            ),
-          );
-        }
-      }
-    } else {
-      // Manual input - now use the same LocationPickerPage
-      result = await Navigator.of(context).push<Map<String, dynamic>>(
-        MaterialPageRoute(
-          builder: (context) => LocationPickerPage(
-            initialLatitude: _latitude,
-            initialLongitude: _longitude,
-            initialLocationName: _locationName,
-          ),
-        ),
-      );
-    }
 
     if (result != null) {
       _handleLocationResult(result);
@@ -645,42 +535,37 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Check authentication first
+    final authProvider = context.read<AuthProvider>();
+    if (!authProvider.isLoggedIn) {
+      _showError('Bạn cần đăng nhập để tạo hoạt động.');
+      return;
+    }
+
     if (_startTime == null || _endTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng chọn thời gian bắt đầu và kết thúc'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Vui lòng chọn thời gian bắt đầu và kết thúc');
       return;
     }
 
     if (_endTime!.isBefore(_startTime!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Thời gian kết thúc phải sau thời gian bắt đầu'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Thời gian kết thúc phải sau thời gian bắt đầu');
       return;
     }
 
     setState(() => _isSubmitting = true);
 
     try {
-      final request = CreateActivityRequest(
+      final request = CreatePlanActivityRequest(
         planId: widget.planId,
         title: _titleCtrl.text.trim(),
-        description: _descriptionCtrl.text.trim().isNotEmpty
-            ? _descriptionCtrl.text.trim()
-            : '',
+        description: _descriptionCtrl.text.trim(),
         activityType: _activityType,
-        startTime: _startTime!.toIso8601String(),
-        endTime: _endTime!.toIso8601String(),
-        locationName: _locationName,
-        locationAddress: _locationAddress,
+        startTime: _startTime!,
+        endTime: _endTime!,
         latitude: _latitude,
         longitude: _longitude,
+        locationName: _locationName,
+        locationAddress: _locationAddress,
         estimatedCost: _estimatedCostCtrl.text.trim().isNotEmpty
             ? double.tryParse(_estimatedCostCtrl.text.trim())
             : null,
@@ -692,27 +577,41 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
       await _repo.createActivity(request);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tạo hoạt động thành công!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.of(context).pop(true); // Return true to indicate success
+        _showSuccess('Tạo hoạt động thành công!');
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi tạo hoạt động: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        print('Activity creation error: $e'); // Debug logging
+        String errorMessage = 'Không thể tạo hoạt động. Vui lòng thử lại.';
+
+        // Extract detailed error message
+        if (e.toString().contains('401')) {
+          errorMessage = 'Bạn cần đăng nhập để tạo hoạt động.';
+        } else if (e.toString().contains('403')) {
+          errorMessage = 'Bạn không có quyền tạo hoạt động cho kế hoạch này.';
+        } else if (e.toString().contains('400')) {
+          errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+        }
+
+        _showError('$errorMessage\nLỗi chi tiết: ${e.toString()}');
       }
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
   }
 }

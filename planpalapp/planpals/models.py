@@ -1538,14 +1538,20 @@ class PlanActivity(BaseModel):
             raise ValidationError("Estimated cost must be non-negative")
 
     def save(self, *args: Any, **kwargs: Any) -> None:        
-        if self.pk:
-            self.version = F('version') + 1
-        
+        # Run clean validation before any save logic
         self.clean()
         
-        super().save(*args, **kwargs)
+        # For updates only, use F() expression for version increment  
+        is_creating = self._state.adding
+        if not is_creating:  # This is an update
+            self.version = F('version') + 1
+        # For creates, version defaults to 1 from field definition
         
-        if self.pk:
+        # Call Model.save() directly, skip BaseModel.save() to avoid double full_clean()
+        super(BaseModel, self).save(*args, **kwargs)
+        
+        # Refresh version field after update
+        if not is_creating:
             self.refresh_from_db(fields=['version'])
 
     def check_time_conflict(self, exclude_self: bool = True) -> QuerySet['PlanActivity']:

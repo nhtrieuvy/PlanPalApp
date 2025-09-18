@@ -17,6 +17,7 @@ class Endpoints {
   // Core API endpoints
   static const String plans = '/plans/';
   static const String groups = '/groups/';
+  static const String groupJoin = '/groups/join/';
   static const String activities = '/activities/';
 
   // Plan-related endpoints

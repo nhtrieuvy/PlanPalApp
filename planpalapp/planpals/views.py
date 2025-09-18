@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.db import models, transaction
 from django.core.exceptions import ValidationError, PermissionDenied
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from datetime import datetime
 
 from rest_framework import viewsets, status, generics, mixins
@@ -20,7 +21,7 @@ from .serializers import (
     GroupCreateSerializer, GroupSummarySerializer, PlanSummarySerializer, 
     UserSerializer, UserCreateSerializer, UserSummarySerializer, GroupSerializer, 
     PlanSerializer, PlanCreateSerializer, FriendshipSerializer, FriendRequestSerializer,
-    ChatMessageSerializer, PlanActivitySerializer, ConversationSerializer
+    ChatMessageSerializer, PlanActivitySerializer, PlanActivityCreateSerializer, ConversationSerializer
 )
 from .permissions import (
     IsAuthenticatedAndActive, PlanPermission, GroupPermission,
@@ -1053,65 +1054,19 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
     permission_classes = [IsAuthenticated, PlanActivityPermission]
     pagination_class = ActivityCursorPagination  # Use cursor pagination for activities
     
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return PlanActivityCreateSerializer
+        return PlanActivitySerializer
+    
     def get_queryset(self):
         return PlanActivity.objects.filter(
             plan__group__members=self.request.user
         ).select_related('plan', 'plan__group')
     
-    
     def create(self, request, *args, **kwargs):
-        plan_id = request.data.get('plan')
-        
-        if not plan_id:
-            return Response(
-                {'error': 'plan field is required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            plan = Plan.objects.filter(
-                models.Q(id=plan_id) & (
-                    models.Q(group__members=request.user) | 
-                    models.Q(creator=request.user)
-                )
-            ).first()
-            
-            if not plan:
-                raise Plan.DoesNotExist()
-                
-        except Plan.DoesNotExist:
-            return Response(
-                {'error': 'Plan not found or access denied'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
         return super().create(request, *args, **kwargs)
     
-    def update(self, request, *args, **kwargs):
-        activity = self.get_object()
-        
-        # Check if user can modify this activity
-        if not (activity.plan.creator == request.user or 
-            activity.plan.group.is_admin(request.user)):
-            return Response(
-                {'error': 'Permission denied. Only plan creator or group admin can modify activities'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        return super().update(request, *args, **kwargs)
-    
-    def destroy(self, request, *args, **kwargs):
-        activity = self.get_object()
-        
-        # Check if user can delete this activity
-        if not (activity.plan.creator == request.user or 
-            activity.plan.group.is_admin(request.user)):
-            return Response(
-                {'error': 'Permission denied. Only plan creator or group admin can delete activities'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        return super().destroy(request, *args, **kwargs)
     
     #API lấy hoạt động theo kế hoạch - OPTIMIZED
     @action(detail=False, methods=['get'])
