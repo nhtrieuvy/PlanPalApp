@@ -12,6 +12,7 @@ import 'dart:io';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/plan_summary.dart';
 import '../../../core/dtos/group_requests.dart';
+import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'plan_form_page.dart';
 import 'plan_details_page.dart';
 
@@ -23,7 +24,8 @@ class GroupDetailsPage extends StatefulWidget {
   State<GroupDetailsPage> createState() => _GroupDetailsPageState();
 }
 
-class _GroupDetailsPageState extends State<GroupDetailsPage> {
+class _GroupDetailsPageState extends State<GroupDetailsPage>
+    with RefreshablePage<GroupDetailsPage> {
   late final GroupRepository repo;
   late final PlanRepository planRepo;
   GroupModel? groupData;
@@ -38,6 +40,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     repo = GroupRepository(context.read<AuthProvider>());
     planRepo = PlanRepository(context.read<AuthProvider>());
     _loadGroupData();
+  }
+
+  @override
+  Future<void> onRefresh() async {
+    await _loadGroupData();
   }
 
   Future<void> _loadGroupData() async {
@@ -355,22 +362,25 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
           ),
         ),
       ],
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildAdminCard(adminAvatar, adminName, adminInitials),
-            const SizedBox(height: 16),
-            if (desc?.isNotEmpty == true)
-              _buildInfoCard('Mô tả', desc!, Icons.description_outlined),
-            const SizedBox(height: 16),
-            _buildMembersCard(membersCount, members),
-            const SizedBox(height: 16),
-            _buildPlansCard(g),
-            const SizedBox(height: 24),
-            _buildActionButtons(context, g),
-            const SizedBox(height: 100), // Extra space for scrolling
-          ],
+      body: RefreshablePageWrapper(
+        onRefresh: onRefresh,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              _buildAdminCard(adminAvatar, adminName, adminInitials),
+              const SizedBox(height: 16),
+              if (desc?.isNotEmpty == true)
+                _buildInfoCard('Mô tả', desc!, Icons.description_outlined),
+              const SizedBox(height: 16),
+              _buildMembersCard(membersCount, members),
+              const SizedBox(height: 16),
+              _buildPlansCard(g),
+              const SizedBox(height: 24),
+              _buildActionButtons(context, g),
+              const SizedBox(height: 100), // Extra space for scrolling
+            ],
+          ),
         ),
       ),
     );
@@ -662,17 +672,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                IconButton(
-                  onPressed: _loadGroupPlans,
-                  icon: isLoadingPlans
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.refresh, size: 20),
-                  tooltip: 'Làm mới',
                 ),
               ],
             ),

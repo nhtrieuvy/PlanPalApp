@@ -5,6 +5,7 @@ import '../../../core/repositories/plan_repository.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'plan_schedule_page.dart';
 
 class PlansListPage extends StatefulWidget {
@@ -24,7 +25,7 @@ class PlansListPage extends StatefulWidget {
 }
 
 class _PlansListPageState extends State<PlansListPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RefreshablePage<PlansListPage> {
   late final PlanRepository _planRepo;
 
   List<PlanSummary> plans = [];
@@ -51,6 +52,11 @@ class _PlansListPageState extends State<PlansListPage>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  Future<void> onRefresh() async {
+    await _loadPlans();
   }
 
   Future<void> _loadPlans() async {
@@ -106,13 +112,6 @@ class _PlansListPageState extends State<PlansListPage>
                   Tab(icon: Icon(Icons.group), text: 'Nhóm'),
                 ],
               ),
-        actions: [
-          IconButton(
-            onPressed: _loadPlans,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Làm mới',
-          ),
-        ],
       ),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton(
@@ -136,8 +135,8 @@ class _PlansListPageState extends State<PlansListPage>
       return _buildEmptyState();
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadPlans,
+    return RefreshablePageWrapper(
+      onRefresh: onRefresh,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: plans.length,

@@ -1,21 +1,25 @@
 from django.db import transaction, models
+from django.db.models import QuerySet
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from typing import Dict, List, Optional, Tuple, Any
 import logging
 from oauth2_provider.models import AccessToken, RefreshToken
-
+from django.db.models import Q
 from uuid import UUID
 
 from .models import (
     User, Group, Plan, PlanActivity, ChatMessage, Friendship, GroupMembership, FriendshipRejection, Conversation, MessageReadStatus
 )
-from .events import RealtimeEvent, EventType
+from .events import RealtimeEvent, EventType, ChannelGroups
 from .realtime_publisher import RealtimeEventPublisher
 from .tasks import start_plan_task, complete_plan_task
 from celery import current_app
 from .paginators import ManualCursorPaginator
-from .serializers import UserSerializer
+from .serializers import UserSerializer,ChatMessageSerializer
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +29,15 @@ class BaseService:
         logger.info(f"Service operation: {operation}", extra=details or {})
     
     @staticmethod
+    def log_error(message: str, error: Exception, details: Dict[str, Any] = None):
+        logger.error(f"{message}: {str(error)}", extra=details or {}, exc_info=True)
+    
+    @staticmethod
     def validate_user_permission(user, resource, permission_type: str) -> bool:
         if not user or not user.is_authenticated:
             return False
         return True
 
-
-# ============================================================================
-# USER SERVICE
-# ============================================================================
 
 class UserService(BaseService):
     @classmethod
@@ -1479,74 +1483,455 @@ class PlanService(BaseService):
         return False, "This plan is not joinable"
 
 
-class ChatService(BaseService):
-    @classmethod
-    def send_message_to_group(cls, sender: User, group_id: str, content: str, 
-                             message_type: str = 'user') -> Tuple[bool, str, Optional['ChatMessage']]:
-        try:
-            group = Group.objects.get(id=group_id, members=sender)
-        except Group.DoesNotExist:
-            return False, "Cannot send message to this group", None
-        
-        try:
-            message = cls.send_message(sender, group, content, message_type)
-            return True, "Message sent successfully", message
-        except ValidationError as e:
-            return False, str(e), None
+class ConversationService(BaseService):
     
     @classmethod
-    def send_message(cls, sender: User, group: 'Group', content: str, 
-                    message_type: str = 'user') -> 'ChatMessage':
+    def get_user_conversations(cls, user: User) -> QuerySet['Conversation']:
+        """Get all conversations for a user ordered by last message time"""
+        return Conversation.objects.for_user(user).with_last_message().order_by('-last_message_at')
+    
+    @classmethod
+    def get_or_create_direct_conversation(cls, user1: User, user2: User) -> Tuple['Conversation', bool]:
+        """Get existing or create new direct conversation between two users"""
+        if user1 == user2:
+            raise ValueError("Cannot create conversation with yourself")
         
-        if not group.is_member(sender):
-            raise ValidationError("You must be a member of the group to send messages")
+        # Check if users are friends
+        friendship = Friendship.objects.filter(
+            Q(user_a=user1, user_b=user2) | Q(user_a=user2, user_b=user1),
+            status=Friendship.ACCEPTED
+        ).first()
         
+        if not friendship:
+            raise ValidationError("Users must be friends to start a conversation")
+        
+        # Check for existing conversation
+        existing_conv = Conversation.objects.get_direct_conversation(user1, user2)
+        if existing_conv:
+            return existing_conv, False
+        
+        # Create new conversation with consistent user ordering
+        conversation = cls.create_direct_conversation(user1, user2)
+        
+        cls.log_operation("conversation_created", {
+            'conversation_id': str(conversation.id),
+            'type': 'direct',
+            'participants': [str(user1.id), str(user2.id)]
+        })
+        
+        return conversation, True
+    
+    @classmethod 
+    def create_direct_conversation(cls, user1: User, user2: User) -> 'Conversation':
+        """Create a new direct conversation with proper user ordering"""
+        if user1.id == user2.id:
+            raise ValidationError("Cannot create conversation with same user")
+        
+        # Ensure consistent ordering: lower ID first
+        if user1.id < user2.id:
+            user_a, user_b = user1, user2
+        else:
+            user_a, user_b = user2, user1
+            
+        conversation = Conversation.objects.create(
+            conversation_type='direct',
+            user_a=user_a,
+            user_b=user_b
+        )
+        
+        return conversation
+    
+    @classmethod
+    def get_or_create_group_conversation(cls, group: 'Group') -> Tuple['Conversation', bool]:
+        """Get existing or create new group conversation"""
+        # Check if conversation already exists
+        if hasattr(group, 'conversation') and group.conversation:
+            return group.conversation, False
+        
+        # Create new group conversation
+        conversation = Conversation.objects.create(
+            conversation_type='group',
+            group=group,
+            name=f"Group Chat: {group.name}"
+        )
+        
+        cls.log_operation("conversation_created", {
+            'conversation_id': str(conversation.id),
+            'type': 'group',
+            'group_id': str(group.id)
+        })
+        
+        return conversation, True
+    
+    @classmethod
+    def create_group_conversation(cls, group):
+        """Create group conversation (alias for compatibility)"""
         try:
-            message = ChatMessage(
+            conversation, created = cls.get_or_create_group_conversation(group)
+            
+            if created:
+                cls.log_operation("group_conversation_created", {
+                    'conversation_id': conversation.id,
+                    'group_id': group.id
+                })
+            
+            return conversation
+        except ValidationError as e:
+            raise ValidationError(f"Group conversation creation failed: {str(e)}")
+    
+    @classmethod
+    def get_or_create_for_group(cls, group):
+        """Legacy method - use get_or_create_group_conversation instead"""
+        try:
+            return group.conversation, False
+        except Conversation.DoesNotExist:
+            conversation = Conversation.objects.create(
+                conversation_type='group',
+                group=group
+            )
+            return conversation, True
+    
+    # ============================================================================
+    # MESSAGE OPERATIONS
+    # ============================================================================
+    
+    @classmethod
+    def send_message_to_conversation(cls, sender: User, conversation_id: str, 
+                                   content: str, message_type: str = 'text',
+                                   latitude: Optional[float] = None,
+                                   longitude: Optional[float] = None,
+                                   location_name: Optional[str] = None,
+                                   reply_to_id: Optional[str] = None,
+                                   **kwargs) -> Tuple[bool, str, Optional['ChatMessage']]:
+        """Send message to conversation with comprehensive validation and features"""
+        try:
+            from .models import Conversation, ChatMessage
+            
+            conversation = Conversation.objects.get(id=conversation_id)
+            
+            # Check if user can send message to this conversation
+            if not cls._can_user_access_conversation(sender, conversation):
+                return False, "Access denied to this conversation", None
+            
+            # Validate reply_to message if provided
+            reply_to = None
+            if reply_to_id:
+                try:
+                    reply_to = ChatMessage.objects.get(
+                        id=reply_to_id,
+                        conversation=conversation
+                    )
+                except ChatMessage.DoesNotExist:
+                    return False, "Reply target message not found", None
+            
+            # Create message with transaction
+            with transaction.atomic():
+                message = ChatMessage(
+                    conversation=conversation,
+                    sender=sender,
+                    content=content,
+                    message_type=message_type,
+                    latitude=latitude,
+                    longitude=longitude,
+                    location_name=location_name or "",
+                    reply_to=reply_to,
+                    **kwargs
+                )
+                
+                message.full_clean()
+                message.save()
+                
+                # Update conversation's last message time
+                cls.update_last_message_time(conversation)
+            
+            cls.log_operation("message_sent", {
+                'message_id': str(message.id),
+                'conversation_id': str(conversation.id),
+                'sender_id': str(sender.id),
+                'type': message_type
+            })
+            
+            # Send realtime notification
+            cls._send_realtime_message(message)
+            
+            # Send push notification
+            cls._send_push_notification(message)
+            
+            return True, "Message sent successfully", message
+            
+        except Conversation.DoesNotExist:
+            return False, "Conversation not found", None
+        except ValidationError as e:
+            return False, str(e), None
+        except Exception as e:
+            cls.log_error("Error sending message", e)
+            return False, "Failed to send message", None
+    
+    @classmethod
+    def get_conversation_messages(cls, user: User, conversation_id: str, 
+                                limit: int = 50, before_id: str = None) -> Dict[str, Any]:
+        """Get messages from a conversation with pagination"""
+        try:            
+            conversation = Conversation.objects.get(id=conversation_id)
+            
+            if not cls._can_user_access_conversation(user, conversation):
+                raise ValidationError("Access denied to this conversation")
+            
+            queryset = ChatMessage.objects.filter(
+                conversation=conversation,
+                is_deleted=False
+            ).select_related('sender', 'reply_to__sender').order_by('-created_at', '-id')
+            
+            result = ManualCursorPaginator.paginate_by_id(
+                queryset=queryset,
+                before_id=before_id,
+                limit=limit,
+                ordering='-created_at'  # Sử dụng created_at thay vì id để đảm bảo thứ tự đúng
+            )
+            
+            return {
+                'messages': result['items'],
+                'has_more': result['has_more'],
+                'next_cursor': result['next_cursor'],
+                'count': result['count']
+            }
+            
+        except Conversation.DoesNotExist:
+            raise ValidationError("Conversation not found")
+    
+
+    @classmethod
+    def mark_messages_read(cls, user: User, conversation_id: str, message_ids: List[str]) -> Tuple[bool, str]:
+        """Mark specific messages as read for a user"""
+        try:
+            conversation = Conversation.objects.get(id=conversation_id)
+            
+            if not cls._can_user_access_conversation(user, conversation):
+                return False, "Access denied to this conversation"
+            
+            messages = ChatMessage.objects.filter(
+                id__in=message_ids,
+                conversation=conversation
+            ).exclude(sender=user)
+            
+            for message in messages:
+                MessageReadStatus.objects.get_or_create(
+                    message=message,
+                    user=user
+                )
+            
+            # Clear unread cache after marking messages as read
+            user.clear_unread_cache()
+            
+            cls.log_operation("messages_marked_read", {
+                'user_id': str(user.id),
+                'conversation_id': str(conversation.id),
+                'message_count': len(message_ids)
+            })
+            
+            return True, f"Marked {len(message_ids)} messages as read"
+            
+        except Conversation.DoesNotExist:
+            return False, "Conversation not found"
+        except Exception as e:
+            cls.log_error("Error marking messages as read", e)
+            return False, "Failed to mark messages as read"
+    
+    @classmethod
+    def mark_as_read_for_user(cls, conversation, user, up_to_message=None):
+        """Mark messages as read for user (up to a specific message)"""
+        messages = conversation.messages.active().exclude(sender=user)
+
+        if up_to_message:
+            messages = messages.filter(created_at__lte=up_to_message.created_at)
+        
+        unread_message_ids = messages.exclude(
+            read_statuses__user=user
+        ).values_list('id', flat=True)
+        
+        if unread_message_ids:
+            read_statuses = [
+                MessageReadStatus(message_id=msg_id, user=user)
+                for msg_id in unread_message_ids
+            ]
+            MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
+            
+            user.clear_unread_cache()
+        
+        return len(unread_message_ids)
+    
+    @classmethod
+    def get_unread_count_for_user(cls, conversation, user):
+        return conversation.messages.unread_for_user(user).count()
+    
+
+    @classmethod
+    def update_last_message_time(cls, conversation, timestamp=None):
+        """Update last message timestamp for conversation"""
+        if timestamp is None:
+            timestamp = timezone.now()
+            
+        if not conversation.last_message_at or timestamp > conversation.last_message_at:
+            conversation.last_message_at = timestamp
+            conversation.save(update_fields=['last_message_at'])
+    
+    @classmethod
+    def _can_user_access_conversation(cls, user: User, conversation: 'Conversation') -> bool:
+        """Check if user has access to conversation"""
+        if conversation.conversation_type == 'direct':
+            return conversation.user_a == user or conversation.user_b == user
+        elif conversation.conversation_type == 'group' and conversation.group:
+            return conversation.group.members.filter(id=user.id).exists()
+        return False
+    
+    @classmethod
+    def _send_realtime_message(cls, message: 'ChatMessage'):
+        """Send realtime notification for new message"""
+        try:
+            channel_layer = get_channel_layer()
+            if not channel_layer:
+                return
+            
+            # Serialize message
+            serializer = ChatMessageSerializer(message)
+            message_data = serializer.data
+            
+            # Send to conversation channel
+            group_name = ChannelGroups.conversation(str(message.conversation.id))
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    'type': 'chat_message',
+                    'data': message_data
+                }
+            )
+            
+        except Exception as e:
+            cls.log_error("Error sending realtime message", e)
+    
+    @classmethod
+    def _send_push_notification(cls, message: 'ChatMessage'):
+        """Send push notification for new message"""
+        try:
+            from .integrations import NotificationService
+            
+            notification_service = NotificationService()
+            
+            # Get other participants (exclude sender)
+            participants = message.conversation.participants.exclude(id=message.sender.id)
+            
+            # Send notification to each participant
+            for participant in participants:
+                if hasattr(participant, 'fcm_token') and participant.fcm_token:
+                    
+                    if message.conversation.conversation_type == 'direct':
+                        title = f"Tin nhắn từ {message.sender.get_full_name() or message.sender.username}"
+                    else:
+                        group_name = message.conversation.group.name if message.conversation.group else "Nhóm"
+                        title = f"{message.sender.get_full_name() or message.sender.username} trong {group_name}"
+                    
+                    # Format message content based on type
+                    if message.message_type == 'text':
+                        body = message.content[:100]
+                    elif message.message_type == 'image':
+                        body = "📷 Đã gửi một hình ảnh"
+                    elif message.message_type == 'location':
+                        body = f"📍 Đã chia sẻ vị trí: {message.location_name or 'Vị trí'}"
+                    elif message.message_type == 'file':
+                        body = f"📎 Đã gửi file: {message.attachment_name or 'File'}"
+                    else:
+                        body = "Đã gửi một tin nhắn"
+                    
+                    data = {
+                        'action': 'new_message',
+                        'conversation_id': str(message.conversation.id),
+                        'message_id': str(message.id),
+                        'sender_id': str(message.sender.id)
+                    }
+                    
+                    notification_service.send_push_notification(
+                        [participant.fcm_token],
+                        title,
+                        body,
+                        data
+                    )
+                    
+        except Exception as e:
+            cls.log_error("Error sending push notification", e)
+
+
+class ChatService(BaseService):
+    
+    @classmethod
+    def send_message_to_group(cls, sender: User, group_id: str, content: str, 
+                             message_type: str = 'text') -> Tuple[bool, str, Optional['ChatMessage']]:
+        try:            
+            group = Group.objects.get(id=group_id)
+            
+            # Check if user is member of the group
+            if not group.members.filter(id=sender.id).exists():
+                return False, "You are not a member of this group", None
+            
+            # Get or create group conversation
+            conversation, created = ConversationService.get_or_create_group_conversation(group)
+            
+            # Use conversation service to send message
+            return ConversationService.send_message_to_conversation(
                 sender=sender,
-                group=group,
+                conversation_id=str(conversation.id),
                 content=content,
                 message_type=message_type
             )
-            message.full_clean()
-            message.save()
-        except ValidationError as e:
-            raise ValidationError(f"Message creation failed: {str(e)}")
+            
+        except Group.DoesNotExist:
+            return False, "Group not found", None
+        except Exception as e:
+            cls.log_error("Error sending message via deprecated method", e)
+            return False, "Failed to send message", None
+    
+    @classmethod
+    def send_message(cls, sender: User, group: 'Group', content: str, 
+                    message_type: str = 'text') -> 'ChatMessage':        
+        # Get or create group conversation
+        conversation, created = ConversationService.get_or_create_group_conversation(group)
         
-        cls.log_operation("message_sent", {
-            'message_id': message.id,
-            'sender': sender.id,
-            'group_id': group.id,
-            'type': message_type
-        })
+        # Use conversation service
+        success, message, chat_message = ConversationService.send_message_to_conversation(
+            sender=sender,
+            conversation_id=str(conversation.id),
+            content=content,
+            message_type=message_type
+        )
         
-        return message
+        if not success:
+            raise ValidationError(message)
+        
+        return chat_message
     
     @classmethod
     def get_group_messages(cls, user: User, group_id: str, limit: int = 50, before_id: str = None) -> Dict[str, Any]:
-        
-        try:
-            group = Group.objects.get(id=group_id, members=user)
+        try:            
+            group = Group.objects.get(id=group_id)
+            
+            if not group.members.filter(id=user.id).exists():
+                raise ValidationError("Group not found or access denied")
+            
+            # Get or create group conversation
+            conversation, created = ConversationService.get_or_create_group_conversation(group)
+            
+            # Use conversation service
+            return ConversationService.get_conversation_messages(
+                user=user,
+                conversation_id=str(conversation.id),
+                limit=limit,
+                before_id=before_id
+            )
+            
         except Group.DoesNotExist:
-            raise ValidationError("Group not found or access denied")
-        
-        queryset = ChatMessage.objects.filter(
-            group=group
-        ).select_related('sender').order_by('-created_at')
-        
-        result = ManualCursorPaginator.paginate_by_id(
-            queryset=queryset,
-            before_id=before_id,
-            limit=limit,
-            ordering='-id'
-        )
-        
-        return {
-            'messages': result['items'],
-            'has_more': result['has_more'],
-            'next_cursor': result['next_cursor'],
-            'count': result['count']
-        }
+            raise ValidationError("Group not found")
+        except Exception as e:
+            cls.log_error("Error getting messages via deprecated method", e)
+            raise ValidationError("Failed to get messages")
     
     @classmethod
     def edit_message(cls, message: ChatMessage, user: User, new_content: str) -> Tuple[bool, str]:        
@@ -1575,7 +1960,7 @@ class ChatService(BaseService):
     def delete_message(cls, message: ChatMessage, user: User) -> Tuple[bool, str]:        
         can_delete = (
             message.sender == user or 
-            (hasattr(message, 'group') and message.group and message.group.is_admin(user))
+            (message.conversation and message.conversation.group and message.conversation.group.is_admin(user))
         )
         
         if not can_delete:
@@ -1586,7 +1971,7 @@ class ChatService(BaseService):
         cls.log_operation("message_deleted", {
             'message_id': message.id,
             'deleted_by': user.id,
-            'was_admin_action': hasattr(message, 'group') and message.group and message.group.is_admin(user) and message.sender != user
+            'was_admin_action': message.conversation and message.conversation.group and message.conversation.group.is_admin(user) and message.sender != user
         })
         
         return True, "Message deleted successfully"
@@ -1666,138 +2051,8 @@ class NotificationService(BaseService):
             'to_user_id': to_user_id
         })
 
-class ConversationService(BaseService):
-    @classmethod
-    def send_message_to_conversation(cls, conversation, sender: User, content: str, 
-                                   message_type: str = 'text', **kwargs) -> 'ChatMessage':
-        
-        if not conversation.is_participant(sender):
-            raise ValidationError("Sender is not a participant of this conversation")
 
-        try:
-            with transaction.atomic():
-                message = ChatMessage(
-                    conversation=conversation,
-                    sender=sender,
-                    content=content,
-                    message_type=message_type,
-                    **kwargs
-                )
-                message.full_clean()
-                message.save()
-                
-                cls.log_operation("conversation_message_sent", {
-                    'conversation_id': conversation.id,
-                    'sender_id': sender.id,
-                    'message_type': message_type
-                })
-                
-                return message
-        except ValidationError as e:
-            raise ValidationError(f"Message creation failed: {str(e)}")
-    
-    @classmethod
-    def update_last_message_time(cls, conversation, timestamp=None):
-        if timestamp is None:
-            timestamp = timezone.now()
-            
-        if not conversation.last_message_at or timestamp > conversation.last_message_at:
-            conversation.last_message_at = timestamp
-            conversation.save(update_fields=['last_message_at'])
-    
-    @classmethod
-    def get_unread_count_for_user(cls, conversation, user):
-        return conversation.messages.unread_for_user(user).count()
-    
-    @classmethod
-    def mark_as_read_for_user(cls, conversation, user, up_to_message=None):
-        messages = conversation.messages.active().exclude(sender=user)
-
-        if up_to_message:
-            messages = messages.filter(created_at__lte=up_to_message.created_at)
-        
-        unread_message_ids = messages.exclude(
-            read_statuses__user=user
-        ).values_list('id', flat=True)
-        
-        if unread_message_ids:
-            read_statuses = [
-                MessageReadStatus(message_id=msg_id, user=user)
-                for msg_id in unread_message_ids
-            ]
-            MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
-            
-            user.clear_unread_cache()
-        
-        return len(unread_message_ids)
-    
-    @classmethod
-    def get_or_create_direct_conversation(cls, user1: User, user2: User):
-        if user1 == user2:
-            raise ValueError("Cannot create conversation with yourself")
-        
-        try:
-            existing = Conversation.objects.get_direct_conversation(user1, user2)
-            if existing:
-                return existing, False
-                
-            conversation = cls.create_direct_conversation(user1, user2)
-            
-            cls.log_operation("direct_conversation_created", {
-                'conversation_id': conversation.id,
-                'user1_id': user1.id,
-                'user2_id': user2.id
-            })
-            
-            return conversation, True
-        except ValidationError as e:
-            raise ValidationError(f"Conversation creation failed: {str(e)}")
-
-    @classmethod 
-    def create_direct_conversation(cls, user1: User, user2: User) -> 'Conversation':
-        if user1.id == user2.id:
-            raise ValidationError("Cannot create conversation with same user")
-        
-        if user1.id < user2.id:
-            conversation = Conversation.objects.create(
-                conversation_type='direct',
-                user_a=user1,
-                user_b=user2
-            )
-        else:
-            conversation = Conversation.objects.create(
-                conversation_type='direct',
-                user_a=user2,
-                user_b=user1
-            )
-        
-        return conversation
-    
-    @classmethod
-    def create_group_conversation(cls, group):
-        try:
-            conversation, created = cls.get_or_create_for_group(group)
-            
-            if created:
-                cls.log_operation("group_conversation_created", {
-                    'conversation_id': conversation.id,
-                    'group_id': group.id
-                })
-            
-            return conversation
-        except ValidationError as e:
-            raise ValidationError(f"Group conversation creation failed: {str(e)}")
-    
-    @classmethod
-    def get_or_create_for_group(cls, group):
-        try:
-            return group.conversation, False
-        except Conversation.DoesNotExist:
-            conversation = Conversation.objects.create(
-                conversation_type='group',
-                group=group
-            )
-            return conversation, True
+# End of services.py file
 
     @classmethod
     def update_last_message_time(cls, conversation, timestamp=None):

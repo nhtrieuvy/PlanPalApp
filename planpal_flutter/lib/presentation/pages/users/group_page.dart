@@ -6,6 +6,7 @@ import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_form_page.dart';
+import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../core/dtos/group_summary.dart';
 
 class GroupPage extends StatefulWidget {
@@ -15,7 +16,7 @@ class GroupPage extends StatefulWidget {
   State<GroupPage> createState() => _GroupPageState();
 }
 
-class _GroupPageState extends State<GroupPage> {
+class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
   late final GroupRepository _repo;
   bool _loading = false;
   String? _error;
@@ -26,6 +27,11 @@ class _GroupPageState extends State<GroupPage> {
     super.initState();
     _repo = GroupRepository(context.read<AuthProvider>());
     _loadGroups();
+  }
+
+  @override
+  Future<void> onRefresh() async {
+    await _loadGroups();
   }
 
   Future<void> _loadGroups() async {
@@ -180,15 +186,9 @@ class _GroupPageState extends State<GroupPage> {
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             elevation: 0,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _loadGroups,
-              ),
-            ],
           ),
         ],
-        body: RefreshIndicator(onRefresh: _loadGroups, child: _buildBody()),
+        body: RefreshablePageWrapper(onRefresh: onRefresh, child: _buildBody()),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _onCreateGroup,
@@ -437,7 +437,7 @@ class _GroupPageState extends State<GroupPage> {
         const SizedBox(height: 12),
         Center(
           child: OutlinedButton.icon(
-            onPressed: _loadGroups,
+            onPressed: onRefresh,
             icon: const Icon(Icons.refresh),
             label: const Text('Thử lại'),
           ),

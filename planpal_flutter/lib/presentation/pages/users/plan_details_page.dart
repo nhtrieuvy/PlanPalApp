@@ -8,6 +8,7 @@ import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import '../../../core/dtos/plan_model.dart';
 import '../../../core/dtos/plan_activity.dart';
+import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../plans/activity_form_page.dart';
 import '../plans/plan_schedule_page.dart';
 
@@ -19,7 +20,8 @@ class PlanDetailsPage extends StatefulWidget {
   State<PlanDetailsPage> createState() => _PlanDetailsPageState();
 }
 
-class _PlanDetailsPageState extends State<PlanDetailsPage> {
+class _PlanDetailsPageState extends State<PlanDetailsPage>
+    with RefreshablePage<PlanDetailsPage> {
   late final PlanRepository _repo;
   PlanModel? _detail;
   Object? _error;
@@ -31,6 +33,11 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
     super.initState();
     _repo = PlanRepository(context.read<AuthProvider>());
     _load();
+  }
+
+  @override
+  Future<void> onRefresh() async {
+    await _load(refresh: true);
   }
 
   Future<void> _load({bool refresh = false}) async {
@@ -78,12 +85,6 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
           title: const Text('Chi tiết kế hoạch'),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          actions: [
-            IconButton(
-              onPressed: () => _load(refresh: true),
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
         ),
         body: Center(
           child: Padding(
@@ -157,8 +158,6 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                     });
                   } else if (value == 'delete') {
                     Navigator.of(context).pop({'action': 'delete', 'id': p.id});
-                  } else if (value == 'refresh') {
-                    _load(refresh: true);
                   }
                 },
                 itemBuilder: (c) => const [
@@ -182,164 +181,157 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                       ],
                     ),
                   ),
-                  PopupMenuItem(
-                    value: 'refresh',
-                    child: Row(
-                      children: [
-                        Icon(Icons.refresh, size: 20),
-                        SizedBox(width: 8),
-                        Text('Làm mới'),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ],
           ),
         ],
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildCreatorCard(
-                p.creator.avatarForDisplay,
-                (p.creator.fullName.isNotEmpty
-                    ? p.creator.fullName
-                    : p.creator.username),
-              ),
-              const SizedBox(height: 16),
-              _buildMetaCard(
-                theme: theme,
-                statusCode: p.status,
-                statusLabel: p.statusDisplay.isNotEmpty
-                    ? p.statusDisplay
-                    : p.status,
-                planType: p.planType,
-                isPublic: p.isPublic,
-                durationDisplay: p.durationDisplay,
-                activitiesCount: p.activitiesCount,
-                totalEstimatedCost: p.totalEstimatedCost,
-                groupName: p.groupName ?? '',
-              ),
-              if (p.description != null && p.description!.isNotEmpty) ...[
+        body: RefreshablePageWrapper(
+          onRefresh: onRefresh,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCreatorCard(
+                  p.creator.avatarForDisplay,
+                  (p.creator.fullName.isNotEmpty
+                      ? p.creator.fullName
+                      : p.creator.username),
+                ),
                 const SizedBox(height: 16),
-                _buildInfoCard(
-                  icon: Icons.description,
-                  title: 'Mô tả',
-                  subtitle: p.description!,
-                  color: AppColors.primary,
+                _buildMetaCard(
                   theme: theme,
+                  statusCode: p.status,
+                  statusLabel: p.statusDisplay.isNotEmpty
+                      ? p.statusDisplay
+                      : p.status,
+                  planType: p.planType,
+                  isPublic: p.isPublic,
+                  durationDisplay: p.durationDisplay,
+                  activitiesCount: p.activitiesCount,
+                  totalEstimatedCost: p.totalEstimatedCost,
+                  groupName: p.groupName ?? '',
                 ),
-              ],
-              if (p.startDate != null || p.endDate != null) ...[
-                const SizedBox(height: 16),
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                if (p.description != null && p.description!.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _buildInfoCard(
+                    icon: Icons.description,
+                    title: 'Mô tả',
+                    subtitle: p.description!,
+                    color: AppColors.primary,
+                    theme: theme,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.info.withAlpha(25),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.schedule,
-                                color: AppColors.info,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Thời gian',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        if (p.startDate != null)
-                          _buildDateRow(
-                            icon: Icons.play_arrow,
-                            label: 'Bắt đầu',
-                            date: _df.format(p.startDate!),
-                            theme: theme,
-                          ),
-                        if (p.startDate != null && p.endDate != null)
-                          const SizedBox(height: 12),
-                        if (p.endDate != null)
-                          _buildDateRow(
-                            icon: Icons.stop,
-                            label: 'Kết thúc',
-                            date: _df.format(p.endDate!),
-                            theme: theme,
-                          ),
-                      ],
+                ],
+                if (p.startDate != null || p.endDate != null) ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  ),
-                ),
-              ],
-              if (p.activities.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                _buildActivitiesCard(
-                  theme: theme,
-                  activities: p.activities,
-                  df: _df,
-                ),
-              ],
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.of(context).pop({
-                        'action': 'edit',
-                        'plan': {'id': p.id, 'title': p.title},
-                      }),
-                      icon: const Icon(Icons.edit),
-                      label: const Text('Chỉnh sửa'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.of(
-                        context,
-                      ).pop({'action': 'delete', 'id': p.id}),
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Xoá'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.redAccent,
-                        side: const BorderSide(color: Colors.redAccent),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.info.withAlpha(25),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.schedule,
+                                  color: AppColors.info,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Thời gian',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          if (p.startDate != null)
+                            _buildDateRow(
+                              icon: Icons.play_arrow,
+                              label: 'Bắt đầu',
+                              date: _df.format(p.startDate!),
+                              theme: theme,
+                            ),
+                          if (p.startDate != null && p.endDate != null)
+                            const SizedBox(height: 12),
+                          if (p.endDate != null)
+                            _buildDateRow(
+                              icon: Icons.stop,
+                              label: 'Kết thúc',
+                              date: _df.format(p.endDate!),
+                              theme: theme,
+                            ),
+                        ],
                       ),
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 20),
-            ],
+                if (p.activities.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _buildActivitiesCard(
+                    theme: theme,
+                    activities: p.activities,
+                    df: _df,
+                  ),
+                ],
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).pop({
+                          'action': 'edit',
+                          'plan': {'id': p.id, 'title': p.title},
+                        }),
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Chỉnh sửa'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pop({'action': 'delete', 'id': p.id}),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Xoá'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.redAccent,
+                          side: const BorderSide(color: Colors.redAccent),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),

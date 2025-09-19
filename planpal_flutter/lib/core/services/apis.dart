@@ -62,6 +62,19 @@ class Endpoints {
   static const String locationSearch = '/location/search/';
   static const String locationAutocomplete = '/location/autocomplete/';
   static const String locationPlaceDetails = '/location/place-details/';
+
+  // Chat endpoints
+  static const String conversations = '/conversations/';
+  static const String createDirectConversation =
+      '/conversations/create_direct/';
+  static String conversationDetails(String conversationId) =>
+      '/conversations/$conversationId/';
+  static String conversationMessages(String conversationId) =>
+      '/conversations/$conversationId/messages/';
+  static String sendMessage(String conversationId) =>
+      '/conversations/$conversationId/send_message/';
+  static String markRead(String conversationId) =>
+      '/conversations/$conversationId/mark_read/';
 }
 
 class ApiClient {

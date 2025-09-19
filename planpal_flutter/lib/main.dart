@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:planpal_flutter/core/theme/app_theme.dart';
 import 'package:planpal_flutter/core/providers/theme_provider.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/providers/conversation_provider.dart';
 import 'package:planpal_flutter/presentation/pages/home/home_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/register_page.dart';
@@ -26,6 +27,10 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider<ThemeProvider>.value(value: themeProvider),
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+        ChangeNotifierProxyProvider<AuthProvider, ConversationProvider>(
+          create: (context) => ConversationProvider(null),
+          update: (context, auth, previous) => ConversationProvider(auth.token),
+        ),
       ],
       child: const PlanPalApp(),
     ),

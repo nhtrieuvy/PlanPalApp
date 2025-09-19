@@ -32,7 +32,7 @@ from .permissions import (
     CanEditMyPlans, IsOwnerOrGroupAdmin, CanJoinPlan, CanAccessPlan, CanModifyPlan
 )
 
-from .services import UserService, GroupService, PlanService, ChatService
+from .services import UserService, GroupService, PlanService, ChatService, ConversationService
 from .integrations import GoongMapService, NotificationService
 from .oauth2_utils import OAuth2ResponseFormatter
 from .paginators import (
@@ -130,7 +130,6 @@ class UserViewSet(viewsets.GenericViewSet,
         
         users_queryset = UserService.search_users(query, request.user)
         
-        # Apply blocking filter using Django's built-in QuerySet exclude
         blocked_by_user_ids = Friendship.objects.filter(
             models.Q(user_a=request.user) | models.Q(user_b=request.user),
             status=Friendship.BLOCKED
@@ -1045,6 +1044,200 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
             'messages': serializer.data,
             'count': len(messages)
         })
+
+
+class ConversationViewSet(viewsets.GenericViewSet,
+                         mixins.ListModelMixin,
+                         mixins.RetrieveModelMixin,
+                         mixins.CreateModelMixin):
+    serializer_class = ConversationSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None  # No pagination for conversations list
+    
+    def get_queryset(self):
+        return ConversationService.get_user_conversations(self.request.user)
+    
+    def list(self, request, *args, **kwargs):
+        """List all conversations for current user"""
+        conversations = self.get_queryset()
+        serializer = self.get_serializer(conversations, many=True)
+        return Response({'conversations': serializer.data})
+    
+    def retrieve(self, request, *args, **kwargs):
+        """Get conversation details"""
+        conversation = self.get_object()
+        
+        # Check if user can access this conversation
+        if not ConversationService._can_user_access_conversation(request.user, conversation):
+            return Response(
+                {'error': 'Access denied to this conversation'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = self.get_serializer(conversation)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def create_direct(self, request):
+        """Create or get direct conversation with another user"""
+        other_user_id = request.data.get('user_id')
+        
+        if not other_user_id:
+            return Response(
+                {'error': 'user_id is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            other_user = User.objects.get(id=other_user_id)
+            
+            if other_user == request.user:
+                return Response(
+                    {'error': 'Cannot create conversation with yourself'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            conversation, created = ConversationService.get_or_create_direct_conversation(
+                request.user, other_user
+            )
+            
+            serializer = self.get_serializer(conversation)
+            return Response({
+                'conversation': serializer.data,
+                'created': created
+            }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except ValidationError as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    @action(detail=True, methods=['get'])
+    def messages(self, request, pk=None):
+        """Get messages for a conversation"""
+        conversation = self.get_object()
+        
+        if not ConversationService._can_user_access_conversation(request.user, conversation):
+            return Response(
+                {'error': 'Access denied to this conversation'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        limit = min(int(request.query_params.get('limit', 50)), 100)
+        before_id = request.query_params.get('before_id')
+        
+        try:
+            messages_data = ConversationService.get_conversation_messages(
+                user=request.user,
+                conversation_id=str(conversation.id),
+                limit=limit,
+                before_id=before_id
+            )
+            
+            from .serializers import ChatMessageSerializer
+            serializer = ChatMessageSerializer(
+                messages_data['messages'], 
+                many=True, 
+                context={'request': request}
+            )
+            
+            if not before_id and serializer.data:  # Only on first load, not pagination
+                message_ids = [msg['id'] for msg in serializer.data if msg['sender']['id'] != str(request.user.id)]
+                if message_ids:
+                    ConversationService.mark_messages_read(
+                        user=request.user,
+                        conversation_id=str(conversation.id),
+                        message_ids=message_ids
+                    )
+            
+            return Response({
+                'messages': serializer.data,
+                'has_more': messages_data['has_more'],
+                'next_cursor': messages_data['next_cursor'],
+                'count': len(serializer.data)
+            })
+            
+        except ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def send_message(self, request, pk=None):
+        conversation = self.get_object()
+        
+        if not ConversationService._can_user_access_conversation(request.user, conversation):
+            return Response(
+                {'error': 'Access denied to this conversation'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        content = request.data.get('content', '')
+        message_type = request.data.get('message_type', 'text')
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        location_name = request.data.get('location_name')
+        reply_to_id = request.data.get('reply_to_id')
+        
+        if not content and message_type == 'text':
+            return Response(
+                {'error': 'Content is required for text messages'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        success, error_message, message = ConversationService.send_message_to_conversation(
+            sender=request.user,
+            conversation_id=str(conversation.id),
+            content=content,
+            message_type=message_type,
+            latitude=latitude,
+            longitude=longitude,
+            location_name=location_name,
+            reply_to_id=reply_to_id
+        )
+        
+        if not success:
+            return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = ChatMessageSerializer(message, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        conversation = self.get_object()
+        
+        if not ConversationService._can_user_access_conversation(request.user, conversation):
+            return Response(
+                {'error': 'Access denied to this conversation'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        message_ids = request.data.get('message_ids', [])
+        
+        if not message_ids:
+            return Response(
+                {'error': 'message_ids is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        success, error_message = ConversationService.mark_messages_read(
+            user=request.user,
+            conversation_id=str(conversation.id),
+            message_ids=message_ids
+        )
+        
+        if not success:
+            return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({'success': True, 'message': error_message})
+
 
 class PlanActivityViewSet(viewsets.GenericViewSet,
                           mixins.CreateModelMixin,

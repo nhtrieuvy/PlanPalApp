@@ -227,34 +227,127 @@ class _PlanFormPageState extends State<PlanFormPage> {
                 maxLines: 3,
               ),
               const SizedBox(height: 12),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Kế hoạch cá nhân'),
-                      value: 'personal',
-                      groupValue: _planType,
-                      onChanged: (v) => setState(() {
-                        _planType = v!;
-                        _selectedGroupId = null;
-                      }),
-                    ),
+                  const Text(
+                    'Loại kế hoạch',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Kế hoạch nhóm'),
-                      value: 'group',
-                      groupValue: _planType,
-                      onChanged: (v) => setState(() {
-                        _planType = v!;
-                      }),
-                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() {
+                            _planType = 'personal';
+                            _selectedGroupId = null;
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _planType == 'personal'
+                                    ? AppColors.primary
+                                    : Colors.grey.shade300,
+                                width: _planType == 'personal' ? 2 : 1,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              color: _planType == 'personal'
+                                  ? AppColors.primary.withAlpha(26)
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: _planType == 'personal'
+                                          ? AppColors.primary
+                                          : Colors.grey,
+                                      width: 2,
+                                    ),
+                                    color: _planType == 'personal'
+                                        ? AppColors.primary
+                                        : Colors.transparent,
+                                  ),
+                                  child: _planType == 'personal'
+                                      ? const Icon(
+                                          Icons.circle,
+                                          size: 12,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(width: 12),
+                                const Expanded(child: Text('Kế hoạch cá nhân')),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() {
+                            _planType = 'group';
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _planType == 'group'
+                                    ? AppColors.primary
+                                    : Colors.grey.shade300,
+                                width: _planType == 'group' ? 2 : 1,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              color: _planType == 'group'
+                                  ? AppColors.primary.withAlpha(26)
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: _planType == 'group'
+                                          ? AppColors.primary
+                                          : Colors.grey,
+                                      width: 2,
+                                    ),
+                                    color: _planType == 'group'
+                                        ? AppColors.primary
+                                        : Colors.transparent,
+                                  ),
+                                  child: _planType == 'group'
+                                      ? const Icon(
+                                          Icons.circle,
+                                          size: 12,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(width: 12),
+                                const Expanded(child: Text('Kế hoạch nhóm')),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               if (_planType == 'group') ...[
                 DropdownButtonFormField<String>(
-                  value: _selectedGroupId,
+                  initialValue: _selectedGroupId,
                   decoration: const InputDecoration(
                     labelText: 'Chọn nhóm',
                     border: OutlineInputBorder(),

@@ -1820,23 +1820,23 @@ class Conversation(BaseModel):
 class ChatMessageQuerySet(models.QuerySet['ChatMessage']):    
     def active(self) -> 'ChatMessageQuerySet':
         return self.filter(is_deleted=False)
-    
-    def for_conversation(self, conversation: Union['Conversation', int]) -> 'ChatMessageQuerySet':
+
+    def for_conversation(self, conversation: Union['Conversation', UUID]) -> 'ChatMessageQuerySet':
         return self.filter(conversation=conversation)
     
-    def for_group(self, group: Union['Group', int]) -> 'ChatMessageQuerySet':
+    def for_group(self, group: Union['Group', UUID]) -> 'ChatMessageQuerySet':
         return self.filter(group=group)
     
-    def for_user(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
+    def for_user(self, user: Union['User', UUID]) -> 'ChatMessageQuerySet':
         return self.filter(sender=user)
     
-    def by_user(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
+    def by_user(self, user: Union['User', UUID]) -> 'ChatMessageQuerySet':
         return self.filter(sender=user)
     
     def recent(self, limit: int = 50) -> 'ChatMessageQuerySet':
         return self.order_by('-created_at')[:limit]
     
-    def with_read_status(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
+    def with_read_status(self, user: Union['User', UUID]) -> 'ChatMessageQuerySet':
         return self.annotate(
             is_read_by_user=Exists(
                 MessageReadStatus.objects.filter(
@@ -1846,7 +1846,7 @@ class ChatMessageQuerySet(models.QuerySet['ChatMessage']):
             )
         )
     
-    def unread_for_user(self, user: Union['User', int]) -> 'ChatMessageQuerySet':
+    def unread_for_user(self, user: Union['User', UUID]) -> 'ChatMessageQuerySet':
         return self.active().exclude(sender=user).exclude(
             Exists(
                 MessageReadStatus.objects.filter(
@@ -2032,6 +2032,41 @@ class ChatMessage(BaseModel):
     @property
     def has_attachment(self):
         return bool(self.attachment)
+
+    @property
+    def attachment_url(self):
+        """Get attachment URL"""
+        if self.attachment:
+            try:
+                if hasattr(self.attachment, 'build_url'):
+                    return self.attachment.build_url()
+                elif hasattr(self.attachment, 'url'):
+                    return self.attachment.url
+                else:
+                    return str(self.attachment)
+            except Exception:
+                return None
+        return None
+
+    @property
+    def attachment_size_display(self):
+        """Get human readable file size"""
+        if not self.attachment_size:
+            return None
+        
+        size = self.attachment_size
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        return f"{size:.1f} TB"
+
+    @property
+    def location_url(self):
+        """Get Google Maps URL for location"""
+        if self.latitude and self.longitude:
+            return f"https://maps.google.com/?q={self.latitude},{self.longitude}"
+        return None
 
     def soft_delete(self):
         self.is_deleted = True

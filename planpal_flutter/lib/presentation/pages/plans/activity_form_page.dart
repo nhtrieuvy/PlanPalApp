@@ -169,7 +169,7 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
 
   Widget _buildActivityTypeDropdown() {
     return DropdownButtonFormField<String>(
-      value: _activityType,
+      initialValue: _activityType,
       decoration: const InputDecoration(
         labelText: 'Loại hoạt động',
         border: OutlineInputBorder(),
@@ -582,7 +582,6 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
       }
     } catch (e) {
       if (mounted) {
-        print('Activity creation error: $e'); // Debug logging
         String errorMessage = 'Không thể tạo hoạt động. Vui lòng thử lại.';
 
         // Extract detailed error message

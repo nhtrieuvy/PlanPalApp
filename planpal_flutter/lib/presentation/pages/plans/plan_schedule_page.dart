@@ -6,6 +6,7 @@ import '../../../core/repositories/plan_repository.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../widgets/activities/activity_details_dialog.dart';
 import '../../../core/theme/app_colors.dart';
 
@@ -24,7 +25,7 @@ class PlanSchedulePage extends StatefulWidget {
 }
 
 class _PlanSchedulePageState extends State<PlanSchedulePage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RefreshablePage<PlanSchedulePage> {
   late final PlanRepository _planRepo;
 
   Map<String, List<PlanActivity>>? scheduleByDate;
@@ -41,6 +42,11 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
     super.initState();
     _planRepo = PlanRepository(context.read<AuthProvider>());
     _loadScheduleData();
+  }
+
+  @override
+  Future<void> onRefresh() async {
+    await _loadScheduleData();
   }
 
   Future<void> _loadScheduleData() async {
@@ -162,7 +168,7 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
     }
 
     if (error != null) {
-      return CustomErrorWidget(message: error!, onRetry: _loadScheduleData);
+      return CustomErrorWidget(message: error!, onRetry: onRefresh);
     }
 
     if (dates.isEmpty) {
@@ -186,19 +192,22 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
       );
     }
 
-    return Column(
-      children: [
-        _buildStatisticsCard(),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: dates.map((date) {
-              final activities = scheduleByDate![date]!;
-              return _buildDaySchedule(date, activities);
-            }).toList(),
+    return RefreshablePageWrapper(
+      onRefresh: onRefresh,
+      child: Column(
+        children: [
+          _buildStatisticsCard(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: dates.map((date) {
+                final activities = scheduleByDate![date]!;
+                return _buildDaySchedule(date, activities);
+              }).toList(),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

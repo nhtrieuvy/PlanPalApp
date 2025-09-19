@@ -7,6 +7,9 @@ from .models import (
 
 
 
+
+
+
 User = get_user_model()
 
 
@@ -282,6 +285,7 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         group = super().create(validated_data)
         
         from .services import GroupService
+
         
         for user_id in initial_members:
             user = User.objects.get(id=user_id)
@@ -774,7 +778,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
         fields = [
-            'id', 'conversation', 'group', 'sender', 'message_type', 'content',
+            'id', 'conversation', 'sender', 'message_type', 'content',
             'attachment', 'attachment_url', 'attachment_thumbnail',
             'attachment_name', 'attachment_size', 'attachment_size_display',
             'latitude', 'longitude', 'location_name', 'location_url',
@@ -1031,9 +1035,11 @@ class ConversationSerializer(serializers.ModelSerializer):
         return data
     
     def get_unread_count(self, obj):
+        from .services import ConversationService
+    
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return obj.get_unread_count_for_user(request.user)
+            return ConversationService.get_unread_count_for_user(obj, request.user)
         return 0
     
     def get_last_message(self, obj):
@@ -1085,9 +1091,11 @@ class ConversationSummarySerializer(serializers.ModelSerializer):
         return data
     
     def get_unread_count(self, obj):
+        from .services import ConversationService
+        
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return obj.get_unread_count_for_user(request.user)
+            return ConversationService.get_unread_count_for_user(obj, request.user)
         return 0
     
     def get_last_message_preview(self, obj):
