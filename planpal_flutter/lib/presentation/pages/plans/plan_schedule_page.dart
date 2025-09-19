@@ -6,6 +6,9 @@ import '../../../core/repositories/plan_repository.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../../widgets/activities/activity_details_dialog.dart';
+import '../../../core/theme/app_colors.dart';
 
 class PlanSchedulePage extends StatefulWidget {
   final String planId;
@@ -22,7 +25,7 @@ class PlanSchedulePage extends StatefulWidget {
 }
 
 class _PlanSchedulePageState extends State<PlanSchedulePage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RefreshablePage<PlanSchedulePage> {
   late final PlanRepository _planRepo;
 
   Map<String, List<PlanActivity>>? scheduleByDate;
@@ -41,6 +44,11 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
     _loadScheduleData();
   }
 
+  @override
+  Future<void> onRefresh() async {
+    await _loadScheduleData();
+  }
+
   Future<void> _loadScheduleData() async {
     try {
       setState(() {
@@ -50,7 +58,6 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
 
       final scheduleData = await _planRepo.getPlanSchedule(widget.planId);
 
-      // Parse schedule by date correctly
       final rawScheduleByDate =
           scheduleData['schedule_by_date'] as Map<String, dynamic>? ?? {};
       final Map<String, List<PlanActivity>> parsedSchedule = {};
@@ -81,7 +88,9 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
         dates = scheduleByDate!.keys.toList()..sort();
 
         // Initialize tab controller
-        _tabController = TabController(length: dates.length, vsync: this);
+        if (dates.isNotEmpty) {
+          _tabController = TabController(length: dates.length, vsync: this);
+        }
 
         isLoading = false;
       });
@@ -95,7 +104,9 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
 
   @override
   void dispose() {
-    _tabController.dispose();
+    if (dates.isNotEmpty) {
+      _tabController.dispose();
+    }
     super.dispose();
   }
 
@@ -157,7 +168,7 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
     }
 
     if (error != null) {
-      return CustomErrorWidget(message: error!, onRetry: _loadScheduleData);
+      return CustomErrorWidget(message: error!, onRetry: onRefresh);
     }
 
     if (dates.isEmpty) {
@@ -181,19 +192,22 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
       );
     }
 
-    return Column(
-      children: [
-        _buildStatisticsCard(),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: dates.map((date) {
-              final activities = scheduleByDate![date]!;
-              return _buildDaySchedule(date, activities);
-            }).toList(),
+    return RefreshablePageWrapper(
+      onRefresh: onRefresh,
+      child: Column(
+        children: [
+          _buildStatisticsCard(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: dates.map((date) {
+                final activities = scheduleByDate![date]!;
+                return _buildDaySchedule(date, activities);
+              }).toList(),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -290,42 +304,192 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
 
   Widget _buildDaySchedule(String date, List<PlanActivity> activities) {
     if (activities.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_available, size: 48, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Không có hoạt động',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            Text(
-              'trong ngày ${DateFormat('dd/MM/yyyy').format(DateTime.parse(date))}',
-              style: TextStyle(color: Colors.grey[500]),
-            ),
-          ],
-        ),
-      );
+      return Center(child: _buildEmptyState(date));
     }
 
-    return ListView.builder(
+    return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: activities.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final activity = activities[index];
-        return _buildActivityCard(activity, index);
+        return _ActivityCard(
+          activity: activity,
+          onTap: () => _showActivityDetails(activity),
+        );
       },
     );
   }
 
-  Widget _buildActivityCard(PlanActivity activity, int index) {
+  Widget _buildEmptyState(String date) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.event_available, size: 48, color: Colors.grey[400]),
+        const SizedBox(height: 16),
+        Text(
+          'Không có hoạt động',
+          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+        ),
+        Text(
+          'trong ngày ${DateFormat('dd/MM/yyyy').format(DateTime.parse(date))}',
+          style: TextStyle(color: Colors.grey[500]),
+        ),
+        if (permissions?['can_add_activity'] == true) ...[
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _showAddActivityDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('Thêm hoạt động'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _showActivityDetails(PlanActivity activity) async {
+    // Show loading dialog first
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // Load full activity details from API
+      final detailData = await _planRepo.getActivityDetail(activity.id);
+      final fullActivity = PlanActivity.fromJson(detailData);
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show full details dialog
+        showDialog(
+          context: context,
+          builder: (context) => ActivityDetailsDialog(
+            activity: fullActivity,
+            canEdit: permissions?['can_edit'] == true,
+            onEdit: () => _showEditActivityDialog(fullActivity),
+            onDelete: () => _deleteActivity(fullActivity),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show error and fallback to summary data
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể tải chi tiết: ${e.toString()}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+
+        // Show dialog with summary data as fallback
+        showDialog(
+          context: context,
+          builder: (context) => ActivityDetailsDialog(
+            activity: activity,
+            canEdit: permissions?['can_edit'] == true,
+            onEdit: () => _showEditActivityDialog(activity),
+            onDelete: () => _deleteActivity(activity),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showAddActivityDialog() {
+    Navigator.pushNamed(
+      context,
+      '/activity-form',
+      arguments: {'planId': widget.planId, 'isEdit': false},
+    ).then((result) {
+      // Refresh data if activity was created
+      if (result == true) {
+        _loadScheduleData();
+      }
+    });
+  }
+
+  void _showEditActivityDialog(PlanActivity activity) {
+    Navigator.pushNamed(
+      context,
+      '/activity-form',
+      arguments: {
+        'planId': widget.planId,
+        'activityId': activity.id,
+        'isEdit': true,
+        'activity': activity,
+      },
+    ).then((result) {
+      // Refresh data if activity was updated
+      if (result == true) {
+        _loadScheduleData();
+      }
+    });
+  }
+
+  Future<void> _deleteActivity(PlanActivity activity) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      await _planRepo.deleteActivity(activity.id);
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã xóa hoạt động "${activity.title}"'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Refresh data
+        await _loadScheduleData();
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể xóa hoạt động: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+}
+
+// Separate widget for better performance with const constructor
+class _ActivityCard extends StatelessWidget {
+  final PlanActivity activity;
+  final VoidCallback onTap;
+
+  const _ActivityCard({required this.activity, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation:
-          2, // Removed isCompleted check since we're using PlanActivity properly now
+      margin: EdgeInsets.zero,
+      elevation: 2,
       child: InkWell(
-        onTap: () => _showActivityDetails(activity),
+        onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
           decoration: BoxDecoration(
@@ -342,105 +506,121 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getActivityTypeColor(
-                          activity.activityType,
-                        ).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _getActivityTypeName(activity.activityType),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _getActivityTypeColor(activity.activityType),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    // Can now use isCompleted from PlanActivity
-                    // IconButton for completion toggle would need backend support
-                  ],
-                ),
+                _buildHeader(),
                 const SizedBox(height: 8),
-                Text(
-                  activity.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    // Removed decoration and color since no completion status
-                  ),
-                ),
-                // Show description if available
+                _buildTitle(),
                 if (activity.description != null &&
                     activity.description!.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    activity.description!,
-                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  _buildDescription(),
                 ],
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    if (activity.startTime != null) ...[
-                      Icon(
-                        Icons.access_time,
-                        size: 16,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        activity.timeRange,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                    if (activity.hasLocation &&
-                        activity.locationName != null) ...[
-                      Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        activity.locationName!,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                    if (activity.estimatedCost != null &&
-                        activity.estimatedCost! > 0) ...[
-                      Icon(
-                        Icons.attach_money,
-                        size: 16,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        activity.costDisplay,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      ),
-                    ],
-                  ],
-                ),
+                _buildInfoRow(),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: _getActivityTypeColor(
+              activity.activityType,
+            ).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            activity.activityTypeDisplay.isNotEmpty
+                ? activity.activityTypeDisplay
+                : _getActivityTypeName(activity.activityType),
+            style: TextStyle(
+              fontSize: 12,
+              color: _getActivityTypeColor(activity.activityType),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const Spacer(),
+        if (activity.isCompleted)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 16,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTitle() {
+    return Text(
+      activity.title,
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        decoration: activity.isCompleted ? TextDecoration.lineThrough : null,
+        color: activity.isCompleted ? Colors.grey[600] : null,
+      ),
+    );
+  }
+
+  Widget _buildDescription() {
+    return Text(
+      activity.description!,
+      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _buildInfoRow() {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 4,
+      children: [
+        if (activity.startTime != null)
+          _buildInfoChip(Icons.access_time, activity.timeRange),
+        if (activity.hasLocation && activity.locationName != null)
+          _buildInfoChip(Icons.location_on, activity.locationName!),
+        if (activity.estimatedCost != null && activity.estimatedCost! > 0)
+          _buildInfoChip(Icons.attach_money, activity.costDisplay),
+        if (activity.durationMinutes != null && activity.durationMinutes! > 0)
+          _buildInfoChip(
+            Icons.timer,
+            activity.durationDisplay.isNotEmpty
+                ? activity.durationDisplay
+                : '${activity.durationMinutes}m',
+          ),
+      ],
+    );
+  }
+
+  Widget _buildInfoChip(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: Colors.grey[600]),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
@@ -495,74 +675,6 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
         return 'Công việc';
       default:
         return 'Khác';
-    }
-  }
-
-  void _showActivityDetails(PlanActivity activity) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(activity.title),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Show all available info from PlanActivity
-              Text('Loại:', style: Theme.of(context).textTheme.titleSmall),
-              Text(_getActivityTypeName(activity.activityType)),
-              const SizedBox(height: 8),
-              if (activity.startTime != null) ...[
-                Text(
-                  'Thời gian:',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                Text(
-                  '${DateFormat('dd/MM/yyyy HH:mm').format(activity.startTime!)}${activity.endTime != null ? ' - ${DateFormat('HH:mm').format(activity.endTime!)}' : ''}',
-                ),
-                const SizedBox(height: 8),
-              ],
-              // All fields are available from PlanActivity
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Đóng'),
-          ),
-          if (permissions?['can_edit'] == true)
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _showEditActivityDialog(activity);
-              },
-              child: const Text('Chỉnh sửa'),
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddActivityDialog() {
-    // TODO: Implement add activity dialog
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Chức năng thêm hoạt động sẽ được cập nhật'),
-        ),
-      );
-    }
-  }
-
-  void _showEditActivityDialog(PlanActivity activity) {
-    // TODO: Implement edit activity dialog
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Chức năng chỉnh sửa hoạt động sẽ được cập nhật'),
-        ),
-      );
     }
   }
 }

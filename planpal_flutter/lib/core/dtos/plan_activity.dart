@@ -17,6 +17,7 @@ class PlanActivity extends Equatable {
   final String activityType;
   final DateTime? startTime;
   final DateTime? endTime;
+  final int? durationMinutes; // From API: duration_minutes
   final String? locationName;
   final String? locationAddress;
   final double? latitude;
@@ -42,6 +43,7 @@ class PlanActivity extends Equatable {
     required this.activityType,
     this.startTime,
     this.endTime,
+    this.durationMinutes,
     this.locationName,
     this.locationAddress,
     this.latitude,
@@ -73,6 +75,7 @@ class PlanActivity extends Equatable {
       endTime: json['end_time'] != null
           ? DateTime.tryParse(json['end_time'].toString())
           : null,
+      durationMinutes: json['duration_minutes']?.toInt(),
       locationName: json['location_name']?.toString(),
       locationAddress: json['location_address']?.toString(),
       latitude: _parseNullableDouble(json['latitude']),
@@ -82,18 +85,68 @@ class PlanActivity extends Equatable {
       notes: json['notes']?.toString(),
       order: json['order']?.toInt() ?? 0,
       isCompleted: json['is_completed'] == true,
-      durationHours: _parseNullableDouble(json['duration_hours']) ?? 0.0,
-      hasLocation: json['has_location'] == true,
+      durationHours:
+          _parseNullableDouble(json['duration_hours']) ??
+          (json['duration_minutes'] != null
+              ? json['duration_minutes'] / 60.0
+              : 0.0),
+      hasLocation:
+          json['has_location'] == true ||
+          (json['latitude'] != null && json['longitude'] != null),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'].toString())
           : DateTime.now(),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'].toString())
           : DateTime.now(),
-      durationDisplay: json['duration_display']?.toString() ?? '',
-      activityTypeDisplay: json['activity_type_display']?.toString() ?? '',
+      durationDisplay:
+          json['duration_display']?.toString() ??
+          _formatDuration(json['duration_minutes']?.toInt()),
+      activityTypeDisplay:
+          json['activity_type_display']?.toString() ??
+          _getActivityTypeName(json['activity_type']?.toString() ?? ''),
       mapsUrl: json['maps_url']?.toString() ?? '',
     );
+  }
+
+  static String _formatDuration(int? minutes) {
+    if (minutes == null || minutes == 0) return '';
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+    if (hours > 0 && mins > 0) {
+      return '${hours}h ${mins}m';
+    } else if (hours > 0) {
+      return '${hours}h';
+    } else {
+      return '${mins}m';
+    }
+  }
+
+  static String _getActivityTypeName(String activityType) {
+    switch (activityType) {
+      case 'eating':
+        return 'Ăn uống';
+      case 'resting':
+        return 'Nghỉ ngơi';
+      case 'moving':
+        return 'Di chuyển';
+      case 'sightseeing':
+        return 'Tham quan';
+      case 'shopping':
+        return 'Mua sắm';
+      case 'entertainment':
+        return 'Giải trí';
+      case 'event':
+        return 'Sự kiện';
+      case 'sport':
+        return 'Thể thao';
+      case 'study':
+        return 'Học tập';
+      case 'work':
+        return 'Công việc';
+      default:
+        return 'Khác';
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -105,6 +158,7 @@ class PlanActivity extends Equatable {
       'activity_type': activityType,
       'start_time': startTime?.toIso8601String(),
       'end_time': endTime?.toIso8601String(),
+      'duration_minutes': durationMinutes,
       'location_name': locationName,
       'location_address': locationAddress,
       'latitude': latitude,
@@ -132,6 +186,7 @@ class PlanActivity extends Equatable {
     String? activityType,
     DateTime? startTime,
     DateTime? endTime,
+    int? durationMinutes,
     String? locationName,
     String? locationAddress,
     double? latitude,
@@ -157,6 +212,7 @@ class PlanActivity extends Equatable {
       activityType: activityType ?? this.activityType,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
       locationName: locationName ?? this.locationName,
       locationAddress: locationAddress ?? this.locationAddress,
       latitude: latitude ?? this.latitude,
@@ -206,6 +262,7 @@ class PlanActivity extends Equatable {
     activityType,
     startTime,
     endTime,
+    durationMinutes,
     locationName,
     locationAddress,
     latitude,

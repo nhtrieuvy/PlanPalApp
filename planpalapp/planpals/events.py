@@ -104,6 +104,11 @@ class ChannelGroups:
         return f"user_{user_id}"
     
     @staticmethod
+    def conversation(conversation_id: str) -> str:
+        """Channel group for specific conversation updates"""
+        return f"conversation_{conversation_id}"
+    
+    @staticmethod
     def notifications() -> str:
         """Channel group for general notifications"""
         return "notifications"

@@ -17,6 +17,7 @@ class Endpoints {
   // Core API endpoints
   static const String plans = '/plans/';
   static const String groups = '/groups/';
+  static const String groupJoin = '/groups/join/';
   static const String activities = '/activities/';
 
   // Plan-related endpoints
@@ -37,6 +38,7 @@ class Endpoints {
 
   static String activityDetails(String activityId) =>
       '/activities/$activityId/';
+  static String activityDetail(String activityId) => '/activities/$activityId/';
   static String activityToggleCompletion(String planId, String activityId) =>
       '/plans/$planId/activities/$activityId/complete/';
 
@@ -54,6 +56,25 @@ class Endpoints {
   static String userUnfriend(String userId) => '/users/$userId/unfriend/';
   static String userBlock(String userId) => '/users/$userId/block/';
   static String userUnblock(String userId) => '/users/$userId/unblock/';
+
+  // Location endpoints
+  static const String locationReverseGeocode = '/location/reverse-geocode/';
+  static const String locationSearch = '/location/search/';
+  static const String locationAutocomplete = '/location/autocomplete/';
+  static const String locationPlaceDetails = '/location/place-details/';
+
+  // Chat endpoints
+  static const String conversations = '/conversations/';
+  static const String createDirectConversation =
+      '/conversations/create_direct/';
+  static String conversationDetails(String conversationId) =>
+      '/conversations/$conversationId/';
+  static String conversationMessages(String conversationId) =>
+      '/conversations/$conversationId/messages/';
+  static String sendMessage(String conversationId) =>
+      '/conversations/$conversationId/send_message/';
+  static String markRead(String conversationId) =>
+      '/conversations/$conversationId/mark_read/';
 }
 
 class ApiClient {

@@ -7,12 +7,14 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     OAuth2LogoutView, UserViewSet, GroupViewSet,
-    PlanViewSet, ChatMessageViewSet, PlanActivityViewSet,
+    PlanViewSet, ChatMessageViewSet, ConversationViewSet, PlanActivityViewSet,
     # Friendship views (class-based, not ViewSet)
     FriendRequestView, FriendRequestListView, FriendRequestActionView, FriendsListView,
     # Location/Places API views (using Goong Map API)
     PlacesSearchView, PlaceDetailsView, NearbyPlacesView, 
-    PlaceAutocompleteView, GeocodeView, SendNotificationView
+    PlaceAutocompleteView, GeocodeView, SendNotificationView,
+    # Enhanced location views for minimap
+    LocationReverseGeocodeView, LocationSearchView, LocationAutocompleteView, LocationPlaceDetailsView
 )
 
 # Router cho ViewSets
@@ -23,6 +25,7 @@ router.register(r'users', UserViewSet, basename='user')
 router.register(r'groups', GroupViewSet, basename='group')
 router.register(r'plans', PlanViewSet, basename='plan')  # FIXED - ModelViewSet also needs basename!
 router.register(r'messages', ChatMessageViewSet, basename='chatmessage')
+router.register(r'conversations', ConversationViewSet, basename='conversation')
 router.register(r'activities', PlanActivityViewSet, basename='planactivity')
 
 urlpatterns = [
@@ -41,6 +44,13 @@ urlpatterns = [
     path('places/nearby/', NearbyPlacesView.as_view(), name='nearby_places'),
     path('places/autocomplete/', PlaceAutocompleteView.as_view(), name='place_autocomplete'),
     path('geocode/', GeocodeView.as_view(), name='geocode'),
+    
+    # Enhanced location API endpoints for minimap
+    path('location/reverse-geocode/', LocationReverseGeocodeView.as_view(), name='location_reverse_geocode'),
+    path('location/search/', LocationSearchView.as_view(), name='location_search'),
+    path('location/autocomplete/', LocationAutocompleteView.as_view(), name='location_autocomplete'),
+    path('location/place-details/', LocationPlaceDetailsView.as_view(), name='location_place_details'),
+    
     path('notifications/send/', SendNotificationView.as_view(), name='send_notification'),
     
     # API routes

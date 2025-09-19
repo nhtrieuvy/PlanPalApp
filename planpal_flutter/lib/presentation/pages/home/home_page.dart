@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:getwidget/getwidget.dart';
 import '../../../core/providers/theme_provider.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/providers/conversation_provider.dart';
 import 'package:planpal_flutter/core/dtos/user_model.dart';
 import 'package:planpal_flutter/core/dtos/plan_summary.dart';
 import 'package:planpal_flutter/core/dtos/group_summary.dart';
@@ -14,24 +15,27 @@ import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 import 'package:planpal_flutter/presentation/pages/friends/friend_search_page.dart';
+import 'package:planpal_flutter/presentation/pages/chat/conversation_list_page.dart';
+import '../../widgets/common/refreshable_page_wrapper.dart';
 
+/// Main home page with drawer navigation and content sections
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const _HomeContent();
+    return const _HomeContent(key: ValueKey('home_content'));
   }
 }
 
 class _HomeContent extends StatefulWidget {
-  const _HomeContent();
+  const _HomeContent({super.key});
 
   @override
   State<_HomeContent> createState() => _HomeContentState();
 }
 
-class _HomeContentState extends State<_HomeContent> {
+class _HomeContentState extends State<_HomeContent> with RefreshablePage {
   late final GroupRepository _groupRepo;
   late final PlanRepository _planRepo;
   bool _loading = false;
@@ -45,6 +49,19 @@ class _HomeContentState extends State<_HomeContent> {
     _groupRepo = GroupRepository(context.read<AuthProvider>());
     _planRepo = PlanRepository(context.read<AuthProvider>());
     _loadData();
+
+    // Load conversations to get unread count for badge
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<ConversationProvider>().loadConversations();
+    });
+  }
+
+  @override
+  Future<void> onRefresh() async {
+    // Capture the conversation loading future before awaiting other async work
+    final convFuture = context.read<ConversationProvider>().loadConversations();
+    await Future.wait([_loadData(), convFuture]);
   }
 
   Future<void> _loadData() async {
@@ -94,56 +111,55 @@ class _HomeContentState extends State<_HomeContent> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: _buildDrawer(context),
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(context),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _loading
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 60.0, bottom: 120),
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                  : _error != null
-                  ? Center(
-                      child: Column(
+      body: RefreshablePageWrapper(
+        onRefresh: onRefresh,
+        child: CustomScrollView(
+          slivers: [
+            _buildSliverAppBar(context),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _loading
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: 60.0, bottom: 120),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    : _error != null
+                    ? Center(
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 80),
+                            const Icon(
+                              Icons.error_outline,
+                              size: 48,
+                              color: Colors.redAccent,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(_error!, textAlign: TextAlign.center),
+                            const SizedBox(height: 8),
+                            // Remove manual refresh button since we have pull-to-refresh
+                          ],
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 80),
-                          const Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: Colors.redAccent,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(_error!, textAlign: TextAlign.center),
-                          const SizedBox(height: 8),
-                          OutlinedButton.icon(
-                            onPressed: _loadData,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Thử lại'),
-                          ),
+                          _buildGreetingSection(context),
+                          const SizedBox(height: 24),
+                          _buildQuickActions(context),
+                          const SizedBox(height: 24),
+                          _buildRecentPlans(context),
+                          const SizedBox(height: 24),
+                          _buildActiveGroups(context),
+                          const SizedBox(height: 100),
                         ],
                       ),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildGreetingSection(context),
-                        const SizedBox(height: 24),
-                        _buildQuickActions(context),
-                        const SizedBox(height: 24),
-                        _buildRecentPlans(context),
-                        const SizedBox(height: 24),
-                        _buildActiveGroups(context),
-                        const SizedBox(height: 100),
-                      ],
-                    ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -327,9 +343,42 @@ class _HomeContentState extends State<_HomeContent> {
     );
   }
 
+  /// Builds drawer menu items with navigation options
   Widget _buildDrawerMenuItems(BuildContext context) {
     return Column(
       children: [
+        // Chat functionality with unread count badge
+        Consumer<ConversationProvider>(
+          builder: (context, conversationProvider, child) {
+            // Show badge even if there's an error, but use 0 count
+            final unreadCount = conversationProvider.error != null
+                ? 0
+                : conversationProvider.totalUnreadCount;
+
+            return ListTile(
+              leading: _buildNotificationBadge(
+                child: const Icon(Icons.chat_bubble),
+                count: unreadCount,
+              ),
+              title: const Text('Cuộc hội thoại'),
+              onTap: () async {
+                Navigator.of(context).pop();
+                // Capture provider before async gap to avoid using context after await
+                final convProv = context.read<ConversationProvider>();
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ConversationListPage(),
+                  ),
+                );
+
+                // Refresh conversations to update unread count badge when returning
+                if (!mounted) return;
+                convProv.loadConversations();
+              },
+            );
+          },
+        ),
+        // Groups
         ListTile(
           leading: const Icon(Icons.groups),
           title: const Text('Nhóm'),
@@ -338,6 +387,7 @@ class _HomeContentState extends State<_HomeContent> {
             Navigator.of(context).pushNamed('/group');
           },
         ),
+        // Plans
         ListTile(
           leading: const Icon(Icons.event_note),
           title: const Text('Kế hoạch'),
@@ -346,6 +396,7 @@ class _HomeContentState extends State<_HomeContent> {
             Navigator.of(context).pushNamed('/plan');
           },
         ),
+        // Profile
         ListTile(
           leading: const Icon(Icons.person),
           title: const Text('Cá nhân'),
@@ -866,6 +917,52 @@ class _HomeContentState extends State<_HomeContent> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Helper method to create notification badge for icon with animation
+  Widget _buildNotificationBadge({
+    required Widget child,
+    required int count,
+    Color badgeColor = AppColors.error,
+  }) {
+    return Stack(
+      children: [
+        child,
+        if (count > 0)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: AnimatedScale(
+              scale: 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: badgeColor.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  count > 99 ? '99+' : count.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

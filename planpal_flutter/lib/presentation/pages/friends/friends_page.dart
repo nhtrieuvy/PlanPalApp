@@ -6,6 +6,7 @@ import '../../../core/repositories/friend_repository.dart';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/friendship.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'user_profile_page.dart';
 
 class FriendsPage extends StatefulWidget {
@@ -16,7 +17,7 @@ class FriendsPage extends StatefulWidget {
 }
 
 class _FriendsPageState extends State<FriendsPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RefreshablePage<FriendsPage> {
   late final FriendRepository _friendRepo;
   late final TabController _tabController;
 
@@ -37,6 +38,11 @@ class _FriendsPageState extends State<FriendsPage>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  Future<void> onRefresh() async {
+    await _loadData();
   }
 
   Future<void> _loadData() async {
@@ -216,8 +222,8 @@ class _FriendsPageState extends State<FriendsPage>
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadFriends,
+    return RefreshablePageWrapper(
+      onRefresh: onRefresh,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _friends.length,
@@ -259,8 +265,8 @@ class _FriendsPageState extends State<FriendsPage>
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadFriendRequests,
+    return RefreshablePageWrapper(
+      onRefresh: onRefresh,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _friendRequests.length,

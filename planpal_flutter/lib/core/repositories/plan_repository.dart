@@ -5,6 +5,7 @@ import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/dtos/plan_requests.dart';
 import '../dtos/plan_summary.dart';
 import '../dtos/plan_model.dart';
+import '../dtos/plan_activity_requests.dart';
 
 class PlanRepository {
   final AuthProvider _auth;
@@ -161,6 +162,23 @@ class PlanRepository {
     }
   }
 
+  /// Get full activity details for dialog display
+  Future<Map<String, dynamic>> getActivityDetail(String activityId) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.activityDetail(activityId)),
+      );
+
+      if (res.statusCode == 200) {
+        return res.data;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
   Future<PlanModel> joinPlan(String planId) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(
@@ -189,9 +207,9 @@ class PlanRepository {
 
       if (res.statusCode == 200) {
         final data = res.data;
-        // Handle paginated response with 'results' array
-        final List<dynamic> rawList = (data is Map && data['results'] is List)
-            ? List<dynamic>.from(data['results'] as List)
+        // Handle response with 'plans' array
+        final List<dynamic> rawList = (data is Map && data['plans'] is List)
+            ? List<dynamic>.from(data['plans'] as List)
             : const <dynamic>[];
 
         if (rawList.isEmpty) return const <PlanSummary>[];
@@ -285,7 +303,7 @@ class PlanRepository {
 
   // Activity CRUD operations
   Future<Map<String, dynamic>> createActivity(
-    CreateActivityRequest request,
+    CreatePlanActivityRequest request,
   ) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(
@@ -304,7 +322,7 @@ class PlanRepository {
 
   Future<Map<String, dynamic>> updateActivity(
     String activityId,
-    UpdateActivityRequest request,
+    UpdatePlanActivityRequest request,
   ) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(

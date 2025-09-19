@@ -6,6 +6,7 @@ import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:intl/intl.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
+import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../core/dtos/plan_summary.dart';
 // Removed local PlanStatus mapping; use backend status + status_display
 
@@ -16,7 +17,7 @@ class PlanPage extends StatefulWidget {
   State<PlanPage> createState() => _PlanPageState();
 }
 
-class _PlanPageState extends State<PlanPage> {
+class _PlanPageState extends State<PlanPage> with RefreshablePage<PlanPage> {
   late final PlanRepository _repo;
   bool _loading = false;
   String? _error;
@@ -38,6 +39,11 @@ class _PlanPageState extends State<PlanPage> {
     super.initState();
     _repo = PlanRepository(context.read<AuthProvider>());
     _loadPlans();
+  }
+
+  @override
+  Future<void> onRefresh() async {
+    await _loadPlans();
   }
 
   Future<void> _loadPlans() async {
@@ -167,15 +173,9 @@ class _PlanPageState extends State<PlanPage> {
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             elevation: 0,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _loadPlans,
-              ),
-            ],
           ),
         ],
-        body: RefreshIndicator(onRefresh: _loadPlans, child: _buildBody()),
+        body: RefreshablePageWrapper(onRefresh: onRefresh, child: _buildBody()),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _onCreatePlan,
@@ -374,7 +374,7 @@ class _PlanPageState extends State<PlanPage> {
       const SizedBox(height: 16),
       Center(
         child: ElevatedButton.icon(
-          onPressed: _loadPlans,
+          onPressed: onRefresh,
           icon: const Icon(Icons.refresh),
           label: const Text('Thử lại'),
           style: ElevatedButton.styleFrom(

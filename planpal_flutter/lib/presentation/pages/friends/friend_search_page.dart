@@ -108,7 +108,19 @@ class _FriendSearchPageState extends State<FriendSearchPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
-                fillColor: Colors.grey[50],
+                fillColor: theme.brightness == Brightness.dark
+                    ? Colors.white12
+                    : Colors.grey[50],
+                hintStyle: TextStyle(
+                  color: theme.brightness == Brightness.dark
+                      ? Colors.white70
+                      : Colors.grey[600],
+                ),
+              ),
+              style: TextStyle(
+                color:
+                    theme.textTheme.bodyLarge?.color ??
+                    theme.colorScheme.onSurface,
               ),
               onChanged: (value) {
                 setState(() {}); // Update suffix icon
