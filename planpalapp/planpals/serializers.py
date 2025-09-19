@@ -88,6 +88,9 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserSummarySerializer(serializers.ModelSerializer):
+    # Explicitly serialize UUID field as string for channels compatibility
+    id = serializers.CharField(read_only=True)
+    
     avatar_url = serializers.CharField(read_only=True)
     has_avatar = serializers.BooleanField(read_only=True)
     online_status = serializers.CharField(read_only=True)
@@ -762,6 +765,10 @@ class PlanSummarySerializer(serializers.ModelSerializer):
         return status_map.get(instance.status, instance.status)
     
 class ChatMessageSerializer(serializers.ModelSerializer):
+    # Explicitly serialize UUID fields as strings for channels compatibility
+    id = serializers.CharField(read_only=True)
+    conversation = serializers.CharField(read_only=True)
+    
     sender = UserSummarySerializer(read_only=True)
     reply_to = serializers.SerializerMethodField()
     
@@ -793,7 +800,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     def get_reply_to(self, obj):
         if obj.reply_to:
             return {
-                'id': obj.reply_to.id,
+                'id': str(obj.reply_to.id),  # Convert UUID to string
                 'content': obj.reply_to.content[:100] + ('...' if len(obj.reply_to.content) > 100 else ''),
                 'sender': obj.reply_to.sender.username if obj.reply_to.sender else 'System',
                 'message_type': obj.reply_to.message_type

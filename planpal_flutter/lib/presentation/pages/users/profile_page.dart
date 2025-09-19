@@ -348,9 +348,6 @@ class _ProfilePageState extends State<ProfilePage> {
     File? selectedImage;
     final ImagePicker picker = ImagePicker();
 
-    // Capture objects from the page context before any async gaps so we don't
-    // use a dialog/build context after awaiting (avoids Flutter lint/error:
-    // "Don't use 'BuildContext's across async gaps").
     final scaffoldMessenger = ScaffoldMessenger.of(pageContext);
     final pageNavigator = Navigator.of(pageContext);
     final authProvider = Provider.of<AuthProvider>(pageContext, listen: false);

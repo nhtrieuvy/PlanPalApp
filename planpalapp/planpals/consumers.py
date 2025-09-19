@@ -26,10 +26,17 @@ class BaseRealtimeConsumer(AsyncWebsocketConsumer):
         """Accept WebSocket connection if user is authenticated"""
         self.user = self.scope["user"]
         
+        logger.info(f"Consumer connect: user = {self.user}, type = {type(self.user)}")
+        print(f"Consumer connect: user = {self.user}, type = {type(self.user)}")  # Debug print
+        
         if isinstance(self.user, AnonymousUser):
+            logger.warning(f"Rejecting AnonymousUser connection")
+            print(f"Rejecting AnonymousUser connection")  # Debug print
             await self.close(code=4001)  # Unauthorized
             return
             
+        logger.info(f"Accepting connection for user: {self.user}")
+        print(f"Accepting connection for user: {self.user}")  # Debug print
         await self.accept()
         await self.on_connect()
         
@@ -319,7 +326,7 @@ class ChatConsumer(BaseRealtimeConsumer):
     async def chat_message(self, event):
         """Handle new chat messages from channel layer"""
         await self.send(text_data=json.dumps({
-            'type': 'message',
+            'type': 'chat_message',
             'data': event['data']
         }))
         

@@ -9,6 +9,7 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/dtos/conversation.dart';
 import '../../../core/dtos/chat_message.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/chat_websocket_service.dart' as ws;
 import '../../widgets/common/loading_state.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/message_input.dart';
@@ -29,8 +30,8 @@ class _ChatPageState extends State<ChatPage>
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
 
-  // TODO: Implement WebSocket service
-  // late ws.ChatWebSocketService _webSocketService;
+  // WebSocket service for realtime messaging
+  late ws.ChatWebSocketService _webSocketService;
   StreamSubscription? _eventSubscription;
   StreamSubscription? _connectionSubscription;
 
@@ -62,8 +63,8 @@ class _ChatPageState extends State<ChatPage>
     _eventSubscription?.cancel();
     _connectionSubscription?.cancel();
 
-    // TODO: Implement WebSocket disconnect
-    // _webSocketService.disconnect();
+    // Disconnect WebSocket when leaving chat
+    _webSocketService.disconnect();
     super.dispose();
   }
 
@@ -72,8 +73,8 @@ class _ChatPageState extends State<ChatPage>
     if (state == AppLifecycleState.resumed) {
       _connectWebSocket();
     } else if (state == AppLifecycleState.paused) {
-      // TODO: Implement WebSocket disconnect
-      // _webSocketService.disconnect();
+      // Disconnect WebSocket when app goes to background
+      _webSocketService.disconnect();
     }
   }
 
@@ -83,18 +84,85 @@ class _ChatPageState extends State<ChatPage>
     // Load initial messages
     conversationProvider.loadMessages(widget.conversation.id, refresh: true);
 
-    // TODO: Setup WebSocket when implemented
-    // _webSocketService = ChatWebSocketManager().getService(widget.conversation.id);
-    // _connectWebSocket();
-    // _setupWebSocketListeners();
+    // Setup WebSocket for realtime messaging
+    _webSocketService = ws.ChatWebSocketService();
+    _connectWebSocket();
+    _setupWebSocketListeners();
   }
 
   void _connectWebSocket() {
-    // TODO: Implement WebSocket connection
-    // final authProvider = context.read<AuthProvider>();
-    // if (authProvider.token != null) {
-    //   _webSocketService.connect(widget.conversation.id, authProvider.token!);
-    // }
+    // Connect WebSocket with authentication
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.token != null) {
+      _webSocketService.connect(widget.conversation.id, authProvider.token!);
+    }
+  }
+
+  void _setupWebSocketListeners() {
+    // Listen to WebSocket events
+    _eventSubscription = _webSocketService.eventStream.listen(
+      (event) => _handleWebSocketEvent(event),
+      onError: (error) {
+        debugPrint('WebSocket error: $error');
+        // Optionally show user-friendly error message
+      },
+    );
+
+    // For now, we'll just track connection state through events
+    // Connection state stream can be added later if needed
+  }
+
+  void _handleWebSocketEvent(ws.WebSocketEvent event) {
+    if (!mounted) return;
+
+    switch (event.type) {
+      case ws.WebSocketEventType.chatMessage:
+        _handleNewMessage(event.data);
+        break;
+      case ws.WebSocketEventType.typingStart:
+        _handleTypingStart(event.data);
+        break;
+      case ws.WebSocketEventType.typingStop:
+        _handleTypingStop(event.data);
+        break;
+      case ws.WebSocketEventType.messageRead:
+        _handleMessageRead(event.data);
+        break;
+      case ws.WebSocketEventType.userJoined:
+      case ws.WebSocketEventType.userLeft:
+        // Handle user presence if needed
+        debugPrint('User presence changed: ${event.data}');
+        break;
+      case ws.WebSocketEventType.error:
+        debugPrint('WebSocket event error: ${event.data}');
+        break;
+    }
+  }
+
+  void _handleNewMessage(Map<String, dynamic> data) {
+    final conversationProvider = context.read<ConversationProvider>();
+    // Refresh messages to get the new message
+    // This is a simple approach - we could optimize by parsing the message data directly
+    conversationProvider.loadMessages(widget.conversation.id, refresh: true);
+  }
+
+  void _handleTypingStart(Map<String, dynamic> data) {
+    final username = data['username'] as String?;
+    debugPrint('User $username started typing');
+    // TODO: Show typing indicator in UI
+  }
+
+  void _handleTypingStop(Map<String, dynamic> data) {
+    debugPrint('User stopped typing');
+    // TODO: Hide typing indicator in UI
+  }
+
+  void _handleMessageRead(Map<String, dynamic> data) {
+    final messageIds = data['message_ids'] as List<dynamic>?;
+    if (messageIds != null) {
+      debugPrint('Messages marked as read: $messageIds');
+      // TODO: Update message read status in UI
+    }
   }
 
   void _setupScrollListener() {
@@ -250,13 +318,13 @@ class _ChatPageState extends State<ChatPage>
   }
 
   void _onTypingStart() {
-    // TODO: Implement typing indicator when WebSocket is ready
-    // _webSocketService.sendTypingIndicator(true);
+    // Send typing indicator via WebSocket
+    _webSocketService.sendTypingIndicator(true);
   }
 
   void _onTypingStop() {
-    // TODO: Implement typing indicator when WebSocket is ready
-    // _webSocketService.sendTypingIndicator(false);
+    // Stop typing indicator via WebSocket
+    _webSocketService.sendTypingIndicator(false);
   }
 
   bool _shouldShowAvatar(int index, List<ChatMessage> messages) {
