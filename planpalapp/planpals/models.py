@@ -1625,20 +1625,13 @@ class ConversationQuerySet(models.QuerySet['Conversation']):
     def get_direct_conversation(self, user1: Union['User', UUID], user2: Union['User', UUID]) -> Optional['Conversation']:
         user1_id = getattr(user1, 'id', user1)
         user2_id = getattr(user2, 'id', user2)
-        
-        # Canonical ordering
-        if user1_id < user2_id:
-            return self.filter(
-                conversation_type='direct',
-                user_a=user1_id,
-                user_b=user2_id
-            ).first()
-        else:
-            return self.filter(
-                conversation_type='direct',
-                user_a=user2_id,
-                user_b=user1_id
-            ).first()
+        # Check for a direct conversation regardless of stored user ordering.
+        return self.filter(
+            conversation_type='direct'
+        ).filter(
+            (Q(user_a=user1_id) & Q(user_b=user2_id)) |
+            (Q(user_a=user2_id) & Q(user_b=user1_id))
+        ).first()
 
 
 class Conversation(BaseModel):
@@ -1906,15 +1899,17 @@ class ChatMessage(BaseModel):
     
     # Nội dung tin nhắn
     content = models.TextField(
+        null=True,
+        blank=True,
         help_text="Message content"
     )
     
     attachment = CloudinaryField(
-        'auto',
+        'image',
         blank=True,
         null=True,
         folder='planpal/messages/attachments',
-        resource_type='auto',  # auto detect file type
+        resource_type='image',
         help_text="Attachment file (image, document, etc.)"
     )
     
@@ -2035,22 +2030,15 @@ class ChatMessage(BaseModel):
 
     @property
     def attachment_url(self):
-        """Get attachment URL"""
+        if not self.has_attachment:
+            return None
         if self.attachment:
-            try:
-                if hasattr(self.attachment, 'build_url'):
-                    return self.attachment.build_url()
-                elif hasattr(self.attachment, 'url'):
-                    return self.attachment.url
-                else:
-                    return str(self.attachment)
-            except Exception:
-                return None
+            cloudinary_image = CloudinaryImage(str(self.attachment))
+            return cloudinary_image.build_url(secure=True)
         return None
 
     @property
     def attachment_size_display(self):
-        """Get human readable file size"""
         if not self.attachment_size:
             return None
         
@@ -2063,7 +2051,6 @@ class ChatMessage(BaseModel):
 
     @property
     def location_url(self):
-        """Get Google Maps URL for location"""
         if self.latitude and self.longitude:
             return f"https://maps.google.com/?q={self.latitude},{self.longitude}"
         return None
@@ -2077,10 +2064,9 @@ class ChatMessage(BaseModel):
         if not hasattr(self, '_clean_called'):
             self.clean()
             self._clean_called = True
-            
+        
         super().save(*args, **kwargs)
         
-        # Update conversation's last message time (simple model logic)
         if self.conversation and not self.is_deleted:
             if not self.conversation.last_message_at or self.created_at > self.conversation.last_message_at:
                 self.conversation.last_message_at = self.created_at

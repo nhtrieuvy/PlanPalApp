@@ -219,19 +219,14 @@ class _ChatPageState extends State<ChatPage>
 
   void _sendImage(File imageFile) async {
     try {
-      // TODO: Upload image to server first and get URL
-      // For now, use local path as placeholder
-      final imageUrl = imageFile.path;
-      final fileName = imageFile.path.split('/').last;
-
+      // Upload image first (client-side) and send with valid URL
       final provider = Provider.of<ConversationProvider>(
         context,
         listen: false,
       );
-      final success = await provider.sendImageMessage(
+      final success = await provider.sendImageFile(
         widget.conversation.id,
-        imageUrl,
-        fileName,
+        imageFile,
       );
 
       if (!success) {
@@ -285,18 +280,14 @@ class _ChatPageState extends State<ChatPage>
 
   void _sendFile(File file, String fileName) async {
     try {
-      // TODO: Upload file to server first and get URL
-      // For now, use local path as placeholder
-      final fileUrl = file.path;
-
+      // Upload file first (client-side) and send with valid URL
       final provider = Provider.of<ConversationProvider>(
         context,
         listen: false,
       );
-      final success = await provider.sendFileMessage(
+      final success = await provider.sendFileAttachment(
         widget.conversation.id,
-        fileUrl,
-        fileName,
+        file,
       );
 
       if (!success) {

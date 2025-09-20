@@ -3,14 +3,12 @@ import 'package:dio/dio.dart';
 import '../services/apis.dart';
 import '../dtos/conversation.dart';
 import '../dtos/chat_message.dart';
-import '../services/file_upload_service.dart';
 
 /// Repository for conversation and messaging operations
 class ConversationRepository {
   final ApiClient _apiClient;
-  final FileUploadService _fileUploadService;
 
-  ConversationRepository(this._apiClient, this._fileUploadService);
+  ConversationRepository(this._apiClient);
 
   /// Get all conversations for current user
   Future<ConversationsResponse> getConversations() async {
@@ -121,56 +119,56 @@ class ConversationRepository {
     return sendMessage(conversationId, request);
   }
 
-  /// Send image file with upload
+  /// Send image file with multipart upload (like user/group avatar)
   Future<ChatMessage> sendImageFile(
     String conversationId,
     File imageFile, {
     String? replyToId,
   }) async {
-    // Upload image first
-    final uploadResult = await _fileUploadService.uploadImage(imageFile);
+    try {
+      final formData = FormData.fromMap({
+        'message_type': MessageType.image.name,
+        'attachment': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: imageFile.path.split(Platform.pathSeparator).last,
+        ),
+        if (replyToId != null) 'reply_to_id': replyToId,
+      });
 
-    if (!uploadResult.isSuccess) {
-      throw Exception(uploadResult.errorMessage ?? 'Failed to upload image');
+      final response = await _apiClient.dio.post(
+        '/conversations/$conversationId/send_message/',
+        data: formData,
+      );
+      return ChatMessage.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioException(e);
     }
-
-    // Send message with attachment
-    final request = SendMessageRequest(
-      content: uploadResult.fileName ?? 'Image',
-      messageType: MessageType.image,
-      attachment: uploadResult.url!,
-      attachmentName: uploadResult.fileName,
-      attachmentSize: uploadResult.fileSize,
-      replyToId: replyToId,
-    );
-
-    return sendMessage(conversationId, request);
   }
 
-  /// Send file with upload
+  /// Send file with multipart upload (like user/group avatar)
   Future<ChatMessage> sendFileAttachment(
     String conversationId,
     File file, {
     String? replyToId,
   }) async {
-    // Upload file first
-    final uploadResult = await _fileUploadService.uploadFile(file);
+    try {
+      final formData = FormData.fromMap({
+        'message_type': MessageType.file.name,
+        'attachment': await MultipartFile.fromFile(
+          file.path,
+          filename: file.path.split(Platform.pathSeparator).last,
+        ),
+        if (replyToId != null) 'reply_to_id': replyToId,
+      });
 
-    if (!uploadResult.isSuccess) {
-      throw Exception(uploadResult.errorMessage ?? 'Failed to upload file');
+      final response = await _apiClient.dio.post(
+        '/conversations/$conversationId/send_message/',
+        data: formData,
+      );
+      return ChatMessage.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw _handleDioException(e);
     }
-
-    // Send message with attachment
-    final request = SendMessageRequest(
-      content: uploadResult.fileName ?? 'File',
-      messageType: MessageType.file,
-      attachment: uploadResult.url!,
-      attachmentName: uploadResult.fileName,
-      attachmentSize: uploadResult.fileSize,
-      replyToId: replyToId,
-    );
-
-    return sendMessage(conversationId, request);
   }
 
   /// Send image message (convenience method)

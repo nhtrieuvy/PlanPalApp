@@ -5,6 +5,7 @@ from django.db import models, transaction
 from django.core.exceptions import ValidationError, PermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from datetime import datetime
+import logging
 
 from rest_framework import viewsets, status, generics, mixins
 from rest_framework.decorators import action
@@ -42,6 +43,7 @@ from .paginators import (
 )
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class OAuth2LogoutView(APIView):
@@ -457,24 +459,58 @@ class GroupViewSet(viewsets.GenericViewSet,
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupMember])
     def send_message(self, request, pk=None):
+        """
+        Send message to group.
+        
+        Same interface as ConversationViewSet.send_message for consistency.
+        """
         group = self.get_object()
-        content = request.data.get('content')
-        message_type = request.data.get('message_type', 'text')
+        
+        # Check group membership
+        if not group.members.filter(id=request.user.id).exists():
+            return Response(
+                {'error': 'You are not a member of this group'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Use DRF serializer for validation
+        serializer = ChatMessageSerializer(data=request.data, context={'request': request})
+        
+        if not serializer.is_valid():
+            return Response(
+                {'errors': serializer.errors}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         try:
+            # Use ChatService which delegates to ConversationService.create_message
             message = ChatService.send_message(
                 sender=request.user,
                 group=group,
-                content=content,
-                message_type=message_type
+                **serializer.validated_data
             )
-            serializer = ChatMessageSerializer(message)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        except ValidationError as e:
+            
+            # Return serialized response
+            response_serializer = ChatMessageSerializer(message, context={'request': request})
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            
+        except PermissionDenied as e:
             return Response(
                 {'error': str(e)}, 
                 status=status.HTTP_403_FORBIDDEN
             )
+        except ValidationError as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error in group send_message: {e}")
+            return Response(
+                {'error': 'Internal server error'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsGroupMember])
     def recent_messages(self, request, pk=None):
@@ -895,65 +931,88 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
     
     def get_queryset(self):
         return ChatMessage.objects.filter(
-            group__members=self.request.user
-        ).select_related('sender', 'group')
-    
-    
+            conversation__group__members=self.request.user
+        ).select_related('sender', 'conversation__group')
     
     def create(self, request, *args, **kwargs):
-        group_id = request.data.get('group')
-        content = request.data.get('content', '')
-        message_type = request.data.get('message_type', 'text')
+        """
+        Create a new message in a group conversation.
+        Supports both multipart/form-data for file uploads and JSON for text messages.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         
+        # Get group from request data
+        group_id = request.data.get('group_id')
         if not group_id:
             return Response(
-                {'error': 'group field is required'}, 
+                {'error': 'group_id is required'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        success, error_message, message = ChatService.send_message_to_group(
-            sender=request.user,
-            group_id=group_id,
-            content=content,
-            message_type=message_type
-        )
-        
-        if not success:
-            status_code = status.HTTP_403_FORBIDDEN if "Cannot send message" in error_message else status.HTTP_400_BAD_REQUEST
-            return Response({'error': error_message}, status=status_code)
-        
-        serializer = self.get_serializer(message)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-    def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
+        try:
+            group = Group.objects.get(id=group_id)
+            
+            # Send message using ChatService
+            message = ChatService.send_message(
+                sender=request.user,
+                group=group,
+                **serializer.validated_data
+            )
+            
+            # Return serialized message
+            response_serializer = self.get_serializer(message)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Group.DoesNotExist:
+            return Response(
+                {'error': 'Group not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except ValidationError as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
     
     def update(self, request, *args, **kwargs):
-        message = self.get_object()
+        """Edit a message (content only, within 15 minutes)."""
+        instance = self.get_object()
+        new_content = request.data.get('content', '').strip()
         
-        success, error_message = ChatService.edit_message(message, request.user, request.data.get('content', ''))
-        
-        if not success:
+        if not new_content:
             return Response(
-                {'error': error_message}, 
+                {'error': 'Content is required for message edit'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        return super().update(request, *args, **kwargs)
+        success, message = ChatService.edit_message(instance, request.user, new_content)
+        
+        if success:
+            # Refresh instance and return updated data
+            instance.refresh_from_db()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        else:
+            return Response(
+                {'error': message}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
     
     def destroy(self, request, *args, **kwargs):
-        message = self.get_object()
+        """Soft delete a message."""
+        instance = self.get_object()
         
-        # Use service layer for delete validation
-        success, error_message = ChatService.delete_message(message, request.user)
+        success, message = ChatService.delete_message(instance, request.user)
         
-        if not success:
+        if success:
+            return Response({'message': message}, status=status.HTTP_200_OK)
+        else:
             return Response(
-                {'error': error_message}, 
+                {'error': message}, 
                 status=status.HTTP_403_FORBIDDEN
             )
-        
-        return super().destroy(request, *args, **kwargs)
+    
     
     #API lấy tin nhắn theo nhóm với pagination
     @action(detail=False, methods=['get'])
@@ -1063,23 +1122,9 @@ class ConversationViewSet(viewsets.GenericViewSet,
         serializer = self.get_serializer(conversations, many=True)
         return Response({'conversations': serializer.data})
     
-    def retrieve(self, request, *args, **kwargs):
-        """Get conversation details"""
-        conversation = self.get_object()
-        
-        # Check if user can access this conversation
-        if not ConversationService._can_user_access_conversation(request.user, conversation):
-            return Response(
-                {'error': 'Access denied to this conversation'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        serializer = self.get_serializer(conversation)
-        return Response(serializer.data)
     
     @action(detail=False, methods=['post'])
     def create_direct(self, request):
-        """Create or get direct conversation with another user"""
         other_user_id = request.data.get('user_id')
         
         if not other_user_id:
@@ -1123,7 +1168,6 @@ class ConversationViewSet(viewsets.GenericViewSet,
     
     @action(detail=True, methods=['get'])
     def messages(self, request, pk=None):
-        """Get messages for a conversation"""
         conversation = self.get_object()
         
         if not ConversationService._can_user_access_conversation(request.user, conversation):
@@ -1171,6 +1215,7 @@ class ConversationViewSet(viewsets.GenericViewSet,
     
     @action(detail=True, methods=['post'])
     def send_message(self, request, pk=None):
+ 
         conversation = self.get_object()
         
         if not ConversationService._can_user_access_conversation(request.user, conversation):
@@ -1179,35 +1224,44 @@ class ConversationViewSet(viewsets.GenericViewSet,
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        content = request.data.get('content', '')
-        message_type = request.data.get('message_type', 'text')
-        latitude = request.data.get('latitude')
-        longitude = request.data.get('longitude')
-        location_name = request.data.get('location_name')
-        reply_to_id = request.data.get('reply_to_id')
+        # Use DRF serializer for validation and data cleaning
+        serializer = ChatMessageSerializer(data=request.data, context={'request': request})
         
-        if not content and message_type == 'text':
+        if not serializer.is_valid():
             return Response(
-                {'error': 'Content is required for text messages'}, 
+                {'errors': serializer.errors}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        success, error_message, message = ConversationService.send_message_to_conversation(
-            sender=request.user,
-            conversation_id=str(conversation.id),
-            content=content,
-            message_type=message_type,
-            latitude=latitude,
-            longitude=longitude,
-            location_name=location_name,
-            reply_to_id=reply_to_id
-        )
+        try:
+            # Create message using service layer
+            message = ConversationService.create_message(
+                conversation=conversation,
+                sender=request.user,
+                validated_data=serializer.validated_data
+            )
+            
+            # Return serialized response
+            response_serializer = ChatMessageSerializer(message, context={'request': request})
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+            
+        except PermissionDenied as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        except ValidationError as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error in send_message: {e}")
+            return Response(
+                {'error': 'Internal server error'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
-        if not success:
-            return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer = ChatMessageSerializer(message, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
