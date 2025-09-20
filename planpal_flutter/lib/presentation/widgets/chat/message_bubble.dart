@@ -205,7 +205,9 @@ class MessageBubble extends StatelessWidget {
                 top: Radius.circular(20),
               ),
               child: CachedNetworkImage(
-                imageUrl: message.content,
+                // Use attachmentUrl provided by backend DTO when available;
+                // fall back to content for backward compatibility.
+                imageUrl: message.attachmentUrl ?? message.content,
                 fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
                   height: 150,

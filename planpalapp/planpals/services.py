@@ -1,9 +1,12 @@
 from django.db import transaction, models
 from django.db.models import QuerySet
 from django.utils import timezone
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
+from django.core.files.uploadedfile import UploadedFile
 from typing import Dict, List, Optional, Tuple, Any
 import logging
+import os
+import re
 from oauth2_provider.models import AccessToken, RefreshToken
 from django.db.models import Q
 from uuid import UUID
@@ -16,10 +19,13 @@ from .realtime_publisher import RealtimeEventPublisher
 from .tasks import start_plan_task, complete_plan_task
 from celery import current_app
 from .paginators import ManualCursorPaginator
-from .serializers import UserSerializer,ChatMessageSerializer
+from .serializers import UserSerializer,ChatMessageSerializer, PlanActivitySummarySerializer
+
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
+import cloudinary.uploader
+from django.core.files.uploadedfile import UploadedFile
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +336,23 @@ class UserService(BaseService):
             with transaction.atomic():
                 friendship.status = Friendship.ACCEPTED
                 friendship.save()
+                
+                # Auto-create direct conversation between new friends
+                try:
+                    # Import here to avoid circular import
+                    conversation, created = ConversationService.get_or_create_direct_conversation(
+                        current_user, from_user
+                    )
+                    if created:
+                        cls.log_operation("auto_conversation_created", {
+                            'conversation_id': str(conversation.id),
+                            'user1': current_user.id,
+                            'user2': from_user.id,
+                            'trigger': 'friend_request_accepted'
+                        })
+                except Exception as conv_error:
+                    # Log error but don't fail the friend request
+                    cls.log_error("Error creating conversation after friend acceptance", conv_error)
             
             cls.log_operation("friend_request_accepted", {
                 'user': current_user.id,
@@ -1139,9 +1162,7 @@ class PlanService(BaseService):
         """
         Get plan schedule with summary data - optimized for performance
         Uses PlanActivitySummarySerializer for lightweight response
-        """
-        from .serializers import PlanActivitySummarySerializer
-        
+        """        
         activities = plan.activities.order_by('start_time')
         
         schedule_by_date = {}
@@ -1271,7 +1292,6 @@ class PlanService(BaseService):
     @classmethod
     def get_plans_needing_updates(cls):
         return Plan.objects.plans_need_status_update()
-    
     
     
     @classmethod
@@ -1483,20 +1503,184 @@ class PlanService(BaseService):
         return False, "This plan is not joinable"
 
 
+# Helper functions for attachment handling
+def is_local_path(attachment_value: str) -> bool:
+    """Check if a string represents a local file path that should be rejected."""
+    if not attachment_value or not isinstance(attachment_value, str):
+        return False
+    
+    # Check for common local path patterns
+    local_patterns = [
+        r'^file://',  # file:// protocol
+        r'^/data/user/',  # Android app data
+        r'^/storage/emulated/',  # Android storage
+        r'\\AppData\\Local\\Temp\\',  # Windows temp paths
+        r'^/tmp/',  # Unix temp paths
+        r'^/var/folders/',  # macOS temp paths
+        r'^C:\\Users\\.*\\AppData\\',  # Windows user data
+        r'^/Users/.*/Library/Caches/',  # macOS cache paths
+    ]
+    
+    for pattern in local_patterns:
+        if re.search(pattern, attachment_value, re.IGNORECASE):
+            return True
+    
+    # Check if it looks like a filesystem path (has path separators but no http)
+    if ('/' in attachment_value or '\\' in attachment_value) and not attachment_value.startswith(('http://', 'https://')):
+        # But allow Cloudinary public IDs and relative paths without slashes at start
+        if not attachment_value.startswith('/') and '\\' not in attachment_value:
+            return False
+        return True
+    
+    return False
+
+
+def validate_attachment_value(attachment_value: Any) -> str:
+    """Validate and normalize attachment value (UploadedFile or string)."""
+    if isinstance(attachment_value, UploadedFile):
+        # This will be handled by CloudinaryField - return a marker
+        return 'uploaded_file'
+    elif isinstance(attachment_value, str):
+        attachment_value = attachment_value.strip()
+        if is_local_path(attachment_value):
+            raise ValidationError(
+                "Local file paths are not allowed. Please upload the file via multipart request."
+            )
+        # Allow HTTP URLs and Cloudinary public IDs
+        return attachment_value
+    else:
+        raise ValidationError("Attachment must be a file upload or valid URL/public_id")
+
+
 class ConversationService(BaseService):
     
     @classmethod
+    def create_message(cls, conversation: 'Conversation', sender: User, 
+                      validated_data: Dict[str, Any]) -> 'ChatMessage':
+        """
+        Canonical method for creating messages with full validation, 
+        attachment handling, and side-effects.
+        """
+        from django.core.files.uploadedfile import UploadedFile
+        from django.db import transaction
+        
+        # Extract data
+        message_type = validated_data.get('message_type', 'text')
+        content = validated_data.get('content', '')
+        attachment = validated_data.get('attachment')
+        attachment_name = validated_data.get('attachment_name', '')
+        attachment_size = validated_data.get('attachment_size')
+        reply_to_id = validated_data.get('reply_to_id')
+        latitude = validated_data.get('latitude')
+        longitude = validated_data.get('longitude')
+        location_name = validated_data.get('location_name', '')
+        
+        # Validate permissions
+        if sender and not cls._can_user_access_conversation(sender, conversation):
+            raise ValidationError("You don't have permission to send messages to this conversation")
+        
+        # Validate reply_to
+        reply_to = None
+        if reply_to_id:
+            try:
+                reply_to = ChatMessage.objects.get(
+                    id=reply_to_id, 
+                    conversation=conversation,
+                    is_deleted=False
+                )
+            except ChatMessage.DoesNotExist:
+                raise ValidationError("Reply message not found in this conversation")
+        
+        # Validate and process attachment
+        if attachment:
+            if isinstance(attachment, str):
+                # String attachment - validate it's not a local path
+                attachment = attachment.strip()
+                if cls._is_local_path(attachment):
+                    raise ValidationError(
+                        "Local file paths are not allowed. Please upload the file via multipart request."
+                    )
+                # Allow Cloudinary URLs/public_ids
+            elif isinstance(attachment, UploadedFile):
+                # File upload - will be handled by CloudinaryField on save
+                pass
+            else:
+                raise ValidationError("Attachment must be a file upload or valid URL/public_id")
+        
+        # Create message
+        with transaction.atomic():
+            message = ChatMessage.objects.create(
+                conversation=conversation,
+                sender=sender,
+                message_type=message_type,
+                content=content,
+                attachment=attachment,
+                attachment_name=attachment_name,
+                attachment_size=attachment_size,
+                reply_to=reply_to,
+                latitude=latitude,
+                longitude=longitude,
+                location_name=location_name
+            )
+            
+            # Update conversation timestamp
+            cls.update_last_message_time(conversation)
+            
+        # Schedule side-effects after commit
+        transaction.on_commit(lambda: cls._send_realtime_message(message))
+        transaction.on_commit(lambda: cls._send_push_notification(message))
+        
+        cls.log_operation("message_created", {
+            'conversation_id': str(conversation.id),
+            'message_id': str(message.id),
+            'sender_id': str(sender.id) if sender else None,
+            'message_type': message_type
+        })
+        
+        return message
+    
+    @classmethod
+    def _is_local_path(cls, attachment_value: str) -> bool:
+        """Check if a string represents a local file path that should be rejected."""
+        import re
+        
+        if not attachment_value or not isinstance(attachment_value, str):
+            return False
+        
+        # Check for common local path patterns
+        local_patterns = [
+            r'^file://',  # file:// protocol
+            r'^/data/user/',  # Android app data
+            r'^/storage/emulated/',  # Android storage
+            r'\\AppData\\Local\\Temp\\',  # Windows temp paths
+            r'^/tmp/',  # Unix temp paths
+            r'^/var/folders/',  # macOS temp paths
+            r'^C:\\Users\\.*\\AppData\\',  # Windows user data
+            r'^/Users/.*/Library/Caches/',  # macOS cache paths
+        ]
+        
+        for pattern in local_patterns:
+            if re.search(pattern, attachment_value, re.IGNORECASE):
+                return True
+        
+        # Check if it looks like a filesystem path (has path separators but no http)
+        if ('/' in attachment_value or '\\' in attachment_value) and not attachment_value.startswith(('http://', 'https://')):
+            # But allow Cloudinary public IDs and relative paths without slashes at start
+            if not attachment_value.startswith('/') and '\\' not in attachment_value:
+                return False
+            return True
+        
+        return False
+    
+    @classmethod
     def get_user_conversations(cls, user: User) -> QuerySet['Conversation']:
-        """Get all conversations for a user ordered by last message time"""
         return Conversation.objects.for_user(user).with_last_message().order_by('-last_message_at')
     
     @classmethod
     def get_or_create_direct_conversation(cls, user1: User, user2: User) -> Tuple['Conversation', bool]:
-        """Get existing or create new direct conversation between two users"""
         if user1 == user2:
             raise ValueError("Cannot create conversation with yourself")
         
-        # Check if users are friends
         friendship = Friendship.objects.filter(
             Q(user_a=user1, user_b=user2) | Q(user_a=user2, user_b=user1),
             status=Friendship.ACCEPTED
@@ -1510,7 +1694,6 @@ class ConversationService(BaseService):
         if existing_conv:
             return existing_conv, False
         
-        # Create new conversation with consistent user ordering
         conversation = cls.create_direct_conversation(user1, user2)
         
         cls.log_operation("conversation_created", {
@@ -1523,28 +1706,19 @@ class ConversationService(BaseService):
     
     @classmethod 
     def create_direct_conversation(cls, user1: User, user2: User) -> 'Conversation':
-        """Create a new direct conversation with proper user ordering"""
         if user1.id == user2.id:
             raise ValidationError("Cannot create conversation with same user")
-        
-        # Ensure consistent ordering: lower ID first
-        if user1.id < user2.id:
-            user_a, user_b = user1, user2
-        else:
-            user_a, user_b = user2, user1
-            
+
         conversation = Conversation.objects.create(
             conversation_type='direct',
-            user_a=user_a,
-            user_b=user_b
+            user_a=user1,
+            user_b=user2
         )
         
         return conversation
     
     @classmethod
     def get_or_create_group_conversation(cls, group: 'Group') -> Tuple['Conversation', bool]:
-        """Get existing or create new group conversation"""
-        # Check if conversation already exists
         if hasattr(group, 'conversation') and group.conversation:
             return group.conversation, False
         
@@ -1562,115 +1736,12 @@ class ConversationService(BaseService):
         })
         
         return conversation, True
+
     
-    @classmethod
-    def create_group_conversation(cls, group):
-        """Create group conversation (alias for compatibility)"""
-        try:
-            conversation, created = cls.get_or_create_group_conversation(group)
-            
-            if created:
-                cls.log_operation("group_conversation_created", {
-                    'conversation_id': conversation.id,
-                    'group_id': group.id
-                })
-            
-            return conversation
-        except ValidationError as e:
-            raise ValidationError(f"Group conversation creation failed: {str(e)}")
-    
-    @classmethod
-    def get_or_create_for_group(cls, group):
-        """Legacy method - use get_or_create_group_conversation instead"""
-        try:
-            return group.conversation, False
-        except Conversation.DoesNotExist:
-            conversation = Conversation.objects.create(
-                conversation_type='group',
-                group=group
-            )
-            return conversation, True
-    
-    # ============================================================================
-    # MESSAGE OPERATIONS
-    # ============================================================================
-    
-    @classmethod
-    def send_message_to_conversation(cls, sender: User, conversation_id: str, 
-                                   content: str, message_type: str = 'text',
-                                   latitude: Optional[float] = None,
-                                   longitude: Optional[float] = None,
-                                   location_name: Optional[str] = None,
-                                   reply_to_id: Optional[str] = None,
-                                   **kwargs) -> Tuple[bool, str, Optional['ChatMessage']]:
-        """Send message to conversation with comprehensive validation and features"""
-        try:
-            from .models import Conversation, ChatMessage
-            
-            conversation = Conversation.objects.get(id=conversation_id)
-            
-            # Check if user can send message to this conversation
-            if not cls._can_user_access_conversation(sender, conversation):
-                return False, "Access denied to this conversation", None
-            
-            # Validate reply_to message if provided
-            reply_to = None
-            if reply_to_id:
-                try:
-                    reply_to = ChatMessage.objects.get(
-                        id=reply_to_id,
-                        conversation=conversation
-                    )
-                except ChatMessage.DoesNotExist:
-                    return False, "Reply target message not found", None
-            
-            # Create message with transaction
-            with transaction.atomic():
-                message = ChatMessage(
-                    conversation=conversation,
-                    sender=sender,
-                    content=content,
-                    message_type=message_type,
-                    latitude=latitude,
-                    longitude=longitude,
-                    location_name=location_name or "",
-                    reply_to=reply_to,
-                    **kwargs
-                )
-                
-                message.full_clean()
-                message.save()
-                
-                # Update conversation's last message time
-                cls.update_last_message_time(conversation)
-            
-            cls.log_operation("message_sent", {
-                'message_id': str(message.id),
-                'conversation_id': str(conversation.id),
-                'sender_id': str(sender.id),
-                'type': message_type
-            })
-            
-            # Send realtime notification
-            cls._send_realtime_message(message)
-            
-            # Send push notification
-            cls._send_push_notification(message)
-            
-            return True, "Message sent successfully", message
-            
-        except Conversation.DoesNotExist:
-            return False, "Conversation not found", None
-        except ValidationError as e:
-            return False, str(e), None
-        except Exception as e:
-            cls.log_error("Error sending message", e)
-            return False, "Failed to send message", None
-    
+
     @classmethod
     def get_conversation_messages(cls, user: User, conversation_id: str, 
                                 limit: int = 50, before_id: str = None) -> Dict[str, Any]:
-        """Get messages from a conversation with pagination"""
         try:            
             conversation = Conversation.objects.get(id=conversation_id)
             
@@ -1686,7 +1757,7 @@ class ConversationService(BaseService):
                 queryset=queryset,
                 before_id=before_id,
                 limit=limit,
-                ordering='-created_at'  # Sử dụng created_at thay vì id để đảm bảo thứ tự đúng
+                ordering='-created_at'
             )
             
             return {
@@ -1702,7 +1773,6 @@ class ConversationService(BaseService):
 
     @classmethod
     def mark_messages_read(cls, user: User, conversation_id: str, message_ids: List[str]) -> Tuple[bool, str]:
-        """Mark specific messages as read for a user"""
         try:
             conversation = Conversation.objects.get(id=conversation_id)
             
@@ -1720,7 +1790,6 @@ class ConversationService(BaseService):
                     user=user
                 )
             
-            # Clear unread cache after marking messages as read
             user.clear_unread_cache()
             
             cls.log_operation("messages_marked_read", {
@@ -1739,7 +1808,6 @@ class ConversationService(BaseService):
     
     @classmethod
     def mark_as_read_for_user(cls, conversation, user, up_to_message=None):
-        """Mark messages as read for user (up to a specific message)"""
         messages = conversation.messages.active().exclude(sender=user)
 
         if up_to_message:
@@ -1767,7 +1835,6 @@ class ConversationService(BaseService):
 
     @classmethod
     def update_last_message_time(cls, conversation, timestamp=None):
-        """Update last message timestamp for conversation"""
         if timestamp is None:
             timestamp = timezone.now()
             
@@ -1777,7 +1844,6 @@ class ConversationService(BaseService):
     
     @classmethod
     def _can_user_access_conversation(cls, user: User, conversation: 'Conversation') -> bool:
-        """Check if user has access to conversation"""
         if conversation.conversation_type == 'direct':
             return conversation.user_a == user or conversation.user_b == user
         elif conversation.conversation_type == 'group' and conversation.group:
@@ -1786,7 +1852,6 @@ class ConversationService(BaseService):
     
     @classmethod
     def _send_realtime_message(cls, message: 'ChatMessage'):
-        """Send realtime notification for new message"""
         try:
             channel_layer = get_channel_layer()
             if not channel_layer:
@@ -1811,7 +1876,6 @@ class ConversationService(BaseService):
     
     @classmethod
     def _send_push_notification(cls, message: 'ChatMessage'):
-        """Send push notification for new message"""
         try:
             from .integrations import NotificationService
             
@@ -1861,55 +1925,71 @@ class ConversationService(BaseService):
 
 
 class ChatService(BaseService):
+    """
+    Thin facade for group-specific chat operations.
+    All message creation delegates to ConversationService.
+    """
     
     @classmethod
-    def send_message_to_group(cls, sender: User, group_id: str, content: str, 
-                             message_type: str = 'text') -> Tuple[bool, str, Optional['ChatMessage']]:
-        try:            
-            group = Group.objects.get(id=group_id)
-            
-            # Check if user is member of the group
-            if not group.members.filter(id=sender.id).exists():
-                return False, "You are not a member of this group", None
-            
-            # Get or create group conversation
-            conversation, created = ConversationService.get_or_create_group_conversation(group)
-            
-            # Use conversation service to send message
-            return ConversationService.send_message_to_conversation(
-                sender=sender,
-                conversation_id=str(conversation.id),
-                content=content,
-                message_type=message_type
-            )
-            
-        except Group.DoesNotExist:
-            return False, "Group not found", None
-        except Exception as e:
-            cls.log_error("Error sending message via deprecated method", e)
-            return False, "Failed to send message", None
-    
-    @classmethod
-    def send_message(cls, sender: User, group: 'Group', content: str, 
-                    message_type: str = 'text') -> 'ChatMessage':        
+    def send_message(cls, sender: User, group: 'Group', **validated_data) -> 'ChatMessage':
+        """
+        Main entry point for sending messages to a group.
+        Validates membership and delegates to ConversationService.
+        """
+        # Check group membership
+        if not group.members.filter(id=sender.id).exists():
+            raise ValidationError("You must be a group member to send messages")
+        
         # Get or create group conversation
         conversation, created = ConversationService.get_or_create_group_conversation(group)
         
-        # Use conversation service
-        success, message, chat_message = ConversationService.send_message_to_conversation(
+        # Delegate to canonical message creation
+        return ConversationService.create_message(
+            conversation=conversation,
             sender=sender,
-            conversation_id=str(conversation.id),
-            content=content,
-            message_type=message_type
+            validated_data=validated_data
         )
+    
+    @classmethod
+    def send_direct_message(cls, sender: User, recipient: User, **validated_data) -> 'ChatMessage':
+        """
+        Send direct message between two users.
+        """
+        # Get or create direct conversation
+        conversation, created = ConversationService.get_or_create_direct_conversation(sender, recipient)
         
-        if not success:
-            raise ValidationError(message)
+        # Delegate to canonical message creation
+        return ConversationService.create_message(
+            conversation=conversation,
+            sender=sender,
+            validated_data=validated_data
+        )
+    
+    @classmethod
+    def create_system_message(cls, conversation: 'Conversation' = None, group: 'Group' = None, content: str = "") -> 'ChatMessage':
+        """
+        Create system message for notifications/events.
+        """
+        if conversation is None and group is None:
+            raise ValueError("Either conversation or group must be provided")
         
-        return chat_message
+        if group is not None:
+            conversation, created = ConversationService.get_or_create_group_conversation(group)
+        
+        validated_data = {
+            'message_type': 'system',
+            'content': content
+        }
+        
+        return ConversationService.create_message(
+            conversation=conversation,
+            sender=None,  # System messages have no sender
+            validated_data=validated_data
+        )
     
     @classmethod
     def get_group_messages(cls, user: User, group_id: str, limit: int = 50, before_id: str = None) -> Dict[str, Any]:
+        """Get messages for a group (delegates to ConversationService)."""
         try:            
             group = Group.objects.get(id=group_id)
             
@@ -1929,12 +2009,10 @@ class ChatService(BaseService):
             
         except Group.DoesNotExist:
             raise ValidationError("Group not found")
-        except Exception as e:
-            cls.log_error("Error getting messages via deprecated method", e)
-            raise ValidationError("Failed to get messages")
     
     @classmethod
-    def edit_message(cls, message: ChatMessage, user: User, new_content: str) -> Tuple[bool, str]:        
+    def edit_message(cls, message: ChatMessage, user: User, new_content: str) -> Tuple[bool, str]:
+        """Edit a message (15 minute time limit)."""
         if message.sender != user:
             return False, "Can only edit your own messages"
         
@@ -1950,14 +2028,15 @@ class ChatService(BaseService):
         message.save(update_fields=['content', 'is_edited', 'updated_at'])
         
         cls.log_operation("message_edited", {
-            'message_id': message.id,
-            'editor': user.id
+            'message_id': str(message.id),
+            'editor': str(user.id)
         })
         
         return True, "Message edited successfully"
     
     @classmethod
-    def delete_message(cls, message: ChatMessage, user: User) -> Tuple[bool, str]:        
+    def delete_message(cls, message: ChatMessage, user: User) -> Tuple[bool, str]:
+        """Soft delete a message (sender or group admin can delete)."""
         can_delete = (
             message.sender == user or 
             (message.conversation and message.conversation.group and message.conversation.group.is_admin(user))
@@ -1969,8 +2048,8 @@ class ChatService(BaseService):
         message.soft_delete()
         
         cls.log_operation("message_deleted", {
-            'message_id': message.id,
-            'deleted_by': user.id,
+            'message_id': str(message.id),
+            'deleted_by': str(user.id),
             'was_admin_action': message.conversation and message.conversation.group and message.conversation.group.is_admin(user) and message.sender != user
         })
         
@@ -1978,51 +2057,24 @@ class ChatService(BaseService):
     
     @classmethod
     def get_unread_count(cls, user: User, group: Group = None) -> int:
+        """Get unread message count for user."""
         if group:
-            return ChatMessage.objects.unread_for_user(user).for_group(group).count()
+            conversation, created = ConversationService.get_or_create_group_conversation(group)
+            return ConversationService.get_unread_count_for_user(conversation, user)
         else:
-            return user.unread_messages_count
+            return getattr(user, 'unread_messages_count', 0)
     
     @classmethod
     def mark_messages_as_read(cls, user: User, group: Group) -> None:
-        cls.log_operation("messages_marked_read", {
-            'user_id': user.id,
-            'group_id': group.id,
-            'timestamp': timezone.now()
-        })
+        """Mark group messages as read for user."""
+        conversation, created = ConversationService.get_or_create_group_conversation(group)
+        ConversationService.mark_as_read_for_user(conversation, user)
         
-        user.clear_unread_cache()
-    
-    @classmethod
-    def _get_last_read_time(cls, user: User, group: Group):
-        return timezone.now() - timezone.timedelta(days=7)
-
-    @classmethod
-    def create_system_message(cls, conversation=None, group=None, content: str = ""):
-
-        if conversation is None and group is None:
-            raise ValueError("Either conversation or group must be provided")
-
-        with transaction.atomic():
-            if group is not None:
-                conversation, created = ConversationService.get_or_create_for_group(group)
-
-            message = ChatMessage(
-                conversation=conversation,
-                sender=None,
-                message_type='system',
-                content=content
-            )
-            message.full_clean()
-            message.save()
-
-        cls.log_operation("system_message_created", {
-            'conversation_id': conversation.id if conversation else None,
-            'group_id': getattr(group, 'id', None),
-            'message_id': message.id
+        cls.log_operation("messages_marked_read", {
+            'user_id': str(user.id),
+            'group_id': str(group.id),
+            'timestamp': timezone.now().isoformat()
         })
-
-        return message
 
 
 class NotificationService(BaseService):
@@ -2050,19 +2102,6 @@ class NotificationService(BaseService):
             'from_user_id': from_user_id,
             'to_user_id': to_user_id
         })
-
-
-# End of services.py file
-
-    @classmethod
-    def update_last_message_time(cls, conversation, timestamp=None):
-        """Update last message timestamp"""
-        if timestamp is None:
-            timestamp = timezone.now()
-            
-        if not conversation.last_message_at or timestamp > conversation.last_message_at:
-            conversation.last_message_at = timestamp
-            conversation.save(update_fields=['last_message_at'])
 
 
 

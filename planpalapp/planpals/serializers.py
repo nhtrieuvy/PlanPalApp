@@ -5,6 +5,7 @@ from .models import (
     Friendship, PlanActivity, MessageReadStatus
 )
 
+from cloudinary import CloudinaryImage
 
 
 
@@ -767,12 +768,14 @@ class PlanSummarySerializer(serializers.ModelSerializer):
 class ChatMessageSerializer(serializers.ModelSerializer):
     # Explicitly serialize UUID fields as strings for channels compatibility
     id = serializers.CharField(read_only=True)
-    conversation = serializers.CharField(read_only=True)
+    conversation = serializers.SerializerMethodField()
     
     sender = UserSummarySerializer(read_only=True)
     reply_to = serializers.SerializerMethodField()
+    reply_to_id = serializers.UUIDField(write_only=True, required=False)
     
-    # Use model properties directly where available
+    # Handle attachment field like avatar fields - accept FileField for uploads
+    attachment = serializers.FileField(required=False, allow_null=True, write_only=True)
     attachment_url = serializers.CharField(read_only=True)
     attachment_size_display = serializers.CharField(read_only=True)
     location_url = serializers.CharField(read_only=True)
@@ -780,16 +783,15 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     # Context-dependent fields
     can_edit = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
-    attachment_thumbnail = serializers.SerializerMethodField()
     
     class Meta:
         model = ChatMessage
         fields = [
             'id', 'conversation', 'sender', 'message_type', 'content',
-            'attachment', 'attachment_url', 'attachment_thumbnail',
+            'attachment', 'attachment_url',
             'attachment_name', 'attachment_size', 'attachment_size_display',
             'latitude', 'longitude', 'location_name', 'location_url',
-            'reply_to', 'is_edited', 'is_deleted',
+            'reply_to', 'reply_to_id', 'is_edited', 'is_deleted',
             'can_edit', 'can_delete', 'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -805,6 +807,12 @@ class ChatMessageSerializer(serializers.ModelSerializer):
                 'sender': obj.reply_to.sender.username if obj.reply_to.sender else 'System',
                 'message_type': obj.reply_to.message_type
             }
+        return None
+    
+    def get_conversation(self, obj):
+        """Return conversation ID as string instead of string representation"""
+        if obj.conversation:
+            return str(obj.conversation.id)
         return None
     
     def get_can_edit(self, obj):
@@ -828,28 +836,63 @@ class ChatMessageSerializer(serializers.ModelSerializer):
                 return obj.conversation.group.is_admin(user)
         return False
     
-    def get_attachment_thumbnail(self, obj):
-        if obj.attachment and obj.message_type == 'image':
-            try:
-                return obj.attachment.build_url(
-                    width=150, height=150, crop='fill', quality='auto:good'
-                )
-            except:
-                return obj.attachment_url
-        return None
-    
     def validate(self, attrs):
-        if attrs.get('message_type') == 'location':
+        """Validate message data based on type and attachment rules."""
+        from django.core.files.uploadedfile import UploadedFile
+        
+        message_type = attrs.get('message_type', 'text')
+        content = attrs.get('content', '').strip()
+        attachment = attrs.get('attachment')
+        
+        # Clear validation rules for each message type
+        if message_type == 'text':
+            if not content:
+                raise serializers.ValidationError({
+                    'content': 'Text messages must have content'
+                })
+            # Text messages should not have attachments
+            if attachment:
+                raise serializers.ValidationError({
+                    'attachment': 'Text messages cannot have attachments. Use "image" or "file" type for attachments.'
+                })
+        
+        elif message_type == 'image':
+            if not attachment:
+                raise serializers.ValidationError({
+                    'attachment': 'Image messages must have an attachment'
+                })
+            
+            # Validate image content type for FileField uploads
+            if isinstance(attachment, UploadedFile):
+                if attachment.content_type and not attachment.content_type.startswith('image/'):
+                    raise serializers.ValidationError({
+                        'attachment': 'Attachment must be an image file'
+                    })
+            elif isinstance(attachment, str):
+                # String attachment - will be validated in service layer
+                pass
+        
+        elif message_type == 'file':
+            if not attachment:
+                raise serializers.ValidationError({
+                    'attachment': 'File messages must have an attachment'
+                })
+            # File type accepts any attachment
+        
+        elif message_type == 'location':
             if not (attrs.get('latitude') and attrs.get('longitude')):
-                raise serializers.ValidationError(
-                    "Location messages must have coordinates"
-                )
+                raise serializers.ValidationError({
+                    'latitude': 'Location messages must have coordinates',
+                    'longitude': 'Location messages must have coordinates'
+                })
+        
+        elif message_type == 'system':
+            if not content:
+                raise serializers.ValidationError({
+                    'content': 'System messages must have content'
+                })
+        
         return attrs
-    
-    def create(self, validated_data):
-        request = self.context.get('request')
-        validated_data['sender'] = request.user
-        return super().create(validated_data)
 
 
 class FriendshipSerializer(serializers.ModelSerializer):
@@ -1055,9 +1098,10 @@ class ConversationSerializer(serializers.ModelSerializer):
             last_message = obj.messages.filter(is_deleted=False).order_by('-created_at').first()
         
         if last_message:
+            content = last_message.content or ''
             return {
                 'id': last_message.id,
-                'content': last_message.content[:100] + ('...' if len(last_message.content) > 100 else ''),
+                'content': content[:100] + ('...' if len(content) > 100 else ''),
                 'message_type': last_message.message_type,
                 'sender': last_message.sender.username if last_message.sender else 'System',
                 'created_at': last_message.created_at

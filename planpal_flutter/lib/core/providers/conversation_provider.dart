@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:io';
 import '../repositories/conversation_repository.dart';
 import '../dtos/conversation.dart';
 import '../dtos/chat_message.dart';
 import '../services/apis.dart';
-import '../services/file_upload_service.dart';
 
 /// State management for conversations and messaging
 class ConversationProvider extends ChangeNotifier {
@@ -13,7 +13,7 @@ class ConversationProvider extends ChangeNotifier {
   ConversationProvider(String? token)
     : _repository = (() {
         final api = ApiClient(token: token);
-        return ConversationRepository(api, FileUploadService(api.dio));
+        return ConversationRepository(api);
       })();
 
   // State variables
@@ -226,6 +226,32 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
+  /// Send image file (uploads first) - convenience wrapper around repository
+  Future<bool> sendImageFile(
+    String conversationId,
+    File imageFile, {
+    String? replyToId,
+  }) async {
+    try {
+      final message = await _repository.sendImageFile(
+        conversationId,
+        imageFile,
+        replyToId: replyToId,
+      );
+
+      // Add message to local state
+      _addMessageToConversation(conversationId, message);
+
+      // Update conversation's last message
+      _updateConversationLastMessage(conversationId, message);
+
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      return false;
+    }
+  }
+
   /// Send file message
   Future<bool> sendFileMessage(
     String conversationId,
@@ -240,6 +266,32 @@ class ConversationProvider extends ChangeNotifier {
         conversationId,
         fileUrl.trim(),
         fileName.trim(),
+        replyToId: replyToId,
+      );
+
+      // Add message to local state
+      _addMessageToConversation(conversationId, message);
+
+      // Update conversation's last message
+      _updateConversationLastMessage(conversationId, message);
+
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      return false;
+    }
+  }
+
+  /// Send file attachment (uploads first) - convenience wrapper around repository
+  Future<bool> sendFileAttachment(
+    String conversationId,
+    File file, {
+    String? replyToId,
+  }) async {
+    try {
+      final message = await _repository.sendFileAttachment(
+        conversationId,
+        file,
         replyToId: replyToId,
       );
 
@@ -476,5 +528,24 @@ extension ConversationProviderExtensions on ConversationProvider {
   /// Get group conversations only
   List<Conversation> get groupConversations {
     return conversations.where((c) => c.isGroup).toList();
+  }
+
+  /// Find conversation for a group by group ID
+  Future<Conversation?> findOrCreateGroupConversation(String groupId) async {
+    // First, load conversations if not loaded
+    if (_conversations.isEmpty) {
+      await loadConversations();
+    }
+
+    // Look for existing group conversation
+    for (final conversation in _conversations) {
+      if (conversation.conversationType == ConversationType.group &&
+          conversation.group?.id == groupId) {
+        return conversation;
+      }
+    }
+
+    // No conversation found for this group
+    return null;
   }
 }

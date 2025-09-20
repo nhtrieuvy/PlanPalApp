@@ -60,13 +60,11 @@ class ReplyTo extends Equatable {
 class ChatMessage extends Equatable {
   final String id;
   final String? conversationId;
-  final String? groupId;
   final UserSummary sender;
   final MessageType messageType;
   final String content;
   final String? attachment;
   final String? attachmentUrl;
-  final String? attachmentThumbnail;
   final String? attachmentName;
   final int? attachmentSize;
   final String? attachmentSizeDisplay;
@@ -85,13 +83,11 @@ class ChatMessage extends Equatable {
   const ChatMessage({
     required this.id,
     this.conversationId,
-    this.groupId,
     required this.sender,
     required this.messageType,
     required this.content,
     this.attachment,
     this.attachmentUrl,
-    this.attachmentThumbnail,
     this.attachmentName,
     this.attachmentSize,
     this.attachmentSizeDisplay,
@@ -112,19 +108,17 @@ class ChatMessage extends Equatable {
     return ChatMessage(
       id: json['id'] as String,
       conversationId: json['conversation'] as String?,
-      groupId: json['group'] as String?,
       sender: UserSummary.fromJson(json['sender'] as Map<String, dynamic>),
       messageType: MessageType.fromString(json['message_type'] as String),
-      content: json['content'] as String,
+      content: json['content']?.toString() ?? '',
       attachment: json['attachment'] as String?,
       attachmentUrl: json['attachment_url'] as String?,
-      attachmentThumbnail: json['attachment_thumbnail'] as String?,
-      attachmentName: json['attachment_name'] as String?,
+      attachmentName: json['attachment_name']?.toString() ?? '',
       attachmentSize: json['attachment_size'] as int?,
       attachmentSizeDisplay: json['attachment_size_display'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
-      locationName: json['location_name'] as String?,
+      locationName: json['location_name']?.toString() ?? '',
       locationUrl: json['location_url'] as String?,
       replyTo: json['reply_to'] != null
           ? ReplyTo.fromJson(json['reply_to'] as Map<String, dynamic>)
@@ -142,13 +136,11 @@ class ChatMessage extends Equatable {
     return {
       'id': id,
       'conversation': conversationId,
-      'group': groupId,
       'sender': sender.toJson(),
       'message_type': messageType.value,
       'content': content,
       'attachment': attachment,
       'attachment_url': attachmentUrl,
-      'attachment_thumbnail': attachmentThumbnail,
       'attachment_name': attachmentName,
       'attachment_size': attachmentSize,
       'attachment_size_display': attachmentSizeDisplay,
@@ -204,13 +196,11 @@ class ChatMessage extends Equatable {
   ChatMessage copyWith({
     String? id,
     String? conversationId,
-    String? groupId,
     UserSummary? sender,
     MessageType? messageType,
     String? content,
     String? attachment,
     String? attachmentUrl,
-    String? attachmentThumbnail,
     String? attachmentName,
     int? attachmentSize,
     String? attachmentSizeDisplay,
@@ -229,13 +219,11 @@ class ChatMessage extends Equatable {
     return ChatMessage(
       id: id ?? this.id,
       conversationId: conversationId ?? this.conversationId,
-      groupId: groupId ?? this.groupId,
       sender: sender ?? this.sender,
       messageType: messageType ?? this.messageType,
       content: content ?? this.content,
       attachment: attachment ?? this.attachment,
       attachmentUrl: attachmentUrl ?? this.attachmentUrl,
-      attachmentThumbnail: attachmentThumbnail ?? this.attachmentThumbnail,
       attachmentName: attachmentName ?? this.attachmentName,
       attachmentSize: attachmentSize ?? this.attachmentSize,
       attachmentSizeDisplay:
@@ -258,13 +246,11 @@ class ChatMessage extends Equatable {
   List<Object?> get props => [
     id,
     conversationId,
-    groupId,
     sender,
     messageType,
     content,
     attachment,
     attachmentUrl,
-    attachmentThumbnail,
     attachmentName,
     attachmentSize,
     attachmentSizeDisplay,

@@ -3,6 +3,7 @@ import 'package:planpal_flutter/core/dtos/group_model.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/providers/conversation_provider.dart';
 import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:planpal_flutter/core/repositories/friend_repository.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
@@ -12,9 +13,11 @@ import 'dart:io';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/plan_summary.dart';
 import '../../../core/dtos/group_requests.dart';
+import '../../../core/dtos/conversation.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'plan_form_page.dart';
 import 'plan_details_page.dart';
+import '../chat/chat_page.dart';
 
 class GroupDetailsPage extends StatefulWidget {
   final String id;
@@ -235,6 +238,18 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
           expandedHeight: 200,
           pinned: true,
           actions: [
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: IconButton.filled(
+                onPressed: () => _navigateToGroupChat(g),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.9),
+                  foregroundColor: AppColors.primary,
+                ),
+                icon: const Icon(Icons.chat),
+                tooltip: 'Chat nhóm',
+              ),
+            ),
             Container(
               margin: const EdgeInsets.only(right: 8),
               child: IconButton.filled(
@@ -776,6 +791,36 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => PlanDetailsPage(id: plan.id)),
     );
+  }
+
+  void _navigateToGroupChat(GroupModel group) async {
+    try {
+      // Load conversations and find the one for this group
+      final conversationProvider = context.read<ConversationProvider>();
+      await conversationProvider.loadConversations();
+
+      // Find conversation by group ID
+      final conversation = conversationProvider.conversations.firstWhere(
+        (conv) =>
+            conv.conversationType == ConversationType.group &&
+            conv.group?.id == group.id,
+        orElse: () => throw Exception('No conversation found for this group'),
+      );
+
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => ChatPage(conversation: conversation),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không tìm thấy cuộc trò chuyện: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildPlanItem(PlanSummary plan) {
