@@ -65,6 +65,8 @@ dependencies:
 
   flutter_dotenv: ^5.1.0
   cached_network_image: ^3.2.3
+  firebase_core: ^4.1.0
+  firebase_messaging: ^16.0.1
   
   # Maps and Location
   google_maps_flutter: ^2.5.0

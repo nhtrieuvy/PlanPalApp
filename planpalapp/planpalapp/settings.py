@@ -347,9 +347,10 @@ CLIENT_ID = os.getenv('CLIENT_ID')
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
+TIME_ZONE = "Asia/Ho_Chi_Minh"
+USE_TZ = True
 
-# Celery Configuration Options
-CELERY_TIMEZONE = 'UTC'
+CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_TASK_SERIALIZER = 'json'

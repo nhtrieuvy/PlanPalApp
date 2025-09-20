@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:convert';
 import '../dtos/user_model.dart';
 import '../repositories/user_repository.dart';
+import '../services/fcm_service.dart';
 
 // ChangeNotifier cho phép lắng nghe khi dữ liệu thay đổi
 class AuthProvider extends ChangeNotifier {
@@ -60,6 +61,8 @@ class AuthProvider extends ChangeNotifier {
           final userRepo = UserRepository(this);
           await userRepo
               .getProfile(); // This will call setUser() and update cache
+          // FCM initialization will be performed from main() after Firebase is initialized,
+          // and after login the login() method triggers registration.
         } catch (e) {
           // Nếu token hết hạn hoặc không hợp lệ, clear session
           await _clearSession();
@@ -68,6 +71,23 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       // Nếu có lỗi khi khôi phục, đảm bảo trạng thái sạch
       await _clearSession();
+    }
+  }
+
+  // Post the FCM token using the requestWithAutoRefresh so token refresh is handled automatically
+  Future<void> _postFcmToken(String token) async {
+    try {
+      final response = await requestWithAutoRefresh(
+        (client) => client.dio.post(
+          Endpoints.registerDeviceToken,
+          data: {'fcm_token': token},
+        ),
+      );
+      debugPrint(
+        'AuthProvider: FCM token posted, status=${response.statusCode}, data=${response.data}',
+      );
+    } catch (e) {
+      debugPrint('AuthProvider: Failed to post FCM token: $e');
     }
   }
 
@@ -214,6 +234,20 @@ class AuthProvider extends ChangeNotifier {
           final repo = UserRepository(this);
           final profile = await repo.getProfile();
           setUser(profile);
+          debugPrint(
+            'AuthProvider: profile fetched after login; token present=${_token != null}',
+          );
+          // Register FCM token under this authenticated session
+          try {
+            await FcmService.initAndRegister(
+              authToken: _token,
+              onToken: (token) async {
+                await _postFcmToken(token);
+              },
+            );
+          } catch (e) {
+            debugPrint('AuthProvider: FCM init after login failed: $e');
+          }
         } catch (e) {
           debugPrint('Login profile fetch failed: $e');
         }

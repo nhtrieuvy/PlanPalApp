@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def start_plan_task(self, plan_id):
     try:
+        # Visible console/debug output to help trace task invocation
+        print(f"[TASK START] start_plan_task invoked for plan_id={plan_id} request_id={getattr(self.request, 'id', None)}")
         from .services import PlanService
         
         plan = Plan.objects.get(pk=plan_id)
@@ -43,13 +45,25 @@ def start_plan_task(self, plan_id):
         }
         
     except ValueError as e:
-        logger.info(f"Plan {plan_id} start skipped: {str(e)}")
+        msg = str(e)
+        logger.info(f"Plan {plan_id} start skipped: {msg}")
+        try:
+            plan = Plan.objects.get(pk=plan_id)
+            if plan.start_date and 'start time has not been reached' in msg.lower():
+                remaining = (plan.start_date - timezone.now()).total_seconds()
+                # Add a small cushion
+                delay = max(1, int(remaining) + 1)
+                logger.info(f"Rescheduling start_plan_task for {plan_id} in {delay}s (remaining until start: {remaining}s)")
+                raise self.retry(countdown=delay)
+        except Plan.DoesNotExist:
+            pass
+
         return {
-            'plan_id': plan_id, 
+            'plan_id': plan_id,
             'task_id': self.request.id,
             'task_name': 'start_plan_task',
-            'status': 'skipped', 
-            'reason': str(e),
+            'status': 'skipped',
+            'reason': msg,
             'attempt': self.request.retries,
             'timestamp': timezone.now().isoformat()
         }
@@ -62,6 +76,8 @@ def start_plan_task(self, plan_id):
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def complete_plan_task(self, plan_id):
     try:
+        # Visible console/debug output to help trace task invocation
+        print(f"[TASK START] complete_plan_task invoked for plan_id={plan_id} request_id={getattr(self.request, 'id', None)}")
         # Import locally to avoid circular import
         from .services import PlanService
         
@@ -96,13 +112,25 @@ def complete_plan_task(self, plan_id):
         }
         
     except ValueError as e:
-        logger.info(f"Plan {plan_id} completion skipped: {str(e)}")
+        # If the task ran early (end time not reached), retry later
+        msg = str(e)
+        logger.info(f"Plan {plan_id} completion skipped: {msg}")
+        try:
+            plan = Plan.objects.get(pk=plan_id)
+            if plan.end_date and 'end time has not been reached' in msg.lower():
+                remaining = (plan.end_date - timezone.now()).total_seconds()
+                delay = max(1, int(remaining) + 1)
+                logger.info(f"Rescheduling complete_plan_task for {plan_id} in {delay}s (remaining until end: {remaining}s)")
+                raise self.retry(countdown=delay)
+        except Plan.DoesNotExist:
+            pass
+
         return {
             'plan_id': plan_id,
             'task_id': self.request.id,
             'task_name': 'complete_plan_task',
-            'status': 'skipped', 
-            'reason': str(e),
+            'status': 'skipped',
+            'reason': msg,
             'attempt': self.request.retries,
             'timestamp': timezone.now().isoformat()
         }

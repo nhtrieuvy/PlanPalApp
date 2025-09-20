@@ -836,6 +836,37 @@ class PlanService(BaseService):
             'user_id': user.id
         })
         
+        # Publish activity created event for real-time updates and push notifications
+        def _publish_activity_created():
+            try:
+                from .realtime_publisher import RealtimeEventPublisher
+                from .events import RealtimeEvent, EventType
+                
+                publisher = RealtimeEventPublisher()
+                event = RealtimeEvent(
+                    event_type=EventType.ACTIVITY_CREATED,
+                    plan_id=str(plan.id),
+                    user_id=str(user.id),
+                    group_id=str(plan.group_id) if plan.group_id else None,
+                    data={
+                        'activity_id': str(activity.id),
+                        'activity_title': activity.title,
+                        'activity_type': activity.activity_type,
+                        'plan_id': str(plan.id),
+                        'plan_title': plan.title,
+                        'created_by': user.get_full_name() or user.username,
+                        'created_by_id': str(user.id),
+                        'start_time': activity.start_time.isoformat() if activity.start_time else None,
+                        'location_name': activity.location_name,
+                        'initiator_id': str(user.id)
+                    }
+                )
+                publisher.publish_event(event, send_push=True)
+            except Exception as e:
+                logger.warning(f"Failed to publish activity created event for activity {activity.id}: {e}")
+        
+        transaction.on_commit(_publish_activity_created)
+        
         return activity
     
     @classmethod
@@ -943,6 +974,9 @@ class PlanService(BaseService):
     
     @classmethod
     def start_trip(cls, plan: Plan, user: User = None, force: bool = False):
+        # Debug: log plan state when attempting to start
+        logger.debug(f"start_trip called for plan={plan.id} status={plan.status} start_date={plan.start_date} now={timezone.now()} force={force}")
+
         if plan.status != 'upcoming' and not force:
             raise ValueError(f"Cannot start trip in status: {plan.status}")
         
@@ -959,6 +993,12 @@ class PlanService(BaseService):
             )
             
             if updated_count == 0 and not force:
+                # Log current DB state for debugging race conditions
+                try:
+                    latest = Plan.objects.get(pk=plan.pk)
+                    logger.warning(f"start_trip update_count=0 for plan {plan.id}: db_status={latest.status} start_date={latest.start_date}")
+                except Exception:
+                    logger.exception(f"start_trip failed to introspect plan {plan.id} after update_count==0")
                 raise ValueError("Plan status was changed by another operation")
             
             plan.refresh_from_db()
@@ -977,6 +1017,9 @@ class PlanService(BaseService):
         
         def _publish_start_event():
             try:
+                from .realtime_publisher import RealtimeEventPublisher
+                from .events import RealtimeEvent, EventType
+                
                 publisher = RealtimeEventPublisher()
                 event = RealtimeEvent(
                     event_type=EventType.PLAN_STATUS_CHANGED,
@@ -989,11 +1032,13 @@ class PlanService(BaseService):
                         'old_status': 'upcoming',
                         'new_status': 'ongoing',
                         'started_by': str(user.id) if user else 'system',
+                        'started_by_name': user.get_full_name() or user.username if user else 'System',
                         'timestamp': timezone.now().isoformat(),
-                        'forced': force
+                        'forced': force,
+                        'initiator_id': str(user.id) if user else None
                     }
                 )
-                publisher.publish_event(event)
+                publisher.publish_event(event, send_push=True)
             except Exception as e:
                 logger.warning(f"Failed to publish start event for plan {plan.id}: {e}")
         
@@ -1003,6 +1048,9 @@ class PlanService(BaseService):
     
     @classmethod
     def complete_trip(cls, plan: Plan, user: User = None, force: bool = False):
+        # Debug: log plan state when attempting to complete
+        logger.debug(f"complete_trip called for plan={plan.id} status={plan.status} end_date={plan.end_date} now={timezone.now()} force={force}")
+
         if plan.status != 'ongoing' and not force:
             raise ValueError(f"Cannot complete trip in status: {plan.status}")
         
@@ -1019,6 +1067,12 @@ class PlanService(BaseService):
             )
             
             if updated_count == 0 and not force:
+                # Log current DB state for debugging race conditions
+                try:
+                    latest = Plan.objects.get(pk=plan.pk)
+                    logger.warning(f"complete_trip update_count=0 for plan {plan.id}: db_status={latest.status} end_date={latest.end_date}")
+                except Exception:
+                    logger.exception(f"complete_trip failed to introspect plan {plan.id} after update_count==0")
                 raise ValueError("Plan status was changed by another operation")
             
             # Refresh plan instance
@@ -1039,6 +1093,9 @@ class PlanService(BaseService):
         
         def _publish_complete_event():
             try:
+                from .realtime_publisher import RealtimeEventPublisher
+                from .events import RealtimeEvent, EventType
+                
                 publisher = RealtimeEventPublisher()
                 event = RealtimeEvent(
                     event_type=EventType.PLAN_STATUS_CHANGED,
@@ -1051,11 +1108,13 @@ class PlanService(BaseService):
                         'old_status': 'ongoing',
                         'new_status': 'completed',
                         'completed_by': str(user.id) if user else 'system',
+                        'completed_by_name': user.get_full_name() or user.username if user else 'System',
                         'timestamp': timezone.now().isoformat(),
-                        'forced': force
+                        'forced': force,
+                        'initiator_id': str(user.id) if user else None
                     }
                 )
-                publisher.publish_event(event)
+                publisher.publish_event(event, send_push=True)
             except Exception as e:
                 logger.warning(f"Failed to publish complete event for plan {plan.id}: {e}")
         
@@ -1216,6 +1275,62 @@ class PlanService(BaseService):
     @classmethod
     def get_plans_needing_updates(cls):
         return Plan.objects.plans_need_status_update()
+
+
+    @classmethod
+    def bulk_update_plan_statuses(cls) -> Dict[str, int]:
+        """Fallback bulk updater used by a periodic Celery task.
+        - Finds plans that appear to have passed their start/end times
+        - Refreshes their status using existing service logic
+        - Publishes realtime events for any changes
+        Returns summary stats for monitoring/logging
+        """
+        stats = {'total_checked': 0, 'total_updated': 0}
+
+        plans_qs = cls.get_plans_needing_updates().select_related('group', 'creator')
+        now = timezone.now()
+
+        for plan in plans_qs.iterator():
+            stats['total_checked'] += 1
+            try:
+                old_status = plan.status
+                updated = cls.refresh_plan_status(plan)
+                if updated:
+                    stats['total_updated'] += 1
+
+                    # Publish realtime event for status change
+                    try:
+                        publisher = RealtimeEventPublisher()
+                        event = RealtimeEvent(
+                            event_type=EventType.PLAN_STATUS_CHANGED,
+                            plan_id=str(plan.id),
+                            user_id=None,
+                            group_id=str(plan.group_id) if plan.group_id else None,
+                            data={
+                                'plan_id': str(plan.id),
+                                'title': plan.title,
+                                'old_status': old_status,
+                                'new_status': plan.status,
+                                'timestamp': now.isoformat(),
+                                'source': 'bulk_update'
+                            }
+                        )
+                        publisher.publish_event(event)
+                    except Exception as e:
+                        logger.warning(f"Failed to publish bulk update event for plan {plan.id}: {e}")
+
+                    # If plan moved to ongoing, ensure completion task is scheduled
+                    if plan.status == 'ongoing':
+                        try:
+                            cls._schedule_completion_task(plan)
+                        except Exception:
+                            logger.warning(f"Failed to schedule completion task during bulk update for plan {plan.id}")
+
+            except Exception as exc:
+                logger.warning(f"Error handling plan {plan.id} in bulk update: {exc}")
+
+        cls.log_operation("bulk_update_plan_statuses_run", stats)
+        return stats
     
     @classmethod
     def revoke_scheduled_tasks(cls, plan: Plan) -> None:
@@ -1296,23 +1411,47 @@ class PlanService(BaseService):
     
     @classmethod
     def _schedule_plan_tasks(cls, plan: Plan):
-        try: 
-            if plan.start_date:
-                start_task = start_plan_task.apply_async(
-                    args=[str(plan.id)],
-                    eta=plan.start_date
-                )
-                plan.scheduled_start_task_id = start_task.id
-            
-            if plan.end_date:
-                end_task = complete_plan_task.apply_async(
-                    args=[str(plan.id)],
-                    eta=plan.end_date
-                )
-                plan.scheduled_end_task_id = end_task.id
-            
-            plan.save(update_fields=['scheduled_start_task_id', 'scheduled_end_task_id'])
-            
+        try:
+            def _do_schedule():
+                scheduled_start_id = None
+                scheduled_end_id = None
+
+                try:
+                    if plan.start_date:
+                        # Log the planned times for easier debugging
+                        logger.debug(f"Scheduling start task for plan {plan.id}: eta={plan.start_date} now={timezone.now()}")
+                        start_task = start_plan_task.apply_async(args=[str(plan.id)], eta=plan.start_date)
+                        logger.debug(f"start_plan_task.apply_async returned: {start_task}")
+                        logger.debug(f"start_task.id: {start_task.id}, start_task.state: {getattr(start_task, 'state', 'unknown')}")
+                        scheduled_start_id = start_task.id
+
+                    if plan.end_date:
+                        logger.debug(f"Scheduling end task for plan {plan.id}: eta={plan.end_date} now={timezone.now()}")
+                        end_task = complete_plan_task.apply_async(args=[str(plan.id)], eta=plan.end_date)
+                        logger.debug(f"complete_plan_task.apply_async returned: {end_task}")
+                        logger.debug(f"end_task.id: {end_task.id}, end_task.state: {getattr(end_task, 'state', 'unknown')}")
+                        scheduled_end_id = end_task.id
+
+                    updates = {}
+                    if scheduled_start_id:
+                        updates['scheduled_start_task_id'] = scheduled_start_id
+                    if scheduled_end_id:
+                        updates['scheduled_end_task_id'] = scheduled_end_id
+
+                    if updates:
+                        # Persist scheduled task ids with a direct update to avoid re-running full validation
+                        Plan.objects.filter(pk=plan.pk).update(**updates)
+
+                    logger.debug(f"Scheduled tasks for plan {plan.id}: {updates}")
+
+                except Exception as exc:
+                    cls.log_operation("task_scheduling_failed", {
+                        'plan_id': plan.id,
+                        'error': str(exc)
+                    })
+
+            transaction.on_commit(_do_schedule)
+
         except ImportError:
             pass
         except Exception as e:
@@ -1345,21 +1484,24 @@ class PlanService(BaseService):
             return
             
         try:            
-            if plan.scheduled_end_task_id:
+            # Revoke previous scheduled end task (if any) before scheduling new one.
+            def _do_schedule_completion():
                 try:
-                    current_app.control.revoke(plan.scheduled_end_task_id, terminate=False)
-                except Exception:
-                    pass
-            
-            end_task = complete_plan_task.apply_async(
-                args=[str(plan.id)],
-                eta=plan.end_date
-            )
-            
-            Plan.objects.filter(pk=plan.pk).update(
-                scheduled_end_task_id=end_task.id
-            )
-            
+                    if plan.scheduled_end_task_id:
+                        try:
+                            current_app.control.revoke(plan.scheduled_end_task_id, terminate=False)
+                        except Exception:
+                            pass
+
+                    logger.debug(f"Scheduling completion task for plan {plan.id}: eta={plan.end_date} now={timezone.now()}")
+                    end_task = complete_plan_task.apply_async(args=[str(plan.id)], eta=plan.end_date)
+
+                    Plan.objects.filter(pk=plan.pk).update(scheduled_end_task_id=end_task.id)
+                except Exception as exc:
+                    logger.warning(f"Failed to schedule completion task for plan {plan.id}: {exc}")
+
+            transaction.on_commit(_do_schedule_completion)
+
         except ImportError:
             pass
         except Exception as e:
@@ -1376,8 +1518,10 @@ class PlanService(BaseService):
             return False, "Activity not found in this plan", None
         
         # Update fields
+        old_values = {}
         for field, value in data.items():
             if hasattr(plan_activity, field):
+                old_values[field] = getattr(plan_activity, field, None)
                 setattr(plan_activity, field, value)
         
         plan_activity.save()
@@ -1387,6 +1531,38 @@ class PlanService(BaseService):
             'activity_id': activity_id,
             'user_id': user.id
         })
+        
+        # Publish activity updated event for real-time updates and push notifications
+        def _publish_activity_updated():
+            try:
+                from .realtime_publisher import RealtimeEventPublisher
+                from .events import RealtimeEvent, EventType
+                
+                publisher = RealtimeEventPublisher()
+                event = RealtimeEvent(
+                    event_type=EventType.ACTIVITY_UPDATED,
+                    plan_id=str(plan.id),
+                    user_id=str(user.id),
+                    group_id=str(plan.group_id) if plan.group_id else None,
+                    data={
+                        'activity_id': str(plan_activity.id),
+                        'activity_title': plan_activity.title,
+                        'activity_type': plan_activity.activity_type,
+                        'plan_id': str(plan.id),
+                        'plan_title': plan.title,
+                        'updated_by': user.get_full_name() or user.username,
+                        'updated_by_id': str(user.id),
+                        'updated_fields': list(data.keys()),
+                        'start_time': plan_activity.start_time.isoformat() if plan_activity.start_time else None,
+                        'location_name': plan_activity.location_name,
+                        'initiator_id': str(user.id)
+                    }
+                )
+                publisher.publish_event(event, send_push=True)
+            except Exception as e:
+                logger.warning(f"Failed to publish activity updated event for activity {plan_activity.id}: {e}")
+        
+        transaction.on_commit(_publish_activity_updated)
         
         return True, "Activity updated successfully", plan_activity
     
@@ -1401,6 +1577,7 @@ class PlanService(BaseService):
             return False, "Activity not found in this plan"
         
         activity_title = plan_activity.title
+        activity_type = plan_activity.activity_type
         plan_activity.delete()
         
         cls.log_operation("activity_removed", {
@@ -1409,6 +1586,35 @@ class PlanService(BaseService):
             'activity_title': activity_title,
             'user_id': user.id
         })
+        
+        # Publish activity deleted event for real-time updates and push notifications
+        def _publish_activity_deleted():
+            try:
+                from .realtime_publisher import RealtimeEventPublisher
+                from .events import RealtimeEvent, EventType
+                
+                publisher = RealtimeEventPublisher()
+                event = RealtimeEvent(
+                    event_type=EventType.ACTIVITY_DELETED,
+                    plan_id=str(plan.id),
+                    user_id=str(user.id),
+                    group_id=str(plan.group_id) if plan.group_id else None,
+                    data={
+                        'activity_id': activity_id,
+                        'activity_title': activity_title,
+                        'activity_type': activity_type,
+                        'plan_id': str(plan.id),
+                        'plan_title': plan.title,
+                        'deleted_by': user.get_full_name() or user.username,
+                        'deleted_by_id': str(user.id),
+                        'initiator_id': str(user.id)
+                    }
+                )
+                publisher.publish_event(event, send_push=True)
+            except Exception as e:
+                logger.warning(f"Failed to publish activity deleted event for activity {activity_id}: {e}")
+        
+        transaction.on_commit(_publish_activity_deleted)
         
         return True, f'Activity "{activity_title}" removed from plan'
     
@@ -1434,6 +1640,38 @@ class PlanService(BaseService):
             'is_completed': plan_activity.is_completed,
             'user_id': user.id
         })
+        
+        # Publish activity completed event for real-time updates and push notifications (only for completion, not uncompleting)
+        if plan_activity.is_completed:
+            def _publish_activity_completed():
+                try:
+                    from .realtime_publisher import RealtimeEventPublisher
+                    from .events import RealtimeEvent, EventType
+                    
+                    publisher = RealtimeEventPublisher()
+                    event = RealtimeEvent(
+                        event_type=EventType.ACTIVITY_COMPLETED,
+                        plan_id=str(plan.id),
+                        user_id=str(user.id),
+                        group_id=str(plan.group_id) if plan.group_id else None,
+                        data={
+                            'activity_id': str(plan_activity.id),
+                            'activity_title': plan_activity.title,
+                            'activity_type': plan_activity.activity_type,
+                            'plan_id': str(plan.id),
+                            'plan_title': plan.title,
+                            'completed_by': user.get_full_name() or user.username,
+                            'completed_by_id': str(user.id),
+                            'completed_at': plan_activity.completed_at.isoformat() if plan_activity.completed_at else None,
+                            'location_name': plan_activity.location_name,
+                            'initiator_id': str(user.id)
+                        }
+                    )
+                    publisher.publish_event(event, send_push=True)
+                except Exception as e:
+                    logger.warning(f"Failed to publish activity completed event for activity {plan_activity.id}: {e}")
+            
+            transaction.on_commit(_publish_activity_completed)
         
         return True, f'Activity marked as {status_text}', plan_activity
     
