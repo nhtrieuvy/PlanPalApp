@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "539351209558",
+    "project_id": "alapp-ffa74",
+    "storage_bucket": "alapp-ffa74.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:539351209558:android:0bc0dce41f915f15f88df7",
+        "android_client_info": {
+          "package_name": "com.example.planpal_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1GIETwZj5CNGQtZR2CPqDCkCYLZ6SZrc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
