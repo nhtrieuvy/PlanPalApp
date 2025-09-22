@@ -84,6 +84,8 @@ yarn-error.log*
 # ============================
 # Secrets / API keys
 # ============================
-planpalapp/firebase_service_account.json
+
+firebase_service_account.json
+
 *.keystore
 *.jks
