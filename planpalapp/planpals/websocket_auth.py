@@ -13,31 +13,21 @@ logger = logging.getLogger(__name__)
 
 @database_sync_to_async
 def get_user_from_token(token_key):
-    """Get user from OAuth2 access token"""
     try:
-        logger.info(f"Looking for token: {token_key[:10]}...")
         access_token = AccessToken.objects.select_related('user').get(
             token=token_key
         )
         
         if access_token.is_valid():
-            logger.info(f"Valid token found for user: {access_token.user}")
             return access_token.user
         else:
-            logger.warning(f"Expired token: {token_key[:10]}...")
             return AnonymousUser()
             
-    except AccessToken.DoesNotExist:
-        logger.warning(f"Token not found: {token_key[:10]}...")
-        return AnonymousUser()
     except Exception as e:
-        logger.error(f"Error getting user from token: {e}")
         return AnonymousUser()
 
 
-class TokenAuthMiddleware(BaseMiddleware):
-    """Simple token authentication for WebSocket"""
-    
+class TokenAuthMiddleware(BaseMiddleware):    
     def __init__(self, inner):
         super().__init__(inner)
         logger.info("TokenAuthMiddleware initialized")

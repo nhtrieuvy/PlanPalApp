@@ -36,7 +36,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-for-developme
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['10.0.2.2', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['10.0.2.2', 'localhost', '127.0.0.1', '192.168.1.41']
 
 
 # Application definition
@@ -231,7 +231,9 @@ GOONG_API_KEY = os.getenv('GOONG_API_KEY')
 # NOMINATIM_USER_AGENT = os.getenv('NOMINATIM_USER_AGENT', 'PlanPal-Student-Project/1.0')
 # OVERPASS_API_URL = os.getenv('OVERPASS_API_URL', 'https://overpass-api.de/api/interpreter')
 
-FCM_SERVER_KEY = os.getenv('FCM_SERVER_KEY')
+# Firebase Cloud Messaging Configuration
+FIREBASE_SERVICE_ACCOUNT_PATH = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH')
+FCM_PROJECT_ID = os.getenv('FCM_PROJECT_ID')
 
 # Email configuration for notifications
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
