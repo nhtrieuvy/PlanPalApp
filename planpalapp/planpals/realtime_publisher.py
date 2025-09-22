@@ -118,10 +118,13 @@ class RealtimeEventPublisher:
         if event.data.get('priority') == EventPriority.HIGH.value:
             return True
             
-        # Send push for important plan events
+        # Send push for important plan and activity events
         important_events = [
             EventType.PLAN_STATUS_CHANGED,
+            EventType.ACTIVITY_CREATED,
+            EventType.ACTIVITY_UPDATED,
             EventType.ACTIVITY_COMPLETED,
+            EventType.ACTIVITY_DELETED,
             EventType.GROUP_MEMBER_ADDED,
             EventType.MESSAGE_SENT,
             EventType.FRIEND_REQUEST
@@ -176,9 +179,21 @@ class RealtimeEventPublisher:
                 'title': f"Plan Status Updated",
                 'body': f"'{event_data.get('title', 'Your plan')}' is now {event_data.get('new_status', 'updated')}"
             },
+            EventType.ACTIVITY_CREATED: {
+                'title': f"New Activity Added",
+                'body': f"{event_data.get('created_by', 'Someone')} added '{event_data.get('activity_title', 'an activity')}' to {event_data.get('plan_title', 'the plan')}"
+            },
+            EventType.ACTIVITY_UPDATED: {
+                'title': f"Activity Updated",
+                'body': f"{event_data.get('updated_by', 'Someone')} updated '{event_data.get('activity_title', 'an activity')}' in {event_data.get('plan_title', 'the plan')}"
+            },
             EventType.ACTIVITY_COMPLETED: {
                 'title': f"Activity Completed",
-                'body': f"'{event_data.get('title', 'An activity')}' has been completed"
+                'body': f"{event_data.get('completed_by', 'Someone')} completed '{event_data.get('activity_title', 'an activity')}' in {event_data.get('plan_title', 'the plan')}"
+            },
+            EventType.ACTIVITY_DELETED: {
+                'title': f"Activity Removed",
+                'body': f"{event_data.get('deleted_by', 'Someone')} removed '{event_data.get('activity_title', 'an activity')}' from {event_data.get('plan_title', 'the plan')}"
             },
             EventType.GROUP_MEMBER_ADDED: {
                 'title': f"New Group Member",

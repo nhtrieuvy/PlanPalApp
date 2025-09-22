@@ -118,6 +118,18 @@ class UserSummarySerializer(serializers.ModelSerializer):
         return instance.username[0].upper() if instance.username else "U"
 
 
+class FCMTokenSerializer(serializers.Serializer):
+    """Serializer for registering/updating a device FCM token"""
+    fcm_token = serializers.CharField(max_length=255, allow_blank=False)
+    platform = serializers.ChoiceField(choices=[('android', 'android'), ('ios', 'ios')], required=False)
+
+    def validate_fcm_token(self, value):
+        # Basic sanity check; further validation on the client side
+        if len(value) < 10:
+            raise serializers.ValidationError("FCM token seems too short")
+        return value
+
+
 class GroupMembershipSerializer(serializers.ModelSerializer):
     user = UserSummarySerializer(read_only=True)
     

@@ -110,6 +110,28 @@ class UserViewSet(viewsets.GenericViewSet,
         if self.action == "list":
             return UserSummarySerializer
         return UserSerializer
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def register_device_token(self, request):
+        """Register or update the current user's FCM device token
+
+        Expected payload: { "fcm_token": "<token>", "platform": "android" }
+        """
+        from .serializers import FCMTokenSerializer
+
+        serializer = FCMTokenSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        fcm_token = serializer.validated_data.get('fcm_token')
+        # Optionally save platform but currently we store only token
+        try:
+            request.user.fcm_token = fcm_token
+            request.user.save(update_fields=['fcm_token'])
+            return Response({'message': 'FCM token registered successfully'})
+        except Exception as e:
+            logger.error(f"Failed to register fcm token for user {request.user.id}: {e}")
+            return Response({'error': 'Failed to register token'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def list(self, request):
         user = User.objects.with_counts().get(id=request.user.id)

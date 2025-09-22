@@ -56,6 +56,8 @@ class Endpoints {
   static String userUnfriend(String userId) => '/users/$userId/unfriend/';
   static String userBlock(String userId) => '/users/$userId/block/';
   static String userUnblock(String userId) => '/users/$userId/unblock/';
+  // Device token registration
+  static const String registerDeviceToken = '/users/register_device_token/';
 
   // Location endpoints
   static const String locationReverseGeocode = '/location/reverse-geocode/';

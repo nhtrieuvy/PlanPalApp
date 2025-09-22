@@ -11,6 +11,8 @@ import 'package:planpal_flutter/presentation/pages/home/home_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/register_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'core/services/fcm_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +23,13 @@ Future<void> main() async {
   await themeProvider.init();
   final authProvider = AuthProvider();
   await authProvider.init();
+
+  // Initialize Firebase before runApp so messaging can be used
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    // ignore if already initialized or missing config in dev
+  }
 
   runApp(
     MultiProvider(
@@ -45,6 +54,21 @@ class PlanPalApp extends StatelessWidget {
     // Consume the providers that were initialized in main()
     return Consumer2<ThemeProvider, AuthProvider>(
       builder: (context, themeProvider, authProvider, child) {
+        // Initialize FCM when app builds and user token is available
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (authProvider.isLoggedIn) {
+            debugPrint(
+              'main: user is logged in, initiating FCM registration; token present=${authProvider.token != null}',
+            );
+            // Try to init and register the device token with backend (pass auth token)
+            await FcmService.initAndRegister(authToken: authProvider.token);
+          } else {
+            debugPrint(
+              'main: user not logged in; skipping FCM init on startup',
+            );
+          }
+        });
+
         return MaterialApp(
           title: 'PlanPal',
           debugShowCheckedModeBanner: false,
