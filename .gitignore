@@ -84,6 +84,6 @@ yarn-error.log*
 # ============================
 # Secrets / API keys
 # ============================
-firebase-service-account.json
+firebase_service_account.json
 *.keystore
 *.jks
