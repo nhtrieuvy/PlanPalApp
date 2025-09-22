@@ -3,6 +3,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -13,6 +14,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // Enable core library desugaring for libraries that require newer Java APIs
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -41,4 +44,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// Add desugaring dependency required by some plugins (e.g., flutter_local_notifications)
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

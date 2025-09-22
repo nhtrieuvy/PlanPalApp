@@ -349,3 +349,90 @@ def publish_group_member_added(group_id: str, member_id: str, member_name: str,
     )
     
     return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
+
+
+def publish_activity_created(plan_id: str, activity_id: str, activity_title: str, 
+                           plan_title: str, created_by: str = None):
+    """Publish activity created event"""
+    event = RealtimeEvent(
+        event_type=EventType.ACTIVITY_CREATED,
+        plan_id=plan_id,
+        data={
+            'activity_id': activity_id,
+            'activity_title': activity_title,
+            'plan_title': plan_title,
+            'created_by': created_by,
+            'initiator_id': created_by
+        }
+    )
+    
+    return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
+
+
+def publish_activity_updated(plan_id: str, activity_id: str, activity_title: str,
+                           plan_title: str, updated_by: str = None):
+    """Publish activity updated event"""
+    event = RealtimeEvent(
+        event_type=EventType.ACTIVITY_UPDATED,
+        plan_id=plan_id,
+        data={
+            'activity_id': activity_id,
+            'activity_title': activity_title,
+            'plan_title': plan_title,
+            'updated_by': updated_by,
+            'initiator_id': updated_by
+        }
+    )
+    
+    return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
+
+
+def publish_activity_deleted(plan_id: str, activity_id: str, activity_title: str,
+                           plan_title: str, deleted_by: str = None):
+    """Publish activity deleted event"""
+    event = RealtimeEvent(
+        event_type=EventType.ACTIVITY_DELETED,
+        plan_id=plan_id,
+        data={
+            'activity_id': activity_id,
+            'activity_title': activity_title,
+            'plan_title': plan_title,
+            'deleted_by': deleted_by,
+            'initiator_id': deleted_by
+        }
+    )
+    
+    return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
+
+
+def publish_message_sent(group_id: str, message_id: str, content: str,
+                        sender_name: str, sender_id: str = None):
+    """Publish message sent event"""
+    event = RealtimeEvent(
+        event_type=EventType.MESSAGE_SENT,
+        group_id=group_id,
+        data={
+            'message_id': message_id,
+            'content': content,
+            'sender_name': sender_name,
+            'sender_id': sender_id,
+            'initiator_id': sender_id
+        }
+    )
+    
+    return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
+
+
+def publish_friend_request(user_id: str, from_user_id: str, from_name: str):
+    """Publish friend request event"""
+    event = RealtimeEvent(
+        event_type=EventType.FRIEND_REQUEST,
+        user_id=user_id,
+        data={
+            'from_user_id': from_user_id,
+            'from_name': from_name,
+            'initiator_id': from_user_id
+        }
+    )
+    
+    return event_publisher.publish_event(event, priority=EventPriority.HIGH)

@@ -7,12 +7,11 @@ import 'package:planpal_flutter/core/theme/app_theme.dart';
 import 'package:planpal_flutter/core/providers/theme_provider.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/providers/conversation_provider.dart';
+import 'package:planpal_flutter/core/services/firebase_service.dart';
 import 'package:planpal_flutter/presentation/pages/home/home_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/register_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'core/services/fcm_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,11 +23,9 @@ Future<void> main() async {
   final authProvider = AuthProvider();
   await authProvider.init();
 
-  // Initialize Firebase before runApp so messaging can be used
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    // ignore if already initialized or missing config in dev
+  // Initialize Firebase if user is already logged in
+  if (authProvider.isLoggedIn) {
+    await _initializeFirebaseOnStartup(authProvider.token!);
   }
 
   runApp(
@@ -54,21 +51,6 @@ class PlanPalApp extends StatelessWidget {
     // Consume the providers that were initialized in main()
     return Consumer2<ThemeProvider, AuthProvider>(
       builder: (context, themeProvider, authProvider, child) {
-        // Initialize FCM when app builds and user token is available
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          if (authProvider.isLoggedIn) {
-            debugPrint(
-              'main: user is logged in, initiating FCM registration; token present=${authProvider.token != null}',
-            );
-            // Try to init and register the device token with backend (pass auth token)
-            await FcmService.initAndRegister(authToken: authProvider.token);
-          } else {
-            debugPrint(
-              'main: user not logged in; skipping FCM init on startup',
-            );
-          }
-        });
-
         return MaterialApp(
           title: 'PlanPal',
           debugShowCheckedModeBanner: false,
@@ -87,5 +69,29 @@ class PlanPalApp extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+/// Initialize Firebase on app startup if user is logged in
+Future<void> _initializeFirebaseOnStartup(String authToken) async {
+  try {
+    debugPrint('Main: Initializing Firebase on app startup...');
+
+    final initialized = await FirebaseService.instance.initialize();
+    if (initialized) {
+      // Register token in background - don't block app startup
+      FirebaseService.instance
+          .registerToken(authToken)
+          .then((registered) {
+            debugPrint(
+              'Main: FCM token registration ${registered ? 'succeeded' : 'failed'}',
+            );
+          })
+          .catchError((e) {
+            debugPrint('Main: FCM token registration error: $e');
+          });
+    }
+  } catch (e) {
+    debugPrint('Main: Firebase startup initialization error: $e');
   }
 }
