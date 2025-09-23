@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:planpal_flutter/presentation/pages/users/plan_page.dart';
+import 'package:planpal_flutter/presentation/pages/plans/plans_list_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/profile_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_page.dart';
 import 'package:provider/provider.dart';
@@ -66,7 +66,7 @@ class PlanPalApp extends StatelessWidget {
             '/register': (context) => const RegisterPage(),
             '/home': (context) => const HomePage(),
             '/group': (context) => const GroupPage(),
-            '/plan': (context) => const PlanPage(),
+            '/plan': (context) => const PlansListPage(),
             '/profile': (context) => ProfilePage(),
           },
         );

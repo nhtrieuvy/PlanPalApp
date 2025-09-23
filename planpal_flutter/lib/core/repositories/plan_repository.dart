@@ -6,6 +6,7 @@ import 'package:planpal_flutter/core/dtos/plan_requests.dart';
 import '../dtos/plan_summary.dart';
 import '../dtos/plan_model.dart';
 import '../dtos/plan_activity_requests.dart';
+import '../dtos/pagination_responses.dart';
 
 class PlanRepository {
   final AuthProvider _auth;
@@ -30,33 +31,44 @@ class PlanRepository {
     }
   }
 
-  Future<List<PlanSummary>> getPlans() async {
+  Future<PlansResponse> getPlans({String? cursor, int limit = 20}) async {
     try {
+      final queryParams = <String, dynamic>{
+        'limit': limit,
+        if (cursor != null) 'cursor': cursor,
+      };
+
       final Response res = await _auth.requestWithAutoRefresh(
-        (c) => c.dio.get(Endpoints.plans),
+        (c) => c.dio.get(Endpoints.plans, queryParameters: queryParams),
       );
 
       if (res.statusCode == 200) {
         final data = res.data;
-        // Handle paginated response with 'results' array
-        final List<dynamic> rawList = (data is Map && data['results'] is List)
-            ? List<dynamic>.from(data['results'] as List)
-            : const <dynamic>[];
+        if (data is Map<String, dynamic>) {
+          return PlansResponse.fromJson(data);
+        }
+        // Fallback for old non-paginated response
+        final List<dynamic> rawList = (data is List) ? data : const <dynamic>[];
 
-        if (rawList.isEmpty) return const <PlanSummary>[];
-        final parsed = <PlanSummary>[];
+        final plans = <PlanSummary>[];
         for (final item in rawList) {
           if (item is Map) {
-            parsed.add(PlanSummary.fromJson(Map<String, dynamic>.from(item)));
+            plans.add(PlanSummary.fromJson(Map<String, dynamic>.from(item)));
           }
         }
-        return parsed;
+        return PlansResponse(plans: plans, hasMore: false, count: plans.length);
       }
       throw buildApiException(res);
     } on DioException catch (e) {
       if (e.response != null) throw buildApiException(e.response!);
       rethrow;
     }
+  }
+
+  // Legacy method for backward compatibility
+  Future<List<PlanSummary>> getPlansLegacy() async {
+    final response = await getPlans();
+    return response.plans;
   }
 
   Future<PlanModel> getPlanDetail(String id) async {

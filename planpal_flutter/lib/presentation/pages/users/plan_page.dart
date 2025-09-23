@@ -52,7 +52,9 @@ class _PlanPageState extends State<PlanPage> with RefreshablePage<PlanPage> {
       _error = null;
     });
     try {
-      final data = await _repo.getPlans();
+      // Use legacy helper which returns List<PlanSummary> to keep
+      // backward-compatible with this page's existing local state.
+      final data = await _repo.getPlansLegacy();
       if (!mounted) return;
       setState(() => _plans = data);
     } catch (e) {
@@ -144,6 +146,9 @@ class _PlanPageState extends State<PlanPage> with RefreshablePage<PlanPage> {
   }
 
   Future<void> _handlePlanTap(PlanSummary ps) async {
+    // debug: log plan id before navigating to details
+    // ignore: avoid_print
+    print('PlanPage: navigating to PlanDetailsPage with id=${ps.id}');
     final action = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(builder: (_) => PlanDetailsPage(id: ps.id)),
     );

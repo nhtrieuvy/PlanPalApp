@@ -70,7 +70,7 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
       _error = null;
     });
     try {
-      final plans = await _planRepo.getPlans();
+      final plans = await _planRepo.getPlansLegacy();
       final groups = await _groupRepo.getGroups();
       if (!mounted) return;
       setState(() {
@@ -670,6 +670,9 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
                 return GestureDetector(
                   onTap: () async {
                     final id = p.id;
+                    // debug: log id before navigation
+                    // ignore: avoid_print
+                    print('Home recentPlans: navigating to plan id=$id');
                     if (id.isEmpty) return;
 
                     final result = await Navigator.of(context)

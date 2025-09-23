@@ -12,11 +12,44 @@ class ConversationRepository {
   ConversationRepository(this.auth);
 
   /// Get all conversations for current user
-  Future<ConversationsResponse> getConversations() async {
+  /// If [query] is provided, backend will perform search server-side and
+  /// return matching conversations using query parameters to improve
+  /// performance over local filtering.
+  Future<ConversationsResponse> getConversations({String? query}) async {
     try {
-      final Response res = await auth.requestWithAutoRefresh(
-        (c) => c.dio.get(Endpoints.conversations),
-      );
+      final Response res = await auth.requestWithAutoRefresh((c) {
+        final params = <String, dynamic>{};
+        if (query != null && query.isNotEmpty) params['q'] = query;
+        return c.dio.get(Endpoints.conversations, queryParameters: params);
+      });
+
+      final data = res.data;
+      // Normalize different possible response shapes
+      if (data is Map<String, dynamic>) {
+        if (data.containsKey('conversations')) {
+          return ConversationsResponse.fromJson(
+            Map<String, dynamic>.from(data),
+          );
+        }
+        if (data.containsKey('results')) {
+          // Some endpoints return 'results' key
+          return ConversationsResponse.fromJson({
+            'conversations': data['results'],
+          });
+        }
+        // Fallback: wrap whole map as single conversation list if possible
+        if (data['conversations'] is List) {
+          return ConversationsResponse.fromJson(
+            Map<String, dynamic>.from(data),
+          );
+        }
+      } else if (data is List) {
+        return ConversationsResponse.fromJson({
+          'conversations': List<dynamic>.from(data),
+        });
+      }
+
+      // If none matched, attempt direct parsing (may throw)
       return ConversationsResponse.fromJson(
         Map<String, dynamic>.from(res.data as Map),
       );

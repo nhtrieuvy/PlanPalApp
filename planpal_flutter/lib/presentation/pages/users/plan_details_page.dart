@@ -34,6 +34,13 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
   void initState() {
     super.initState();
     _repo = PlanRepository(context.read<AuthProvider>());
+    // If id is empty, avoid calling the list endpoint accidentally and show an error
+    if (widget.id.isEmpty) {
+      _loading = false;
+      _error = 'Plan id is empty';
+      return;
+    }
+
     _load();
   }
 
@@ -48,6 +55,11 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
       _error = null;
     });
     try {
+      // debug: log load invocation and id
+      // ignore: avoid_print
+      print(
+        'PlanDetailsPage._load called for id=${widget.id}, refresh=$refresh',
+      );
       if (refresh) _repo.clearCacheEntry(widget.id);
       final d = await _repo.getPlanDetail(widget.id);
       if (!mounted) return;

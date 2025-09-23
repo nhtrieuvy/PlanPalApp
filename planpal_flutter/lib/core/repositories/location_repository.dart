@@ -88,7 +88,6 @@ class LocationRepository {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting place details: $e');
       return null;
     }
   }

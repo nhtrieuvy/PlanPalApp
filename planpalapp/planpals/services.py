@@ -696,6 +696,31 @@ class GroupService(BaseService):
         return cls.add_member(group, user, GroupMembership.MEMBER)
     
     @classmethod
+    @transaction.atomic  
+    def leave_group(cls, group: Group, user: User) -> Tuple[bool, str]:
+        """
+        Member tự rời nhóm
+        """
+        # Kiểm tra xem user có phải thành viên của nhóm không
+        membership = group.get_user_membership(user)
+        if not membership:
+            return False, "Bạn không phải thành viên của nhóm này"
+        
+        # Kiểm tra nếu là admin duy nhất thì không được rời
+        if membership.role == GroupMembership.ADMIN and group.get_admin_count() <= 1:
+            return False, "Bạn là admin duy nhất của nhóm, không thể rời nhóm. Hãy chỉ định admin khác trước khi rời."
+        
+        # Xóa membership
+        membership.delete()
+        
+        cls.log_operation("member_left_group", {
+            'group_id': group.id,
+            'user_id': user.id,
+        })
+        
+        return True, "Bạn đã rời nhóm thành công"
+    
+    @classmethod
     def can_manage_members(cls, group: Group, user: User) -> bool:
         return group.is_admin(user)
     
@@ -1763,6 +1788,47 @@ class ConversationService(BaseService):
     @classmethod
     def get_user_conversations(cls, user: User) -> QuerySet['Conversation']:
         return Conversation.objects.for_user(user).with_last_message().order_by('-last_message_at')
+    
+    @classmethod
+    def search_user_conversations(cls, user: User, query: str) -> QuerySet['Conversation']:
+        """Search conversations by name, participant names, or group names"""
+        if not query or not query.strip():
+            return cls.get_user_conversations(user)
+        
+        query = query.strip().lower()
+        conversations = cls.get_user_conversations(user)
+        
+        search_conditions = Q()
+        
+        search_conditions |= Q(name__icontains=query)
+        
+        search_conditions |= Q(group__name__icontains=query)
+        
+    
+        search_conditions |= Q(
+            group__members__first_name__icontains=query
+        ) | Q(
+            group__members__last_name__icontains=query
+        ) | Q(
+            group__members__username__icontains=query
+        )
+        
+        # For direct conversations, also search the other participant
+        search_conditions |= Q(
+            user_a__first_name__icontains=query
+        ) | Q(
+            user_a__last_name__icontains=query
+        ) | Q(
+            user_a__username__icontains=query
+        ) | Q(
+            user_b__first_name__icontains=query
+        ) | Q(
+            user_b__last_name__icontains=query
+        ) | Q(
+            user_b__username__icontains=query
+        )
+        
+        return conversations.filter(search_conditions).distinct()
     
     @classmethod
     def get_or_create_direct_conversation(cls, user1: User, user2: User) -> Tuple['Conversation', bool]:

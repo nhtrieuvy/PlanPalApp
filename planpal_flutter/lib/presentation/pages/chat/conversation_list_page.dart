@@ -141,6 +141,8 @@ class _ConversationListPageState extends State<ConversationListPage>
           setState(() {
             _searchQuery = query;
           });
+          // Ask provider to perform server-side search (debounced)
+          context.read<ConversationProvider>().searchConversationsRemote(query);
         },
         prefixIcon: PhosphorIcons.magnifyingGlass(),
       ),
@@ -161,7 +163,7 @@ class _ConversationListPageState extends State<ConversationListPage>
 
     List<Conversation> filteredConversations = _searchQuery.isEmpty
         ? provider.conversations
-        : provider.searchConversations(_searchQuery);
+        : provider.searchResults;
 
     if (_showOnlineOnly) {
       filteredConversations = filteredConversations.where((conv) {

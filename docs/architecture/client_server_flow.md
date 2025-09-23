@@ -20,18 +20,18 @@ This document contains two diagrams (Mermaid): a sequence diagram showing typica
 
 ```mermaid
 sequenceDiagram
-  participant Client as Flutter Client
-  participant Firebase as Firebase (FCM)
-  participant API as API (Django REST)
-  participant OAuth as OAuth2 Provider
-  participant DB as Database
-  participant Channels as Channels/WebSocket
-  participant Celery as Celery Worker
-  participant External as External Services (FCM)
+  participant Client
+  participant Firebase
+  participant API
+  participant OAuth
+  participant DB
+  participant Channels
+  participant Celery
+  participant External
 
   Note over Client,OAuth: 1) User logs in (credentials)
   Client->>API: POST /auth/login (credentials)
-  API->>OAuth: Validate credentials -> issue access token
+  API->>OAuth: Validate credentials and request token
   OAuth-->>API: access_token + refresh_token
   API-->>Client: 200 OK + token
   Client->>Firebase: initialize() and get FCM token
@@ -45,7 +45,8 @@ sequenceDiagram
   DB-->>API: rows
   API-->>Client: JSON page
 
-  Note over Client,API,DB: 3) Update plan (service-level validation)
+  Note over Client,API: 3) Update plan (service-level validation)
+  Note over API,DB: PlanService performs DB-level checks and writes
   Client->>API: PUT /api/plans/:id (Authorization, payload)
   API->>API: PlanService.update_plan (check status)
   alt Plan completed
@@ -58,7 +59,8 @@ sequenceDiagram
     Celery->>External: send notifications or create events
   end
 
-  Note over Client,Channels,API: 4) Chat message send/receive (realtime)
+  Note over Client,Channels: 4) Chat message send/receive (realtime)
+  Note over Channels,API: ConversationService persists and validates messages
   Client->>Channels: WebSocket send message
   Channels->>API: receive and persist (ConversationService)
   API->>DB: insert message
@@ -73,7 +75,8 @@ sequenceDiagram
   External-->>Firebase: deliver push to device
   Firebase-->>Client: onMessage / onMessageOpenedApp
 
-  Note over Client,API,OAuth: 6) Logout (preserve partial success)
+  Note over Client,API: 6) Logout (preserve partial success)
+  Note over API,OAuth: Token revocation handled by OAuth provider
   Client->>API: POST /oauth/logout (Authorization)
   API->>DB: select AccessToken (select_for_update inside transaction)
   alt Token found and revoked
@@ -95,22 +98,22 @@ sequenceDiagram
 flowchart TD
   subgraph Mobile
     C[Flutter Client]
-    C -->|init| F(FirebaseService)
-    C -->|API calls| API
+    C -->|init| F[Firebase Service]
+    C -->|API calls| API["API (Django REST)"]
     C -->|WS connect| WS[WebSocket client]
   end
 
   subgraph Backend
-    API[API (Django REST)]
-    OAuth[OAuth2 Provider]
+    API
+    OAuth["OAuth2 Provider"]
     DB[(Database)]
-    Channels[Channels / WebSocket]
-    Celery[Celery Workers]
+    Channels["Channels / WebSocket"]
+    Celery["Celery Workers"]
   end
 
   subgraph External
-    FCM[Firebase Cloud Messaging]
-    Maps[Google Maps, Other APIs]
+    FCM["Firebase Cloud Messaging"]
+    Maps["Google Maps, Other APIs"]
   end
 
   C -->|FCM token| F

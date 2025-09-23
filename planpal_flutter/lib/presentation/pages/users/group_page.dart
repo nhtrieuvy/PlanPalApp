@@ -409,6 +409,30 @@ class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
           _onDeleteGroup(g);
         } else if (action['action'] == 'edit') {
           _onEditGroup(g);
+        } else if (action['action'] == 'left' && action['id'] == id) {
+          // User left the group, remove it from the list
+          setState(() {
+            _groups = _groups.where((group) => group.id != id).toList();
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Đã rời nhóm thành công')),
+            );
+          }
+        } else if (action['action'] == 'updated' && action['group'] is Map) {
+          try {
+            final updatedGroupRaw = Map<String, dynamic>.from(
+              action['group'] as Map,
+            );
+            final updatedSummary = GroupSummary.fromJson(updatedGroupRaw);
+            setState(() {
+              _groups = _groups
+                  .map(
+                    (grp) => grp.id == updatedSummary.id ? updatedSummary : grp,
+                  )
+                  .toList();
+            });
+          } catch (_) {}
         }
       }
     }

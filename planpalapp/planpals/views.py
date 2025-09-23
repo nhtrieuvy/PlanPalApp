@@ -578,10 +578,68 @@ class GroupViewSet(viewsets.GenericViewSet,
             'can_create_plan': plans_data['can_create_plan']
         })
 
+    # API rời nhóm (member tự rời)
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupMember])
+    def leave(self, request, pk=None):
+        group = self.get_object()
+        user = request.user
+        
+        try:
+            success, message = GroupService.leave_group(group, user)
+            if not success:
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({
+                'message': message,
+                'group_id': str(group.id)
+            })
+        except Exception as e:
+            return Response(
+                {'error': 'Đã có lỗi xảy ra khi rời nhóm'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    # API xóa thành viên khỏi nhóm (admin thực hiện)
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupAdmin])
+    def remove_member(self, request, pk=None):
+        group = self.get_object()
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            return Response({'error': 'user_id là bắt buộc'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            user_to_remove = User.objects.get(id=user_id)
+            success, message = GroupService.remove_member_from_group(
+                group, user_to_remove, removed_by=request.user
+            )
+            
+            if not success:
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({
+                'message': message,
+                'group_id': str(group.id),
+                'user_id': user_id
+            })
+        except User.DoesNotExist:
+            return Response({'error': 'Không tìm thấy người dùng'}, 
+                          status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(
+                {'error': 'Đã có lỗi xảy ra khi xóa thành viên'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 class PlanViewSet(viewsets.ModelViewSet):
     serializer_class = PlanSerializer
     permission_classes = [IsAuthenticated, PlanPermission]
-    pagination_class = ActivityCursorPagination
+
+    pagination_class = StandardResultsPagination
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -1125,8 +1183,14 @@ class ConversationViewSet(viewsets.GenericViewSet,
         return ConversationService.get_user_conversations(self.request.user)
     
     def list(self, request, *args, **kwargs):
-        """List all conversations for current user"""
-        conversations = self.get_queryset()
+        """List all conversations for current user with optional search"""
+        query = request.query_params.get('q')
+        
+        if query:
+            conversations = ConversationService.search_user_conversations(request.user, query)
+        else:
+            conversations = self.get_queryset()
+            
         serializer = self.get_serializer(conversations, many=True)
         return Response({'conversations': serializer.data})
     

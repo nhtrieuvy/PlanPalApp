@@ -3,10 +3,13 @@ import 'package:provider/provider.dart';
 import '../../../core/dtos/plan_summary.dart';
 import '../../../core/repositories/plan_repository.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/plan_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/loading_state.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
-import 'plan_schedule_page.dart';
+import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
+import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 
 class PlansListPage extends StatefulWidget {
   final String? groupId;
@@ -26,125 +29,150 @@ class PlansListPage extends StatefulWidget {
 
 class _PlansListPageState extends State<PlansListPage>
     with SingleTickerProviderStateMixin, RefreshablePage<PlansListPage> {
-  late final PlanRepository _planRepo;
-
-  List<PlanSummary> plans = [];
-  bool isLoading = true;
-  String? error;
-
+  late final PlanProvider _planProvider;
   late TabController _tabController;
-  List<PlanSummary> allPlans = [];
-  List<PlanSummary> personalPlans = [];
-  List<PlanSummary> groupPlans = [];
+  final ScrollController _scrollController = ScrollController();
+
+  bool _isLoadingMore = false;
+  String _currentFilter = 'all'; // 'all', 'personal', 'group'
 
   @override
   void initState() {
     super.initState();
-    _planRepo = PlanRepository(context.read<AuthProvider>());
+    _planProvider = PlanProvider(PlanRepository(context.read<AuthProvider>()));
     _tabController = TabController(
       length: widget.showGroupPlansOnly ? 1 : 3,
       vsync: this,
     );
-    _loadPlans();
+    _setupScrollListener();
+    _loadInitialPlans();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Future<void> onRefresh() async {
-    await _loadPlans();
+    await _planProvider.loadPlans(refresh: true);
   }
 
-  Future<void> _loadPlans() async {
-    try {
-      setState(() {
-        isLoading = true;
-        error = null;
-      });
-
-      if (widget.showGroupPlansOnly && widget.groupId != null) {
-        // Load group plans only - for now, filter by group plans type
-        // Since PlanSummary doesn't have groupId, we filter by planType
-        allPlans = await _planRepo.getPlans();
-        plans = allPlans.where((p) => p.planType == 'group').toList();
-      } else {
-        // Load all user's plans
-        allPlans = await _planRepo.getPlans();
-        personalPlans = allPlans
-            .where((p) => p.planType == 'personal')
-            .toList();
-        groupPlans = allPlans.where((p) => p.planType == 'group').toList();
-        plans = allPlans;
+  void _setupScrollListener() {
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
+        _loadMorePlans();
       }
+    });
+  }
 
+  Future<void> _loadInitialPlans() async {
+    await _planProvider.loadPlans(refresh: true);
+  }
+
+  void _loadMorePlans() {
+    if (_isLoadingMore || !_planProvider.hasMore) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    _planProvider.loadPlans().then((_) {
       setState(() {
-        isLoading = false;
+        _isLoadingMore = false;
       });
-    } catch (e) {
-      setState(() {
-        error = e.toString();
-        isLoading = false;
-      });
+    });
+  }
+
+  void _onTabChanged(int index) {
+    setState(() {
+      _currentFilter = ['all', 'personal', 'group'][index];
+    });
+  }
+
+  List<PlanSummary> _getFilteredPlans() {
+    if (widget.showGroupPlansOnly) {
+      return _planProvider.getPlansByType('group');
     }
+    return _planProvider.getPlansByType(_currentFilter);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.showGroupPlansOnly && widget.groupName != null
-              ? '${widget.groupName} - Kế hoạch'
-              : 'Kế hoạch của bạn',
+    return ChangeNotifierProvider.value(
+      value: _planProvider,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            widget.showGroupPlansOnly && widget.groupName != null
+                ? '${widget.groupName} - Kế hoạch'
+                : 'Kế hoạch của bạn',
+          ),
+          bottom: widget.showGroupPlansOnly
+              ? null
+              : TabBar(
+                  controller: _tabController,
+                  onTap: _onTabChanged,
+                  tabs: const [
+                    Tab(icon: Icon(Icons.all_inclusive), text: 'Tất cả'),
+                    Tab(icon: Icon(Icons.person), text: 'Cá nhân'),
+                    Tab(icon: Icon(Icons.group), text: 'Nhóm'),
+                  ],
+                ),
         ),
-        bottom: widget.showGroupPlansOnly
-            ? null
-            : TabBar(
-                controller: _tabController,
-                onTap: _onTabChanged,
-                tabs: const [
-                  Tab(icon: Icon(Icons.all_inclusive), text: 'Tất cả'),
-                  Tab(icon: Icon(Icons.person), text: 'Cá nhân'),
-                  Tab(icon: Icon(Icons.group), text: 'Nhóm'),
-                ],
-              ),
-      ),
-      body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreatePlanDialog(),
-        tooltip: 'Tạo kế hoạch mới',
-        child: const Icon(Icons.add),
+        body: _buildBody(),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => _showCreatePlanDialog(),
+          tooltip: 'Tạo kế hoạch mới',
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
 
   Widget _buildBody() {
-    if (isLoading) {
-      return const LoadingWidget(message: 'Đang tải kế hoạch...');
-    }
+    return Consumer<PlanProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoading && provider.plans.isEmpty) {
+          return const LoadingWidget(message: 'Đang tải kế hoạch...');
+        }
 
-    if (error != null) {
-      return CustomErrorWidget(message: error!, onRetry: _loadPlans);
-    }
+        if (provider.error != null && provider.plans.isEmpty) {
+          return CustomErrorWidget(
+            message: provider.error!,
+            onRetry: () => provider.loadPlans(refresh: true),
+          );
+        }
 
-    if (plans.isEmpty) {
-      return _buildEmptyState();
-    }
+        final filteredPlans = _getFilteredPlans();
 
-    return RefreshablePageWrapper(
-      onRefresh: onRefresh,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: plans.length,
-        itemBuilder: (context, index) {
-          final plan = plans[index];
-          return _buildPlanCard(plan);
-        },
-      ),
+        if (filteredPlans.isEmpty && !provider.isLoading) {
+          return _buildEmptyState();
+        }
+
+        return RefreshablePageWrapper(
+          onRefresh: onRefresh,
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(16),
+            itemCount: filteredPlans.length + (_isLoadingMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (_isLoadingMore && index == filteredPlans.length) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: LoadingState(showMessage: false, size: 20),
+                );
+              }
+
+              final plan = filteredPlans[index];
+              return _buildPlanCard(plan);
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -167,7 +195,7 @@ class _PlansListPageState extends State<PlansListPage>
           Text(
             widget.showGroupPlansOnly
                 ? 'Nhóm này chưa có kế hoạch nào'
-                : 'Tạo kế hoạch đầu tiên của bạn',
+                : _getEmptyMessage(),
             style: TextStyle(color: Colors.grey[500], fontSize: 16),
             textAlign: TextAlign.center,
           ),
@@ -185,12 +213,51 @@ class _PlansListPageState extends State<PlansListPage>
     );
   }
 
+  String _getEmptyMessage() {
+    switch (_currentFilter) {
+      case 'personal':
+        return 'Chưa có kế hoạch cá nhân nào';
+      case 'group':
+        return 'Chưa có kế hoạch nhóm nào';
+      default:
+        return 'Tạo kế hoạch đầu tiên của bạn';
+    }
+  }
+
   Widget _buildPlanCard(PlanSummary plan) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       child: InkWell(
-        onTap: () => _openPlanSchedule(plan),
+        onTap: () async {
+          // Navigate to plan details page. Details page contains schedule
+          // button and edit/delete actions; reflect returned changes in
+          // provider (clean separation of concerns).
+          // debug: log plan id before navigation
+          // ignore: avoid_print
+          print('Navigating to PlanDetailsPage with id=${plan.id}');
+          final result = await Navigator.of(context).push<Map<String, dynamic>>(
+            MaterialPageRoute(builder: (_) => PlanDetailsPage(id: plan.id)),
+          );
+
+          if (result == null) return;
+          if (result['action'] == 'delete' && result['id'] == plan.id) {
+            _planProvider.removePlan(plan.id);
+            return;
+          }
+
+          if ((result['action'] == 'updated' || result['action'] == 'edit') &&
+              result['plan'] is Map) {
+            try {
+              final updated = PlanSummary.fromJson(
+                Map<String, dynamic>.from(result['plan'] as Map),
+              );
+              _planProvider.updatePlan(updated);
+            } catch (_) {
+              // ignore malformed return
+            }
+          }
+        },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -230,7 +297,6 @@ class _PlansListPageState extends State<PlansListPage>
                   ),
                 ],
               ),
-              // Removed description since PlanSummary doesn't have it
               const SizedBox(height: 12),
 
               // Date range
@@ -283,7 +349,7 @@ class _PlansListPageState extends State<PlansListPage>
                     Icon(Icons.group, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
-                      'Kế hoạch nhóm', // Since we don't have groupName, just show generic text
+                      'Kế hoạch nhóm',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 14,
@@ -318,7 +384,6 @@ class _PlansListPageState extends State<PlansListPage>
                     ),
                   ),
                   const Spacer(),
-                  // Removed creator name since PlanSummary doesn't have creatorName
                 ],
               ),
             ],
@@ -328,12 +393,12 @@ class _PlansListPageState extends State<PlansListPage>
     );
   }
 
-  Widget _buildStatChip(IconData icon, String text, Color color) {
+  Widget _buildStatChip(IconData icon, String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -341,7 +406,7 @@ class _PlansListPageState extends State<PlansListPage>
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
           Text(
-            text,
+            label,
             style: TextStyle(
               fontSize: 12,
               color: color,
@@ -390,38 +455,26 @@ class _PlansListPageState extends State<PlansListPage>
     }
   }
 
-  void _onTabChanged(int index) {
-    setState(() {
-      switch (index) {
-        case 0:
-          plans = allPlans;
-          break;
-        case 1:
-          plans = personalPlans;
-          break;
-        case 2:
-          plans = groupPlans;
-          break;
-      }
-    });
-  }
-
-  void _openPlanSchedule(PlanSummary plan) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) =>
-            PlanSchedulePage(planId: plan.id, planTitle: plan.title),
-      ),
+  Future<void> _showCreatePlanDialog() async {
+    // Open plan creation form and insert newly created plan into provider
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(builder: (_) => const PlanFormPage()),
     );
-  }
 
-  void _showCreatePlanDialog() {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Chức năng tạo kế hoạch sẽ được cập nhật'),
-        ),
-      );
+    if (!mounted) return;
+    if (result == null) return;
+    if (result['action'] == 'created' && result['plan'] is Map) {
+      try {
+        final summary = PlanSummary.fromJson(
+          Map<String, dynamic>.from(result['plan'] as Map),
+        );
+        _planProvider.addPlan(summary);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tạo kế hoạch mới thành công')),
+        );
+      } catch (_) {
+        // ignore malformed return
+      }
     }
   }
 }

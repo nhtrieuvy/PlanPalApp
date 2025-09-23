@@ -35,6 +35,9 @@ class Endpoints {
   static String groupPlans(String groupId) => '/groups/$groupId/plans/';
   static String groupAddMember(String groupId) =>
       '/groups/$groupId/add_member/';
+  static String groupLeave(String groupId) => '/groups/$groupId/leave/';
+  static String groupRemoveMember(String groupId) =>
+      '/groups/$groupId/remove_member/';
 
   static String activityDetails(String activityId) =>
       '/activities/$activityId/';
