@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'user_summary.dart';
 
-/// Message type enum matching backend
 enum MessageType {
   text('text'),
   image('image'),
@@ -20,7 +19,6 @@ enum MessageType {
   }
 }
 
-/// Reply target information for threaded messages
 class ReplyTo extends Equatable {
   final String id;
   final String content;
@@ -56,7 +54,6 @@ class ReplyTo extends Equatable {
   List<Object?> get props => [id, content, sender, messageType];
 }
 
-/// Chat message model matching backend ChatMessageSerializer
 class ChatMessage extends Equatable {
   final String id;
   final String? conversationId;

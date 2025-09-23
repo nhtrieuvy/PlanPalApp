@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'user_summary.dart';
 import 'group_membership.dart';
 
-/// Utility function to validate image URLs
+
 bool _isValidImageUrl(String? url) {
   if (url == null || url.isEmpty) return false;
   final uri = Uri.tryParse(url);

@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-/// Utility function to validate image URLs
 bool _isValidImageUrl(String? url) {
   if (url == null || url.isEmpty) return false;
   final uri = Uri.tryParse(url);
@@ -9,8 +8,7 @@ bool _isValidImageUrl(String? url) {
       (uri.scheme == 'http' || uri.scheme == 'https');
 }
 
-/// GroupSummary model matching backend GroupSummarySerializer
-/// Lightweight version of Group for lists and references
+
 class GroupSummary extends Equatable {
   final String id;
   final String name;

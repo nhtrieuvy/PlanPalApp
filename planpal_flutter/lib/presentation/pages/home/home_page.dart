@@ -668,14 +668,45 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
               itemBuilder: (context, index) {
                 final p = _recentPlans[index];
                 return GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     final id = p.id;
-                    if (id.isNotEmpty) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PlanDetailsPage(id: id),
-                        ),
-                      );
+                    if (id.isEmpty) return;
+
+                    final result = await Navigator.of(context)
+                        .push<Map<String, dynamic>>(
+                          MaterialPageRoute(
+                            builder: (_) => PlanDetailsPage(id: id),
+                          ),
+                        );
+                    if (!mounted) return;
+
+                    if (result != null) {
+                      // If the details page reported a delete, remove it from the recent list
+                      if (result['action'] == 'delete' && result['id'] == id) {
+                        setState(
+                          () => _recentPlans = _recentPlans
+                              .where((x) => x.id != id)
+                              .toList(),
+                        );
+                      }
+
+                      // If the plan was updated, try to replace it in the list with returned plan summary
+                      if ((result['action'] == 'updated' ||
+                              result['action'] == 'edit') &&
+                          result['plan'] is Map) {
+                        try {
+                          final updated = PlanSummary.fromJson(
+                            Map<String, dynamic>.from(result['plan'] as Map),
+                          );
+                          setState(
+                            () => _recentPlans = _recentPlans
+                                .map((x) => x.id == updated.id ? updated : x)
+                                .toList(),
+                          );
+                        } catch (_) {
+                          // ignore malformed return
+                        }
+                      }
                     }
                   },
                   child: _buildPlanCardItem(context, index, p),
@@ -943,7 +974,7 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: [
                     BoxShadow(
-                      color: badgeColor.withOpacity(0.3),
+                      color: badgeColor.withAlpha(75),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),

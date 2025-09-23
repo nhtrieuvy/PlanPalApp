@@ -1,8 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'user_summary.dart';
 
-/// PlanSummary model matching backend PlanSummarySerializer
-/// Lightweight version of Plan for lists and references
+
 class PlanSummary extends Equatable {
   final String id;
   final String title;

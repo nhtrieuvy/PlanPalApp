@@ -4,24 +4,18 @@ from .models import (
     Plan, Group, GroupMembership, ChatMessage, Conversation,
     Friendship, PlanActivity, MessageReadStatus
 )
-
-from cloudinary import CloudinaryImage
-
-
-
+from django.core.files.uploadedfile import UploadedFile
 
 
 User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):    
-    # Use model properties directly for computed fields
     online_status = serializers.CharField(read_only=True)
     avatar_url = serializers.CharField(read_only=True)
     has_avatar = serializers.BooleanField(read_only=True)
     is_recently_online = serializers.BooleanField(read_only=True)
     
-    # Count fields - use with_cached_counts() for optimization
     plans_count = serializers.IntegerField(read_only=True)
     personal_plans_count = serializers.IntegerField(read_only=True)
     group_plans_count = serializers.IntegerField(read_only=True)
@@ -89,7 +83,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserSummarySerializer(serializers.ModelSerializer):
-    # Explicitly serialize UUID field as string for channels compatibility
     id = serializers.CharField(read_only=True)
     
     avatar_url = serializers.CharField(read_only=True)
@@ -119,12 +112,10 @@ class UserSummarySerializer(serializers.ModelSerializer):
 
 
 class FCMTokenSerializer(serializers.Serializer):
-    """Serializer for registering/updating a device FCM token"""
     fcm_token = serializers.CharField(max_length=255, allow_blank=False)
     platform = serializers.ChoiceField(choices=[('android', 'android'), ('ios', 'ios')], required=False)
 
     def validate_fcm_token(self, value):
-        # Basic sanity check; further validation on the client side
         if len(value) < 10:
             raise serializers.ValidationError("FCM token seems too short")
         return value
@@ -145,18 +136,15 @@ class GroupSerializer(serializers.ModelSerializer):
     admin = UserSummarySerializer(read_only=True)
     memberships = GroupMembershipSerializer(many=True, read_only=True)
     
-    # Use model properties directly
     member_count = serializers.IntegerField(read_only=True)
     plans_count = serializers.IntegerField(read_only=True)
     active_plans_count = serializers.IntegerField(read_only=True)
     
-    # Avatar and cover properties from model
     avatar_url = serializers.CharField(read_only=True)
     has_avatar = serializers.BooleanField(read_only=True)
     cover_image_url = serializers.CharField(read_only=True)
     has_cover_image = serializers.BooleanField(read_only=True)
     
-    # Context-dependent fields
     is_member = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
@@ -219,7 +207,6 @@ class GroupSerializer(serializers.ModelSerializer):
 
 
 class GroupCreateSerializer(serializers.ModelSerializer):
-    # Use model properties directly
     avatar_url = serializers.CharField(read_only=True)
     has_avatar = serializers.BooleanField(read_only=True)
     cover_image_url = serializers.CharField(read_only=True)
@@ -228,7 +215,6 @@ class GroupCreateSerializer(serializers.ModelSerializer):
     
     admin = UserSummarySerializer(read_only=True)
     
-    # Field for initial members (friends to add)
     initial_members = serializers.ListField(
         child=serializers.UUIDField(),
         write_only=True,
@@ -338,10 +324,6 @@ class GroupSummarySerializer(serializers.ModelSerializer):
 
 
 class PlanActivitySummarySerializer(serializers.ModelSerializer):
-    """
-    Lightweight serializer for schedule overview - only essential fields for performance
-    """
-    # Essential display fields
     duration_display = serializers.SerializerMethodField()
     activity_type_display = serializers.SerializerMethodField()
     has_location = serializers.BooleanField(read_only=True)
@@ -390,7 +372,6 @@ class PlanActivitySummarySerializer(serializers.ModelSerializer):
 
 
 class PlanActivitySerializer(serializers.ModelSerializer):
-    # Use model properties directly
     duration_hours = serializers.FloatField(read_only=True)
     has_location = serializers.BooleanField(read_only=True)
 
@@ -455,26 +436,22 @@ class PlanActivitySerializer(serializers.ModelSerializer):
         start_time = attrs.get('start_time')
         end_time = attrs.get('end_time')
         
-        # Validate required fields
         if not start_time:
             raise serializers.ValidationError({'start_time': 'Start time is required'})
         if not end_time:
             raise serializers.ValidationError({'end_time': 'End time is required'})
         
-        # Basic time validation - end time must be after start time
         if end_time <= start_time:
             raise serializers.ValidationError({
                 'end_time': 'End time must be after start time'
             })
         
-        # Duration validation (max 24 hours)
         duration = end_time - start_time
         if duration.total_seconds() > 24 * 3600:
             raise serializers.ValidationError({
                 'end_time': 'Activity duration cannot exceed 24 hours'
             })
         
-        # Simple coordinate validation if provided
         latitude = attrs.get('latitude')
         longitude = attrs.get('longitude')
         if latitude is not None and not (-90 <= latitude <= 90):
@@ -486,7 +463,6 @@ class PlanActivitySerializer(serializers.ModelSerializer):
                 'longitude': 'Longitude must be between -180 and 180'
             })
         
-        # Validate estimated cost
         estimated_cost = attrs.get('estimated_cost')
         if estimated_cost is not None and estimated_cost < 0:
             raise serializers.ValidationError({
@@ -497,9 +473,6 @@ class PlanActivitySerializer(serializers.ModelSerializer):
 
 
 class PlanActivityCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for creating PlanActivity - simple approach like PlanCreateSerializer
-    """
     plan_id = serializers.UUIDField(write_only=True, required=True)
     
     class Meta:
@@ -530,12 +503,9 @@ class PlanSerializer(serializers.ModelSerializer):
     group = GroupSummarySerializer(read_only=True)
     activities = PlanActivitySerializer(many=True, read_only=True)
     
-    # Write fields
     group_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
-    # Convenience read field for frontend badges
     group_name = serializers.CharField(source='group.name', read_only=True)
     
-    # Use model properties directly
     duration_days = serializers.IntegerField(read_only=True)
     activities_count = serializers.IntegerField(read_only=True)
     total_estimated_cost = serializers.DecimalField(
@@ -544,7 +514,6 @@ class PlanSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
-    # Context-dependent fields
     can_view = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     collaborators = serializers.SerializerMethodField()
@@ -589,15 +558,12 @@ class PlanSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             user = request.user
             
-            # Creator can always view
             if obj.creator == user:
                 return True
             
-            # Public plans are viewable by everyone
             if obj.is_public:
                 return True
             
-            # Group plans: members can view
             if obj.is_group_plan() and obj.group:
                 return obj.group.is_member(user)
             
@@ -610,11 +576,9 @@ class PlanSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             user = request.user
             
-            # Creator can always edit
             if obj.creator == user:
                 return True
             
-            # Group plans: admins can edit
             if obj.is_group_plan() and obj.group:
                 return obj.group.is_admin(user)
             
@@ -715,7 +679,6 @@ class PlanCreateSerializer(serializers.ModelSerializer):
                         raise serializers.ValidationError(
                             "You are not a member of this group"
                         )
-                # Store resolved group for the view to use
                 attrs['group'] = group
             except Group.DoesNotExist:
                 raise serializers.ValidationError("Group does not exist")
@@ -741,7 +704,6 @@ class PlanSummarySerializer(serializers.ModelSerializer):
     creator = UserSummarySerializer(read_only=True)
     group_name = serializers.CharField(source='group.name', read_only=True)
     
-    # Use model properties directly
     duration_days = serializers.IntegerField(read_only=True)
     activities_count = serializers.IntegerField(read_only=True)
     
@@ -778,7 +740,6 @@ class PlanSummarySerializer(serializers.ModelSerializer):
         return status_map.get(instance.status, instance.status)
     
 class ChatMessageSerializer(serializers.ModelSerializer):
-    # Explicitly serialize UUID fields as strings for channels compatibility
     id = serializers.CharField(read_only=True)
     conversation = serializers.SerializerMethodField()
     
@@ -786,13 +747,11 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     reply_to = serializers.SerializerMethodField()
     reply_to_id = serializers.UUIDField(write_only=True, required=False)
     
-    # Handle attachment field like avatar fields - accept FileField for uploads
     attachment = serializers.FileField(required=False, allow_null=True, write_only=True)
     attachment_url = serializers.CharField(read_only=True)
     attachment_size_display = serializers.CharField(read_only=True)
     location_url = serializers.CharField(read_only=True)
     
-    # Context-dependent fields
     can_edit = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
     
@@ -822,7 +781,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         return None
     
     def get_conversation(self, obj):
-        """Return conversation ID as string instead of string representation"""
         if obj.conversation:
             return str(obj.conversation.id)
         return None
@@ -830,7 +788,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     def get_can_edit(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            # Only sender can edit their own text messages
             return (obj.sender == request.user and 
                     obj.message_type == 'text' and 
                     not obj.is_deleted)
@@ -840,23 +797,17 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             user = request.user
-            # Sender can delete their own messages
             if obj.sender == user:
                 return True
-            # Group admin can delete messages in group
             if obj.conversation and obj.conversation.group:
                 return obj.conversation.group.is_admin(user)
         return False
     
-    def validate(self, attrs):
-        """Validate message data based on type and attachment rules."""
-        from django.core.files.uploadedfile import UploadedFile
-        
+    def validate(self, attrs):        
         message_type = attrs.get('message_type', 'text')
         content = attrs.get('content', '').strip()
         attachment = attrs.get('attachment')
         
-        # Clear validation rules for each message type
         if message_type == 'text':
             if not content:
                 raise serializers.ValidationError({
@@ -881,7 +832,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
                         'attachment': 'Attachment must be an image file'
                     })
             elif isinstance(attachment, str):
-                # String attachment - will be validated in service layer
                 pass
         
         elif message_type == 'file':
@@ -889,7 +839,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'attachment': 'File messages must have an attachment'
                 })
-            # File type accepts any attachment
         
         elif message_type == 'location':
             if not (attrs.get('latitude') and attrs.get('longitude')):
@@ -925,20 +874,16 @@ class FriendshipSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             current_user = request.user
             
-            # Check if this is for a friend request list (pending status)
             list_requests = self.context.get('list_friend_requests', False)
             
             if list_requests and instance.status == 'pending':
-                # For friend request lists, 'user' should be the receiver (non-initiator)
                 receiver = instance.get_other_user(instance.initiator)
                 if receiver:
                     return UserSummarySerializer(receiver, context=self.context).data
             
-            # For established friendships or other cases, return current user as 'user'
             if current_user in [instance.user_a, instance.user_b]:
                 return UserSummarySerializer(current_user, context=self.context).data
         
-        # Fallback to user_a (canonical first user)
         return UserSummarySerializer(instance.user_a, context=self.context).data
     
     def get_friend(self, instance):
@@ -946,19 +891,15 @@ class FriendshipSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             current_user = request.user
             
-            # Check if this is for a friend request list (pending status)
             list_requests = self.context.get('list_friend_requests', False)
             
             if list_requests and instance.status == 'pending':
-                # For friend request lists, 'friend' should be the initiator
                 return UserSummarySerializer(instance.initiator, context=self.context).data
             
-            # For established friendships, return the other user as 'friend'
             other_user = instance.get_other_user(current_user)
             if other_user:
                 return UserSummarySerializer(other_user, context=self.context).data
         
-        # Fallback to user_b (canonical second user)
         return UserSummarySerializer(instance.user_b, context=self.context).data
 
 
@@ -970,13 +911,11 @@ class FriendRequestSerializer(serializers.Serializer):
         request = self.context['request']
         user = request.user
         
-        # Check if friend exists
         try:
             friend_user = User.objects.get(id=value)
         except User.DoesNotExist:
             raise serializers.ValidationError("User not found")
         
-        # Cannot send to yourself
         if friend_user == user:
             raise serializers.ValidationError("Cannot send friend request to yourself")
         
@@ -994,13 +933,11 @@ class FriendRequestSerializer(serializers.Serializer):
     
     def create(self, validated_data):
         request = self.context['request']
-        # Use UserService to handle friend request creation
         from .services import UserService
         success, message = UserService.send_friend_request(request.user, self.validated_friend)
         if not success:
             raise serializers.ValidationError(message)
         
-        # Return the created friendship
         friendship = Friendship.get_friendship(request.user, self.validated_friend)
         return friendship
 
@@ -1010,7 +947,6 @@ class FriendsListSerializer(serializers.ModelSerializer):
     friendship_since = serializers.SerializerMethodField()
     mutual_friends_count = serializers.SerializerMethodField()
     
-    # Use model properties directly
     avatar_url = serializers.CharField(read_only=True)
     online_status = serializers.CharField(read_only=True)
     
@@ -1041,7 +977,6 @@ class FriendsListSerializer(serializers.ModelSerializer):
         return friendship.created_at if friendship else None
     
     def get_mutual_friends_count(self, obj):
-        # This can be pre-calculated and passed in context for better performance
         mutual_count = self.context.get('mutual_friends_count', {})
         return mutual_count.get(obj.id, 0)
 
@@ -1075,14 +1010,11 @@ class ConversationSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         
-        # Get current user from request context
         request = self.context.get('request')
         current_user = request.user if request and request.user.is_authenticated else None
         
-        # Use model's context-aware methods
         data['avatar_url'] = instance.get_avatar_url(current_user)
         
-        # Add additional context-dependent info
         if instance.conversation_type == 'direct' and current_user:
             other_user = instance.get_other_participant(current_user)
             if other_user:

@@ -1,6 +1,4 @@
-"""
-Event publisher service for broadcasting real-time events
-"""
+
 import json
 import logging
 from typing import List, Optional, Dict, Any
@@ -10,13 +8,12 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from .events import RealtimeEvent, EventType, ChannelGroups, EventPriority
 from .integrations.notification_service import NotificationService
+from .models import User, Plan, Group
 
 logger = logging.getLogger(__name__)
 
 
-class RealtimeEventPublisher:
-    """Service for publishing real-time events to WebSocket clients and push notifications"""
-    
+class RealtimeEventPublisher:    
     def __init__(self):
         self.channel_layer = get_channel_layer()
         self.notification_service = NotificationService()
@@ -25,41 +22,24 @@ class RealtimeEventPublisher:
                      channel_groups: List[str] = None,
                      priority: EventPriority = EventPriority.NORMAL,
                      send_push: bool = True) -> bool:
-        """
-        Publish event to specified channel groups and optionally send push notifications
-        
-        Args:
-            event: The event to publish
-            channel_groups: List of channel groups to send to
-            priority: Event priority level
-            send_push: Whether to send push notifications
-            
-        Returns:
-            bool: Success status
-        """
         try:
-            # Default channel groups based on event context
             if channel_groups is None:
                 channel_groups = self._get_default_channels(event)
                 
             success = True
             
-            # Send to WebSocket channels
             for group_name in channel_groups:
                 ws_success = self._send_to_websocket(group_name, event)
                 if not ws_success:
                     success = False
                     
-            # Send push notifications if enabled
             if send_push and self._should_send_push(event):
                 push_success = self._send_push_notification(event)
                 if not push_success:
                     logger.warning(f"Push notification failed for event {event.event_id}")
                     
-            # Cache event for offline users
             self._cache_event_for_offline_users(event, channel_groups)
             
-            # Log event for monitoring
             self._log_event(event, channel_groups, success)
             
             return success
@@ -69,7 +49,6 @@ class RealtimeEventPublisher:
             return False
             
     def _get_default_channels(self, event: RealtimeEvent) -> List[str]:
-        """Get default channel groups based on event context"""
         channels = []
         
         # Plan-specific events
@@ -91,7 +70,6 @@ class RealtimeEventPublisher:
         return channels
         
     def _send_to_websocket(self, group_name: str, event: RealtimeEvent) -> bool:
-        """Send event to WebSocket channel group"""
         try:
             if not self.channel_layer:
                 logger.warning("Channel layer not available, skipping WebSocket broadcast")
@@ -113,21 +91,22 @@ class RealtimeEventPublisher:
             return False
             
     def _should_send_push(self, event: RealtimeEvent) -> bool:
-        """Determine if event should trigger push notifications"""
-        # High priority events should always send push
         if event.data.get('priority') == EventPriority.HIGH.value:
             return True
             
-        # Send push for important plan and activity events
         important_events = [
+            EventType.PLAN_CREATED,
+            EventType.PLAN_UPDATED,
             EventType.PLAN_STATUS_CHANGED,
             EventType.ACTIVITY_CREATED,
             EventType.ACTIVITY_UPDATED,
             EventType.ACTIVITY_COMPLETED,
             EventType.ACTIVITY_DELETED,
             EventType.GROUP_MEMBER_ADDED,
+            EventType.GROUP_MEMBER_REMOVED,
             EventType.MESSAGE_SENT,
-            EventType.FRIEND_REQUEST
+            EventType.FRIEND_REQUEST,
+            EventType.FRIEND_REQUEST_ACCEPTED
         ]
         
         return event.event_type in important_events
@@ -181,27 +160,27 @@ class RealtimeEventPublisher:
             },
             EventType.ACTIVITY_CREATED: {
                 'title': f"New Activity Added",
-                'body': f"{event_data.get('created_by', 'Someone')} added '{event_data.get('activity_title', 'an activity')}' to {event_data.get('plan_title', 'the plan')}"
+                'body': f"New activity '{event_data.get('title', 'an activity')}' added to plan"
             },
             EventType.ACTIVITY_UPDATED: {
                 'title': f"Activity Updated",
-                'body': f"{event_data.get('updated_by', 'Someone')} updated '{event_data.get('activity_title', 'an activity')}' in {event_data.get('plan_title', 'the plan')}"
+                'body': f"Activity '{event_data.get('title', 'an activity')}' was updated"
             },
             EventType.ACTIVITY_COMPLETED: {
                 'title': f"Activity Completed",
-                'body': f"{event_data.get('completed_by', 'Someone')} completed '{event_data.get('activity_title', 'an activity')}' in {event_data.get('plan_title', 'the plan')}"
+                'body': f"'{event_data.get('title', 'An activity')}' was completed"
             },
             EventType.ACTIVITY_DELETED: {
                 'title': f"Activity Removed",
-                'body': f"{event_data.get('deleted_by', 'Someone')} removed '{event_data.get('activity_title', 'an activity')}' from {event_data.get('plan_title', 'the plan')}"
+                'body': f"Activity '{event_data.get('title', 'an activity')}' was removed from plan"
             },
             EventType.GROUP_MEMBER_ADDED: {
                 'title': f"New Group Member",
-                'body': f"{event_data.get('member_name', 'Someone')} joined {event_data.get('group_name', 'the group')}"
+                'body': f"{event_data.get('username', 'Someone')} joined {event_data.get('group_name', 'the group')}"
             },
             EventType.MESSAGE_SENT: {
                 'title': f"New Message",
-                'body': f"{event_data.get('sender_name', 'Someone')}: {event_data.get('content', 'Sent a message')[:50]}..."
+                'body': f"{event_data.get('sender_username', 'Someone')}: {event_data.get('content', 'Sent a message')[:50]}..."
             },
             EventType.FRIEND_REQUEST: {
                 'title': f"Friend Request",
@@ -213,7 +192,6 @@ class RealtimeEventPublisher:
         
     def _get_notification_targets(self, event: RealtimeEvent) -> List[str]:
         """Get list of user IDs that should receive notifications"""
-        from .models import Plan, Group, User  # Import here to avoid circular imports
         
         target_users = []
         
@@ -246,8 +224,6 @@ class RealtimeEventPublisher:
         return list(set(target_users))  # Remove duplicates
         
     def _get_fcm_tokens(self, user_ids: List[str]) -> List[str]:
-        """Get FCM tokens for list of user IDs"""
-        from .models import User  # Import here to avoid circular imports
         
         try:
             tokens = User.objects.filter(
@@ -262,7 +238,6 @@ class RealtimeEventPublisher:
             return []
             
     def _cache_event_for_offline_users(self, event: RealtimeEvent, channel_groups: List[str]):
-        """Cache event for users who are offline"""
         try:
             # For user-specific events, cache for offline users
             if event.user_id:
@@ -298,6 +273,50 @@ event_publisher = RealtimeEventPublisher()
 
 
 # Convenience functions for common event types
+
+# Plan Event Helpers
+def publish_plan_created(plan_id: str, title: str, plan_type: str, status: str,
+                        creator_id: str, group_id: str = None, is_public: bool = False,
+                        start_date: str = None, end_date: str = None):
+    """Publish plan created event"""
+    event = RealtimeEvent(
+        event_type=EventType.PLAN_CREATED,
+        plan_id=plan_id,
+        user_id=creator_id,
+        group_id=group_id,
+        data={
+            'plan_id': plan_id,
+            'title': title,
+            'plan_type': plan_type,
+            'status': status,
+            'creator_id': creator_id,
+            'group_id': group_id,
+            'is_public': is_public,
+            'start_date': start_date,
+            'end_date': end_date,
+            'initiator_id': creator_id
+        }
+    )
+    
+    return event_publisher.publish_event(event, send_push=False)  # Don't spam for new plans
+
+
+def publish_plan_updated(plan_id: str, title: str, status: str, last_updated: str):
+    """Publish plan updated event"""
+    event = RealtimeEvent(
+        event_type=EventType.PLAN_UPDATED,
+        plan_id=plan_id,
+        data={
+            'plan_id': plan_id,
+            'title': title,
+            'status': status,
+            'last_updated': last_updated
+        }
+    )
+    
+    return event_publisher.publish_event(event, send_push=False)
+
+
 def publish_plan_status_changed(plan_id: str, old_status: str, new_status: str, 
                                title: str, initiator_id: str = None):
     """Publish plan status change event"""
@@ -314,6 +333,61 @@ def publish_plan_status_changed(plan_id: str, old_status: str, new_status: str,
     )
     
     return event_publisher.publish_event(event, priority=EventPriority.HIGH)
+
+
+def publish_plan_deleted(plan_id: str, title: str):
+    """Publish plan deleted event"""
+    event = RealtimeEvent(
+        event_type=EventType.PLAN_DELETED,
+        plan_id=plan_id,
+        data={
+            'plan_id': plan_id,
+            'title': title
+        }
+    )
+    
+    return event_publisher.publish_event(event)
+
+
+# Activity Event Helpers
+def publish_activity_created(plan_id: str, activity_id: str, title: str, activity_type: str,
+                           start_time: str = None, end_time: str = None, 
+                           location_name: str = None, estimated_cost: float = None):
+    """Publish activity created event"""
+    event = RealtimeEvent(
+        event_type=EventType.ACTIVITY_CREATED,
+        plan_id=plan_id,
+        data={
+            'activity_id': activity_id,
+            'plan_id': plan_id,
+            'title': title,
+            'activity_type': activity_type,
+            'start_time': start_time,
+            'end_time': end_time,
+            'location_name': location_name,
+            'estimated_cost': estimated_cost
+        }
+    )
+    
+    return event_publisher.publish_event(event)
+
+
+def publish_activity_updated(plan_id: str, activity_id: str, title: str, 
+                           is_completed: bool, last_updated: str):
+    """Publish activity updated event"""
+    event = RealtimeEvent(
+        event_type=EventType.ACTIVITY_UPDATED,
+        plan_id=plan_id,
+        data={
+            'activity_id': activity_id,
+            'plan_id': plan_id,
+            'title': title,
+            'is_completed': is_completed,
+            'last_updated': last_updated
+        }
+    )
+    
+    return event_publisher.publish_event(event)
 
 
 def publish_activity_completed(plan_id: str, activity_id: str, title: str, 
@@ -333,94 +407,149 @@ def publish_activity_completed(plan_id: str, activity_id: str, title: str,
     return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
 
 
-def publish_group_member_added(group_id: str, member_id: str, member_name: str,
-                               group_name: str, added_by: str = None):
-    """Publish group member added event"""
-    event = RealtimeEvent(
-        event_type=EventType.GROUP_MEMBER_ADDED,
-        group_id=group_id,
-        data={
-            'member_id': member_id,
-            'member_name': member_name,
-            'group_name': group_name,
-            'added_by': added_by,
-            'initiator_id': added_by
-        }
-    )
-    
-    return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
-
-
-def publish_activity_created(plan_id: str, activity_id: str, activity_title: str, 
-                           plan_title: str, created_by: str = None):
-    """Publish activity created event"""
-    event = RealtimeEvent(
-        event_type=EventType.ACTIVITY_CREATED,
-        plan_id=plan_id,
-        data={
-            'activity_id': activity_id,
-            'activity_title': activity_title,
-            'plan_title': plan_title,
-            'created_by': created_by,
-            'initiator_id': created_by
-        }
-    )
-    
-    return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
-
-
-def publish_activity_updated(plan_id: str, activity_id: str, activity_title: str,
-                           plan_title: str, updated_by: str = None):
-    """Publish activity updated event"""
-    event = RealtimeEvent(
-        event_type=EventType.ACTIVITY_UPDATED,
-        plan_id=plan_id,
-        data={
-            'activity_id': activity_id,
-            'activity_title': activity_title,
-            'plan_title': plan_title,
-            'updated_by': updated_by,
-            'initiator_id': updated_by
-        }
-    )
-    
-    return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
-
-
-def publish_activity_deleted(plan_id: str, activity_id: str, activity_title: str,
-                           plan_title: str, deleted_by: str = None):
+def publish_activity_deleted(plan_id: str, activity_id: str, title: str):
     """Publish activity deleted event"""
     event = RealtimeEvent(
         event_type=EventType.ACTIVITY_DELETED,
         plan_id=plan_id,
         data={
             'activity_id': activity_id,
-            'activity_title': activity_title,
-            'plan_title': plan_title,
-            'deleted_by': deleted_by,
-            'initiator_id': deleted_by
+            'plan_id': plan_id,
+            'title': title
         }
     )
     
-    return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
+    return event_publisher.publish_event(event)
 
 
-def publish_message_sent(group_id: str, message_id: str, content: str,
-                        sender_name: str, sender_id: str = None):
+# Group Event Helpers
+def publish_group_member_added(group_id: str, user_id: str, username: str, role: str,
+                               group_name: str = None, added_by: str = None):
+    """Publish group member added event"""
+    event = RealtimeEvent(
+        event_type=EventType.GROUP_MEMBER_ADDED,
+        group_id=group_id,
+        data={
+            'group_id': group_id,
+            'user_id': user_id,
+            'username': username,
+            'role': role,
+            'group_name': group_name,
+            'added_by': added_by,
+            'initiator_id': added_by
+        }
+    )
+    
+    return event_publisher.publish_event(event)
+
+
+def publish_group_member_removed(group_id: str, user_id: str, username: str, 
+                                group_name: str = None):
+    """Publish group member removed event"""
+    event = RealtimeEvent(
+        event_type=EventType.GROUP_MEMBER_REMOVED,
+        group_id=group_id,
+        data={
+            'group_id': group_id,
+            'user_id': user_id,
+            'username': username,
+            'group_name': group_name
+        }
+    )
+    
+    return event_publisher.publish_event(event)
+
+
+def publish_group_role_changed(group_id: str, user_id: str, username: str, 
+                              new_role: str, group_name: str = None):
+    """Publish group role changed event"""
+    event = RealtimeEvent(
+        event_type=EventType.GROUP_ROLE_CHANGED,
+        group_id=group_id,
+        data={
+            'group_id': group_id,
+            'user_id': user_id,
+            'username': username,
+            'new_role': new_role,
+            'group_name': group_name
+        }
+    )
+    
+    return event_publisher.publish_event(event)
+
+
+# Chat Event Helpers
+def publish_message_sent(conversation_id: str, message_id: str, sender_id: str, 
+                        sender_username: str, content: str, timestamp: str,
+                        message_type: str = 'text', group_id: str = None):
     """Publish message sent event"""
     event = RealtimeEvent(
         event_type=EventType.MESSAGE_SENT,
         group_id=group_id,
         data={
             'message_id': message_id,
-            'content': content,
-            'sender_name': sender_name,
+            'conversation_id': conversation_id,
             'sender_id': sender_id,
+            'sender_username': sender_username,
+            'content': content,
+            'timestamp': timestamp,
+            'message_type': message_type,
             'initiator_id': sender_id
         }
     )
     
-    return event_publisher.publish_event(event, priority=EventPriority.NORMAL)
+    return event_publisher.publish_event(event)
+
+
+def publish_message_updated(conversation_id: str, message_id: str, sender_id: str, 
+                           content: str, last_updated: str, group_id: str = None):
+    """Publish message updated event"""
+    event = RealtimeEvent(
+        event_type=EventType.MESSAGE_UPDATED,
+        group_id=group_id,
+        data={
+            'message_id': message_id,
+            'conversation_id': conversation_id,
+            'sender_id': sender_id,
+            'content': content,
+            'last_updated': last_updated
+        }
+    )
+    
+    return event_publisher.publish_event(event, send_push=False)  # Don't push for edits
+
+
+# User Event Helpers
+def publish_user_online(user_id: str, username: str, last_seen: str = None):
+    """Publish user online event"""
+    event = RealtimeEvent(
+        event_type=EventType.USER_ONLINE,
+        user_id=user_id,
+        data={
+            'user_id': user_id,
+            'username': username,
+            'is_online': True,
+            'last_seen': last_seen
+        }
+    )
+    
+    return event_publisher.publish_event(event, send_push=False)
+
+
+def publish_user_offline(user_id: str, username: str, last_seen: str = None):
+    """Publish user offline event"""
+    event = RealtimeEvent(
+        event_type=EventType.USER_OFFLINE,
+        user_id=user_id,
+        data={
+            'user_id': user_id,
+            'username': username,
+            'is_online': False,
+            'last_seen': last_seen
+        }
+    )
+    
+    return event_publisher.publish_event(event, send_push=False)
 
 
 def publish_friend_request(user_id: str, from_user_id: str, from_name: str):
@@ -432,6 +561,21 @@ def publish_friend_request(user_id: str, from_user_id: str, from_name: str):
             'from_user_id': from_user_id,
             'from_name': from_name,
             'initiator_id': from_user_id
+        }
+    )
+    
+    return event_publisher.publish_event(event, priority=EventPriority.HIGH)
+
+
+def publish_friend_request_accepted(user_id: str, accepter_id: str, accepter_name: str):
+    """Publish friend request accepted event"""
+    event = RealtimeEvent(
+        event_type=EventType.FRIEND_REQUEST_ACCEPTED,
+        user_id=user_id,
+        data={
+            'accepter_id': accepter_id,
+            'accepter_name': accepter_name,
+            'initiator_id': accepter_id
         }
     )
     

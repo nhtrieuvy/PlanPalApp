@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// removed color_utils; use withAlpha directly
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -402,7 +403,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                                 borderRadius: BorderRadius.circular(8),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: Colors.black.withAlpha(25),
                                     blurRadius: 4,
                                     offset: const Offset(0, 2),
                                   ),
@@ -438,7 +439,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                                   borderRadius: BorderRadius.circular(8),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
+                                      color: Colors.black.withAlpha(25),
                                       blurRadius: 4,
                                       offset: const Offset(0, 2),
                                     ),

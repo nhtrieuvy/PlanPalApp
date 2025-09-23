@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-/// Utility function to validate image URLs
 bool _isValidImageUrl(String? url) {
   if (url == null || url.isEmpty) return false;
   final uri = Uri.tryParse(url);
@@ -9,7 +8,6 @@ bool _isValidImageUrl(String? url) {
       (uri.scheme == 'http' || uri.scheme == 'https');
 }
 
-/// User model matching backend UserSerializer
 class UserModel extends Equatable {
   final String id;
   final String username;

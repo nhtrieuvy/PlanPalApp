@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// removed color_utils; use withAlpha directly
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 
@@ -38,7 +39,7 @@ class LoadingState extends StatelessWidget {
               message!,
               style: GoogleFonts.inter(
                 fontSize: 14,
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withAlpha(175),
               ),
               textAlign: TextAlign.center,
             ),
@@ -68,7 +69,7 @@ class LoadingOverlay extends StatelessWidget {
         child,
         if (isLoading)
           Container(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withAlpha(75),
             child: LoadingState(message: message),
           ),
       ],
@@ -97,8 +98,8 @@ class LoadingButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: AppColors.primary.withOpacity(0.6),
-        disabledForegroundColor: Colors.white.withOpacity(0.7),
+        disabledBackgroundColor: AppColors.primary.withAlpha(150),
+        disabledForegroundColor: Colors.white.withAlpha(175),
       ),
       child: isLoading
           ? Row(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// ignore_for_file: use_build_context_synchronously
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +12,7 @@ import '../../../core/dtos/plan_activity.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../plans/activity_form_page.dart';
 import '../plans/plan_schedule_page.dart';
+import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 
 class PlanDetailsPage extends StatefulWidget {
   final String id;
@@ -148,42 +150,6 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                 ),
               ),
             ),
-            actions: [
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    Navigator.of(context).pop({
-                      'action': 'edit',
-                      'plan': {'id': p.id, 'title': p.title},
-                    });
-                  } else if (value == 'delete') {
-                    Navigator.of(context).pop({'action': 'delete', 'id': p.id});
-                  }
-                },
-                itemBuilder: (c) => const [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit, size: 20),
-                        SizedBox(width: 8),
-                        Text('Sửa'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, size: 20),
-                        SizedBox(width: 8),
-                        Text('Xoá'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ),
         ],
         body: RefreshablePageWrapper(
@@ -292,16 +258,50 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                 Row(
                   children: [
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.of(context).pop({
-                          'action': 'edit',
-                          'plan': {'id': p.id, 'title': p.title},
-                        }),
-                        icon: const Icon(Icons.edit),
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          // Edit button: open edit form and refresh details on success
+                          final result = await Navigator.of(context)
+                              .push<Map<String, dynamic>>(
+                                MaterialPageRoute(
+                                  builder: (context) => PlanFormPage(
+                                    initial: {
+                                      'id': p.id,
+                                      'title': p.title,
+                                      'description': p.description,
+                                      'start_date': p.startDate
+                                          ?.toIso8601String(),
+                                      'end_date': p.endDate?.toIso8601String(),
+                                      'is_public': p.isPublic,
+                                      'plan_type': p.planType,
+                                      'group_id': p.group?.id,
+                                    },
+                                  ),
+                                ),
+                              );
+                          if (result != null && result['action'] == 'updated') {
+                            // reload details from API and return updated result to caller
+                            await _load(refresh: true);
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Cập nhật kế hoạch thành công'),
+                              ),
+                            );
+                            Navigator.of(context).pop({
+                              'action': 'updated',
+                              'plan': result['plan'],
+                            });
+                            return;
+                          }
+                        },
+                        icon: const Icon(Icons.edit_outlined),
                         label: const Text('Chỉnh sửa'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(
+                            color: AppColors.primary.withAlpha(75),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -309,12 +309,51 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => Navigator.of(
-                          context,
-                        ).pop({'action': 'delete', 'id': p.id}),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              title: const Text('Xoá kế hoạch'),
+                              content: Text(
+                                "Bạn chắc chắn muốn xoá kế hoạch '${p.title}'?",
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(dialogContext, false),
+                                  child: const Text('Huỷ'),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                  onPressed: () =>
+                                      Navigator.pop(dialogContext, true),
+                                  child: const Text('Xoá'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm != true) return;
+                          try {
+                            await _repo.deletePlan(p.id);
+                            if (!mounted) return;
+                            Navigator.of(
+                              context,
+                            ).pop({'action': 'delete', 'id': p.id});
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Đã xoá kế hoạch')),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Lỗi khi xoá: $e')),
+                            );
+                          }
+                        },
                         icon: const Icon(Icons.delete_outline),
                         label: const Text('Xoá'),
                         style: OutlinedButton.styleFrom(

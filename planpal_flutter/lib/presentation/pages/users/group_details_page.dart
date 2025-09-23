@@ -788,9 +788,36 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   }
 
   void _navigateToPlanDetail(PlanSummary plan) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => PlanDetailsPage(id: plan.id)),
-    );
+    Navigator.of(context)
+        .push<Map<String, dynamic>>(
+          MaterialPageRoute(builder: (context) => PlanDetailsPage(id: plan.id)),
+        )
+        .then((result) {
+          if (!mounted) return;
+          if (result == null) return;
+
+          if (result['action'] == 'delete' && result['id'] == plan.id) {
+            setState(
+              () => groupPlans = groupPlans
+                  .where((p) => p.id != plan.id)
+                  .toList(),
+            );
+          }
+
+          if ((result['action'] == 'updated' || result['action'] == 'edit') &&
+              result['plan'] is Map) {
+            try {
+              final updated = PlanSummary.fromJson(
+                Map<String, dynamic>.from(result['plan'] as Map),
+              );
+              setState(
+                () => groupPlans = groupPlans
+                    .map((p) => p.id == updated.id ? updated : p)
+                    .toList(),
+              );
+            } catch (_) {}
+          }
+        });
   }
 
   void _navigateToGroupChat(GroupModel group) async {

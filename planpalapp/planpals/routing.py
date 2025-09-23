@@ -1,5 +1,5 @@
 """
-WebSocket URL routing for real-time features
+Định nghĩa các endpoint websocket cho frontend kết nối
 """
 from django.urls import re_path
 from . import consumers

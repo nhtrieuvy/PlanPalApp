@@ -1319,48 +1319,6 @@ class Plan(BaseModel):
             
         return queryset.exists()
 
-    # @transaction.atomic
-    # def reorder_activities(self, activity_id_order_pairs: List[Tuple[str, int]], date: Optional[date] = None) -> None:
-    #     # Lock plan để prevent concurrent reordering
-    #     plan = Plan.objects.select_for_update().get(pk=self.pk)
-        
-    #     if plan.status in ['cancelled', 'completed']:
-    #         raise ValueError("Activities of completed/cancelled plans cannot be reordered")
-        
-    #     # Validate all activities belong to this plan
-    #     activity_ids = [aid for aid, _ in activity_id_order_pairs]
-    #     activities_qs = plan.activities.filter(id__in=activity_ids)
-        
-    #     if date:
-    #         activities_qs = activities_qs.filter(start_time__date=date)
-        
-    #     if activities_qs.count() != len(activity_ids):
-    #         raise ValueError("Một số activities không tồn tại hoặc không thuộc plan này")
-        
-    #     # Lock activities để prevent concurrent edits
-    #     activities = list(activities_qs.select_for_update())
-    #     activity_dict = {act.id: act for act in activities}
-        
-    #     # Validate orders không duplicate
-    #     orders = [order for _, order in activity_id_order_pairs]
-    #     if len(set(orders)) != len(orders):
-    #         raise ValueError("Các order values không được trùng lặp")
-        
-    #     # Bulk update với optimized queries
-    #     updates = []
-    #     for activity_id, new_order in activity_id_order_pairs:
-    #         activity = activity_dict[activity_id]
-    #         if activity.order != new_order:
-    #             activity.order = new_order
-    #             updates.append(activity)
-        
-    #     if updates:
-    #         PlanActivity.objects.bulk_update(updates, ['order', 'updated_at'])
-            
-    #         # Touch plan updated_at
-    #         plan.save(update_fields=['updated_at'])
-        
-    #     return len(updates)
 
 class PlanActivity(BaseModel):    
     # Các loại hoạt động cụ thể hơn
@@ -1538,19 +1496,14 @@ class PlanActivity(BaseModel):
             raise ValidationError("Estimated cost must be non-negative")
 
     def save(self, *args: Any, **kwargs: Any) -> None:        
-        # Run clean validation before any save logic
         self.clean()
         
-        # For updates only, use F() expression for version increment  
         is_creating = self._state.adding
         if not is_creating:  # This is an update
             self.version = F('version') + 1
-        # For creates, version defaults to 1 from field definition
         
-        # Call Model.save() directly, skip BaseModel.save() to avoid double full_clean()
         super(BaseModel, self).save(*args, **kwargs)
         
-        # Refresh version field after update
         if not is_creating:
             self.refresh_from_db(fields=['version'])
 
@@ -1625,7 +1578,7 @@ class ConversationQuerySet(models.QuerySet['Conversation']):
     def get_direct_conversation(self, user1: Union['User', UUID], user2: Union['User', UUID]) -> Optional['Conversation']:
         user1_id = getattr(user1, 'id', user1)
         user2_id = getattr(user2, 'id', user2)
-        # Check for a direct conversation regardless of stored user ordering.
+        
         return self.filter(
             conversation_type='direct'
         ).filter(
@@ -2117,20 +2070,3 @@ class MessageReadStatus(BaseModel):
         return f"{self.user.username} read message {self.message.id}"
 
 
-try:
-    from django.db.models.signals import post_save
-    from django.dispatch import receiver
-    import logging
-
-    @receiver(post_save, sender=Plan)
-    def _plan_post_save_schedule(sender, instance, created, **kwargs):
-        try:
-            if instance.status in ['cancelled', 'completed']:
-                instance.revoke_scheduled_tasks()
-                return
-
-            instance.schedule_celery_tasks()
-        except Exception:
-            pass
-except Exception:
-    pass

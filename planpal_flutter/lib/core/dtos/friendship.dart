@@ -1,8 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'user_summary.dart';
 
-/// Friendship model matching backend FriendshipSerializer
-/// Represents friendship relationship between two users
+
 class Friendship extends Equatable {
   final String id;
   final UserSummary user;

@@ -5,11 +5,8 @@ import 'package:planpal_flutter/core/services/apis.dart';
 
 class LocationRepository {
   final AuthProvider _authProvider;
-  late final Dio _dio;
 
-  LocationRepository(this._authProvider) {
-    _dio = Dio();
-  }
+  LocationRepository(this._authProvider);
 
   /// Reverse geocode coordinates to get address using backend Goong service
   Future<Map<String, dynamic>?> reverseGeocode(
@@ -17,19 +14,15 @@ class LocationRepository {
     double longitude,
   ) async {
     try {
-      final response = await _dio.post(
-        '$baseUrl${Endpoints.locationReverseGeocode}',
-        data: {'latitude': latitude, 'longitude': longitude},
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer ${_authProvider.token}',
-            'Content-Type': 'application/json',
-          },
+      final Response res = await _authProvider.requestWithAutoRefresh(
+        (c) => c.dio.post(
+          Endpoints.locationReverseGeocode,
+          data: {'latitude': latitude, 'longitude': longitude},
         ),
       );
 
-      if (response.statusCode == 200) {
-        return response.data;
+      if (res.statusCode == 200) {
+        return res.data as Map<String, dynamic>?;
       }
       return null;
     } catch (e) {
@@ -45,16 +38,13 @@ class LocationRepository {
   /// Search for places using backend Goong service
   Future<List<Map<String, dynamic>>> searchPlaces(String query) async {
     try {
-      final response = await _dio.get(
-        '$baseUrl${Endpoints.locationSearch}',
-        queryParameters: {'q': query},
-        options: Options(
-          headers: {'Authorization': 'Bearer ${_authProvider.token}'},
-        ),
+      final Response res = await _authProvider.requestWithAutoRefresh(
+        (c) =>
+            c.dio.get(Endpoints.locationSearch, queryParameters: {'q': query}),
       );
 
-      if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(response.data['results'] ?? []);
+      if (res.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(res.data['results'] ?? []);
       }
       return [];
     } catch (e) {
@@ -67,18 +57,15 @@ class LocationRepository {
     String input,
   ) async {
     try {
-      final response = await _dio.get(
-        '$baseUrl${Endpoints.locationAutocomplete}',
-        queryParameters: {'input': input},
-        options: Options(
-          headers: {'Authorization': 'Bearer ${_authProvider.token}'},
+      final Response res = await _authProvider.requestWithAutoRefresh(
+        (c) => c.dio.get(
+          Endpoints.locationAutocomplete,
+          queryParameters: {'input': input},
         ),
       );
 
-      if (response.statusCode == 200) {
-        return List<Map<String, dynamic>>.from(
-          response.data['predictions'] ?? [],
-        );
+      if (res.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(res.data['predictions'] ?? []);
       }
       return [];
     } catch (e) {
@@ -89,16 +76,15 @@ class LocationRepository {
   /// Get place details by place_id
   Future<Map<String, dynamic>?> getPlaceDetails(String placeId) async {
     try {
-      final response = await _dio.get(
-        '$baseUrl${Endpoints.locationPlaceDetails}',
-        queryParameters: {'place_id': placeId},
-        options: Options(
-          headers: {'Authorization': 'Bearer ${_authProvider.token}'},
+      final Response res = await _authProvider.requestWithAutoRefresh(
+        (c) => c.dio.get(
+          Endpoints.locationPlaceDetails,
+          queryParameters: {'place_id': placeId},
         ),
       );
 
-      if (response.statusCode == 200) {
-        return response.data;
+      if (res.statusCode == 200) {
+        return res.data as Map<String, dynamic>?;
       }
       return null;
     } catch (e) {

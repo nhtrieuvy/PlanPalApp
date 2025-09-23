@@ -3,19 +3,22 @@ import 'package:dio/dio.dart';
 import '../services/apis.dart';
 import '../dtos/conversation.dart';
 import '../dtos/chat_message.dart';
+import '../providers/auth_provider.dart';
 
 /// Repository for conversation and messaging operations
 class ConversationRepository {
-  final ApiClient _apiClient;
+  final AuthProvider auth;
 
-  ConversationRepository(this._apiClient);
+  ConversationRepository(this.auth);
 
   /// Get all conversations for current user
   Future<ConversationsResponse> getConversations() async {
     try {
-      final response = await _apiClient.dio.get('/conversations/');
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.conversations),
+      );
       return ConversationsResponse.fromJson(
-        response.data as Map<String, dynamic>,
+        Map<String, dynamic>.from(res.data as Map),
       );
     } on DioException catch (e) {
       throw _handleDioException(e);
@@ -25,10 +28,10 @@ class ConversationRepository {
   /// Get conversation details by ID
   Future<Conversation> getConversation(String conversationId) async {
     try {
-      final response = await _apiClient.dio.get(
-        '/conversations/$conversationId/',
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.conversationDetails(conversationId)),
       );
-      return Conversation.fromJson(response.data as Map<String, dynamic>);
+      return Conversation.fromJson(Map<String, dynamic>.from(res.data as Map));
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -40,12 +43,14 @@ class ConversationRepository {
   ) async {
     try {
       final request = CreateDirectConversationRequest(userId: userId);
-      final response = await _apiClient.dio.post(
-        '/conversations/create_direct/',
-        data: request.toJson(),
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(
+          Endpoints.createDirectConversation,
+          data: request.toJson(),
+        ),
       );
       return CreateDirectConversationResponse.fromJson(
-        response.data as Map<String, dynamic>,
+        Map<String, dynamic>.from(res.data as Map),
       );
     } on DioException catch (e) {
       throw _handleDioException(e);
@@ -64,11 +69,15 @@ class ConversationRepository {
         if (beforeId != null) 'before_id': beforeId,
       };
 
-      final response = await _apiClient.dio.get(
-        '/conversations/$conversationId/messages/',
-        queryParameters: queryParams,
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.get(
+          Endpoints.conversationMessages(conversationId),
+          queryParameters: queryParams,
+        ),
       );
-      return MessagesResponse.fromJson(response.data as Map<String, dynamic>);
+      return MessagesResponse.fromJson(
+        Map<String, dynamic>.from(res.data as Map),
+      );
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -80,11 +89,13 @@ class ConversationRepository {
     SendMessageRequest request,
   ) async {
     try {
-      final response = await _apiClient.dio.post(
-        '/conversations/$conversationId/send_message/',
-        data: request.toJson(),
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(
+          Endpoints.sendMessage(conversationId),
+          data: request.toJson(),
+        ),
       );
-      return ChatMessage.fromJson(response.data as Map<String, dynamic>);
+      return ChatMessage.fromJson(Map<String, dynamic>.from(res.data as Map));
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -96,9 +107,11 @@ class ConversationRepository {
     MarkMessagesReadRequest request,
   ) async {
     try {
-      await _apiClient.dio.post(
-        '/conversations/$conversationId/mark_read/',
-        data: request.toJson(),
+      await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(
+          Endpoints.markRead(conversationId),
+          data: request.toJson(),
+        ),
       );
     } on DioException catch (e) {
       throw _handleDioException(e);
@@ -135,11 +148,11 @@ class ConversationRepository {
         if (replyToId != null) 'reply_to_id': replyToId,
       });
 
-      final response = await _apiClient.dio.post(
-        '/conversations/$conversationId/send_message/',
-        data: formData,
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) =>
+            c.dio.post(Endpoints.sendMessage(conversationId), data: formData),
       );
-      return ChatMessage.fromJson(response.data as Map<String, dynamic>);
+      return ChatMessage.fromJson(Map<String, dynamic>.from(res.data as Map));
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -161,11 +174,11 @@ class ConversationRepository {
         if (replyToId != null) 'reply_to_id': replyToId,
       });
 
-      final response = await _apiClient.dio.post(
-        '/conversations/$conversationId/send_message/',
-        data: formData,
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) =>
+            c.dio.post(Endpoints.sendMessage(conversationId), data: formData),
       );
-      return ChatMessage.fromJson(response.data as Map<String, dynamic>);
+      return ChatMessage.fromJson(Map<String, dynamic>.from(res.data as Map));
     } on DioException catch (e) {
       throw _handleDioException(e);
     }

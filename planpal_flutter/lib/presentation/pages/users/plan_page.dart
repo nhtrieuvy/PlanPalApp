@@ -147,12 +147,34 @@ class _PlanPageState extends State<PlanPage> with RefreshablePage<PlanPage> {
     final action = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(builder: (_) => PlanDetailsPage(id: ps.id)),
     );
-    if (action != null) {
-      if (action['action'] == 'delete' && action['id'] == ps.id) {
-        _onDeletePlan(ps);
-      } else if (action['action'] == 'edit') {
-        _onEditPlan(ps);
-      }
+    if (action == null) return;
+
+    if (action['action'] == 'delete' && action['id'] == ps.id) {
+      // Remove locally without re-calling the API (already deleted in details)
+      if (!mounted) return;
+      setState(() => _plans = _plans.where((p) => p.id != ps.id).toList());
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã xoá kế hoạch')));
+      return;
+    }
+
+    if ((action['action'] == 'updated' || action['action'] == 'edit') &&
+        action['plan'] is Map) {
+      try {
+        final updatedSummary = PlanSummary.fromJson(
+          Map<String, dynamic>.from(action['plan'] as Map),
+        );
+        if (!mounted) return;
+        setState(
+          () => _plans = _plans
+              .map((p) => p.id == updatedSummary.id ? updatedSummary : p)
+              .toList(),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cập nhật kế hoạch thành công')),
+        );
+      } catch (_) {}
     }
   }
 

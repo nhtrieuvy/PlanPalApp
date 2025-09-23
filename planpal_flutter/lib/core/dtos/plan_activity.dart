@@ -1,7 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-/// PlanActivity model matching backend PlanActivitySerializer
-/// Represents individual activities within a plan
 
 double? _parseNullableDouble(dynamic v) {
   if (v == null) return null;

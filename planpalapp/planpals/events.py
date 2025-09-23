@@ -1,5 +1,5 @@
 """
-Event definitions and constants for real-time system
+Đình nghĩa các loại event
 """
 from enum import Enum
 from dataclasses import dataclass
@@ -9,7 +9,6 @@ import uuid
 
 
 class EventType(Enum):
-    """Event types for real-time system"""
     
     # Plan Events
     PLAN_STATUS_CHANGED = 'plan.status_changed'
@@ -37,6 +36,7 @@ class EventType(Enum):
     USER_ONLINE = 'user.online'
     USER_OFFLINE = 'user.offline'
     FRIEND_REQUEST = 'user.friend_request'
+    FRIEND_REQUEST_ACCEPTED = 'user.friend_request_accepted'
     
     # System Events
     SYSTEM_MAINTENANCE = 'system.maintenance'
@@ -72,7 +72,6 @@ class RealtimeEvent:
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RealtimeEvent':
-        """Create event from dictionary"""
         return cls(
             event_type=EventType(data['event_type']),
             data=data['data'],
@@ -85,43 +84,34 @@ class RealtimeEvent:
 
 
 # Channel group naming conventions
-class ChannelGroups:
-    """Standard channel group names for different types of updates"""
-    
+class ChannelGroups:    
     @staticmethod
     def plan(plan_id: str) -> str:
-        """Channel group for specific plan updates"""
         return f"plan_{plan_id}"
     
     @staticmethod
     def group(group_id: str) -> str:
-        """Channel group for specific group updates"""
         return f"group_{group_id}"
     
     @staticmethod
     def user(user_id: str) -> str:
-        """Channel group for specific user updates"""
         return f"user_{user_id}"
     
     @staticmethod
     def conversation(conversation_id: str) -> str:
-        """Channel group for specific conversation updates"""
         return f"conversation_{conversation_id}"
     
     @staticmethod
     def notifications() -> str:
-        """Channel group for general notifications"""
         return "notifications"
     
     @staticmethod
     def system() -> str:
-        """Channel group for system-wide announcements"""
         return "system"
 
 
-# Event priority levels
+
 class EventPriority(Enum):
-    """Priority levels for events - affects delivery guarantees"""
     LOW = 'low'          # Best effort, can be dropped if queue full
     NORMAL = 'normal'    # Standard delivery 
     HIGH = 'high'        # Important updates, retry on failure

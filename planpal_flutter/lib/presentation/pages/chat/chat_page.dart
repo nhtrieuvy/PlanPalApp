@@ -141,8 +141,23 @@ class _ChatPageState extends State<ChatPage>
 
   void _handleNewMessage(Map<String, dynamic> data) {
     final conversationProvider = context.read<ConversationProvider>();
-    // Refresh messages to get the new message
-    // This is a simple approach - we could optimize by parsing the message data directly
+    final authProvider = context.read<AuthProvider>();
+
+    // Extract sender info from WebSocket data to avoid duplicate messages
+    final senderId = data['sender']?['id'] as String?;
+    final currentUserId = authProvider.user?.id;
+
+    // If this message is from the current user, they already have it in their local state
+    // from the sendTextMessage response, so we don't need to refresh
+    if (senderId != null && senderId == currentUserId) {
+      debugPrint(
+        'Skipping WebSocket message refresh for own message from $senderId',
+      );
+      return;
+    }
+
+    // For messages from other users, refresh to get the new message
+    debugPrint('Refreshing messages for new message from $senderId');
     conversationProvider.loadMessages(widget.conversation.id, refresh: true);
   }
 
@@ -319,8 +334,9 @@ class _ChatPageState extends State<ChatPage>
   }
 
   bool _shouldShowAvatar(int index, List<ChatMessage> messages) {
-    if (index == messages.length - 1)
+    if (index == messages.length - 1) {
       return true; // Last message always shows avatar
+    }
 
     final currentMessage = messages[index];
     final nextMessage = messages[index + 1];
@@ -481,7 +497,7 @@ class _ChatPageState extends State<ChatPage>
           fontSize: 12,
           color: widget.conversation.isOtherUserOnline
               ? AppColors.success
-              : theme.colorScheme.onSurface.withOpacity(0.6),
+              : theme.colorScheme.onSurface.withAlpha(150),
         ),
       );
     } else {
@@ -490,7 +506,7 @@ class _ChatPageState extends State<ChatPage>
         '$memberCount members',
         style: GoogleFonts.inter(
           fontSize: 12,
-          color: theme.colorScheme.onSurface.withOpacity(0.6),
+          color: theme.colorScheme.onSurface.withAlpha(150),
         ),
       );
     }
@@ -522,7 +538,7 @@ class _ChatPageState extends State<ChatPage>
                 Icon(
                   PhosphorIcons.chatCircle(),
                   size: 48,
-                  color: theme.colorScheme.onSurface.withOpacity(0.3),
+                  color: theme.colorScheme.onSurface.withAlpha(75),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -530,7 +546,7 @@ class _ChatPageState extends State<ChatPage>
                   style: GoogleFonts.inter(
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    color: theme.colorScheme.onSurface.withAlpha(175),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -538,7 +554,7 @@ class _ChatPageState extends State<ChatPage>
                   'Start the conversation!',
                   style: GoogleFonts.inter(
                     fontSize: 14,
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    color: theme.colorScheme.onSurface.withAlpha(125),
                   ),
                 ),
               ],

@@ -150,7 +150,6 @@ class ChatWebSocketService {
       _setConnectionState(ConnectionState.connecting);
 
       final wsUrl = '$baseWsUrl/ws/chat/$_conversationId/?token=$_token';
-      debugPrint('Connecting to WebSocket: $wsUrl');
 
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_colors.dart';
 
-/// A reusable cover image header widget for groups, plans, and profiles
 class CoverImageHeader extends StatelessWidget {
   final String? imageUrl;
   final String title;
@@ -39,10 +38,8 @@ class CoverImageHeader extends StatelessWidget {
       width: double.infinity,
       child: Stack(
         children: [
-          // Background image or placeholder
           _buildBackground(),
 
-          // Dark overlay for text readability
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
