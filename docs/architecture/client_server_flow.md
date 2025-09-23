@@ -45,7 +45,8 @@ sequenceDiagram
   DB-->>API: rows
   API-->>Client: JSON page
 
-  Note over Client,API,DB: 3) Update plan (service-level validation)
+  Note over Client,API: 3) Update plan (service-level validation)
+  Note over API,DB: PlanService performs DB-level checks and writes
   Client->>API: PUT /api/plans/:id (Authorization, payload)
   API->>API: PlanService.update_plan (check status)
   alt Plan completed
