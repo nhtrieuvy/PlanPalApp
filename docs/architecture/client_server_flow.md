@@ -20,18 +20,18 @@ This document contains two diagrams (Mermaid): a sequence diagram showing typica
 
 ```mermaid
 sequenceDiagram
-  participant Client as Flutter Client
-  participant Firebase as Firebase (FCM)
-  participant API as API (Django REST)
-  participant OAuth as OAuth2 Provider
-  participant DB as Database
-  participant Channels as Channels/WebSocket
-  participant Celery as Celery Worker
-  participant External as External Services (FCM)
+  participant Client
+  participant Firebase
+  participant API
+  participant OAuth
+  participant DB
+  participant Channels
+  participant Celery
+  participant External
 
   Note over Client,OAuth: 1) User logs in (credentials)
   Client->>API: POST /auth/login (credentials)
-  API->>OAuth: Validate credentials -> issue access token
+  API->>OAuth: Validate credentials and request token
   OAuth-->>API: access_token + refresh_token
   API-->>Client: 200 OK + token
   Client->>Firebase: initialize() and get FCM token
@@ -95,22 +95,22 @@ sequenceDiagram
 flowchart TD
   subgraph Mobile
     C[Flutter Client]
-    C -->|init| F(FirebaseService)
-    C -->|API calls| API
+    C -->|init| F[Firebase Service]
+    C -->|API calls| API["API (Django REST)"]
     C -->|WS connect| WS[WebSocket client]
   end
 
   subgraph Backend
-    API[API (Django REST)]
-    OAuth[OAuth2 Provider]
+    API
+    OAuth["OAuth2 Provider"]
     DB[(Database)]
-    Channels[Channels / WebSocket]
-    Celery[Celery Workers]
+    Channels["Channels / WebSocket"]
+    Celery["Celery Workers"]
   end
 
   subgraph External
-    FCM[Firebase Cloud Messaging]
-    Maps[Google Maps, Other APIs]
+    FCM["Firebase Cloud Messaging"]
+    Maps["Google Maps, Other APIs"]
   end
 
   C -->|FCM token| F
