@@ -4,19 +4,15 @@ import 'dart:io';
 import '../repositories/conversation_repository.dart';
 import '../dtos/conversation.dart';
 import '../dtos/chat_message.dart';
-import '../services/apis.dart';
+// ...existing code...
+import 'auth_provider.dart';
 
-/// State management for conversations and messaging
 class ConversationProvider extends ChangeNotifier {
   final ConversationRepository _repository;
 
-  ConversationProvider(String? token)
-    : _repository = (() {
-        final api = ApiClient(token: token);
-        return ConversationRepository(api);
-      })();
+  ConversationProvider.withAuth(AuthProvider auth)
+    : _repository = ConversationRepository(auth);
 
-  // State variables
   List<Conversation> _conversations = [];
   final Map<String, List<ChatMessage>> _messages = {};
   final Map<String, bool> _loadingStates = {};
@@ -56,7 +52,6 @@ class ConversationProvider extends ChangeNotifier {
     return _hasMoreMessages[conversationId] ?? false;
   }
 
-  /// Get conversation by ID
   Conversation? getConversation(String conversationId) {
     try {
       return _conversations.firstWhere((c) => c.id == conversationId);
@@ -65,7 +60,6 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
-  /// Load all conversations
   Future<void> loadConversations() async {
     if (_isLoading) return;
 
@@ -83,7 +77,6 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
-  /// Refresh a specific conversation's data
   Future<void> refreshConversation(String conversationId) async {
     try {
       final updatedConversation = await _repository.getConversation(
@@ -98,12 +91,10 @@ class ConversationProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      // Fallback to full refresh if specific conversation update fails
       await loadConversations();
     }
   }
 
-  /// Load messages for a conversation
   Future<void> loadMessages(
     String conversationId, {
     bool refresh = false,
@@ -138,7 +129,6 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
-  /// Create or get direct conversation with a user
   Future<String?> createDirectConversation(String userId) async {
     _setLoading(true);
     _setError(null);
@@ -146,7 +136,6 @@ class ConversationProvider extends ChangeNotifier {
     try {
       final response = await _repository.createDirectConversation(userId);
 
-      // Add or update conversation in list
       final existingIndex = _conversations.indexWhere(
         (c) => c.id == response.conversation.id,
       );
@@ -166,7 +155,6 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
-  /// Send text message
   Future<bool> sendTextMessage(
     String conversationId,
     String content, {
@@ -181,10 +169,8 @@ class ConversationProvider extends ChangeNotifier {
         replyToId: replyToId,
       );
 
-      // Add message to local state
       _addMessageToConversation(conversationId, message);
 
-      // Update conversation's last message
       _updateConversationLastMessage(conversationId, message);
 
       return true;
@@ -194,7 +180,6 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
-  /// Send image message
   Future<bool> sendImageMessage(
     String conversationId,
     String imageUrl,
@@ -213,10 +198,8 @@ class ConversationProvider extends ChangeNotifier {
         replyToId: replyToId,
       );
 
-      // Add message to local state
       _addMessageToConversation(conversationId, message);
 
-      // Update conversation's last message
       _updateConversationLastMessage(conversationId, message);
 
       return true;
@@ -226,7 +209,6 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
-  /// Send image file (uploads first) - convenience wrapper around repository
   Future<bool> sendImageFile(
     String conversationId,
     File imageFile, {
@@ -239,10 +221,8 @@ class ConversationProvider extends ChangeNotifier {
         replyToId: replyToId,
       );
 
-      // Add message to local state
       _addMessageToConversation(conversationId, message);
 
-      // Update conversation's last message
       _updateConversationLastMessage(conversationId, message);
 
       return true;
@@ -252,7 +232,6 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
-  /// Send file message
   Future<bool> sendFileMessage(
     String conversationId,
     String fileUrl,
@@ -269,7 +248,6 @@ class ConversationProvider extends ChangeNotifier {
         replyToId: replyToId,
       );
 
-      // Add message to local state
       _addMessageToConversation(conversationId, message);
 
       // Update conversation's last message
@@ -282,7 +260,6 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
-  /// Send file attachment (uploads first) - convenience wrapper around repository
   Future<bool> sendFileAttachment(
     String conversationId,
     File file, {
@@ -295,10 +272,8 @@ class ConversationProvider extends ChangeNotifier {
         replyToId: replyToId,
       );
 
-      // Add message to local state
       _addMessageToConversation(conversationId, message);
 
-      // Update conversation's last message
       _updateConversationLastMessage(conversationId, message);
 
       return true;
@@ -308,7 +283,6 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
-  /// Send location message
   Future<bool> sendLocationMessage(
     String conversationId,
     double latitude,
@@ -325,10 +299,8 @@ class ConversationProvider extends ChangeNotifier {
         replyToId: replyToId,
       );
 
-      // Add message to local state
       _addMessageToConversation(conversationId, message);
 
-      // Update conversation's last message
       _updateConversationLastMessage(conversationId, message);
 
       return true;
@@ -351,7 +323,6 @@ class ConversationProvider extends ChangeNotifier {
         MarkMessagesReadRequest(messageIds: messageIds),
       );
 
-      // Update local unread count more efficiently
       final conversationIndex = _conversations.indexWhere(
         (c) => c.id == conversationId,
       );
@@ -373,7 +344,6 @@ class ConversationProvider extends ChangeNotifier {
     }
   }
 
-  /// Add incoming message from WebSocket
   void addIncomingMessage(ChatMessage message) {
     if (message.conversationId != null) {
       _addMessageToConversation(message.conversationId!, message);
@@ -391,7 +361,6 @@ class ConversationProvider extends ChangeNotifier {
       _typingUsers[conversationId] ??= {};
       _typingUsers[conversationId]!.add(userId);
 
-      // Clear typing indicator after 3 seconds
       _typingTimers[conversationId]?.cancel();
       _typingTimers[conversationId] = Timer(const Duration(seconds: 3), () {
         _typingUsers[conversationId]?.remove(userId);
@@ -410,17 +379,14 @@ class ConversationProvider extends ChangeNotifier {
     _setError(null);
   }
 
-  /// Refresh conversations
   Future<void> refresh() async {
     await loadConversations();
   }
 
-  /// Refresh messages for a conversation
   Future<void> refreshMessages(String conversationId) async {
     await loadMessages(conversationId, refresh: true);
   }
 
-  // Private helper methods
   void _addMessageToConversation(String conversationId, ChatMessage message) {
     _messages[conversationId] ??= [];
     _messages[conversationId]!.insert(0, message);
@@ -448,7 +414,6 @@ class ConversationProvider extends ChangeNotifier {
         lastMessageAt: message.createdAt,
       );
 
-      // Move conversation to top of list
       _conversations.removeAt(conversationIndex);
       _conversations.insert(0, updatedConversation);
 

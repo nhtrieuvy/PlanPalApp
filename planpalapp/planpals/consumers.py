@@ -1,5 +1,6 @@
 """
-WebSocket consumers for real-time features
+Nơi xử lý các kết nối WebSocket cho các tính năng thời gian thực như chat, cập nhật kế hoạch, nhóm, thông báo người dùng.
+Mỗi consumer tương ứng với một loại kênh WebSocket và xử lý logic kết nối
 """
 import json
 import logging
@@ -9,42 +10,31 @@ from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from .events import RealtimeEvent, EventType, ChannelGroups
-from .models import Plan, Group, User
+from .models import Plan, Group, User, Conversation, ChatMessage, MessageReadStatus
+
 
 logger = logging.getLogger(__name__)
 
 
-class BaseRealtimeConsumer(AsyncWebsocketConsumer):
-    """Base consumer with common functionality"""
-    
+class BaseRealtimeConsumer(AsyncWebsocketConsumer):    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = None
         self.group_names = []
         
     async def connect(self):
-        """Accept WebSocket connection if user is authenticated"""
         self.user = self.scope["user"]
         
-        logger.info(f"Consumer connect: user = {self.user}, type = {type(self.user)}")
-        print(f"Consumer connect: user = {self.user}, type = {type(self.user)}")  # Debug print
-        
         if isinstance(self.user, AnonymousUser):
-            logger.warning(f"Rejecting AnonymousUser connection")
-            print(f"Rejecting AnonymousUser connection")  # Debug print
             await self.close(code=4001)  # Unauthorized
             return
-            
-        logger.info(f"Accepting connection for user: {self.user}")
-        print(f"Accepting connection for user: {self.user}")  # Debug print
+
         await self.accept()
         await self.on_connect()
         
-        # Track connection for monitoring
         await self.track_connection(True)
         
     async def disconnect(self, close_code):
-        """Clean up when WebSocket disconnects"""
         try:
             await self.on_disconnect()
             
@@ -57,14 +47,12 @@ class BaseRealtimeConsumer(AsyncWebsocketConsumer):
             logger.error(f"Error during disconnect: {e}")
             
     async def receive(self, text_data):
-        """Handle incoming WebSocket messages"""
         try:
             data = json.loads(text_data)
             await self.handle_message(data)
         except json.JSONDecodeError:
             await self.send_error("Invalid JSON")
         except Exception as e:
-            logger.error(f"Error handling message: {e}")
             await self.send_error("Internal error")
             
     async def send_event(self, event: RealtimeEvent):
@@ -91,14 +79,12 @@ class BaseRealtimeConsumer(AsyncWebsocketConsumer):
             self.group_names.remove(group_name)
             
     async def track_connection(self, connected: bool):
-        """Track user connection status"""
         cache_key = f"ws_connected:{self.user.id}"
         if connected:
             cache.set(cache_key, True, timeout=300)  # 5 minutes
         else:
             cache.delete(cache_key)
             
-    # Abstract methods to be implemented by subclasses
     async def on_connect(self):
         """Called after successful connection"""
         pass
@@ -348,7 +334,6 @@ class ChatConsumer(BaseRealtimeConsumer):
     def check_conversation_access(self, conversation_id: str, user_id: str) -> bool:
         """Check if user has access to conversation"""
         try:
-            from .models import Conversation, User
             conversation = Conversation.objects.get(id=conversation_id)
             user = User.objects.get(id=user_id)
             
@@ -365,7 +350,6 @@ class ChatConsumer(BaseRealtimeConsumer):
     def mark_messages_read(self, message_ids: list):
         """Mark messages as read by current user"""
         try:
-            from .models import ChatMessage, MessageReadStatus
             
             messages = ChatMessage.objects.filter(
                 id__in=message_ids,

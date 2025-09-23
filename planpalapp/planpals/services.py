@@ -15,7 +15,7 @@ from .models import (
     User, Group, Plan, PlanActivity, ChatMessage, Friendship, GroupMembership, FriendshipRejection, Conversation, MessageReadStatus
 )
 from .events import RealtimeEvent, EventType, ChannelGroups
-from .realtime_publisher import RealtimeEventPublisher
+from .realtime_publisher import RealtimeEventPublisher, publish_friend_request, publish_friend_request_accepted
 from .tasks import start_plan_task, complete_plan_task
 from celery import current_app
 from .paginators import ManualCursorPaginator
@@ -23,8 +23,8 @@ from .serializers import UserSerializer,ChatMessageSerializer, PlanActivitySumma
 
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from .integrations import NotificationService
 
-import cloudinary.uploader
 from django.core.files.uploadedfile import UploadedFile
 
 logger = logging.getLogger(__name__)
@@ -130,6 +130,16 @@ class UserService(BaseService):
                     'from_user': from_user.id,
                     'to_user': to_user.id
                 })
+                # Publish realtime event and push notification for the re-sent friend request
+                try:
+                    transaction.on_commit(lambda: publish_friend_request(
+                        user_id=str(to_user.id),
+                        from_user_id=str(from_user.id),
+                        from_name=from_user.get_full_name() or from_user.username
+                    ))
+                except Exception:
+                    logger.exception("Failed to schedule friend request event publish")
+
                 return True, "Friend request sent successfully"
         
         try:
@@ -147,6 +157,17 @@ class UserService(BaseService):
                 )
                 friendship.full_clean()
                 friendship.save()
+
+                # Schedule realtime/push publish after DB commit
+                try:
+                    transaction.on_commit(lambda: publish_friend_request(
+                        user_id=str(to_user.id),
+                        from_user_id=str(from_user.id),
+                        from_name=from_user.get_full_name() or from_user.username
+                    ))
+                except Exception:
+                    logger.exception("Failed to schedule friend request event publish")
+
         except ValidationError as e:
             return False, str(e)
         
@@ -160,33 +181,48 @@ class UserService(BaseService):
     @classmethod
     def logout_user(cls, user: User, token_string: str = None) -> Tuple[bool, str, bool]:
         revoked = False
-        
+        online_set = False
+
+        if token_string:
+            try:
+                with transaction.atomic():
+                    at_qs = AccessToken.objects.select_for_update().filter(
+                        token=token_string, user=user
+                    )
+                    if at_qs.exists():
+                        at = at_qs.first()
+                        try:
+                            RefreshToken.objects.filter(access_token=at).delete()
+                        except Exception as e:
+                            cls.log_error("Failed to delete refresh tokens during logout", e, {'user_id': user.id})
+                        at.delete()
+                        revoked = True
+            except Exception as e:
+                cls.log_error("Failed to revoke access token during logout", e, {'user_id': user.id, 'token': token_string})
+
+        # Attempt to set user offline; non-fatal if it fails
         try:
-            if token_string:
-                at_qs = AccessToken.objects.select_for_update().filter(
-                    token=token_string, user=user
-                )
-                if at_qs.exists():
-                    at = at_qs.first()
-                    RefreshToken.objects.filter(access_token=at).delete()
-                    at.delete()
-                    revoked = True
-            
             user.set_online_status(False)
-            
+            online_set = True
+        except Exception as e:
+            cls.log_error("Failed to set user offline during logout", e, {'user_id': user.id})
+
+        # Consider logout successful if at least one of the actions succeeded
+        if revoked or online_set:
             cls.log_operation("user_logout", {
                 'user_id': user.id,
-                'token_revoked': revoked
+                'token_revoked': revoked,
+                'offline_set': online_set
             })
-            
             return True, "Logged out successfully", revoked
-            
-        except Exception as e:
-            cls.log_operation("user_logout_failed", {
-                'user_id': user.id,
-                'error': str(e)
-            })
-            return False, f"Logout failed: {e}", False
+
+        # If neither step succeeded, return failure with logged context
+        cls.log_operation("user_logout_failed", {
+            'user_id': user.id,
+            'token_revoked': revoked,
+            'offline_set': online_set
+        })
+        return False, "Logout failed: no changes applied", False
     
     @classmethod
     def search_users(cls, query: str, current_user: User, limit: int = 20):
@@ -280,7 +316,6 @@ class UserService(BaseService):
     
     @classmethod
     def unblock_user(cls, current_user: User, target_user: User) -> Tuple[bool, str]:
-        """Unblock a user. Only the blocker can unblock."""
         friendship = Friendship.get_friendship(current_user, target_user)
         
         if not friendship or friendship.status != Friendship.BLOCKED:
@@ -351,8 +386,13 @@ class UserService(BaseService):
                             'trigger': 'friend_request_accepted'
                         })
                 except Exception as conv_error:
-                    # Log error but don't fail the friend request
                     cls.log_error("Error creating conversation after friend acceptance", conv_error)
+            
+                transaction.on_commit(lambda: publish_friend_request_accepted(
+                    str(from_user.id),
+                    str(current_user.id),
+                    current_user.get_full_name() or current_user.username
+                ))
             
             cls.log_operation("friend_request_accepted", {
                 'user': current_user.id,
@@ -526,7 +566,6 @@ class UserService(BaseService):
     
     @classmethod
     def is_blocked_by(cls, current_user: User, target_user: User) -> bool:
-        """Check if current_user is blocked by target_user"""
         friendship = Friendship.get_friendship(current_user, target_user)
         return (
             friendship and 
@@ -552,10 +591,6 @@ class UserService(BaseService):
         
         return True, 'Valid query'
 
-
-# ============================================================================
-# GROUP SERVICE  
-# ============================================================================
 
 class GroupService(BaseService):    
     @classmethod
@@ -668,17 +703,6 @@ class GroupService(BaseService):
     def can_edit_group(cls, group: Group, user: User) -> bool:
         return group.is_admin(user)
     
-    @classmethod
-    def get_group_statistics(cls, group: Group) -> Dict[str, Any]:
-        group_with_stats = Group.objects.with_full_stats().get(id=group.id)
-        
-        return {
-            'members_count': group_with_stats.member_count_annotated,
-            'admin_count': group_with_stats.admin_count_annotated,
-            'plans_count': group_with_stats.plans_count_annotated,
-            'created_at': group.created_at,
-            'is_public': getattr(group, 'is_public', False)  # Handle if field doesn't exist
-        }
     
     @classmethod
     @transaction.atomic
@@ -720,7 +744,6 @@ class GroupService(BaseService):
         if membership.role != GroupMembership.ADMIN:
             return False, "User is not an admin."
             
-        # Check if this is the last admin using model method
         if group.get_admin_count() <= 1:
             return False, "Cannot demote the last admin of the group."
 
@@ -759,7 +782,8 @@ class GroupService(BaseService):
         }
 
 
-class PlanService(BaseService):    
+class PlanService(BaseService): 
+       
     @classmethod
     def create_plan(cls, creator: User, title: str, description: str = "",
                    plan_type: str = 'personal', group: Group = None,
@@ -797,6 +821,58 @@ class PlanService(BaseService):
             'group_id': group.id if group else None
         })
         
+        return plan
+
+    @classmethod
+    def update_plan(cls, plan: Plan, data: Dict[str, Any], user: User = None) -> Plan:
+        if getattr(plan, 'status', None) == 'completed':
+            raise ValidationError("Cannot update a plan that is already completed")
+
+        # Determine whether schedule-affecting fields are changing
+        old_start = getattr(plan, 'start_date', None)
+        old_end = getattr(plan, 'end_date', None)
+        new_start = data.get('start_date', old_start)
+        new_end = data.get('end_date', old_end)
+
+        try:
+            with transaction.atomic():
+
+                if (('start_date' in data and new_start != old_start) or
+                        ('end_date' in data and new_end != old_end)):
+                    try:
+                        cls.revoke_scheduled_tasks(plan)
+                    except Exception as e:
+                        logger.warning(f"Failed to revoke existing scheduled tasks for plan {plan.id}: {e}")
+
+                # Apply incoming fields onto the model instance
+                for field, value in data.items():
+                    # Only set attributes that exist on the model
+                    if hasattr(plan, field):
+                        setattr(plan, field, value)
+
+                # Validate and persist
+                plan.full_clean()
+                plan.save()
+
+                # Schedule new tasks as needed (uses the same scheduling helper as create_plan)
+                try:
+                    cls._schedule_plan_tasks(plan)
+                except Exception as e:
+                    logger.warning(f"Failed to schedule tasks after updating plan {plan.id}: {e}")
+
+        except ValidationError as e:
+            # Surface validation errors to callers
+            raise ValidationError(f"Plan update failed: {str(e)}")
+
+        # Log the update operation for audit
+        cls.log_operation("plan_updated", {
+            'plan_id': str(plan.id),
+            'updated_by': str(user.id) if user else None,
+            'updated_fields': list(data.keys())
+        })
+
+        # Refresh from DB to return canonical instance
+        plan.refresh_from_db()
         return plan
     
     @classmethod
@@ -836,7 +912,6 @@ class PlanService(BaseService):
             'user_id': user.id
         })
         
-        # Publish activity created event for real-time updates and push notifications
         def _publish_activity_created():
             try:
                 from .realtime_publisher import RealtimeEventPublisher
@@ -900,83 +975,10 @@ class PlanService(BaseService):
         })
         
         return activity
-    
-    # @classmethod
-    # def start_plan(cls, plan: Plan, user: User) -> Tuple[bool, str]:
-    #     if not cls.can_edit_plan(plan, user):
-    #         return False, "Permission denied"
-        
-    #     if plan.status != 'upcoming':
-    #         return False, "Plan is not in upcoming status"
-        
-    #     # Delegate to start_trip for consistent logic
-    #     try:
-    #         result = cls.start_trip(plan, user, force=True)
-    #         return True, "Plan started successfully"
-    #     except ValueError as e:
-    #         return False, str(e)
-    
-    # @classmethod
-    # def complete_plan(cls, plan: Plan, user: User) -> Tuple[bool, str]:
 
-    #     if not cls.can_edit_plan(plan, user):
-    #         return False, "Permission denied"
-        
-    #     if plan.status not in ['ongoing', 'upcoming']:
-    #         return False, f"Cannot complete plan with status: {plan.status}"
-        
-    #     # Delegate to complete_trip for consistent logic
-    #     try:
-    #         result = cls.complete_trip(plan, user, force=True)
-    #         return True, "Plan completed successfully"
-    #     except ValueError as e:
-    #         return False, str(e)
-    
-    @classmethod
-    def cancel_plan(cls, plan: Plan, user: User, reason: str = None) -> Tuple[bool, str]:
-        if not cls.can_edit_plan(plan, user):
-            return False, "Permission denied"
-        
-        if plan.status in ['cancelled', 'completed']:
-            return False, f"Cannot cancel plan that is already {plan.get_status_display().lower()}"
-        
-        if plan.is_group_plan() and user != plan.creator:
-            if not plan.group.is_admin(user):
-                return False, "Only group admins can cancel group plans"
-        
-        with transaction.atomic():
-            try:
-                cls._revoke_plan_tasks(plan)
-            except Exception:
-                pass
-            
-            now = timezone.now()
-            updated_count = Plan.objects.filter(
-                pk=plan.pk,
-                status__in=['upcoming', 'ongoing']
-            ).update(
-                status='cancelled',
-                updated_at=now
-            )
-            
-            if updated_count == 0:
-                return False, "Plan status was changed by another user"
-            
-            plan.refresh_from_db()
-        
-        cls.log_operation("plan_cancelled", {
-            'plan_id': plan.id,
-            'cancelled_by': user.id,
-            'reason': reason
-        })
-        
-        return True, "Plan cancelled successfully"
     
     @classmethod
     def start_trip(cls, plan: Plan, user: User = None, force: bool = False):
-        # Debug: log plan state when attempting to start
-        logger.debug(f"start_trip called for plan={plan.id} status={plan.status} start_date={plan.start_date} now={timezone.now()} force={force}")
-
         if plan.status != 'upcoming' and not force:
             raise ValueError(f"Cannot start trip in status: {plan.status}")
         
@@ -1017,9 +1019,6 @@ class PlanService(BaseService):
         
         def _publish_start_event():
             try:
-                from .realtime_publisher import RealtimeEventPublisher
-                from .events import RealtimeEvent, EventType
-                
                 publisher = RealtimeEventPublisher()
                 event = RealtimeEvent(
                     event_type=EventType.PLAN_STATUS_CHANGED,
@@ -1048,9 +1047,6 @@ class PlanService(BaseService):
     
     @classmethod
     def complete_trip(cls, plan: Plan, user: User = None, force: bool = False):
-        # Debug: log plan state when attempting to complete
-        logger.debug(f"complete_trip called for plan={plan.id} status={plan.status} end_date={plan.end_date} now={timezone.now()} force={force}")
-
         if plan.status != 'ongoing' and not force:
             raise ValueError(f"Cannot complete trip in status: {plan.status}")
         
@@ -1067,7 +1063,6 @@ class PlanService(BaseService):
             )
             
             if updated_count == 0 and not force:
-                # Log current DB state for debugging race conditions
                 try:
                     latest = Plan.objects.get(pk=plan.pk)
                     logger.warning(f"complete_trip update_count=0 for plan {plan.id}: db_status={latest.status} end_date={latest.end_date}")
@@ -1075,10 +1070,8 @@ class PlanService(BaseService):
                     logger.exception(f"complete_trip failed to introspect plan {plan.id} after update_count==0")
                 raise ValueError("Plan status was changed by another operation")
             
-            # Refresh plan instance
             plan.refresh_from_db()
             
-            # Revoke any remaining scheduled tasks
             try:
                 cls._revoke_plan_tasks(plan)
             except Exception as e:
@@ -1093,9 +1086,6 @@ class PlanService(BaseService):
         
         def _publish_complete_event():
             try:
-                from .realtime_publisher import RealtimeEventPublisher
-                from .events import RealtimeEvent, EventType
-                
                 publisher = RealtimeEventPublisher()
                 event = RealtimeEvent(
                     event_type=EventType.PLAN_STATUS_CHANGED,
@@ -1217,11 +1207,7 @@ class PlanService(BaseService):
         }
     
     @classmethod
-    def get_plan_schedule(cls, plan: 'Plan', user: User) -> Dict[str, Any]:
-        """
-        Get plan schedule with summary data - optimized for performance
-        Uses PlanActivitySummarySerializer for lightweight response
-        """        
+    def get_plan_schedule(cls, plan: 'Plan', user: User) -> Dict[str, Any]:      
         activities = plan.activities.order_by('start_time')
         
         schedule_by_date = {}
@@ -1275,62 +1261,6 @@ class PlanService(BaseService):
     @classmethod
     def get_plans_needing_updates(cls):
         return Plan.objects.plans_need_status_update()
-
-
-    @classmethod
-    def bulk_update_plan_statuses(cls) -> Dict[str, int]:
-        """Fallback bulk updater used by a periodic Celery task.
-        - Finds plans that appear to have passed their start/end times
-        - Refreshes their status using existing service logic
-        - Publishes realtime events for any changes
-        Returns summary stats for monitoring/logging
-        """
-        stats = {'total_checked': 0, 'total_updated': 0}
-
-        plans_qs = cls.get_plans_needing_updates().select_related('group', 'creator')
-        now = timezone.now()
-
-        for plan in plans_qs.iterator():
-            stats['total_checked'] += 1
-            try:
-                old_status = plan.status
-                updated = cls.refresh_plan_status(plan)
-                if updated:
-                    stats['total_updated'] += 1
-
-                    # Publish realtime event for status change
-                    try:
-                        publisher = RealtimeEventPublisher()
-                        event = RealtimeEvent(
-                            event_type=EventType.PLAN_STATUS_CHANGED,
-                            plan_id=str(plan.id),
-                            user_id=None,
-                            group_id=str(plan.group_id) if plan.group_id else None,
-                            data={
-                                'plan_id': str(plan.id),
-                                'title': plan.title,
-                                'old_status': old_status,
-                                'new_status': plan.status,
-                                'timestamp': now.isoformat(),
-                                'source': 'bulk_update'
-                            }
-                        )
-                        publisher.publish_event(event)
-                    except Exception as e:
-                        logger.warning(f"Failed to publish bulk update event for plan {plan.id}: {e}")
-
-                    # If plan moved to ongoing, ensure completion task is scheduled
-                    if plan.status == 'ongoing':
-                        try:
-                            cls._schedule_completion_task(plan)
-                        except Exception:
-                            logger.warning(f"Failed to schedule completion task during bulk update for plan {plan.id}")
-
-            except Exception as exc:
-                logger.warning(f"Error handling plan {plan.id} in bulk update: {exc}")
-
-        cls.log_operation("bulk_update_plan_statuses_run", stats)
-        return stats
     
     @classmethod
     def revoke_scheduled_tasks(cls, plan: Plan) -> None:
@@ -1419,17 +1349,11 @@ class PlanService(BaseService):
                 try:
                     if plan.start_date:
                         # Log the planned times for easier debugging
-                        logger.debug(f"Scheduling start task for plan {plan.id}: eta={plan.start_date} now={timezone.now()}")
                         start_task = start_plan_task.apply_async(args=[str(plan.id)], eta=plan.start_date)
-                        logger.debug(f"start_plan_task.apply_async returned: {start_task}")
-                        logger.debug(f"start_task.id: {start_task.id}, start_task.state: {getattr(start_task, 'state', 'unknown')}")
                         scheduled_start_id = start_task.id
 
                     if plan.end_date:
-                        logger.debug(f"Scheduling end task for plan {plan.id}: eta={plan.end_date} now={timezone.now()}")
                         end_task = complete_plan_task.apply_async(args=[str(plan.id)], eta=plan.end_date)
-                        logger.debug(f"complete_plan_task.apply_async returned: {end_task}")
-                        logger.debug(f"end_task.id: {end_task.id}, end_task.state: {getattr(end_task, 'state', 'unknown')}")
                         scheduled_end_id = end_task.id
 
                     updates = {}
@@ -1439,10 +1363,7 @@ class PlanService(BaseService):
                         updates['scheduled_end_task_id'] = scheduled_end_id
 
                     if updates:
-                        # Persist scheduled task ids with a direct update to avoid re-running full validation
                         Plan.objects.filter(pk=plan.pk).update(**updates)
-
-                    logger.debug(f"Scheduled tasks for plan {plan.id}: {updates}")
 
                 except Exception as exc:
                     cls.log_operation("task_scheduling_failed", {
@@ -1452,8 +1373,6 @@ class PlanService(BaseService):
 
             transaction.on_commit(_do_schedule)
 
-        except ImportError:
-            pass
         except Exception as e:
             cls.log_operation("task_scheduling_failed", {
                 'plan_id': plan.id,
@@ -1484,7 +1403,6 @@ class PlanService(BaseService):
             return
             
         try:            
-            # Revoke previous scheduled end task (if any) before scheduling new one.
             def _do_schedule_completion():
                 try:
                     if plan.scheduled_end_task_id:
@@ -1493,7 +1411,6 @@ class PlanService(BaseService):
                         except Exception:
                             pass
 
-                    logger.debug(f"Scheduling completion task for plan {plan.id}: eta={plan.end_date} now={timezone.now()}")
                     end_task = complete_plan_task.apply_async(args=[str(plan.id)], eta=plan.end_date)
 
                     Plan.objects.filter(pk=plan.pk).update(scheduled_end_task_id=end_task.id)
@@ -1502,8 +1419,6 @@ class PlanService(BaseService):
 
             transaction.on_commit(_do_schedule_completion)
 
-        except ImportError:
-            pass
         except Exception as e:
             logger.warning(f"Failed to schedule completion task: {e}")
     
@@ -1532,12 +1447,8 @@ class PlanService(BaseService):
             'user_id': user.id
         })
         
-        # Publish activity updated event for real-time updates and push notifications
         def _publish_activity_updated():
             try:
-                from .realtime_publisher import RealtimeEventPublisher
-                from .events import RealtimeEvent, EventType
-                
                 publisher = RealtimeEventPublisher()
                 event = RealtimeEvent(
                     event_type=EventType.ACTIVITY_UPDATED,
@@ -1587,7 +1498,6 @@ class PlanService(BaseService):
             'user_id': user.id
         })
         
-        # Publish activity deleted event for real-time updates and push notifications
         def _publish_activity_deleted():
             try:
                 from .realtime_publisher import RealtimeEventPublisher
@@ -1641,13 +1551,9 @@ class PlanService(BaseService):
             'user_id': user.id
         })
         
-        # Publish activity completed event for real-time updates and push notifications (only for completion, not uncompleting)
         if plan_activity.is_completed:
             def _publish_activity_completed():
                 try:
-                    from .realtime_publisher import RealtimeEventPublisher
-                    from .events import RealtimeEvent, EventType
-                    
                     publisher = RealtimeEventPublisher()
                     event = RealtimeEvent(
                         event_type=EventType.ACTIVITY_COMPLETED,
@@ -1717,9 +1623,7 @@ class PlanService(BaseService):
         if plan.creator == user:
             return False, "Cannot join your own plan"
         
-        # For group plans
         if plan.plan_type == 'group' and plan.group:
-            # Check if user is already a member
             if plan.group.members.filter(id=user.id).exists():
                 return False, "You are already a member of this plan"
             
@@ -1743,11 +1647,9 @@ class PlanService(BaseService):
 
 # Helper functions for attachment handling
 def is_local_path(attachment_value: str) -> bool:
-    """Check if a string represents a local file path that should be rejected."""
     if not attachment_value or not isinstance(attachment_value, str):
         return False
     
-    # Check for common local path patterns
     local_patterns = [
         r'^file://',  # file:// protocol
         r'^/data/user/',  # Android app data
@@ -1763,9 +1665,7 @@ def is_local_path(attachment_value: str) -> bool:
         if re.search(pattern, attachment_value, re.IGNORECASE):
             return True
     
-    # Check if it looks like a filesystem path (has path separators but no http)
     if ('/' in attachment_value or '\\' in attachment_value) and not attachment_value.startswith(('http://', 'https://')):
-        # But allow Cloudinary public IDs and relative paths without slashes at start
         if not attachment_value.startswith('/') and '\\' not in attachment_value:
             return False
         return True
@@ -1774,7 +1674,6 @@ def is_local_path(attachment_value: str) -> bool:
 
 
 def validate_attachment_value(attachment_value: Any) -> str:
-    """Validate and normalize attachment value (UploadedFile or string)."""
     if isinstance(attachment_value, UploadedFile):
         # This will be handled by CloudinaryField - return a marker
         return 'uploaded_file'
@@ -1795,14 +1694,6 @@ class ConversationService(BaseService):
     @classmethod
     def create_message(cls, conversation: 'Conversation', sender: User, 
                       validated_data: Dict[str, Any]) -> 'ChatMessage':
-        """
-        Canonical method for creating messages with full validation, 
-        attachment handling, and side-effects.
-        """
-        from django.core.files.uploadedfile import UploadedFile
-        from django.db import transaction
-        
-        # Extract data
         message_type = validated_data.get('message_type', 'text')
         content = validated_data.get('content', '')
         attachment = validated_data.get('attachment')
@@ -1813,9 +1704,6 @@ class ConversationService(BaseService):
         longitude = validated_data.get('longitude')
         location_name = validated_data.get('location_name', '')
         
-        # Validate permissions
-        if sender and not cls._can_user_access_conversation(sender, conversation):
-            raise ValidationError("You don't have permission to send messages to this conversation")
         
         # Validate reply_to
         reply_to = None
@@ -1829,12 +1717,10 @@ class ConversationService(BaseService):
             except ChatMessage.DoesNotExist:
                 raise ValidationError("Reply message not found in this conversation")
         
-        # Validate and process attachment
         if attachment:
             if isinstance(attachment, str):
-                # String attachment - validate it's not a local path
                 attachment = attachment.strip()
-                if cls._is_local_path(attachment):
+                if cls.is_local_path(attachment):
                     raise ValidationError(
                         "Local file paths are not allowed. Please upload the file via multipart request."
                     )
@@ -1845,7 +1731,6 @@ class ConversationService(BaseService):
             else:
                 raise ValidationError("Attachment must be a file upload or valid URL/public_id")
         
-        # Create message
         with transaction.atomic():
             message = ChatMessage.objects.create(
                 conversation=conversation,
@@ -1861,10 +1746,8 @@ class ConversationService(BaseService):
                 location_name=location_name
             )
             
-            # Update conversation timestamp
             cls.update_last_message_time(conversation)
             
-        # Schedule side-effects after commit
         transaction.on_commit(lambda: cls._send_realtime_message(message))
         transaction.on_commit(lambda: cls._send_push_notification(message))
         
@@ -1876,39 +1759,6 @@ class ConversationService(BaseService):
         })
         
         return message
-    
-    @classmethod
-    def _is_local_path(cls, attachment_value: str) -> bool:
-        """Check if a string represents a local file path that should be rejected."""
-        import re
-        
-        if not attachment_value or not isinstance(attachment_value, str):
-            return False
-        
-        # Check for common local path patterns
-        local_patterns = [
-            r'^file://',  # file:// protocol
-            r'^/data/user/',  # Android app data
-            r'^/storage/emulated/',  # Android storage
-            r'\\AppData\\Local\\Temp\\',  # Windows temp paths
-            r'^/tmp/',  # Unix temp paths
-            r'^/var/folders/',  # macOS temp paths
-            r'^C:\\Users\\.*\\AppData\\',  # Windows user data
-            r'^/Users/.*/Library/Caches/',  # macOS cache paths
-        ]
-        
-        for pattern in local_patterns:
-            if re.search(pattern, attachment_value, re.IGNORECASE):
-                return True
-        
-        # Check if it looks like a filesystem path (has path separators but no http)
-        if ('/' in attachment_value or '\\' in attachment_value) and not attachment_value.startswith(('http://', 'https://')):
-            # But allow Cloudinary public IDs and relative paths without slashes at start
-            if not attachment_value.startswith('/') and '\\' not in attachment_value:
-                return False
-            return True
-        
-        return False
     
     @classmethod
     def get_user_conversations(cls, user: User) -> QuerySet['Conversation']:
@@ -1960,7 +1810,6 @@ class ConversationService(BaseService):
         if hasattr(group, 'conversation') and group.conversation:
             return group.conversation, False
         
-        # Create new group conversation
         conversation = Conversation.objects.create(
             conversation_type='group',
             group=group,
@@ -2041,7 +1890,6 @@ class ConversationService(BaseService):
         except Conversation.DoesNotExist:
             return False, "Conversation not found"
         except Exception as e:
-            cls.log_error("Error marking messages as read", e)
             return False, "Failed to mark messages as read"
     
     @classmethod
@@ -2115,7 +1963,6 @@ class ConversationService(BaseService):
     @classmethod
     def _send_push_notification(cls, message: 'ChatMessage'):
         try:
-            from .integrations import NotificationService
             
             notification_service = NotificationService()
             
@@ -2163,21 +2010,10 @@ class ConversationService(BaseService):
 
 
 class ChatService(BaseService):
-    """
-    Thin facade for group-specific chat operations.
-    All message creation delegates to ConversationService.
-    """
     
     @classmethod
     def send_message(cls, sender: User, group: 'Group', **validated_data) -> 'ChatMessage':
-        """
-        Main entry point for sending messages to a group.
-        Validates membership and delegates to ConversationService.
-        """
-        # Check group membership
-        if not group.members.filter(id=sender.id).exists():
-            raise ValidationError("You must be a group member to send messages")
-        
+
         # Get or create group conversation
         conversation, created = ConversationService.get_or_create_group_conversation(group)
         
@@ -2190,13 +2026,9 @@ class ChatService(BaseService):
     
     @classmethod
     def send_direct_message(cls, sender: User, recipient: User, **validated_data) -> 'ChatMessage':
-        """
-        Send direct message between two users.
-        """
-        # Get or create direct conversation
+
         conversation, created = ConversationService.get_or_create_direct_conversation(sender, recipient)
         
-        # Delegate to canonical message creation
         return ConversationService.create_message(
             conversation=conversation,
             sender=sender,
@@ -2205,9 +2037,6 @@ class ChatService(BaseService):
     
     @classmethod
     def create_system_message(cls, conversation: 'Conversation' = None, group: 'Group' = None, content: str = "") -> 'ChatMessage':
-        """
-        Create system message for notifications/events.
-        """
         if conversation is None and group is None:
             raise ValueError("Either conversation or group must be provided")
         
@@ -2227,7 +2056,6 @@ class ChatService(BaseService):
     
     @classmethod
     def get_group_messages(cls, user: User, group_id: str, limit: int = 50, before_id: str = None) -> Dict[str, Any]:
-        """Get messages for a group (delegates to ConversationService)."""
         try:            
             group = Group.objects.get(id=group_id)
             
@@ -2250,7 +2078,6 @@ class ChatService(BaseService):
     
     @classmethod
     def edit_message(cls, message: ChatMessage, user: User, new_content: str) -> Tuple[bool, str]:
-        """Edit a message (15 minute time limit)."""
         if message.sender != user:
             return False, "Can only edit your own messages"
         
@@ -2274,7 +2101,6 @@ class ChatService(BaseService):
     
     @classmethod
     def delete_message(cls, message: ChatMessage, user: User) -> Tuple[bool, str]:
-        """Soft delete a message (sender or group admin can delete)."""
         can_delete = (
             message.sender == user or 
             (message.conversation and message.conversation.group and message.conversation.group.is_admin(user))
@@ -2295,7 +2121,6 @@ class ChatService(BaseService):
     
     @classmethod
     def get_unread_count(cls, user: User, group: Group = None) -> int:
-        """Get unread message count for user."""
         if group:
             conversation, created = ConversationService.get_or_create_group_conversation(group)
             return ConversationService.get_unread_count_for_user(conversation, user)
@@ -2304,7 +2129,6 @@ class ChatService(BaseService):
     
     @classmethod
     def mark_messages_as_read(cls, user: User, group: Group) -> None:
-        """Mark group messages as read for user."""
         conversation, created = ConversationService.get_or_create_group_conversation(group)
         ConversationService.mark_as_read_for_user(conversation, user)
         
@@ -2312,33 +2136,6 @@ class ChatService(BaseService):
             'user_id': str(user.id),
             'group_id': str(group.id),
             'timestamp': timezone.now().isoformat()
-        })
-
-
-class NotificationService(BaseService):
-    
-    @classmethod
-    def notify_plan_created(cls, plan_id: str, creator_name: str, group_id: str = None):
-        cls.log_operation("plan_created_notification", {
-            'plan_id': plan_id,
-            'creator_name': creator_name,
-            'group_id': group_id
-        })
-        
-    
-    @classmethod
-    def notify_member_added(cls, group_id: str, user_id: str, added_by_id: str):
-        cls.log_operation("member_added_notification", {
-            'group_id': group_id,
-            'user_id': user_id,
-            'added_by_id': added_by_id
-        })
-    
-    @classmethod
-    def notify_friend_request(cls, from_user_id: str, to_user_id: str):
-        cls.log_operation("friend_request_notification", {
-            'from_user_id': from_user_id,
-            'to_user_id': to_user_id
         })
 
 

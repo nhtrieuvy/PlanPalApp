@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// removed color_utils; use withAlpha directly
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -80,7 +81,7 @@ class MessageBubble extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isCurrentUser
                           ? const Color(0xFF6366F1) // Indigo primary
-                          : colorScheme.surfaceVariant,
+                          : colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(20),
                         topRight: const Radius.circular(20),
@@ -89,7 +90,7 @@ class MessageBubble extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withAlpha(13),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -252,8 +253,8 @@ class MessageBubble extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: isCurrentUser
-                  ? Colors.white.withOpacity(0.2)
-                  : const Color(0xFF6366F1).withOpacity(0.1),
+                  ? Colors.white.withAlpha(50)
+                  : const Color(0xFF6366F1).withAlpha(25),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -283,8 +284,8 @@ class MessageBubble extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: isCurrentUser
-                        ? Colors.white.withOpacity(0.8)
-                        : colorScheme.onSurfaceVariant.withOpacity(0.7),
+                        ? Colors.white.withAlpha(200)
+                        : colorScheme.onSurfaceVariant.withAlpha(175),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -313,8 +314,8 @@ class MessageBubble extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: isCurrentUser
-                  ? Colors.white.withOpacity(0.2)
-                  : const Color(0xFF6366F1).withOpacity(0.1),
+                  ? Colors.white.withAlpha(50)
+                  : const Color(0xFF6366F1).withAlpha(25),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -347,8 +348,8 @@ class MessageBubble extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: isCurrentUser
-                          ? Colors.white.withOpacity(0.8)
-                          : colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          ? Colors.white.withAlpha(200)
+                          : colorScheme.onSurfaceVariant.withAlpha(175),
                     ),
                   ),
                 ],
@@ -372,7 +373,7 @@ class MessageBubble extends StatelessWidget {
             DateFormat('HH:mm').format(message.createdAt),
             style: GoogleFonts.inter(
               fontSize: 11,
-              color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+              color: colorScheme.onSurfaceVariant.withAlpha(150),
             ),
           ),
 
@@ -408,11 +409,11 @@ class MessageBubble extends StatelessWidget {
   Color _getStatusColor(ColorScheme colorScheme) {
     switch (status) {
       case MessageStatus.sending:
-        return colorScheme.onSurfaceVariant.withOpacity(0.6);
+        return colorScheme.onSurfaceVariant.withAlpha(150);
       case MessageStatus.sent:
-        return colorScheme.onSurfaceVariant.withOpacity(0.6);
+        return colorScheme.onSurfaceVariant.withAlpha(150);
       case MessageStatus.delivered:
-        return colorScheme.onSurfaceVariant.withOpacity(0.6);
+        return colorScheme.onSurfaceVariant.withAlpha(150);
       case MessageStatus.read:
         return const Color(0xFF06B6D4); // Cyan for read
       case MessageStatus.failed:
@@ -453,10 +454,15 @@ class MessageBubble extends StatelessWidget {
   }
 
   String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024) {
+      return '$bytes B';
+    }
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }

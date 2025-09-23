@@ -5,9 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class BaseService(ABC):
-    """Base class cho tất cả services"""
-    
+class BaseService(ABC):    
     def __init__(self):
         self.logger = logger
     

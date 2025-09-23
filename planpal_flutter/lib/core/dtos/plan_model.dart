@@ -3,6 +3,28 @@ import 'user_summary.dart';
 import 'group_summary.dart';
 import 'plan_activity.dart';
 
+// Helper to parse server datetimes robustly. If the string contains timezone
+// information, DateTime.parse will produce a UTC/offset-aware DateTime; we
+// convert it to local to display the user's wall-clock time. If the string is
+// naive (no offset), we assume it's UTC and convert to local; this mirrors the
+// server behavior which stores timezone-aware values.
+DateTime? _parseServerDateTime(String s) {
+  if (s.isEmpty) return null;
+  try {
+    final dt = DateTime.parse(s);
+    // DateTime.parse returns a value with isUtc==true if the string had a Z or offset.
+    // Convert to local so UI shows local wall-clock time.
+    return dt.toLocal();
+  } catch (_) {
+    // Fallback: try to parse manually with DateFormat (best-effort), assume local
+    try {
+      return DateTime.tryParse(s)?.toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
 double _parseDoubleSafe(dynamic v, {double defaultValue = 0.0}) {
   if (v == null) return defaultValue;
   if (v is num) return v.toDouble();
@@ -75,11 +97,14 @@ class PlanModel extends Equatable {
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString(),
+      // Parse server datetimes as UTC and convert to local to show correct
+      // local wall-clock time in the UI. Server should send ISO-8601 with TZ
+      // (we also accept naive strings).
       startDate: json['start_date'] != null
-          ? DateTime.tryParse(json['start_date'].toString())
+          ? _parseServerDateTime(json['start_date'].toString())
           : null,
       endDate: json['end_date'] != null
-          ? DateTime.tryParse(json['end_date'].toString())
+          ? _parseServerDateTime(json['end_date'].toString())
           : null,
       isPublic: json['is_public'] == true,
       status: json['status']?.toString() ?? 'upcoming',

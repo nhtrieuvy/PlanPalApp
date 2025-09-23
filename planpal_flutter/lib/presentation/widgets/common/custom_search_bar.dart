@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// removed color_utils; use withAlpha directly
 import 'package:google_fonts/google_fonts.dart';
 
 class CustomSearchBar extends StatelessWidget {
@@ -29,10 +30,10 @@ class CustomSearchBar extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        color: theme.colorScheme.surfaceContainerHighest.withAlpha(75),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withAlpha(50),
           width: 1,
         ),
       ),
@@ -49,12 +50,12 @@ class CustomSearchBar extends StatelessWidget {
           hintText: hintText,
           hintStyle: GoogleFonts.inter(
             fontSize: 16,
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
+            color: theme.colorScheme.onSurface.withAlpha(125),
           ),
           prefixIcon: prefixIcon != null
               ? Icon(
                   prefixIcon,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  color: theme.colorScheme.onSurface.withAlpha(150),
                   size: 20,
                 )
               : null,
@@ -79,7 +80,7 @@ class CustomSearchBar extends StatelessWidget {
         },
         icon: Icon(
           Icons.clear,
-          color: theme.colorScheme.onSurface.withOpacity(0.6),
+          color: theme.colorScheme.onSurface.withAlpha(150),
           size: 20,
         ),
       );

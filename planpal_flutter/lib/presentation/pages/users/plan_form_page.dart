@@ -134,8 +134,9 @@ class _PlanFormPageState extends State<PlanFormPage> {
         final request = CreatePlanRequest(
           title: _titleCtrl.text.trim(),
           description: _descriptionCtrl.text.trim(),
-          startDate: _startDate?.toIso8601String() ?? '',
-          endDate: _endDate?.toIso8601String() ?? '',
+          // send UTC ISO strings so server stores an unambiguous instant
+          startDate: _startDate?.toUtc().toIso8601String() ?? '',
+          endDate: _endDate?.toUtc().toIso8601String() ?? '',
           isPublic: _isPublic,
           planType: _planType,
           groupId: _selectedGroupId,
@@ -159,8 +160,9 @@ class _PlanFormPageState extends State<PlanFormPage> {
         final request = UpdatePlanRequest(
           title: _titleCtrl.text.trim(),
           description: _descriptionCtrl.text.trim(),
-          startDate: _startDate?.toIso8601String(),
-          endDate: _endDate?.toIso8601String(),
+          // send UTC ISO strings so server stores an unambiguous instant
+          startDate: _startDate?.toUtc().toIso8601String(),
+          endDate: _endDate?.toUtc().toIso8601String(),
           isPublic: _isPublic,
           planType: _planType,
         );

@@ -34,8 +34,11 @@ Future<void> main() async {
         ChangeNotifierProvider<ThemeProvider>.value(value: themeProvider),
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
         ChangeNotifierProxyProvider<AuthProvider, ConversationProvider>(
-          create: (context) => ConversationProvider(null),
-          update: (context, auth, previous) => ConversationProvider(auth.token),
+          create: (context) => ConversationProvider.withAuth(
+            Provider.of<AuthProvider>(context, listen: false),
+          ),
+          update: (context, auth, previous) =>
+              previous ?? ConversationProvider.withAuth(auth),
         ),
       ],
       child: const PlanPalApp(),

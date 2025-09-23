@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+// removed color_utils; use withAlpha directly
 import 'package:google_fonts/google_fonts.dart';
 
 class TypingIndicator extends StatefulWidget {
@@ -99,7 +100,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant,
+                        color: colorScheme.surfaceContainerHighest,
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(20),
                           topRight: Radius.circular(20),
@@ -108,7 +109,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withAlpha(13),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -151,7 +152,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
         children: List.generate(3, (index) {
           return _buildTypingDot(
             index,
-            colorScheme.onSurfaceVariant.withOpacity(0.6),
+            colorScheme.surfaceContainerHighest.withAlpha(150),
           );
         }),
       ),
@@ -220,7 +221,7 @@ class _TypingDotsState extends State<TypingDots> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final color =
         widget.color ??
-        Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6);
+        Theme.of(context).colorScheme.onSurfaceVariant.withAlpha(150);
 
     return SizedBox(
       width: widget.size * 6,

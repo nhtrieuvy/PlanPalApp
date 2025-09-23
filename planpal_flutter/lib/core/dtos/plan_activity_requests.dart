@@ -39,15 +39,27 @@ class CreatePlanActivityRequest {
       'end_time': endTime.toIso8601String(),
     };
 
-    if (latitude != null)
+    if (latitude != null) {
       data['latitude'] = double.parse(latitude!.toStringAsFixed(6));
-    if (longitude != null)
+    }
+    if (longitude != null) {
       data['longitude'] = double.parse(longitude!.toStringAsFixed(6));
-    if (locationName != null) data['location_name'] = locationName;
-    if (locationAddress != null) data['location_address'] = locationAddress;
-    if (goongPlaceId != null) data['goong_place_id'] = goongPlaceId;
-    if (estimatedCost != null) data['estimated_cost'] = estimatedCost;
-    if (notes != null) data['notes'] = notes;
+    }
+    if (locationName != null) {
+      data['location_name'] = locationName;
+    }
+    if (locationAddress != null) {
+      data['location_address'] = locationAddress;
+    }
+    if (goongPlaceId != null) {
+      data['goong_place_id'] = goongPlaceId;
+    }
+    if (estimatedCost != null) {
+      data['estimated_cost'] = estimatedCost;
+    }
+    if (notes != null) {
+      data['notes'] = notes;
+    }
 
     return data;
   }
@@ -77,16 +89,30 @@ class UpdatePlanActivityRequest {
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
 
-    if (title != null) data['title'] = title;
-    if (description != null) data['description'] = description;
-    if (activityType != null) data['activity_type'] = activityType;
-    if (startTime != null) data['start_time'] = startTime!.toIso8601String();
-    if (endTime != null) data['end_time'] = endTime!.toIso8601String();
-    if (latitude != null)
+    if (title != null) {
+      data['title'] = title;
+    }
+    if (description != null) {
+      data['description'] = description;
+    }
+    if (activityType != null) {
+      data['activity_type'] = activityType;
+    }
+    if (startTime != null) {
+      data['start_time'] = startTime!.toIso8601String();
+    }
+    if (endTime != null) {
+      data['end_time'] = endTime!.toIso8601String();
+    }
+    if (latitude != null) {
       data['latitude'] = double.parse(latitude!.toStringAsFixed(6));
-    if (longitude != null)
+    }
+    if (longitude != null) {
       data['longitude'] = double.parse(longitude!.toStringAsFixed(6));
-    if (notes != null) data['notes'] = notes;
+    }
+    if (notes != null) {
+      data['notes'] = notes;
+    }
 
     return data;
   }

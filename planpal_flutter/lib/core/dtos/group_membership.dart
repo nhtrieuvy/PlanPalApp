@@ -1,8 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'user_summary.dart';
 
-/// GroupMembership model matching backend GroupMembershipSerializer
-/// Represents a user's membership in a group with role information
+
 class GroupMembership extends Equatable {
   final String id;
   final UserSummary user;

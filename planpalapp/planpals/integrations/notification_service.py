@@ -1,7 +1,3 @@
-"""
-Firebase Cloud Messaging service using Firebase Admin SDK only
-Clean implementation without legacy HTTP fallback
-"""
 from typing import Dict, List, Optional, Any, Tuple
 from django.conf import settings
 from django.core.cache import cache
@@ -9,15 +5,10 @@ from .base_service import BaseService
 import logging
 from pathlib import Path
 
-try:
-    import firebase_admin
-    from firebase_admin import credentials, messaging
-    FIREBASE_ADMIN_AVAILABLE = True
-except ImportError:
-    firebase_admin = None
-    credentials = None
-    messaging = None
-    FIREBASE_ADMIN_AVAILABLE = False
+import firebase_admin
+from firebase_admin import credentials, messaging
+FIREBASE_ADMIN_AVAILABLE = True
+
 
 logger = logging.getLogger(__name__)
 

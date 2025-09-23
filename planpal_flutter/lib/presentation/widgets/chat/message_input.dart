@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// removed color_utils; use withAlpha directly
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:image_picker/image_picker.dart';
@@ -147,7 +148,7 @@ class _MessageInputState extends State<MessageInput> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+              color: colorScheme.onSurfaceVariant.withAlpha(75),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -206,7 +207,7 @@ class _MessageInputState extends State<MessageInput> {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.1),
+              color: const Color(0xFF6366F1).withAlpha(25),
               borderRadius: BorderRadius.circular(30),
             ),
             child: Icon(icon, size: 28, color: const Color(0xFF6366F1)),
@@ -235,7 +236,7 @@ class _MessageInputState extends State<MessageInput> {
         color: colorScheme.surface,
         border: Border(
           top: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.5),
+            color: colorScheme.outlineVariant.withAlpha(125),
             width: 1,
           ),
         ),
@@ -260,7 +261,7 @@ class _MessageInputState extends State<MessageInput> {
                   child: Container(
                     margin: EdgeInsets.only(left: hasText ? 0 : 8, right: 8),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceVariant.withOpacity(0.5),
+                      color: colorScheme.surfaceContainerHighest.withAlpha(125),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
                         color: _focusNode.hasFocus
@@ -285,7 +286,7 @@ class _MessageInputState extends State<MessageInput> {
                         hintText: widget.placeholder,
                         hintStyle: GoogleFonts.inter(
                           fontSize: 16,
-                          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          color: colorScheme.onSurfaceVariant.withAlpha(175),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -317,7 +318,7 @@ class _MessageInputState extends State<MessageInput> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: const Color(0xFF6366F1).withOpacity(0.1),
+          color: const Color(0xFF6366F1).withAlpha(25),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Icon(
@@ -325,7 +326,7 @@ class _MessageInputState extends State<MessageInput> {
           size: 20,
           color: widget.isEnabled
               ? const Color(0xFF6366F1)
-              : colorScheme.onSurfaceVariant.withOpacity(0.5),
+              : colorScheme.onSurfaceVariant.withAlpha(125),
         ),
       ),
     );
@@ -345,7 +346,7 @@ class _MessageInputState extends State<MessageInput> {
         decoration: BoxDecoration(
           color: canSend
               ? const Color(0xFF6366F1)
-              : colorScheme.onSurfaceVariant.withOpacity(0.3),
+              : colorScheme.onSurfaceVariant.withAlpha(75),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Icon(
@@ -405,7 +406,7 @@ class _MessageInputState extends State<MessageInput> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.1),
+              color: const Color(0xFF6366F1).withAlpha(25),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
@@ -413,7 +414,7 @@ class _MessageInputState extends State<MessageInput> {
               size: 20,
               color: widget.isEnabled
                   ? const Color(0xFF6366F1)
-                  : colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  : colorScheme.onSurfaceVariant.withAlpha(125),
             ),
           ),
           const SizedBox(height: 4),
@@ -424,7 +425,7 @@ class _MessageInputState extends State<MessageInput> {
               fontWeight: FontWeight.w500,
               color: widget.isEnabled
                   ? colorScheme.onSurfaceVariant
-                  : colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  : colorScheme.onSurfaceVariant.withAlpha(125),
             ),
           ),
         ],

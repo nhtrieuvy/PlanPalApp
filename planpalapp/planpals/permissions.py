@@ -3,7 +3,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.db import models
 from .models import Friendship, Group, Plan, Conversation
-from .services import GroupService, PlanService
+from .services import GroupService, PlanService, UserService
 User = get_user_model()
 
 
@@ -166,7 +166,7 @@ class PlanActivityPermission(BasePermission):
                         return plan.creator == request.user
                 except Plan.DoesNotExist:
                     return False
-        return True  # For other methods, check object permission
+        return True  
     
     def has_object_permission(self, request, view, obj):
         user = request.user
@@ -301,55 +301,37 @@ class IsConversationParticipant(BasePermission):
 
 
 class CanNotTargetSelf(BasePermission):
-    """Permission to ensure user cannot target themselves for friendship actions"""
     def has_object_permission(self, request, view, obj):
-        # obj is the target user
         return request.user != obj
 
 
 class CanViewUserProfile(BasePermission):
-    """Permission to check if user can view another user's profile"""
     def has_object_permission(self, request, view, obj):
         target_user = obj
         current_user = request.user
         
-        # Import here to avoid circular import
-        from .services import UserService
-        
-        # Use the updated logic from UserService
         return UserService.can_view_profile(current_user, target_user)
 
 
 class CanManageFriendship(BasePermission):
-    """Permission for friendship management (block, unblock, unfriend)"""
     def has_object_permission(self, request, view, obj):
         target_user = obj
         current_user = request.user
         
-        # Cannot target self
         if current_user == target_user:
             return False
         
-        # For unfriend: must be friends
         if view.action == 'unfriend':
             return Friendship.are_friends(current_user, target_user)
         
-        # For block/unblock: always allowed (business logic in service)
         return True
 
 
-class CanEditMyPlans(BasePermission):
-    """Permission for plan filtering by type"""
-    def has_permission(self, request, view):
-        return True  # Basic filtering, no special permission needed
-
 
 class IsOwnerOrGroupAdmin(BasePermission):
-    """Permission to check if user is owner or group admin for plan actions"""
     def has_object_permission(self, request, view, obj):
         user = request.user
         
-        # If it's a plan
         if hasattr(obj, 'creator'):
             plan = obj
             if plan.creator == user:
@@ -362,68 +344,52 @@ class IsOwnerOrGroupAdmin(BasePermission):
 
 
 class CanJoinPlan(BasePermission):
-    """Permission to check if user can join a plan"""
     def has_object_permission(self, request, view, obj):
         plan = obj
         user = request.user
         
-        # Cannot join own plan
         if plan.creator == user:
             return False
         
-        # For group plans, check if user can join the group
         if plan.plan_type == 'group' and plan.group:
-            # Already a member
             if plan.group.members.filter(id=user.id).exists():
                 return False
             
-            # Check if group allows joining (public or admin invites)
             if getattr(plan.group, 'is_public', True):
                 return True
             
-            # Could add more complex logic here
             return True
         
-        # For personal plans, generally not joinable
         return plan.is_public
 
 
 class CanAccessPlan(BasePermission):
-    """Permission for accessing plan details and activities"""
     
     def has_object_permission(self, request, view, obj):
         plan = obj
         user = request.user
         
-        # Owner can always access
         if plan.creator == user:
             return True
         
-        # For group plans, check if user is a member
         if plan.plan_type == 'group' and plan.group:
             return plan.group.is_member(user)
         
-        # For personal plans, only owner can access
         return False
 
 
 class CanModifyPlan(BasePermission):
-    """Permission for modifying plan activities and details"""
     
     def has_object_permission(self, request, view, obj):
         plan = obj
         user = request.user
         
-        # Owner can always modify
         if plan.creator == user:
             return True
         
-        # For group plans, check if user is group admin or member (depending on settings)
         if plan.plan_type == 'group' and plan.group:
-            # Group admin can always modify
             if plan.group.admin == user:
                 return True
-            # For now, all members can modify (can be changed based on requirements)
             return plan.group.is_member(user)
         
         return False

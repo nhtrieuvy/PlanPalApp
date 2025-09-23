@@ -1,7 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-/// CreateFriendRequest model matching backend FriendRequestSerializer
-/// Represents a friend request payload sent from client to server
 class FriendRequest extends Equatable {
   final String friendId;
   final String? message;

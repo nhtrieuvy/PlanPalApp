@@ -3,9 +3,9 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.db import models, transaction
 from django.core.exceptions import ValidationError, PermissionDenied
-from rest_framework.exceptions import ValidationError as DRFValidationError
 from datetime import datetime
 import logging
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from rest_framework import viewsets, status, generics, mixins
 from rest_framework.decorators import action
@@ -30,7 +30,7 @@ from .permissions import (
     ChatMessagePermission, FriendshipPermission, UserProfilePermission,
     IsGroupMember, IsGroupAdmin, PlanActivityPermission, ConversationPermission,
     CanNotTargetSelf, CanViewUserProfile, CanManageFriendship, 
-    CanEditMyPlans, IsOwnerOrGroupAdmin, CanJoinPlan, CanAccessPlan, CanModifyPlan
+    IsOwnerOrGroupAdmin, CanJoinPlan, CanAccessPlan, CanModifyPlan
 )
 
 from .services import UserService, GroupService, PlanService, ChatService, ConversationService
@@ -481,11 +481,6 @@ class GroupViewSet(viewsets.GenericViewSet,
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupMember])
     def send_message(self, request, pk=None):
-        """
-        Send message to group.
-        
-        Same interface as ConversationViewSet.send_message for consistency.
-        """
         group = self.get_object()
         
         # Check group membership
@@ -586,7 +581,7 @@ class GroupViewSet(viewsets.GenericViewSet,
 class PlanViewSet(viewsets.ModelViewSet):
     serializer_class = PlanSerializer
     permission_classes = [IsAuthenticated, PlanPermission]
-    pagination_class = StandardResultsPagination
+    pagination_class = ActivityCursorPagination
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -625,9 +620,21 @@ class PlanViewSet(viewsets.ModelViewSet):
             )
         
         serializer.instance = plan
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+
+        data = serializer.validated_data
+
+        try:
+            updated = PlanService.update_plan(instance, data, user=self.request.user)
+        except ValidationError as e:
+            raise DRFValidationError(str(e))
+
+        serializer.instance = updated
     
     
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, CanEditMyPlans])
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my_plans(self, request):
         queryset = self.get_queryset()
         plan_type = request.query_params.get('type', 'all')
@@ -835,14 +842,6 @@ class FriendRequestView(generics.CreateAPIView):
             
             if not success:
                 return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
-
-            try:
-                NotificationService.notify_friend_request(
-                    friend_id, 
-                    request.user.get_full_name()
-                )
-            except Exception:
-                pass
             
             friendship = Friendship.objects.between_users(request.user, friend).first()
             return Response({
@@ -857,7 +856,7 @@ class FriendRequestView(generics.CreateAPIView):
 class FriendRequestListView(generics.ListAPIView):
     serializer_class = FriendshipSerializer
     permission_classes = [IsAuthenticated]
-    
+    pagination_class = StandardResultsPagination
     def get_queryset(self):
         return Friendship.objects.filter(
             models.Q(user_a=self.request.user) | models.Q(user_b=self.request.user),
@@ -907,15 +906,6 @@ class FriendRequestActionView(APIView):
 
                 if not success:
                     return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
-
-                if action == 'accept':
-                    try:
-                        NotificationService.notify_friend_request_accepted(
-                            initiator.id, 
-                            request.user.get_full_name()
-                        )
-                    except Exception:
-                        pass
                 
                 friendship.refresh_from_db()
                 
@@ -957,10 +947,6 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
         ).select_related('sender', 'conversation__group')
     
     def create(self, request, *args, **kwargs):
-        """
-        Create a new message in a group conversation.
-        Supports both multipart/form-data for file uploads and JSON for text messages.
-        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
@@ -1133,7 +1119,7 @@ class ConversationViewSet(viewsets.GenericViewSet,
                          mixins.CreateModelMixin):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = None  # No pagination for conversations list
+    pagination_class = StandardResultsPagination
     
     def get_queryset(self):
         return ConversationService.get_user_conversations(self.request.user)
@@ -1322,7 +1308,7 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
                           mixins.DestroyModelMixin):
     serializer_class = PlanActivitySerializer
     permission_classes = [IsAuthenticated, PlanActivityPermission]
-    pagination_class = ActivityCursorPagination  # Use cursor pagination for activities
+    pagination_class = ActivityCursorPagination
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -1708,14 +1694,6 @@ class EnhancedGroupViewSet(GroupViewSet):
                 message_type=message_type
             )
             
-            # Send push notification to group members
-            NotificationService.notify_new_message(
-                group_id=str(group.id),
-                sender_name=request.user.username,
-                message_preview=content[:100],
-                sender_id=str(request.user.id)
-            )
-            
             serializer = ChatMessageSerializer(message)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
             
@@ -1770,14 +1748,8 @@ class EnhancedPlanViewSet(PlanViewSet):
             )
 
 
-# ============================================================================
-# MINIMAP LOCATION VIEWS - Enhanced location services for minimap integration
-# ============================================================================
-
 class LocationReverseGeocodeView(APIView):
-    """
-    API endpoint for reverse geocoding coordinates to address
-    """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -1850,9 +1822,6 @@ class LocationReverseGeocodeView(APIView):
 
 
 class LocationSearchView(APIView):
-    """
-    API endpoint for searching places
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -1891,9 +1860,6 @@ class LocationSearchView(APIView):
 
 
 class LocationAutocompleteView(APIView):
-    """
-    API endpoint for place autocomplete suggestions
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -1912,7 +1878,6 @@ class LocationAutocompleteView(APIView):
             if goong_service.is_available():
                 suggestions = goong_service.autocomplete(input_text)
                 
-                # Format suggestions for frontend
                 predictions = []
                 for suggestion in suggestions:
                     predictions.append({
@@ -1920,8 +1885,6 @@ class LocationAutocompleteView(APIView):
                         'description': suggestion.get('description', ''),
                         'structured_formatting': suggestion.get('structured_formatting', {}),
                         'types': suggestion.get('types', []),
-                        # Note: Goong autocomplete doesn't return coordinates directly
-                        # You would need to call place details API to get coordinates
                         'latitude': None,
                         'longitude': None,
                     })
@@ -1941,9 +1904,6 @@ class LocationAutocompleteView(APIView):
 
 
 class LocationPlaceDetailsView(APIView):
-    """
-    API endpoint for getting place details by place_id
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):

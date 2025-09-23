@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// removed color_utils; use withAlpha directly
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/theme/app_colors.dart';
@@ -35,13 +36,13 @@ class EmptyState extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                color: theme.colorScheme.surfaceContainerHighest.withAlpha(75),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
                 icon,
                 size: 40,
-                color: theme.colorScheme.onSurface.withOpacity(0.4),
+                color: theme.colorScheme.onSurface.withAlpha(100),
               ),
             ),
             const SizedBox(height: 24),
@@ -59,7 +60,7 @@ class EmptyState extends StatelessWidget {
               subtitle,
               style: GoogleFonts.inter(
                 fontSize: 16,
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withAlpha(175),
               ),
               textAlign: TextAlign.center,
             ),
@@ -119,7 +120,7 @@ class ErrorState extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withAlpha(25),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -143,7 +144,7 @@ class ErrorState extends StatelessWidget {
               subtitle,
               style: GoogleFonts.inter(
                 fontSize: 16,
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withAlpha(175),
               ),
               textAlign: TextAlign.center,
             ),

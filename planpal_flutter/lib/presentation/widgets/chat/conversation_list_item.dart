@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+// removed color_utils; use withAlpha directly
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/dtos/conversation.dart';
@@ -63,7 +64,7 @@ class ConversationListItem extends StatelessWidget {
           ),
           child: CircleAvatar(
             radius: 26,
-            backgroundColor: theme.colorScheme.surfaceVariant,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
             child: conversation.avatarUrl.isNotEmpty
                 ? CachedNetworkImage(
                     imageUrl: conversation.avatarUrl,
@@ -109,8 +110,8 @@ class ConversationListItem extends StatelessWidget {
         shape: BoxShape.circle,
         gradient: LinearGradient(
           colors: [
-            theme.colorScheme.primary.withOpacity(0.3),
-            theme.colorScheme.secondary.withOpacity(0.3),
+            theme.colorScheme.primary.withAlpha(75),
+            theme.colorScheme.secondary.withAlpha(75),
           ],
         ),
       ),
@@ -244,7 +245,7 @@ class ConversationListItem extends StatelessWidget {
     return Icon(
       conversation.isDirect ? PhosphorIcons.user() : PhosphorIcons.users(),
       size: 14,
-      color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+      color: theme.colorScheme.surfaceContainerHighest.withAlpha(125),
     );
   }
 }

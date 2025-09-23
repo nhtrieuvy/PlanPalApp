@@ -3,7 +3,6 @@ import 'user_summary.dart';
 import 'group_summary.dart';
 import 'chat_message.dart';
 
-/// Conversation type enum matching backend
 enum ConversationType {
   direct('direct'),
   group('group');
@@ -19,7 +18,6 @@ enum ConversationType {
   }
 }
 
-/// Other participant info for direct conversations
 class OtherParticipant extends Equatable {
   final String id;
   final String username;

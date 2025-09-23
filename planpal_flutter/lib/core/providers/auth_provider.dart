@@ -216,7 +216,6 @@ class AuthProvider extends ChangeNotifier {
           final profile = await repo.getProfile();
           setUser(profile);
 
-          // Initialize Firebase and register token after successful login
           await _initializeFirebaseAfterLogin();
         } catch (e) {
           debugPrint('Login profile fetch failed: $e');
@@ -227,7 +226,6 @@ class AuthProvider extends ChangeNotifier {
     } on DioException catch (e) {
       final res = e.response;
       if (res != null) {
-        debugPrint('Login error data: ${res.data}');
 
         if (res.data is Map) {
           final errorType = res.data['error'];
@@ -264,34 +262,17 @@ class AuthProvider extends ChangeNotifier {
       debugPrint('Logout API error: $e');
     } finally {
       await _clearSession();
-      // Reset Firebase service on logout
       FirebaseService.instance.reset();
     }
   }
 
-  /// Initialize Firebase and register device token after login
   Future<void> _initializeFirebaseAfterLogin() async {
     if (_token == null) return;
 
     try {
-      debugPrint('AuthProvider: Initializing Firebase after login...');
+      await FirebaseService.instance.initialize();
 
-      // Initialize Firebase service
-      final initialized = await FirebaseService.instance.initialize();
-      if (!initialized) {
-        debugPrint('AuthProvider: Firebase initialization failed');
-        return;
-      }
-
-      // Register FCM token with backend
-      final registered = await FirebaseService.instance.registerToken(_token!);
-      if (registered) {
-        debugPrint('AuthProvider: FCM token registered successfully');
-      } else {
-        debugPrint(
-          'AuthProvider: FCM token registration failed (token may be unavailable on emulator)',
-        );
-      }
+      await FirebaseService.instance.registerToken(_token!);
     } catch (e) {
       debugPrint('AuthProvider: Firebase initialization error: $e');
     }
