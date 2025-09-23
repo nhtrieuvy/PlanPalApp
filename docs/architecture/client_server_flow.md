@@ -59,7 +59,8 @@ sequenceDiagram
     Celery->>External: send notifications or create events
   end
 
-  Note over Client,Channels,API: 4) Chat message send/receive (realtime)
+  Note over Client,Channels: 4) Chat message send/receive (realtime)
+  Note over Channels,API: ConversationService persists and validates messages
   Client->>Channels: WebSocket send message
   Channels->>API: receive and persist (ConversationService)
   API->>DB: insert message
@@ -74,7 +75,8 @@ sequenceDiagram
   External-->>Firebase: deliver push to device
   Firebase-->>Client: onMessage / onMessageOpenedApp
 
-  Note over Client,API,OAuth: 6) Logout (preserve partial success)
+  Note over Client,API: 6) Logout (preserve partial success)
+  Note over API,OAuth: Token revocation handled by OAuth provider
   Client->>API: POST /oauth/logout (Authorization)
   API->>DB: select AccessToken (select_for_update inside transaction)
   alt Token found and revoked
