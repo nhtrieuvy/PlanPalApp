@@ -354,6 +354,46 @@ class GroupRepository {
   //   }
   // }
 
+  // API rời nhóm
+  Future<void> leaveGroup(String groupId) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(Endpoints.groupLeave(groupId)),
+      );
+      if (res.statusCode == 200) {
+        _detailCache.remove(groupId);
+        return;
+      }
+      _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) _throwApiError(r);
+      rethrow;
+    }
+  }
+
+  // API xóa thành viên khỏi nhóm
+  Future<void> removeMember(String groupId, RemoveMemberRequest request) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(
+          Endpoints.groupRemoveMember(groupId),
+          data: request.toJson(),
+        ),
+      );
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        // Clear cache để reload dữ liệu mới
+        _detailCache.remove(groupId);
+        return;
+      }
+      _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) _throwApiError(r);
+      rethrow;
+    }
+  }
+
   // Cache management
   void clearCache() {
     _detailCache.clear();

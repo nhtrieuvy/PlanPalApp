@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/dtos/group_model.dart';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/group_requests.dart';
+import '../../../core/services/error_display_service.dart';
 
 class GroupFormPage extends StatefulWidget {
   final Map<String, dynamic>? initial;
@@ -63,9 +64,7 @@ class _GroupFormPageState extends State<GroupFormPage> {
     } catch (e) {
       setState(() => _loadingFriends = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể tải danh sách bạn bè: $e')),
-        );
+        ErrorDisplayService.handleError(context, e);
       }
     }
   }
@@ -82,11 +81,9 @@ class _GroupFormPageState extends State<GroupFormPage> {
 
     // Check minimum members for new group
     if (widget.initial == null && _selectedMembers.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cần ít nhất 2 thành viên để tạo nhóm'),
-          backgroundColor: Colors.redAccent,
-        ),
+      ErrorDisplayService.showWarningSnackbar(
+        context,
+        'Cần ít nhất 2 thành viên để tạo nhóm',
       );
       return;
     }
@@ -168,9 +165,7 @@ class _GroupFormPageState extends State<GroupFormPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ErrorDisplayService.handleError(context, e, showDialog: true);
     } finally {
       if (mounted) {
         setState(() => _submitting = false);

@@ -51,3 +51,11 @@ class AddMemberRequest {
 
   Map<String, dynamic> toJson() => {'user_id': userId};
 }
+
+class RemoveMemberRequest {
+  final String userId;
+
+  RemoveMemberRequest({required this.userId});
+
+  Map<String, dynamic> toJson() => {'user_id': userId};
+}

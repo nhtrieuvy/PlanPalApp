@@ -19,13 +19,14 @@ class ConversationProvider extends ChangeNotifier {
   String? _error;
   bool _isLoading = false;
 
-  // Typing indicators for conversations
   final Map<String, Set<String>> _typingUsers = {};
   final Map<String, Timer?> _typingTimers = {};
 
-  // Pagination cursors for messages
   final Map<String, String?> _nextCursors = {};
   final Map<String, bool> _hasMoreMessages = {};
+
+  List<Conversation>? _searchResults;
+  Timer? _searchDebounce;
 
   // Getters
   List<Conversation> get conversations => List.unmodifiable(_conversations);
@@ -37,17 +38,14 @@ class ConversationProvider extends ChangeNotifier {
     return List.unmodifiable(_messages[conversationId] ?? []);
   }
 
-  /// Check if conversation is loading
   bool isConversationLoading(String conversationId) {
     return _loadingStates[conversationId] ?? false;
   }
 
-  /// Get typing users for a conversation
   Set<String> getTypingUsers(String conversationId) {
     return Set.unmodifiable(_typingUsers[conversationId] ?? {});
   }
 
-  /// Check if there are more messages to load
   bool hasMoreMessages(String conversationId) {
     return _hasMoreMessages[conversationId] ?? false;
   }
@@ -75,6 +73,35 @@ class ConversationProvider extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+
+  void searchConversationsRemote(String query) {
+    _searchDebounce?.cancel();
+    if (query.isEmpty) {
+      // Clear search state (no search performed)
+      _searchResults = null;
+      notifyListeners();
+      return;
+    }
+
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final response = await _repository.getConversations(query: query);
+        _searchResults = response.conversations;
+      
+        notifyListeners();
+      } catch (e) {
+        // Ignore search errors silently, keep previous results
+      }
+    });
+  }
+
+  /// Return server-side search results when available; otherwise fall back to
+  /// the full conversations list.
+  List<Conversation> get searchResults {
+    if (_searchResults != null) return List.unmodifiable(_searchResults!);
+    return List.unmodifiable(_conversations);
   }
 
   Future<void> refreshConversation(String conversationId) async {
@@ -451,7 +478,11 @@ class ConversationProvider extends ChangeNotifier {
 extension ConversationProviderExtensions on ConversationProvider {
   /// Search conversations by name or participant
   List<Conversation> searchConversations(String query) {
+    // Prefer server-side search results when available; otherwise fall back
+    // to in-memory filtering for backward compatibility.
     if (query.isEmpty) return conversations;
+
+    if (_searchResults != null) return List.unmodifiable(_searchResults!);
 
     final lowercaseQuery = query.toLowerCase();
     return conversations.where((conversation) {

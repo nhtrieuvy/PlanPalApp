@@ -8,6 +8,7 @@ import 'package:planpal_flutter/core/dtos/plan_requests.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import '../../../core/dtos/group_summary.dart';
 import '../../../core/dtos/plan_model.dart';
+import '../../../core/services/error_display_service.dart';
 
 class PlanFormPage extends StatefulWidget {
   final Map<String, dynamic>? initial;
@@ -119,8 +120,9 @@ class _PlanFormPageState extends State<PlanFormPage> {
     if (_startDate != null &&
         _endDate != null &&
         _endDate!.isBefore(_startDate!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ngày kết thúc phải sau ngày bắt đầu')),
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        'Ngày kết thúc phải sau ngày bắt đầu',
       );
       return;
     }
@@ -183,9 +185,7 @@ class _PlanFormPageState extends State<PlanFormPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ErrorDisplayService.handleError(context, e, showDialog: true);
     } finally {
       if (mounted) {
         setState(() => _submitting = false);

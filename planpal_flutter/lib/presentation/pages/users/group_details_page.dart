@@ -14,6 +14,7 @@ import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/plan_summary.dart';
 import '../../../core/dtos/group_requests.dart';
 import '../../../core/dtos/conversation.dart';
+import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'plan_form_page.dart';
 import 'plan_details_page.dart';
@@ -36,6 +37,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   bool isLoading = true;
   bool isLoadingPlans = false;
   String? error;
+  bool _hasChanges = false;
 
   @override
   void initState() {
@@ -50,13 +52,16 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
     await _loadGroupData();
   }
 
-  Future<void> _loadGroupData() async {
+  Future<void> _loadGroupData({bool forceRefresh = false}) async {
     try {
       setState(() {
         isLoading = true;
         error = null;
       });
-      final data = await repo.getGroupDetail(widget.id);
+      final data = await repo.getGroupDetail(
+        widget.id,
+        forceRefresh: forceRefresh,
+      );
       setState(() {
         groupData = data;
         isLoading = false;
@@ -82,9 +87,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
     } catch (e) {
       setState(() => isLoadingPlans = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Không thể tải kế hoạch: $e')));
+        ErrorDisplayService.handleError(context, e);
       }
     }
   }
@@ -120,11 +123,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
         Navigator.of(context).pop();
 
         // Reload group data to show updated cover
-        await _loadGroupData();
+        await _loadGroupData(forceRefresh: true);
+        _hasChanges = true;
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ảnh bìa đã được cập nhật')),
+        ErrorDisplayService.showSuccessSnackbar(
+          context,
+          'Ảnh bìa đã được cập nhật',
         );
       }
     } catch (e) {
@@ -133,9 +138,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
       Navigator.of(context).pop();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ErrorDisplayService.handleError(context, e);
     }
   }
 
@@ -147,7 +150,23 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
     if (isLoading) return _buildLoading();
     if (error != null) return _buildError(context, error!);
 
-    return Scaffold(body: _buildContent(context, groupData!, theme));
+    // Suppress deprecation warning for WillPopScope on older SDKs.
+    // If you upgrade Flutter to v3.12+ we can replace this with PopScope.
+    // ignore: deprecated_member_use
+    return WillPopScope(
+      onWillPop: () async {
+        // If changes were made on this page, return the updated group so
+        // the caller can refresh its list without re-entering.
+        if (_hasChanges && groupData != null) {
+          Navigator.of(
+            context,
+          ).pop({'action': 'updated', 'group': groupData!.toJson()});
+          return false; // we already popped
+        }
+        return true;
+      },
+      child: Scaffold(body: _buildContent(context, groupData!, theme)),
+    );
   }
 
   Widget _buildLoading() {
@@ -517,6 +536,43 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
               ],
             ),
             if (members.isNotEmpty) ...[
+              // Instruction for admin
+              if (isAdmin) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.blue.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Colors.blue[700],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Nhấn vào thành viên để xóa khỏi nhóm',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
@@ -543,40 +599,123 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
                                   .toUpperCase())
                             : '?');
                   final avatar = member.avatarUrl ?? '';
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: AppColors.primary.withValues(
-                          alpha: 0.1,
-                        ),
-                        backgroundImage: avatar.isNotEmpty
-                            ? CachedNetworkImageProvider(avatar)
-                            : null,
-                        child: avatar.isEmpty
-                            ? Text(
-                                initials,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
+                  final isCurrentUserAdmin =
+                      groupData!.admin.id ==
+                      context.read<AuthProvider>().user?.id;
+                  final isMemberAdmin = member.id == groupData!.admin.id;
+
+                  return GestureDetector(
+                    onTap: isCurrentUserAdmin && !isMemberAdmin
+                        ? () => _showMemberOptions(member)
+                        : null,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: isCurrentUserAdmin && !isMemberAdmin
+                            ? Border.all(
+                                color: Colors.grey.withValues(alpha: 0.3),
                               )
                             : null,
                       ),
-                      const SizedBox(height: 4),
-                      SizedBox(
-                        width: 72,
-                        child: Text(
-                          display,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12),
-                        ),
+                      padding: const EdgeInsets.all(4),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 28,
+                                backgroundColor: AppColors.primary.withValues(
+                                  alpha: 0.1,
+                                ),
+                                backgroundImage: avatar.isNotEmpty
+                                    ? CachedNetworkImageProvider(avatar)
+                                    : null,
+                                child: avatar.isEmpty
+                                    ? Text(
+                                        initials,
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primary,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              // Admin badge
+                              if (isMemberAdmin)
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.all(2),
+                                    child: const Icon(
+                                      Icons.star,
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              // Remove indicator for admin
+                              if (isCurrentUserAdmin && !isMemberAdmin)
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.all(2),
+                                    child: const Icon(
+                                      Icons.remove,
+                                      size: 10,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          SizedBox(
+                            width: 72,
+                            child: Text(
+                              display,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          if (isCurrentUserAdmin && !isMemberAdmin)
+                            const SizedBox(
+                              width: 72,
+                              child: Text(
+                                'Nhấn để xóa',
+                                maxLines: 1,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                    ],
+                    ),
                   );
                 }).toList(),
               ),
@@ -788,6 +927,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   }
 
   void _navigateToPlanDetail(PlanSummary plan) {
+    // debug: log plan id before navigating to details
+    // ignore: avoid_print
+    print('GroupDetails: navigating to plan id=${plan.id}');
     Navigator.of(context)
         .push<Map<String, dynamic>>(
           MaterialPageRoute(builder: (context) => PlanDetailsPage(id: plan.id)),
@@ -843,9 +985,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không tìm thấy cuộc trò chuyện: $e')),
-        );
+        ErrorDisplayService.handleError(context, e);
       }
     }
   }
@@ -934,45 +1074,82 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   }
 
   Widget _buildActionButtons(BuildContext context, GroupModel g) {
-    return Row(
-      children: [
-        Expanded(
-          child: FloatingActionButton.extended(
-            onPressed: () {
-              Navigator.of(context).pop({
-                'action': 'edit',
-                'group': {
-                  'id': g.id,
-                  'name': g.name,
-                  'description': g.description,
-                  'avatar_url': g.avatarUrl,
-                  'cover_image_url': g.coverImageUrl,
-                  'member_count': g.memberCount,
-                },
-              });
-            },
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            icon: const Icon(Icons.edit),
-            label: const Text('Chỉnh sửa'),
-            heroTag: 'edit_group',
+    final currentUser = context.read<AuthProvider>().user;
+    final isAdmin = g.admin.id == currentUser?.id;
+
+    if (isAdmin) {
+      // Admin có thể chỉnh sửa, xóa nhóm và rời nhóm
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: FloatingActionButton.extended(
+                  onPressed: () {
+                    Navigator.of(context).pop({
+                      'action': 'edit',
+                      'group': {
+                        'id': g.id,
+                        'name': g.name,
+                        'description': g.description,
+                        'avatar_url': g.avatarUrl,
+                        'cover_image_url': g.coverImageUrl,
+                        'member_count': g.memberCount,
+                      },
+                    });
+                  },
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Chỉnh sửa'),
+                  heroTag: 'edit_group',
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: FloatingActionButton.extended(
+                  onPressed: () {
+                    Navigator.of(context).pop({'action': 'delete', 'id': g.id});
+                  },
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Xóa nhóm'),
+                  heroTag: 'delete_group',
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: FloatingActionButton.extended(
-            onPressed: () {
-              Navigator.of(context).pop({'action': 'delete', 'id': g.id});
-            },
-            backgroundColor: Colors.redAccent,
-            foregroundColor: Colors.white,
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Xóa nhóm'),
-            heroTag: 'delete_group',
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _showLeaveGroupDialog(g),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.orange,
+                side: const BorderSide(color: Colors.orange),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.exit_to_app),
+              label: const Text('Rời nhóm'),
+            ),
           ),
+        ],
+      );
+    } else {
+      // Thành viên thường chỉ có thể rời nhóm
+      return SizedBox(
+        width: double.infinity,
+        child: FloatingActionButton.extended(
+          onPressed: () => _showLeaveGroupDialog(g),
+          backgroundColor: Colors.redAccent,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.exit_to_app),
+          label: const Text('Rời nhóm'),
+          heroTag: 'leave_group',
         ),
-      ],
-    );
+      );
+    }
   }
 
   Future<void> _showAddMemberDialog() async {
@@ -1006,7 +1183,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
         loading: loading,
         error: error,
         onAddMember: (friendId) async {
-          final scaffoldMessenger = ScaffoldMessenger.of(context);
           final navigator = Navigator.of(context);
 
           try {
@@ -1014,18 +1190,219 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
             await repo.addMember(widget.id, req);
             if (!mounted) return;
             navigator.pop();
-            _loadGroupData(); // Reload group data
+            await _loadGroupData(forceRefresh: true); // Reload group data
+            _hasChanges = true;
             if (!mounted) return;
-            scaffoldMessenger.showSnackBar(
-              const SnackBar(content: Text('Đã thêm thành viên thành công')),
+            ErrorDisplayService.showSuccessSnackbar(
+              context,
+              'Đã thêm thành viên thành công',
             );
           } catch (e) {
             if (!mounted) return;
-            scaffoldMessenger.showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+            ErrorDisplayService.handleError(context, e);
           }
         },
       ),
     );
+  }
+
+  // Dialog xác nhận rời nhóm
+  Future<void> _showLeaveGroupDialog(GroupModel group) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rời nhóm'),
+        content: Text('Bạn có chắc chắn muốn rời khỏi nhóm "${group.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Rời nhóm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _leaveGroup(group);
+    }
+  }
+
+  // Dialog tùy chọn cho thành viên (admin sử dụng)
+  Future<void> _showMemberOptions(UserSummary member) async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  backgroundImage: member.avatarUrl?.isNotEmpty == true
+                      ? CachedNetworkImageProvider(member.avatarUrl!)
+                      : null,
+                  child: member.avatarUrl?.isEmpty != false
+                      ? Text(
+                          member.initials,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        member.fullName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        '@${member.username}',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Divider(),
+            const SizedBox(height: 10),
+
+            // Remove member option
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.person_remove,
+                  color: Colors.red,
+                  size: 20,
+                ),
+              ),
+              title: const Text(
+                'Xóa khỏi nhóm',
+                style: TextStyle(color: Colors.red),
+              ),
+              subtitle: const Text(
+                'Thành viên sẽ không còn truy cập được nhóm',
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                _showRemoveMemberDialog(member);
+              },
+            ),
+
+            const SizedBox(height: 10),
+
+            // Cancel button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Hủy'),
+              ),
+            ),
+
+            // Safe area bottom
+            SizedBox(height: MediaQuery.of(context).padding.bottom),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Dialog xác nhận xóa thành viên
+  Future<void> _showRemoveMemberDialog(UserSummary member) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa thành viên'),
+        content: Text(
+          'Bạn có chắc chắn muốn xóa "${member.fullName}" khỏi nhóm?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _removeMember(member);
+    }
+  }
+
+  // Thực hiện rời nhóm
+  Future<void> _leaveGroup(GroupModel group) async {
+    try {
+      final navigator = Navigator.of(context);
+      await repo.leaveGroup(group.id);
+
+      if (!mounted) return;
+      _hasChanges = true;
+      navigator.pop({'action': 'left', 'id': group.id});
+
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        'Đã rời nhóm thành công',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ErrorDisplayService.handleError(context, e, showDialog: true);
+    }
+  }
+
+  // Thực hiện xóa thành viên
+  Future<void> _removeMember(UserSummary member) async {
+    try {
+      final request = RemoveMemberRequest(userId: member.id);
+      await repo.removeMember(widget.id, request);
+
+      if (!mounted) return;
+      await _loadGroupData(forceRefresh: true); // Reload group data
+      _hasChanges = true;
+
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        'Đã xóa "${member.fullName}" khỏi nhóm',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ErrorDisplayService.handleError(context, e, showDialog: true);
+    }
   }
 
   // Helper removed: use backend-provided 'initials' when available; inline fallback computed where needed.

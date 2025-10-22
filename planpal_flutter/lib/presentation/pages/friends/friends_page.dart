@@ -6,6 +6,7 @@ import '../../../core/repositories/friend_repository.dart';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/friendship.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'user_profile_page.dart';
 
@@ -61,9 +62,7 @@ class _FriendsPageState extends State<FriendsPage>
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingFriends = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi tải danh sách bạn bè: $e')));
+      ErrorDisplayService.handleError(context, e);
     }
   }
 
@@ -80,9 +79,7 @@ class _FriendsPageState extends State<FriendsPage>
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingRequests = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi tải lời mời kết bạn: $e')));
+      ErrorDisplayService.handleError(context, e);
     }
   }
 
@@ -98,15 +95,14 @@ class _FriendsPageState extends State<FriendsPage>
             request.friend,
           ); // friend field represents the other user (initiator in this case)
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã chấp nhận lời mời kết bạn')),
+        ErrorDisplayService.showSuccessSnackbar(
+          context,
+          'Đã chấp nhận lời mời kết bạn',
         );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ErrorDisplayService.handleError(context, e);
     }
   }
 
@@ -119,15 +115,14 @@ class _FriendsPageState extends State<FriendsPage>
         setState(() {
           _friendRequests.removeWhere((r) => r.id == request.id);
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã từ chối lời mời kết bạn')),
+        ErrorDisplayService.showSuccessSnackbar(
+          context,
+          'Đã từ chối lời mời kết bạn',
         );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ErrorDisplayService.handleError(context, e);
     }
   }
 

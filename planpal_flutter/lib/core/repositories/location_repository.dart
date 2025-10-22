@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 
@@ -88,7 +87,6 @@ class LocationRepository {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting place details: $e');
       return null;
     }
   }
