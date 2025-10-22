@@ -8,6 +8,7 @@ import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/dtos/plan_activity_requests.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/presentation/pages/location/location_picker_page.dart';
+import 'package:planpal_flutter/core/services/error_display_service.dart';
 
 class ActivityFormPage extends StatefulWidget {
   final String planId;
@@ -539,17 +540,26 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
     // Check authentication first
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isLoggedIn) {
-      _showError('Bạn cần đăng nhập để tạo hoạt động.');
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        'Bạn cần đăng nhập để tạo hoạt động.',
+      );
       return;
     }
 
     if (_startTime == null || _endTime == null) {
-      _showError('Vui lòng chọn thời gian bắt đầu và kết thúc');
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        'Vui lòng chọn thời gian bắt đầu và kết thúc',
+      );
       return;
     }
 
     if (_endTime!.isBefore(_startTime!)) {
-      _showError('Thời gian kết thúc phải sau thời gian bắt đầu');
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        'Thời gian kết thúc phải sau thời gian bắt đầu',
+      );
       return;
     }
 
@@ -578,40 +588,26 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
       await _repo.createActivity(request);
 
       if (mounted) {
-        _showSuccess('Tạo hoạt động thành công!');
+        ErrorDisplayService.showSuccessSnackbar(
+          context,
+          'Tạo hoạt động thành công!',
+        );
         Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Không thể tạo hoạt động. Vui lòng thử lại.';
-
-        // Extract detailed error message
-        if (e.toString().contains('401')) {
-          errorMessage = 'Bạn cần đăng nhập để tạo hoạt động.';
-        } else if (e.toString().contains('403')) {
-          errorMessage = 'Bạn không có quyền tạo hoạt động cho kế hoạch này.';
-        } else if (e.toString().contains('400')) {
-          errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
-        }
-
-        _showError('$errorMessage\nLỗi chi tiết: ${e.toString()}');
+        // Sử dụng ErrorDisplayService để hiển thị lỗi thân thiện
+        ErrorDisplayService.handleError(
+          context,
+          e,
+          showDialog: true,
+          onRetry: _submitForm,
+        );
       }
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
       }
     }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
-  }
-
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green),
-    );
   }
 }

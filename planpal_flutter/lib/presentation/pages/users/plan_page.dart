@@ -8,6 +8,7 @@ import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart'
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../core/dtos/plan_summary.dart';
+import '../../../core/services/error_display_service.dart';
 // Removed local PlanStatus mapping; use backend status + status_display
 
 class PlanPage extends StatefulWidget {
@@ -78,8 +79,9 @@ class _PlanPageState extends State<PlanPage> with RefreshablePage<PlanPage> {
         );
         if (!mounted) return;
         setState(() => _plans = [summary, ..._plans]);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tạo kế hoạch thành công')),
+        ErrorDisplayService.showSuccessSnackbar(
+          context,
+          'Tạo kế hoạch thành công',
         );
       } catch (_) {}
     }
@@ -104,8 +106,9 @@ class _PlanPageState extends State<PlanPage> with RefreshablePage<PlanPage> {
               .map((p) => p.id == updatedSummary.id ? updatedSummary : p)
               .toList(),
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cập nhật kế hoạch thành công')),
+        ErrorDisplayService.showSuccessSnackbar(
+          context,
+          'Cập nhật kế hoạch thành công',
         );
       } catch (_) {}
     }
@@ -134,14 +137,10 @@ class _PlanPageState extends State<PlanPage> with RefreshablePage<PlanPage> {
       await _repo.deletePlan(ps.id);
       if (!mounted) return;
       setState(() => _plans = _plans.where((p) => p.id != ps.id).toList());
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Đã xoá kế hoạch')));
+      ErrorDisplayService.showSuccessSnackbar(context, 'Đã xoá kế hoạch');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ErrorDisplayService.handleError(context, e);
     }
   }
 
@@ -158,9 +157,7 @@ class _PlanPageState extends State<PlanPage> with RefreshablePage<PlanPage> {
       // Remove locally without re-calling the API (already deleted in details)
       if (!mounted) return;
       setState(() => _plans = _plans.where((p) => p.id != ps.id).toList());
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Đã xoá kế hoạch')));
+      ErrorDisplayService.showSuccessSnackbar(context, 'Đã xoá kế hoạch');
       return;
     }
 
@@ -176,8 +173,9 @@ class _PlanPageState extends State<PlanPage> with RefreshablePage<PlanPage> {
               .map((p) => p.id == updatedSummary.id ? updatedSummary : p)
               .toList(),
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cập nhật kế hoạch thành công')),
+        ErrorDisplayService.showSuccessSnackbar(
+          context,
+          'Cập nhật kế hoạch thành công',
         );
       } catch (_) {}
     }

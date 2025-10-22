@@ -5,7 +5,6 @@ from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.files.uploadedfile import UploadedFile
 from typing import Dict, List, Optional, Tuple, Any
 import logging
-import os
 import re
 from oauth2_provider.models import AccessToken, RefreshToken
 from django.db.models import Q
@@ -24,8 +23,6 @@ from .serializers import UserSerializer,ChatMessageSerializer, PlanActivitySumma
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from .integrations import NotificationService
-
-from django.core.files.uploadedfile import UploadedFile
 
 logger = logging.getLogger(__name__)
 
@@ -1697,21 +1694,6 @@ def is_local_path(attachment_value: str) -> bool:
     
     return False
 
-
-def validate_attachment_value(attachment_value: Any) -> str:
-    if isinstance(attachment_value, UploadedFile):
-        # This will be handled by CloudinaryField - return a marker
-        return 'uploaded_file'
-    elif isinstance(attachment_value, str):
-        attachment_value = attachment_value.strip()
-        if is_local_path(attachment_value):
-            raise ValidationError(
-                "Local file paths are not allowed. Please upload the file via multipart request."
-            )
-        # Allow HTTP URLs and Cloudinary public IDs
-        return attachment_value
-    else:
-        raise ValidationError("Attachment must be a file upload or valid URL/public_id")
 
 
 class ConversationService(BaseService):

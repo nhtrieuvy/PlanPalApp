@@ -8,6 +8,7 @@ import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart
 import 'package:planpal_flutter/presentation/pages/users/group_form_page.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../core/dtos/group_summary.dart';
+import '../../../core/services/error_display_service.dart';
 
 class GroupPage extends StatefulWidget {
   const GroupPage({super.key});
@@ -35,7 +36,7 @@ class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
   }
 
   Future<void> _loadGroups() async {
-    if (_loading) return; // avoid duplicate concurrent loads
+    if (_loading) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -46,7 +47,8 @@ class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
       setState(() => _groups = data);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Lỗi: $e');
+      setState(() => _error = 'Lỗi tải nhóm');
+      ErrorDisplayService.handleError(context, e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -66,106 +68,7 @@ class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
       } catch (_) {}
       if (!mounted || created == null) return;
       setState(() => _groups = [created!, ..._groups]);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Tạo nhóm thành công')));
-    }
-  }
-
-  void _onEditGroup(GroupSummary g) async {
-    final navigator = Navigator.of(context); // capture before awaits
-    Map<String, dynamic>? initial;
-    final needDetail = true; // always fetch if more fields might be needed
-    if (needDetail && g.id.isNotEmpty) {
-      try {
-        final detail = await _repo.getGroupDetail(g.id);
-        initial = {
-          'id': detail.id,
-          'name': detail.name,
-          'description': detail.description,
-          'avatar_url': detail.avatarUrl, // may be null
-          'cover_image_url': detail.coverImageUrl,
-        };
-      } catch (_) {
-        // fallback silently
-      }
-    }
-    final result = await navigator.push<Map<String, dynamic>>(
-      MaterialPageRoute(
-        builder: (_) => GroupFormPage(
-          initial:
-              initial ??
-              {
-                'id': g.id,
-                'name': g.name,
-                'description': g.description,
-                'avatar_url': g.avatarUrl,
-              },
-        ),
-      ),
-    );
-    if (result != null &&
-        result['action'] == 'updated' &&
-        result['group'] != null) {
-      final updatedRaw = Map<String, dynamic>.from(result['group'] as Map);
-      GroupSummary? updated;
-      try {
-        updated = GroupSummary.fromJson(updatedRaw);
-      } catch (_) {}
-      final id = updatedRaw['id'];
-      if (!mounted) return;
-      // Evict cached images for this group so the list will show fresh images
-      try {
-        final avatar = (updatedRaw['avatar_url'] ?? '') as String;
-        final cover = (updatedRaw['cover_image_url'] ?? '') as String;
-        if (avatar.isNotEmpty) CachedNetworkImage.evictFromCache(avatar);
-        if (cover.isNotEmpty) CachedNetworkImage.evictFromCache(cover);
-      } catch (_) {}
-      if (updated != null) {
-        setState(
-          () =>
-              _groups = _groups.map((e) => e.id == id ? updated! : e).toList(),
-        );
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Cập nhật nhóm thành công')));
-    }
-  }
-
-  void _onDeleteGroup(GroupSummary g) async {
-    final id = g.id;
-    if (id.isEmpty) return;
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Xoá nhóm'),
-        content: Text("Bạn chắc chắn muốn xoá nhóm '${g.name}'?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Huỷ'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Xoá'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-    try {
-      await _repo.deleteGroup(id);
-      if (!mounted) return;
-      setState(() => _groups = _groups.where((e) => e.id != id).toList());
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Đã xoá nhóm')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ErrorDisplayService.showSuccessSnackbar(context, 'Tạo nhóm thành công');
     }
   }
 
@@ -344,16 +247,6 @@ class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
                         ],
                       ),
                     ),
-                    PopupMenuButton<String>(
-                      onSelected: (v) {
-                        if (v == 'edit') _onEditGroup(g);
-                        if (v == 'delete') _onDeleteGroup(g);
-                      },
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(value: 'edit', child: Text('Sửa')),
-                        PopupMenuItem(value: 'delete', child: Text('Xoá')),
-                      ],
-                    ),
                   ],
                 ),
 
@@ -400,40 +293,40 @@ class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
 
   Future<void> _handleGroupTap(GroupSummary g) async {
     final id = g.id;
-    if (id.isNotEmpty) {
-      final action = await Navigator.of(context).push<Map<String, dynamic>>(
-        MaterialPageRoute(builder: (_) => GroupDetailsPage(id: id)),
+    if (id.isEmpty) return;
+
+    final action = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(builder: (_) => GroupDetailsPage(id: id)),
+    );
+
+    // Xử lý các action trả về từ group details page
+    if (!mounted || action == null) return;
+
+    // Nếu user rời nhóm, xóa khỏi danh sách
+    if (action['action'] == 'left' && action['id'] == id) {
+      setState(() {
+        _groups = _groups.where((group) => group.id != id).toList();
+      });
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        'Đã rời nhóm thành công',
       );
-      if (action != null) {
-        if (action['action'] == 'delete' && action['id'] == id) {
-          _onDeleteGroup(g);
-        } else if (action['action'] == 'edit') {
-          _onEditGroup(g);
-        } else if (action['action'] == 'left' && action['id'] == id) {
-          // User left the group, remove it from the list
-          setState(() {
-            _groups = _groups.where((group) => group.id != id).toList();
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Đã rời nhóm thành công')),
-            );
-          }
-        } else if (action['action'] == 'updated' && action['group'] is Map) {
-          try {
-            final updatedGroupRaw = Map<String, dynamic>.from(
-              action['group'] as Map,
-            );
-            final updatedSummary = GroupSummary.fromJson(updatedGroupRaw);
-            setState(() {
-              _groups = _groups
-                  .map(
-                    (grp) => grp.id == updatedSummary.id ? updatedSummary : grp,
-                  )
-                  .toList();
-            });
-          } catch (_) {}
-        }
+    }
+    // Nếu có cập nhật thông tin nhóm, reload danh sách
+    else if (action['action'] == 'updated' && action['group'] is Map) {
+      try {
+        final updatedGroupRaw = Map<String, dynamic>.from(
+          action['group'] as Map,
+        );
+        final updatedSummary = GroupSummary.fromJson(updatedGroupRaw);
+        setState(() {
+          _groups = _groups
+              .map((grp) => grp.id == updatedSummary.id ? updatedSummary : grp)
+              .toList();
+        });
+      } catch (_) {
+        // Nếu parse lỗi, reload toàn bộ danh sách
+        await _loadGroups();
       }
     }
   }

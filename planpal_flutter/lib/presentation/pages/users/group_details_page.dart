@@ -14,6 +14,7 @@ import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/plan_summary.dart';
 import '../../../core/dtos/group_requests.dart';
 import '../../../core/dtos/conversation.dart';
+import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'plan_form_page.dart';
 import 'plan_details_page.dart';
@@ -86,9 +87,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
     } catch (e) {
       setState(() => isLoadingPlans = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Không thể tải kế hoạch: $e')));
+        ErrorDisplayService.handleError(context, e);
       }
     }
   }
@@ -128,8 +127,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
         _hasChanges = true;
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ảnh bìa đã được cập nhật')),
+        ErrorDisplayService.showSuccessSnackbar(
+          context,
+          'Ảnh bìa đã được cập nhật',
         );
       }
     } catch (e) {
@@ -138,9 +138,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
       Navigator.of(context).pop();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ErrorDisplayService.handleError(context, e);
     }
   }
 
@@ -987,9 +985,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không tìm thấy cuộc trò chuyện: $e')),
-        );
+        ErrorDisplayService.handleError(context, e);
       }
     }
   }
@@ -1187,7 +1183,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
         loading: loading,
         error: error,
         onAddMember: (friendId) async {
-          final scaffoldMessenger = ScaffoldMessenger.of(context);
           final navigator = Navigator.of(context);
 
           try {
@@ -1198,12 +1193,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
             await _loadGroupData(forceRefresh: true); // Reload group data
             _hasChanges = true;
             if (!mounted) return;
-            scaffoldMessenger.showSnackBar(
-              const SnackBar(content: Text('Đã thêm thành viên thành công')),
+            ErrorDisplayService.showSuccessSnackbar(
+              context,
+              'Đã thêm thành viên thành công',
             );
           } catch (e) {
             if (!mounted) return;
-            scaffoldMessenger.showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+            ErrorDisplayService.handleError(context, e);
           }
         },
       ),
@@ -1372,46 +1368,40 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   // Thực hiện rời nhóm
   Future<void> _leaveGroup(GroupModel group) async {
     try {
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
       final navigator = Navigator.of(context);
-      final r = repo; // use instance-level repo
-      await r.leaveGroup(group.id);
+      await repo.leaveGroup(group.id);
 
       if (!mounted) return;
       _hasChanges = true;
       navigator.pop({'action': 'left', 'id': group.id});
 
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('Đã rời nhóm thành công')),
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        'Đã rời nhóm thành công',
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi khi rời nhóm: $e')));
+      ErrorDisplayService.handleError(context, e, showDialog: true);
     }
   }
 
   // Thực hiện xóa thành viên
   Future<void> _removeMember(UserSummary member) async {
     try {
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
-      final r = repo; // use instance-level repo
       final request = RemoveMemberRequest(userId: member.id);
-      await r.removeMember(widget.id, request);
+      await repo.removeMember(widget.id, request);
 
       if (!mounted) return;
       await _loadGroupData(forceRefresh: true); // Reload group data
       _hasChanges = true;
 
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Đã xóa "${member.fullName}" khỏi nhóm')),
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        'Đã xóa "${member.fullName}" khỏi nhóm',
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi khi xóa thành viên: $e')));
+      ErrorDisplayService.handleError(context, e, showDialog: true);
     }
   }
 

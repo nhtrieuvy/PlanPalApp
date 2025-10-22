@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:planpal_flutter/core/providers/auth_provider.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 

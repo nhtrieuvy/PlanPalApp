@@ -9,6 +9,7 @@ import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import '../../../core/dtos/plan_model.dart';
 import '../../../core/dtos/plan_activity.dart';
+import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../plans/activity_form_page.dart';
 import '../plans/plan_schedule_page.dart';
@@ -295,10 +296,9 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                             // reload details from API and return updated result to caller
                             await _load(refresh: true);
                             if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Cập nhật kế hoạch thành công'),
-                              ),
+                            ErrorDisplayService.showSuccessSnackbar(
+                              context,
+                              'Cập nhật kế hoạch thành công',
                             );
                             Navigator.of(context).pop({
                               'action': 'updated',
@@ -356,13 +356,16 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                             Navigator.of(
                               context,
                             ).pop({'action': 'delete', 'id': p.id});
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Đã xoá kế hoạch')),
+                            ErrorDisplayService.showSuccessSnackbar(
+                              context,
+                              'Đã xoá kế hoạch',
                             );
                           } catch (e) {
                             if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Lỗi khi xoá: $e')),
+                            ErrorDisplayService.handleError(
+                              context,
+                              e,
+                              showDialog: true,
                             );
                           }
                         },

@@ -84,6 +84,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'planpals.paginators.StandardResultsPagination',
     'PAGE_SIZE': 20,
+    'EXCEPTION_HANDLER': 'planpals.exception_handler.custom_exception_handler',
 }
 
 OAUTH2_PROVIDER = {
