@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.db import models, transaction
 from django.core.exceptions import ValidationError, PermissionDenied
 from datetime import datetime
@@ -1784,8 +1785,22 @@ class EnhancedPlanViewSet(PlanViewSet):
             )
         
         try:
-            start_time = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-            end_time = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+            # Parse datetime with timezone awareness
+            # DRF's ISO 8601 parser handles timezone correctly
+            start_time_str = start_time.replace('Z', '+00:00') if isinstance(start_time, str) else start_time
+            end_time_str = end_time.replace('Z', '+00:00') if isinstance(end_time, str) else end_time
+            
+            start_time = parse_datetime(start_time_str)
+            end_time = parse_datetime(end_time_str)
+            
+            if not start_time or not end_time:
+                raise ValueError("Invalid datetime format")
+            
+            # Ensure timezone-aware datetimes
+            if timezone.is_naive(start_time):
+                start_time = timezone.make_aware(start_time)
+            if timezone.is_naive(end_time):
+                end_time = timezone.make_aware(end_time)
             
             # Extract extra fields
             extra_fields = {k: v for k, v in request.data.items() 

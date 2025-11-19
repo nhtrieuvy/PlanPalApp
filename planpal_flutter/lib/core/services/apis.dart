@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 
-const String baseUrl = 'http://10.0.2.2:8000';
+// Production backend on Fly.io
+const String baseUrl = 'https://planpal-backend.fly.dev';
+// Local development: 'http://10.0.2.2:8000'
 
 class Endpoints {
   // OAuth2 endpoints
@@ -91,7 +93,8 @@ class ApiClient {
       baseUrl: baseUrl,
       headers: {if (token != null) 'Authorization': 'Bearer $token'},
       connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 30),
+      sendTimeout: const Duration(seconds: 15),
     );
     _dio = Dio(options);
   }

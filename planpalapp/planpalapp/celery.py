@@ -22,7 +22,17 @@ app.autodiscover_tasks()
 def worker_ready_handler(sender, **kwargs):
     """Log worker configuration when ready"""
     print(f"[WORKER READY] Worker {sender.hostname} is ready")
-    print(f"[WORKER READY] Queues: {getattr(sender.consumer.task_consumer, 'queues', 'unknown')}")
+    # Safely get queues without assuming sender.consumer.task_consumer exists
+    try:
+        consumer = getattr(sender, 'consumer', None)
+        if consumer:
+            task_consumer = getattr(consumer, 'task_consumer', None)
+            queues = getattr(task_consumer, 'queues', 'unknown') if task_consumer else 'unknown'
+        else:
+            queues = 'unknown'
+        print(f"[WORKER READY] Queues: {queues}")
+    except Exception as e:
+        print(f"[WORKER READY] Queues: (unable to determine - {e})")
     print(f"[WORKER READY] Registered tasks: {list(sender.app.tasks.keys())}")
 
 @app.task(bind=True)

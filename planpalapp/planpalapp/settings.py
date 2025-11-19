@@ -15,6 +15,7 @@ import os
 from dotenv import load_dotenv
 import cloudinary
 from urllib.parse import quote_plus
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -36,8 +37,12 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-for-developme
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['10.0.2.2', 'localhost', '127.0.0.1', '192.168.1.41']
+ALLOWED_HOSTS = ['10.0.2.2', 'localhost', '127.0.0.1', '192.168.1.41', 'planpal-backend.fly.dev']
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://planpal-backend.fly.dev",
+    "http://planpal-backend.fly.dev",
+]
 
 # Application definition
 
@@ -67,6 +72,7 @@ MIDDLEWARE = [
     'oauth2_provider.middleware.OAuth2TokenMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -85,6 +91,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'planpals.paginators.StandardResultsPagination',
     'PAGE_SIZE': 20,
     'EXCEPTION_HANDLER': 'planpals.exception_handler.custom_exception_handler',
+    # Datetime format settings to ensure timezone-aware serialization
+    'DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%S%z',  # ISO 8601 with timezone
+    'DATETIME_INPUT_FORMATS': [
+        'iso-8601',  # Support ISO 8601 format with timezone
+        '%Y-%m-%dT%H:%M:%S%z',
+        '%Y-%m-%dT%H:%M:%S.%f%z',
+        '%Y-%m-%dT%H:%M:%S',
+        '%Y-%m-%dT%H:%M:%S.%f',
+    ],
 }
 
 OAUTH2_PROVIDER = {
@@ -123,16 +138,46 @@ WSGI_APPLICATION = 'planpalapp.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '3306'),
+# Support DATABASE_URL for production (Aiven MySQL) and .env for local
+if os.getenv('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.getenv('DATABASE_URL'),
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+    # Fix SSL parameter for mysqlclient - convert ssl-mode to ssl dict
+    if 'OPTIONS' not in DATABASES['default']:
+        DATABASES['default']['OPTIONS'] = {}
+    # Remove invalid ssl-mode parameter and add proper SSL config
+    DATABASES['default']['OPTIONS'].pop('ssl-mode', None)
+    DATABASES['default']['OPTIONS']['ssl'] = {'ssl_mode': 'REQUIRED'}
+else:
+    # Fallback for local development without DATABASE_URL
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv('DB_NAME'),
+            'USER': os.getenv('DB_USER'),
+            'PASSWORD': os.getenv('DB_PASSWORD'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '3306'),
+        }
+    }
+
+# else:
+#     # Local development
+#     DATABASES = {
+#         'default': {
+#             'ENGINE': 'django.db.backends.mysql',
+#             'NAME': os.getenv('DB_NAME'),
+#             'USER': os.getenv('DB_USER'),
+#             'PASSWORD': os.getenv('DB_PASSWORD'),
+#             'HOST': os.getenv('DB_HOST', 'localhost'),
+#             'PORT': os.getenv('DB_PORT', '3306'),
+#         }
+#     }
 
 AUTH_USER_MODEL = 'planpals.User'
 
@@ -160,7 +205,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# Timezone configuration - Asia/Ho_Chi_Minh (UTC+7)
+TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
 USE_I18N = True
 
@@ -170,7 +216,18 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # For collectstatic in production
+
+# WhiteNoise configuration for serving static files efficiently
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -233,8 +290,8 @@ GOONG_API_KEY = os.getenv('GOONG_API_KEY')
 # OVERPASS_API_URL = os.getenv('OVERPASS_API_URL', 'https://overpass-api.de/api/interpreter')
 
 # Firebase Cloud Messaging Configuration
-FIREBASE_SERVICE_ACCOUNT_PATH = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH')
-FCM_PROJECT_ID = os.getenv('FCM_PROJECT_ID')
+FIREBASE_SERVICE_ACCOUNT_PATH = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH', './firebase_service_account.json')
+FCM_PROJECT_ID = os.getenv('FCM_PROJECT_ID', 'alapp-ffa74')
 
 # Email configuration for notifications
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -347,11 +404,21 @@ CLIENT_ID = os.getenv('CLIENT_ID')
 # ============================================================================
 # CELERY SETTINGS
 # ============================================================================
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-REDIS_PORT = os.getenv('REDIS_PORT', '6379')
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
-TIME_ZONE = "Asia/Ho_Chi_Minh"
-USE_TZ = True
+# Prioritize REDIS_URL (for Fly production), fallback to REDIS_HOST/PORT/PASSWORD (for local)
+REDIS_URL_ENV = os.getenv('REDIS_URL')
+if REDIS_URL_ENV:
+    CELERY_REDIS_URL = REDIS_URL_ENV
+else:
+    REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+    REDIS_PORT = os.getenv('REDIS_PORT', '6379')
+    REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
+    # Build Redis URL for local development
+    if REDIS_PASSWORD:
+        CELERY_REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
+    else:
+        CELERY_REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+
+# TIME_ZONE and USE_TZ are already configured above in Internationalization section
 
 CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
 CELERY_TASK_TRACK_STARTED = True
@@ -359,9 +426,6 @@ CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
-# Build Redis URL for Celery (handles optional password and special characters)
-
-CELERY_REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
 
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 

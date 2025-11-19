@@ -7,11 +7,10 @@ import logging
 from typing import Dict, Any
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from .events import RealtimeEvent, EventType, ChannelGroups
-from .models import Plan, Group, User, Conversation, ChatMessage, MessageReadStatus
 
+# DO NOT import models here! Import them inside methods to avoid AppRegistryNotReady
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,8 @@ class BaseRealtimeConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope["user"]
         
-        if isinstance(self.user, AnonymousUser):
+        # Check if user is authenticated
+        if not self.user or not self.user.is_authenticated:
             await self.close(code=4001)  # Unauthorized
             return
 
@@ -150,6 +150,7 @@ class PlanConsumer(BaseRealtimeConsumer):
     @database_sync_to_async
     def check_plan_access(self, plan_id: str, user_id: str) -> bool:
         """Check if user has access to plan"""
+        from .models import Plan
         try:
             plan = Plan.objects.get(id=plan_id)
             
@@ -172,6 +173,7 @@ class PlanConsumer(BaseRealtimeConsumer):
     @database_sync_to_async
     def get_plan_data(self, plan_id: str) -> Dict[str, Any]:
         """Get current plan data"""
+        from .models import Plan
         try:
             plan = Plan.objects.get(id=plan_id)
             return {
@@ -213,6 +215,7 @@ class GroupConsumer(BaseRealtimeConsumer):
     @database_sync_to_async
     def check_group_membership(self, group_id: str, user_id: str) -> bool:
         """Check if user is member of group"""
+        from .models import Group
         try:
             group = Group.objects.get(id=group_id)
             return group.members.filter(id=user_id).exists()
@@ -333,6 +336,7 @@ class ChatConsumer(BaseRealtimeConsumer):
     @database_sync_to_async
     def check_conversation_access(self, conversation_id: str, user_id: str) -> bool:
         """Check if user has access to conversation"""
+        from .models import Conversation, User
         try:
             conversation = Conversation.objects.get(id=conversation_id)
             user = User.objects.get(id=user_id)
@@ -349,6 +353,7 @@ class ChatConsumer(BaseRealtimeConsumer):
     @database_sync_to_async
     def mark_messages_read(self, message_ids: list):
         """Mark messages as read by current user"""
+        from .models import ChatMessage, MessageReadStatus
         try:
             
             messages = ChatMessage.objects.filter(

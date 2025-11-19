@@ -78,9 +78,11 @@ class LastMessage extends Equatable {
   factory LastMessage.fromJson(Map<String, dynamic> json) {
     return LastMessage(
       id: json['id'] as String,
-      content: json['content'] as String,
-      messageType: MessageType.fromString(json['message_type'] as String),
-      sender: json['sender'] as String,
+      content: (json['content'] as String?) ?? '',
+      messageType: MessageType.fromString(
+        (json['message_type'] as String?) ?? 'text',
+      ),
+      sender: (json['sender'] as String?) ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -153,22 +155,26 @@ class Conversation extends Equatable {
     return Conversation(
       id: json['id'] as String,
       conversationType: ConversationType.fromString(
-        json['conversation_type'] as String,
+        (json['conversation_type'] as String?) ?? 'direct',
       ),
       name: json['name'] as String?,
       avatar: json['avatar'] as String?,
-      avatarUrl: json['avatar_url'] as String,
+      avatarUrl: (json['avatar_url'] as String?) ?? '',
       group: json['group'] != null
           ? GroupSummary.fromJson(json['group'] as Map<String, dynamic>)
           : null,
-      participants: (json['participants'] as List<dynamic>)
-          .map((item) => UserSummary.fromJson(item as Map<String, dynamic>))
-          .toList(),
+      participants:
+          (json['participants'] as List<dynamic>?)
+              ?.map(
+                (item) => UserSummary.fromJson(item as Map<String, dynamic>),
+              )
+              .toList() ??
+          [],
       lastMessageAt: json['last_message_at'] != null
           ? DateTime.parse(json['last_message_at'] as String)
           : null,
-      isActive: json['is_active'] as bool,
-      unreadCount: json['unread_count'] as int,
+      isActive: (json['is_active'] as bool?) ?? true,
+      unreadCount: (json['unread_count'] as int?) ?? 0,
       lastMessage: json['last_message'] != null
           ? LastMessage.fromJson(json['last_message'] as Map<String, dynamic>)
           : null,
