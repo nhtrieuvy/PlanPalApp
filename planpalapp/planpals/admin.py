@@ -387,7 +387,7 @@ class ChatMessageAdmin(admin.ModelAdmin):
     content_preview.short_description = 'Nội dung'
     
     def has_attachment(self, obj):
-        return "✓" if obj.has_attachment else "✗"
+        return bool(obj.attachment)
     has_attachment.short_description = 'File'
     has_attachment.boolean = True
     

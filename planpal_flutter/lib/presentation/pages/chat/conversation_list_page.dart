@@ -10,6 +10,7 @@ import '../../widgets/common/loading_state.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'chat_page.dart';
+import '../friends/friend_search_page.dart';
 
 class ConversationListPage extends StatefulWidget {
   const ConversationListPage({super.key});
@@ -493,9 +494,9 @@ class _ConversationListPageState extends State<ConversationListPage>
   }
 
   void _navigateToFriends() {
-    // TODO: Navigate to friends page or show friend selection
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Friends page not implemented yet')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const FriendSearchPage()),
     );
   }
 }

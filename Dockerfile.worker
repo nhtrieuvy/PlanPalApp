@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    gcc default-libmysqlclient-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY planpalapp /app/
+
+RUN mkdir -p /app/logs
+
+# Use solo pool for low-memory environments (Fly.io 256MB)
+# Solo = single process, no forking, minimal memory footprint
+CMD celery -A planpalapp worker --loglevel=debug --pool=solo --queues=plan_status,default

@@ -35,8 +35,10 @@ class CreatePlanActivityRequest {
       'title': title,
       'description': description,
       'activity_type': activityType,
-      'start_time': startTime.toIso8601String(),
-      'end_time': endTime.toIso8601String(),
+      // Convert local time to UTC for backend storage
+      // This ensures timezone-aware serialization
+      'start_time': startTime.toUtc().toIso8601String(),
+      'end_time': endTime.toUtc().toIso8601String(),
     };
 
     if (latitude != null) {
@@ -99,10 +101,12 @@ class UpdatePlanActivityRequest {
       data['activity_type'] = activityType;
     }
     if (startTime != null) {
-      data['start_time'] = startTime!.toIso8601String();
+      // Convert local time to UTC for backend storage
+      data['start_time'] = startTime!.toUtc().toIso8601String();
     }
     if (endTime != null) {
-      data['end_time'] = endTime!.toIso8601String();
+      // Convert local time to UTC for backend storage
+      data['end_time'] = endTime!.toUtc().toIso8601String();
     }
     if (latitude != null) {
       data['latitude'] = double.parse(latitude!.toStringAsFixed(6));

@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-
 double? _parseNullableDouble(dynamic v) {
   if (v == null) return null;
   if (v is num) return v.toDouble();
@@ -67,11 +66,12 @@ class PlanActivity extends Equatable {
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString(),
       activityType: json['activity_type']?.toString() ?? '',
+      // Parse datetime from backend (UTC) and convert to local time for display
       startTime: json['start_time'] != null
-          ? DateTime.tryParse(json['start_time'].toString())
+          ? DateTime.tryParse(json['start_time'].toString())?.toLocal()
           : null,
       endTime: json['end_time'] != null
-          ? DateTime.tryParse(json['end_time'].toString())
+          ? DateTime.tryParse(json['end_time'].toString())?.toLocal()
           : null,
       durationMinutes: json['duration_minutes']?.toInt(),
       locationName: json['location_name']?.toString(),
@@ -154,8 +154,9 @@ class PlanActivity extends Equatable {
       'title': title,
       'description': description,
       'activity_type': activityType,
-      'start_time': startTime?.toIso8601String(),
-      'end_time': endTime?.toIso8601String(),
+      // Convert local time back to UTC for backend
+      'start_time': startTime?.toUtc().toIso8601String(),
+      'end_time': endTime?.toUtc().toIso8601String(),
       'duration_minutes': durationMinutes,
       'location_name': locationName,
       'location_address': locationAddress,

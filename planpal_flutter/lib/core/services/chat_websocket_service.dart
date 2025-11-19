@@ -51,7 +51,9 @@ enum ConnectionState {
 
 /// WebSocket service for realtime chat
 class ChatWebSocketService {
-  static const String baseWsUrl = 'ws://10.0.2.2:8000';
+  // Production WebSocket on Fly.io
+  static const String baseWsUrl = 'wss://planpal-backend.fly.dev';
+  // Local development: 'ws://10.0.2.2:8000'
 
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
