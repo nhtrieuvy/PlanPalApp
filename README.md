@@ -11,7 +11,7 @@
 | Platform | Link |
 |----------|------|
 | 📱 **Android APK** | [Download v1.0.0](https://github.com/trieuvyynXLe0/PlanPalApp/releases/latest) *(55MB)* |
-| 🌐 **Live API** | [planpal-backend.fly.dev](https://planpal-backend.fly.dev) |
+| 🌐 **Live API** | [planpal-backend.fly.dev](https://planpal-backend.fly.dev/swagger) |
 | 🔧 **Admin Panel** | [Admin Login](https://planpal-backend.fly.dev/admin) |
 
 ---
