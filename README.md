@@ -15,7 +15,22 @@
 | 🔧 **Admin Panel** | [Admin Login](https://planpal-backend.fly.dev/admin) |
 
 ---
-## NOTE: The app is NOT unavailable between 10:00pm - 06:00am ⏲️
+## Demo Account:
+**Account 1 (Admin Account):**
+username: admin |
+password: 123
+(You can login the Admin Panel)
+
+**Account 2:**
+username: u1 |
+password: 12345678
+
+**Account 3:**
+username: u2 |
+password: 12345678
+
+---
+## NOTE: The app is NOT available between 11:00 PM and 7:00 AM. ⏲️
 ---
 
 ## ⚡ Quick Start
@@ -110,20 +125,6 @@ Bạn sẽ thấy output của cả 3 services:
 - `[program:redis]` - Redis server (local)
 - `[program:celery]` - Celery worker
 - `[program:daphne]` - Web server (Django)
-
----
-
-## 📚 API Endpoints
-
-| Endpoint | Description |
-|----------|-------------|
-| `POST /api/token/` | Get access token |
-| `GET /api/users/me/` | Current user profile |
-| `GET /api/plans/` | List travel plans |
-| `GET /api/groups/` | List groups |
-| `GET /api/conversations/` | List chats |
-
-**Full docs**: [planpal-backend.fly.dev/api](https://planpal-backend.fly.dev/api)
 
 ---
 
