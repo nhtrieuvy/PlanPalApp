@@ -2,8 +2,8 @@ name: Stop PlanPal App (Nighttime)
 
 on:
   schedule:
-    # Chạy lúc 17:00 UTC = 00:00 ICT (UTC+7)
-    - cron: '0 17 * * *'
+    # Chạy lúc 15:00 UTC = 22:00 ICT (UTC+7)
+    - cron: '0 15 * * *'
   
   # Cho phép chạy thủ công từ Actions tab
   workflow_dispatch:
