@@ -15,6 +15,8 @@
 | 🔧 **Admin Panel** | [Admin Login](https://planpal-backend.fly.dev/admin) |
 
 ---
+## NOTE: The app is NOT unavailable between 10:00pm - 06:00am ⏲️
+---
 
 ## ⚡ Quick Start
 
