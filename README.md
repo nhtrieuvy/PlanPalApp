@@ -204,7 +204,9 @@ MIT License - see [LICENSE](LICENSE) file
 
 <div align="center">
 
-**Made with ❤️ using Flutter & Django**
+**Made with using Flutter & Django**
+
+**Thanks for taking the time to read ❤️**
 
 [⬆ Back to Top](#-planpal---travel-planning-platform)
 
