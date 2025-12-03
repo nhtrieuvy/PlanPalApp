@@ -71,7 +71,7 @@ flyctl deploy -a planpal-backend  # Deploy tất cả: Redis + Backend + Worker
 |-------|------------|
 | 📱 **Mobile** | Flutter, Dart |
 | 🔧 **Backend** | Django REST, Python |
-| 💾 **Database** | MySQL (Prod), SQLite (Dev) |
+| 💾 **Database** | MySQL (Prod)|
 | 🔄 **Cache/Queue** | Redis, Celery |
 | ☁️ **Cloud** | Fly.io, Cloudinary |
 | 🗺️ **Maps** | Goong Maps API |
@@ -96,7 +96,7 @@ flyctl deploy -a planpal-backend  # Deploy tất cả: Redis + Backend + Worker
 ### 💬 Chat
 - Group messaging
 - Media attachments
-
+- Chat realtime
 ---
 
 ## 📦 Build & Deploy
@@ -194,13 +194,6 @@ PlanPalApp/
 **Nguyen Hoang Trieu Vy**  
 GitHub: [@nhtrieuvy](https://github.com/nhtrieuvy)
 
----
-
-## 📜 License
-
-MIT License - see [LICENSE](LICENSE) file
-
----
 
 <div align="center">
 
