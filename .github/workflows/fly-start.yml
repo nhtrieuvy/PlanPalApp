@@ -1,0 +1,36 @@
+name: Start PlanPal App (Morning)
+
+on:
+  schedule:
+    # Chạy lúc 23:00 UTC = 06:00 ICT (UTC+7)
+    - cron: '0 23 * * *'
+  
+  # Cho phép chạy thủ công từ Actions tab
+  workflow_dispatch:
+
+jobs:
+  start-app:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      
+      - name: Start PlanPal Backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Starting planpal-backend (scaling to 1)..."
+          flyctl scale count 1 -a planpal-backend --yes
+          echo "✅ App started successfully at $(date)"
+          
+      - name: Wait for app to be healthy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Waiting for app to become healthy..."
+          sleep 30
+          flyctl status -a planpal-backend

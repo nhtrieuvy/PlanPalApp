@@ -1,0 +1,113 @@
+# ============================
+# Python / Django
+# ============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.log
+*.pot
+*.pyc
+db.sqlite3
+local_settings.py
+
+# Media / static
+media/
+staticfiles/
+static/
+
+# Virtual environment
+venv/
+ENV/
+env/
+.venv/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Unit test / coverage
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+*.py,cover
+.cache
+nosetests.xml
+test_*.xml
+
+# Environment variables
+.env
+*.env
+
+# ============================
+# Flutter / Dart
+# ============================
+# Flutter/Dart build
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# Android
+android/.gradle/
+android/app/build/
+android/local.properties
+android/key.properties
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+
+# Web
+web/.dart_tool/
+web/.packages
+
+# ============================
+# Node.js (nếu dùng thêm)
+# ============================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================
+# Secrets / API keys
+# ============================
+
+firebase_service_account.json
+google-services.json
+
+*.keystore
+*.jks
+
+# ============================
+# Test / Debug files
+# ============================
+test_*.py
+run_all.sh
+start_daphne.sh
+Dockerfile.allinone
+fly.allinone.toml
+
+# ============================
+# Backup files
+# ============================
+*.backup
+*.bak
+
+# ============================
+# Logs
+# ============================
+logs/
+planpalapp/logs/

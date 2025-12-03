@@ -1,0 +1,28 @@
+name: Stop PlanPal App (Nighttime)
+
+on:
+  schedule:
+    # Chạy lúc 17:00 UTC = 00:00 ICT (UTC+7)
+    - cron: '0 17 * * *'
+  
+  # Cho phép chạy thủ công từ Actions tab
+  workflow_dispatch:
+
+jobs:
+  stop-app:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+      
+      - name: Stop PlanPal Backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Stopping planpal-backend (scaling to 0)..."
+          flyctl scale count 0 -a planpal-backend --yes
+          echo "✅ App stopped successfully at $(date)"
