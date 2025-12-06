@@ -3,7 +3,7 @@ name: Start PlanPal App (Morning)
 on:
   schedule:
     # Chạy lúc 00:00 UTC = 07:00 ICT (UTC+7)
-    - cron: '0 23 * * *'
+    - cron: '30 23 * * *'
   
   # Cho phép chạy thủ công từ Actions tab
   workflow_dispatch:
