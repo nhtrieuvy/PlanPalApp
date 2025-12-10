@@ -30,7 +30,7 @@ username: u2 |
 password: 12345678
 
 ---
-## NOTE: The app is NOT available between 11:00 PM and 8:00 AM. ⏲️
+## NOTE: The app is NOT available between 11:00 PM and 8:30 AM. ⏲️
 ---
 
 ## ⚡ Quick Start
