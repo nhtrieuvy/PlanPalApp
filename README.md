@@ -101,8 +101,6 @@ flyctl deploy -a planpal-backend  # Deploy tất cả: Redis + Backend + Worker
 
 ## 📦 Build & Deploy
 
-## 📦 Build & Deploy
-
 ### 📱 Android APK
 ```bash
 cd planpal_flutter
