@@ -5,16 +5,18 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-from .views import (
-    OAuth2LogoutView, UserViewSet, GroupViewSet,
-    PlanViewSet, ChatMessageViewSet, ConversationViewSet, PlanActivityViewSet,
-    # Friendship views (class-based, not ViewSet)
+from planpals.auth.presentation.views import (
+    OAuth2LogoutView, UserViewSet,
     FriendRequestView, FriendRequestListView, FriendRequestActionView, FriendsListView,
-    # Location/Places API views (using Goong Map API)
-    PlacesSearchView, PlaceDetailsView, NearbyPlacesView, 
-    PlaceAutocompleteView, GeocodeView, SendNotificationView,
-    # Enhanced location views for minimap
-    LocationReverseGeocodeView, LocationSearchView, LocationAutocompleteView, LocationPlaceDetailsView
+)
+from planpals.plans.presentation.views import PlanViewSet, PlanActivityViewSet
+from planpals.groups.presentation.views import GroupViewSet
+from planpals.chat.presentation.views import ChatMessageViewSet, ConversationViewSet
+from planpals.notifications.presentation.views import SendNotificationView
+from planpals.locations.presentation.views import (
+    PlacesSearchView, PlaceDetailsView, NearbyPlacesView,
+    PlaceAutocompleteView, GeocodeView,
+    LocationReverseGeocodeView, LocationSearchView, LocationAutocompleteView, LocationPlaceDetailsView,
 )
 
 # Router cho ViewSets

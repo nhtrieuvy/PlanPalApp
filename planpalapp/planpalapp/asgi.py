@@ -11,7 +11,7 @@ django_asgi_app = get_asgi_application()
 
 # NOW we can import Django models
 from channels.routing import ProtocolTypeRouter, URLRouter
-from planpals.websocket_auth import TokenAuthMiddlewareStack
+from planpals.auth.infrastructure.websocket_auth import TokenAuthMiddlewareStack
 from planpals.routing import get_websocket_urlpatterns  # ← FIX: Import function
 
 application = ProtocolTypeRouter({

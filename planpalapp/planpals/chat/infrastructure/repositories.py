@@ -1,0 +1,203 @@
+"""
+Chat Infrastructure — Django ORM Repository Implementations
+"""
+import logging
+from typing import Optional, Any, List, Dict
+from uuid import UUID
+
+from django.db.models import Q, Exists, OuterRef
+
+from planpals.chat.domain.repositories import ConversationRepository, ChatMessageRepository
+from planpals.chat.infrastructure.models import Conversation, ChatMessage, MessageReadStatus
+
+logger = logging.getLogger(__name__)
+
+
+class DjangoConversationRepository(ConversationRepository):
+    """Django ORM implementation of ConversationRepository."""
+
+    def get_by_id(self, conversation_id: UUID) -> Optional[Conversation]:
+        try:
+            return Conversation.objects.select_related('group', 'user_a', 'user_b').get(
+                id=conversation_id,
+            )
+        except Conversation.DoesNotExist:
+            return None
+
+    def get_user_conversations(self, user_id: UUID) -> Any:
+        return (
+            Conversation.objects
+            .for_user(user_id)
+            .active()
+            .with_last_message()
+            .order_by('-last_message_at')
+        )
+
+    def search_conversations(self, user_id: UUID, query: str) -> Any:
+        return (
+            Conversation.objects
+            .for_user(user_id)
+            .active()
+            .filter(
+                Q(name__icontains=query)
+                | Q(group__name__icontains=query)
+                | Q(user_a__username__icontains=query)
+                | Q(user_b__username__icontains=query)
+            )
+            .with_last_message()
+            .order_by('-last_message_at')
+        )
+
+    def get_direct_conversation(self, user1_id: UUID, user2_id: UUID) -> Optional[Conversation]:
+        return Conversation.objects.get_direct_conversation(user1_id, user2_id)
+
+    def create_direct_conversation(self, user1_id: UUID, user2_id: UUID) -> Conversation:
+        conv = Conversation(
+            conversation_type='direct',
+            user_a_id=user1_id,
+            user_b_id=user2_id,
+        )
+        conv.save()  # canonical ordering handled in Conversation.save()
+        return conv
+
+    def create_group_conversation(self, group: Any) -> Conversation:
+        conv = Conversation(
+            conversation_type='group',
+            group=group,
+            name=group.name,
+        )
+        conv.save()
+        return conv
+
+    def get_group_conversation(self, group_id: UUID) -> Optional[Conversation]:
+        try:
+            return Conversation.objects.select_related('group').get(
+                conversation_type='group',
+                group_id=group_id,
+            )
+        except Conversation.DoesNotExist:
+            return None
+
+    def can_user_access(self, conversation_id: UUID, user_id: UUID) -> bool:
+        try:
+            conv = Conversation.objects.select_related('group').get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return False
+
+        if conv.conversation_type == 'group' and conv.group:
+            return conv.group.is_member(user_id)
+        elif conv.conversation_type == 'direct':
+            return user_id in [conv.user_a_id, conv.user_b_id]
+        return False
+
+
+class DjangoChatMessageRepository(ChatMessageRepository):
+    """Django ORM implementation of ChatMessageRepository."""
+
+    def get_by_id(self, message_id: UUID) -> Optional[ChatMessage]:
+        try:
+            return ChatMessage.objects.select_related(
+                'sender', 'conversation', 'reply_to',
+            ).get(id=message_id)
+        except ChatMessage.DoesNotExist:
+            return None
+
+    def get_conversation_messages(
+        self,
+        conversation_id: UUID,
+        limit: int = 50,
+        before_id: UUID = None,
+    ) -> Dict[str, Any]:
+        qs = (
+            ChatMessage.objects
+            .filter(conversation_id=conversation_id, is_deleted=False)
+            .select_related('sender', 'reply_to', 'reply_to__sender')
+            .order_by('-created_at')
+        )
+
+        if before_id:
+            try:
+                cursor_msg = ChatMessage.objects.get(id=before_id)
+                qs = qs.filter(created_at__lt=cursor_msg.created_at)
+            except ChatMessage.DoesNotExist:
+                pass
+
+        messages = list(qs[:limit + 1])
+        has_more = len(messages) > limit
+        if has_more:
+            messages = messages[:limit]
+
+        return {
+            'messages': list(reversed(messages)),
+            'has_more': has_more,
+            'next_cursor': str(messages[-1].id) if has_more and messages else None,
+        }
+
+    def create_message(self, conversation: Any, sender: Any, data: Dict) -> ChatMessage:
+        message = ChatMessage(
+            conversation=conversation,
+            sender=sender,
+            message_type=data.get('message_type', 'text'),
+            content=data.get('content', ''),
+        )
+
+        # Optional fields
+        if data.get('attachment'):
+            message.attachment = data['attachment']
+        if data.get('attachment_name'):
+            message.attachment_name = data['attachment_name']
+        if data.get('attachment_size'):
+            message.attachment_size = data['attachment_size']
+        if data.get('latitude') is not None:
+            message.latitude = data['latitude']
+        if data.get('longitude') is not None:
+            message.longitude = data['longitude']
+        if data.get('location_name'):
+            message.location_name = data['location_name']
+        if data.get('reply_to_id'):
+            message.reply_to_id = data['reply_to_id']
+
+        message.save()
+        return message
+
+    def soft_delete(self, message_id: UUID) -> bool:
+        try:
+            message = ChatMessage.objects.get(id=message_id)
+            message.soft_delete()
+            return True
+        except ChatMessage.DoesNotExist:
+            return False
+
+    def update_content(self, message_id: UUID, new_content: str) -> ChatMessage:
+        message = ChatMessage.objects.get(id=message_id)
+        message.content = new_content
+        message.is_edited = True
+        message.save(update_fields=['content', 'is_edited', 'updated_at'])
+        return message
+
+    def mark_as_read(self, message_ids: List[UUID], user_id: UUID) -> int:
+        created_count = 0
+        for msg_id in message_ids:
+            _, created = MessageReadStatus.objects.get_or_create(
+                message_id=msg_id,
+                user_id=user_id,
+            )
+            if created:
+                created_count += 1
+        return created_count
+
+    def get_unread_count(self, conversation_id: UUID, user_id: UUID) -> int:
+        return (
+            ChatMessage.objects
+            .filter(conversation_id=conversation_id, is_deleted=False)
+            .exclude(sender_id=user_id)
+            .exclude(
+                Exists(
+                    MessageReadStatus.objects.filter(
+                        message=OuterRef('pk'),
+                        user_id=user_id,
+                    )
+                )
+            )
+            .count()
+        )
