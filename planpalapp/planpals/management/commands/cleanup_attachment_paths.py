@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from planpals.models import ChatMessage
-from planpals.services import is_local_path
+from planpals.plans.application.services import is_local_path
 import re
 
 

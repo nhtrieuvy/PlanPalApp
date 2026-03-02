@@ -88,9 +88,9 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'planpals.paginators.StandardResultsPagination',
+    'DEFAULT_PAGINATION_CLASS': 'planpals.shared.paginators.StandardResultsPagination',
     'PAGE_SIZE': 20,
-    'EXCEPTION_HANDLER': 'planpals.exception_handler.custom_exception_handler',
+    'EXCEPTION_HANDLER': 'planpals.shared.exception_handler.custom_exception_handler',
     # Datetime format settings to ensure timezone-aware serialization
     'DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%S%z',  # ISO 8601 with timezone
     'DATETIME_INPUT_FORMATS': [
