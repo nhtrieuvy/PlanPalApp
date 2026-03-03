@@ -32,6 +32,7 @@ def get_send_message_handler() -> SendMessageHandler:
         conversation_repo=_conversation_repo(),
         message_repo=_message_repo(),
         event_publisher=_event_publisher(),
+        user_repo=get_user_repo(),
     )
 
 
@@ -39,6 +40,7 @@ def get_create_system_message_handler() -> CreateSystemMessageHandler:
     return CreateSystemMessageHandler(
         conversation_repo=_conversation_repo(),
         message_repo=_message_repo(),
+        group_query_repo=get_group_query_repo(),
     )
 
 
@@ -60,3 +62,38 @@ def get_mark_messages_read_handler() -> MarkMessagesReadHandler:
         conversation_repo=_conversation_repo(),
         message_repo=_message_repo(),
     )
+
+
+# --- Repo / infrastructure service factories for service layer ---
+
+def get_conversation_repo():
+    return DjangoConversationRepository()
+
+
+def get_message_repo():
+    return DjangoChatMessageRepository()
+
+
+def get_friendship_query_repo():
+    from planpals.chat.infrastructure.repositories import DjangoChatFriendshipQueryRepository
+    return DjangoChatFriendshipQueryRepository()
+
+
+def get_group_query_repo():
+    from planpals.chat.infrastructure.repositories import DjangoChatGroupQueryRepository
+    return DjangoChatGroupQueryRepository()
+
+
+def get_realtime_publisher():
+    from planpals.chat.infrastructure.publishers import ChatRealtimePublisher
+    return ChatRealtimePublisher()
+
+
+def get_push_publisher():
+    from planpals.chat.infrastructure.publishers import ChatPushNotificationPublisher
+    return ChatPushNotificationPublisher()
+
+
+def get_user_repo():
+    from planpals.auth.infrastructure.repositories import DjangoUserRepository
+    return DjangoUserRepository()

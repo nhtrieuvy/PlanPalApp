@@ -6,8 +6,12 @@ from typing import Optional, Any, List, Dict
 from uuid import UUID
 
 from django.db.models import Q, Exists, OuterRef
+from django.utils import timezone
 
-from planpals.chat.domain.repositories import ConversationRepository, ChatMessageRepository
+from planpals.chat.domain.repositories import (
+    ConversationRepository, ChatMessageRepository,
+    FriendshipQueryRepository, GroupQueryRepository,
+)
 from planpals.chat.infrastructure.models import Conversation, ChatMessage, MessageReadStatus
 
 logger = logging.getLogger(__name__)
@@ -28,25 +32,31 @@ class DjangoConversationRepository(ConversationRepository):
         return (
             Conversation.objects
             .for_user(user_id)
-            .active()
+            .select_related('group', 'user_a', 'user_b')
             .with_last_message()
             .order_by('-last_message_at')
         )
 
     def search_conversations(self, user_id: UUID, query: str) -> Any:
-        return (
-            Conversation.objects
-            .for_user(user_id)
-            .active()
-            .filter(
-                Q(name__icontains=query)
-                | Q(group__name__icontains=query)
-                | Q(user_a__username__icontains=query)
-                | Q(user_b__username__icontains=query)
-            )
-            .with_last_message()
-            .order_by('-last_message_at')
+        conversations = self.get_user_conversations(user_id)
+
+        search_conditions = Q(name__icontains=query)
+        search_conditions |= Q(group__name__icontains=query)
+        search_conditions |= (
+            Q(group__members__first_name__icontains=query)
+            | Q(group__members__last_name__icontains=query)
+            | Q(group__members__username__icontains=query)
         )
+        search_conditions |= (
+            Q(user_a__first_name__icontains=query)
+            | Q(user_a__last_name__icontains=query)
+            | Q(user_a__username__icontains=query)
+            | Q(user_b__first_name__icontains=query)
+            | Q(user_b__last_name__icontains=query)
+            | Q(user_b__username__icontains=query)
+        )
+
+        return conversations.filter(search_conditions).distinct()
 
     def get_direct_conversation(self, user1_id: UUID, user2_id: UUID) -> Optional[Conversation]:
         return Conversation.objects.get_direct_conversation(user1_id, user2_id)
@@ -57,14 +67,14 @@ class DjangoConversationRepository(ConversationRepository):
             user_a_id=user1_id,
             user_b_id=user2_id,
         )
-        conv.save()  # canonical ordering handled in Conversation.save()
+        conv.save()
         return conv
 
     def create_group_conversation(self, group: Any) -> Conversation:
         conv = Conversation(
             conversation_type='group',
             group=group,
-            name=group.name,
+            name=f"Group Chat: {group.name}",
         )
         conv.save()
         return conv
@@ -84,11 +94,16 @@ class DjangoConversationRepository(ConversationRepository):
         except Conversation.DoesNotExist:
             return False
 
-        if conv.conversation_type == 'group' and conv.group:
-            return conv.group.is_member(user_id)
-        elif conv.conversation_type == 'direct':
+        if conv.conversation_type == 'direct':
             return user_id in [conv.user_a_id, conv.user_b_id]
+        elif conv.conversation_type == 'group' and conv.group:
+            return conv.group.members.filter(id=user_id).exists()
         return False
+
+    def update_last_message_time(self, conversation_id: UUID, timestamp: Any = None) -> None:
+        if timestamp is None:
+            timestamp = timezone.now()
+        Conversation.objects.filter(id=conversation_id).update(last_message_at=timestamp)
 
 
 class DjangoChatMessageRepository(ChatMessageRepository):
@@ -176,15 +191,41 @@ class DjangoChatMessageRepository(ChatMessageRepository):
         return message
 
     def mark_as_read(self, message_ids: List[UUID], user_id: UUID) -> int:
-        created_count = 0
-        for msg_id in message_ids:
-            _, created = MessageReadStatus.objects.get_or_create(
-                message_id=msg_id,
-                user_id=user_id,
-            )
-            if created:
-                created_count += 1
-        return created_count
+        read_statuses = [
+            MessageReadStatus(message_id=msg_id, user_id=user_id)
+            for msg_id in message_ids
+        ]
+        result = MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
+        return len(result)
+
+    def bulk_mark_read_for_conversation(
+        self, conversation_id: UUID, user_id: UUID, up_to_message_id: UUID = None
+    ) -> int:
+        messages = ChatMessage.objects.filter(
+            conversation_id=conversation_id, is_deleted=False,
+        ).exclude(sender_id=user_id)
+
+        if up_to_message_id:
+            try:
+                up_to_msg = ChatMessage.objects.get(id=up_to_message_id)
+                messages = messages.filter(created_at__lte=up_to_msg.created_at)
+            except ChatMessage.DoesNotExist:
+                pass
+
+        unread_ids = list(
+            messages.exclude(
+                read_statuses__user_id=user_id,
+            ).values_list('id', flat=True)
+        )
+
+        if unread_ids:
+            read_statuses = [
+                MessageReadStatus(message_id=mid, user_id=user_id)
+                for mid in unread_ids
+            ]
+            MessageReadStatus.objects.bulk_create(read_statuses, ignore_conflicts=True)
+
+        return len(unread_ids)
 
     def get_unread_count(self, conversation_id: UUID, user_id: UUID) -> int:
         return (
@@ -201,3 +242,42 @@ class DjangoChatMessageRepository(ChatMessageRepository):
             )
             .count()
         )
+
+    def get_valid_reply_message(
+        self, message_id: UUID, conversation_id: UUID
+    ) -> Optional[ChatMessage]:
+        try:
+            return ChatMessage.objects.get(
+                id=message_id,
+                conversation_id=conversation_id,
+                is_deleted=False,
+            )
+        except ChatMessage.DoesNotExist:
+            return None
+
+
+class DjangoChatFriendshipQueryRepository(FriendshipQueryRepository):
+    """Cross-context friendship query for chat."""
+
+    def are_friends(self, user1_id: UUID, user2_id: UUID) -> bool:
+        from planpals.auth.infrastructure.models import Friendship
+        return Friendship.are_friends(user1_id, user2_id)
+
+
+class DjangoChatGroupQueryRepository(GroupQueryRepository):
+    """Cross-context group query for chat."""
+
+    def get_by_id(self, group_id: UUID) -> Optional[Any]:
+        from planpals.groups.infrastructure.models import Group
+        try:
+            return Group.objects.get(id=group_id)
+        except Group.DoesNotExist:
+            return None
+
+    def is_member(self, group_id: UUID, user_id: UUID) -> bool:
+        from planpals.groups.infrastructure.models import Group
+        try:
+            group = Group.objects.get(id=group_id)
+            return group.members.filter(id=user_id).exists()
+        except Group.DoesNotExist:
+            return False

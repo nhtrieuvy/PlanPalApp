@@ -8,7 +8,6 @@ from typing import Any
 from uuid import UUID
 
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
-from planpals.shared.infrastructure import DjangoUnitOfWork
 from planpals.groups.domain.repositories import GroupRepository, GroupMembershipRepository
 from planpals.groups.domain.events import GroupMemberAdded, GroupMemberRemoved, GroupRoleChanged
 from planpals.groups.application.commands import (
@@ -53,27 +52,26 @@ class CreateGroupHandler(BaseCommandHandler[CreateGroupCommand, Any]):
                 if not self.friendship_checker(command.admin_id, member_id):
                     raise NotFriendsException()
 
-        with DjangoUnitOfWork():
-            group = self.group_repo.save_new(command)
+        group = self.group_repo.save_new(command)
 
-            # Add creator as admin
-            self.membership_repo.add_member(group.id, command.admin_id, role='admin')
+        # Add creator as admin
+        self.membership_repo.add_member(group.id, command.admin_id, role='admin')
 
-            # Add initial members
-            for member_id in command.initial_member_ids:
-                self.membership_repo.add_member(group.id, member_id, role='member')
-                self.event_publisher.publish(GroupMemberAdded(
-                    group_id=str(group.id),
-                    user_id=str(member_id),
-                    username='',  # will be resolved by infrastructure
-                    role='member',
-                    group_name=group.name,
-                    added_by=str(command.admin_id),
-                ))
+        # Add initial members
+        for member_id in command.initial_member_ids:
+            self.membership_repo.add_member(group.id, member_id, role='member')
+            self.event_publisher.publish(GroupMemberAdded(
+                group_id=str(group.id),
+                user_id=str(member_id),
+                username='',  # will be resolved by infrastructure
+                role='member',
+                group_name=group.name,
+                added_by=str(command.admin_id),
+            ))
 
-            # Create group conversation
-            if self.conversation_creator:
-                self.conversation_creator(group)
+        # Create group conversation
+        if self.conversation_creator:
+            self.conversation_creator(group)
 
         self._log(f"Group created: {group.id} by {command.admin_id}")
         return group
@@ -113,10 +111,9 @@ class AddMemberHandler(BaseCommandHandler[AddMemberCommand, Any]):
         ):
             raise NotFriendsException()
 
-        with DjangoUnitOfWork():
-            membership = self.membership_repo.add_member(
-                command.group_id, command.target_user_id, role='member'
-            )
+        membership = self.membership_repo.add_member(
+            command.group_id, command.target_user_id, role='member'
+        )
 
         self.event_publisher.publish(GroupMemberAdded(
             group_id=str(command.group_id),
@@ -158,8 +155,7 @@ class RemoveMemberHandler(BaseCommandHandler[RemoveMemberCommand, bool]):
         if self.membership_repo.is_admin(command.group_id, command.target_user_id):
             raise CannotRemoveAdminException()
 
-        with DjangoUnitOfWork():
-            self.membership_repo.remove_member(command.group_id, command.target_user_id)
+        self.membership_repo.remove_member(command.group_id, command.target_user_id)
 
         self.event_publisher.publish(GroupMemberRemoved(
             group_id=str(command.group_id),
@@ -203,10 +199,9 @@ class JoinGroupHandler(BaseCommandHandler[JoinGroupCommand, Any]):
         if self.membership_repo.is_member(group.id, command.user_id):
             raise AlreadyGroupMemberException()
 
-        with DjangoUnitOfWork():
-            membership = self.membership_repo.add_member(
-                group.id, command.user_id, role='member'
-            )
+        membership = self.membership_repo.add_member(
+            group.id, command.user_id, role='member'
+        )
 
         self.event_publisher.publish(GroupMemberAdded(
             group_id=str(group.id),
@@ -240,8 +235,7 @@ class LeaveGroupHandler(BaseCommandHandler[LeaveGroupCommand, bool]):
             if admin_count <= 1:
                 raise LastAdminException()
 
-        with DjangoUnitOfWork():
-            self.membership_repo.remove_member(command.group_id, command.user_id)
+        self.membership_repo.remove_member(command.group_id, command.user_id)
 
         self.event_publisher.publish(GroupMemberRemoved(
             group_id=str(command.group_id),
@@ -269,8 +263,7 @@ class PromoteMemberHandler(BaseCommandHandler[PromoteMemberCommand, bool]):
         if not self.membership_repo.is_member(command.group_id, command.target_user_id):
             raise NotGroupMemberException()
 
-        with DjangoUnitOfWork():
-            self.membership_repo.set_role(command.group_id, command.target_user_id, 'admin')
+        self.membership_repo.set_role(command.group_id, command.target_user_id, 'admin')
 
         self.event_publisher.publish(GroupRoleChanged(
             group_id=str(command.group_id),
@@ -303,8 +296,7 @@ class DemoteMemberHandler(BaseCommandHandler[DemoteMemberCommand, bool]):
         ):
             raise LastAdminException()
 
-        with DjangoUnitOfWork():
-            self.membership_repo.set_role(command.group_id, command.target_user_id, 'member')
+        self.membership_repo.set_role(command.group_id, command.target_user_id, 'member')
 
         self.event_publisher.publish(GroupRoleChanged(
             group_id=str(command.group_id),

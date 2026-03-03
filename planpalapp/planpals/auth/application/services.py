@@ -1,22 +1,8 @@
-from django.db import transaction, models
-from django.db.models import QuerySet
-from django.utils import timezone
-from django.core.exceptions import ValidationError, PermissionDenied
-from django.core.files.uploadedfile import UploadedFile
-from typing import Dict, List, Optional, Tuple, Any
 import logging
-import re
-from oauth2_provider.models import AccessToken, RefreshToken
-from django.db.models import Q
+from typing import Dict, List, Optional, Tuple, Any
 from uuid import UUID
 
-from planpals.auth.infrastructure.models import User, Friendship, FriendshipRejection
 from planpals.shared.base_service import BaseService
-
-from planpals.auth.presentation.serializers import UserSerializer
-
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 
 # Commands & factories — thin delegation layer
 from planpals.auth.application.commands import (
@@ -36,32 +22,33 @@ logger = logging.getLogger(__name__)
 
 class UserService(BaseService):
     @classmethod
-    def get_user_with_counts(cls, user_id: UUID) -> User:
-        return User.objects.with_counts().get(id=user_id)
+    def get_user_with_counts(cls, user_id: UUID):
+        return auth_factories.get_user_repo().get_by_id_with_counts(user_id)
     
     @classmethod
-    def get_friendship_status(cls, current_user: User, target_user: User) -> Dict[str, Any]:
+    def get_friendship_status(cls, current_user, target_user) -> Dict[str, Any]:
         if current_user == target_user:
             return {'status': 'self'}
 
-        friendship = Friendship.get_friendship(current_user, target_user)
+        friendship_repo = auth_factories.get_friendship_repo()
+        friendship = friendship_repo.get_friendship(current_user.id, target_user.id)
 
         if not friendship:
             return {'status': 'none'}
 
         status = friendship.status
-        if status == Friendship.ACCEPTED:
+        if status == 'accepted':
             return {'status': 'friends', 'since': friendship.created_at}
-        if status == Friendship.PENDING:
-            direction = 'pending_sent' if friendship.is_initiated_by(current_user) else 'pending_received'
+        if status == 'pending':
+            direction = 'pending_sent' if friendship.initiator_id == current_user.id else 'pending_received'
             result = {'status': direction, 'created_at': friendship.created_at}
             if direction == 'pending_received':
                 result['friendship_id'] = str(friendship.id)
             return result
-        if status == Friendship.REJECTED:
+        if status == 'rejected':
             return {'status': 'rejected', 'rejected_at': friendship.updated_at}
-        if status == Friendship.BLOCKED:
-            if friendship.initiator == current_user:
+        if status == 'blocked':
+            if friendship.initiator_id == current_user.id:
                 return {
                     'status': 'blocked_by_me',
                     'can_unblock': True,
@@ -77,7 +64,7 @@ class UserService(BaseService):
         return {'status': 'unknown'}
     
     @classmethod
-    def send_friend_request(cls, from_user: User, to_user: User) -> Tuple[bool, str]:
+    def send_friend_request(cls, from_user, to_user) -> Tuple[bool, str]:
         """Delegate to SendFriendRequestHandler."""
         cmd = SendFriendRequestCommand(
             from_user_id=from_user.id,
@@ -87,24 +74,14 @@ class UserService(BaseService):
         return handler.handle(cmd)
     
     @classmethod
-    def logout_user(cls, user: User, token_string: str = None) -> Tuple[bool, str, bool]:
+    def logout_user(cls, user, token_string: str = None) -> Tuple[bool, str, bool]:
         revoked = False
         online_set = False
 
         if token_string:
             try:
-                with transaction.atomic():
-                    at_qs = AccessToken.objects.select_for_update().filter(
-                        token=token_string, user=user
-                    )
-                    if at_qs.exists():
-                        at = at_qs.first()
-                        try:
-                            RefreshToken.objects.filter(access_token=at).delete()
-                        except Exception as e:
-                            cls.log_error("Failed to delete refresh tokens during logout", e, {'user_id': user.id})
-                        at.delete()
-                        revoked = True
+                token_repo = auth_factories.get_token_repo()
+                revoked = token_repo.revoke_access_token(token_string, user.id)
             except Exception as e:
                 cls.log_error("Failed to revoke access token during logout", e, {'user_id': user.id, 'token': token_string})
 
@@ -130,68 +107,33 @@ class UserService(BaseService):
         return False, "Logout failed: no changes applied", False
     
     @classmethod
-    def search_users(cls, query: str, current_user: User, limit: int = 20):
-        return User.objects.filter(
-            models.Q(username__icontains=query) |
-            models.Q(email__icontains=query) |
-            models.Q(first_name__icontains=query) |
-            models.Q(last_name__icontains=query)
-        ).exclude(
-            id=current_user.id
-        ).only(
-            'id', 'username', 'first_name', 'last_name', 
-            'avatar', 'is_online', 'last_seen'
-        ).order_by('username')
+    def search_users(cls, query: str, current_user, limit: int = 20):
+        return auth_factories.get_user_repo().search(query, exclude_user_id=current_user.id)
     
     @classmethod
-    def update_user_profile(cls, user: User, data: Dict[str, Any]) -> Tuple[User, bool]:
-        try:
-            with transaction.atomic():
-
-                serializer = UserSerializer(user, data=data, partial=True)
-                if serializer.is_valid():
-                    user = serializer.save()
-                    user.update_last_seen()
-                    
-                    cls.log_operation("user_profile_updated", {
-                        'user_id': user.id
-                    })
-                    
-                    return user, True
-                else:
-                    return user, False
-        except Exception as e:
-            cls.log_operation("user_profile_update_failed", {
-                'user_id': user.id,
-                'error': str(e)
-            })
-            return user, False
+    def update_user_profile(cls, user, data: Dict[str, Any]) -> Tuple[Any, bool]:
+        user_repo = auth_factories.get_user_repo()
+        user, success = user_repo.update_profile(user.id, data)
+        if success:
+            cls.log_operation("user_profile_updated", {'user_id': user.id})
+        else:
+            cls.log_operation("user_profile_update_failed", {'user_id': user.id})
+        return user, success
     
     @classmethod
-    def get_user_plans(cls, user: User, plan_type: str = 'all'):
-        from planpals.models import Plan
-        queryset = Plan.objects.for_user(user).with_stats()
-        
-        if plan_type == 'personal':
-            queryset = queryset.filter(plan_type='personal')
-        elif plan_type == 'group':
-            queryset = queryset.filter(plan_type='group')
-        
-        return queryset
+    def get_user_plans(cls, user, plan_type: str = 'all'):
+        return auth_factories.get_user_repo().get_user_plans(user.id, plan_type)
     
     @classmethod
-    def get_user_groups(cls, user: User):
-        return user.joined_groups.with_full_stats()
+    def get_user_groups(cls, user):
+        return auth_factories.get_user_repo().get_user_groups(user.id)
     
     @classmethod
-    def get_user_activities(cls, user: User):
-        from planpals.models import PlanActivity
-        return PlanActivity.objects.filter(
-            plan__in=user.viewable_plans
-        ).select_related('plan', 'plan__group', 'plan__creator').order_by('-start_time')
+    def get_user_activities(cls, user):
+        return auth_factories.get_user_repo().get_user_activities(user.id)
     
     @classmethod
-    def set_user_online_status(cls, user: User, is_online: bool) -> bool:
+    def set_user_online_status(cls, user, is_online: bool) -> bool:
         """Delegate to SetOnlineStatusHandler."""
         cmd = SetOnlineStatusCommand(
             user_id=user.id,
@@ -201,25 +143,25 @@ class UserService(BaseService):
         return handler.handle(cmd)
     
     @classmethod
-    def get_friendship_stats(cls, user: User) -> Dict[str, Any]:
-        user = User.objects.with_counts().get(id=user.id)
+    def get_friendship_stats(cls, user) -> Dict[str, Any]:
+        user_with_counts = auth_factories.get_user_repo().get_by_id_with_counts(user.id)
         return {
-            'friends_count': user.friends_count,
-            'pending_sent_count': user.pending_sent_count,
-            'pending_received_count': user.pending_received_count,
-            'blocked_count': user.blocked_count
+            'friends_count': user_with_counts.friends_count,
+            'pending_sent_count': user_with_counts.pending_sent_count,
+            'pending_received_count': user_with_counts.pending_received_count,
+            'blocked_count': user_with_counts.blocked_count
         }
     
     @classmethod
-    def get_recent_conversations(cls, user: User):
-        return user.recent_conversations
+    def get_recent_conversations(cls, user):
+        return auth_factories.get_user_repo().get_recent_conversations(user.id)
     
     @classmethod
-    def get_unread_count(cls, user: User) -> int:
-        return user.unread_messages_count
+    def get_unread_count(cls, user) -> int:
+        return auth_factories.get_user_repo().get_unread_messages_count(user.id)
     
     @classmethod
-    def unblock_user(cls, current_user: User, target_user: User) -> Tuple[bool, str]:
+    def unblock_user(cls, current_user, target_user) -> Tuple[bool, str]:
         """Delegate to UnblockUserHandler."""
         cmd = UnblockUserCommand(
             blocker_id=current_user.id,
@@ -229,17 +171,17 @@ class UserService(BaseService):
         return handler.handle(cmd)
     
     @classmethod
-    def join_group(cls, user: User, group_id: str = None, invite_code: str = None) -> Tuple[bool, str, Optional[Any]]:
-        from planpals.models import Group
+    def join_group(cls, user, group_id: str = None, invite_code: str = None) -> Tuple[bool, str, Optional[Any]]:
         from planpals.groups.application.services import GroupService
+        group_repo = auth_factories.get_auth_group_repo()
         try:
             if invite_code:
-                group = Group.objects.get(invite_code=invite_code)
+                group = group_repo.get_by_invite_code(invite_code)
             else:
-                group = Group.objects.get(
-                    id=group_id, 
-                    is_public=True
-                )
+                group = group_repo.get_public_by_id(group_id)
+            
+            if not group:
+                return False, "Group not found or not accessible", None
             
             success, message = GroupService.join_group_by_invite(group, user)
             
@@ -248,11 +190,11 @@ class UserService(BaseService):
             else:
                 return False, message, None
                 
-        except Group.DoesNotExist:
-            return False, "Group not found or not accessible", None
+        except Exception as e:
+            return False, str(e), None
     
     @classmethod
-    def accept_friend_request(cls, current_user: User, from_user: User) -> Tuple[bool, str]:
+    def accept_friend_request(cls, current_user, from_user) -> Tuple[bool, str]:
         """Delegate to AcceptFriendRequestHandler."""
         cmd = AcceptFriendRequestCommand(
             current_user_id=current_user.id,
@@ -262,7 +204,7 @@ class UserService(BaseService):
         return handler.handle(cmd)
     
     @classmethod
-    def reject_friend_request(cls, current_user: User, from_user: User) -> Tuple[bool, str]:
+    def reject_friend_request(cls, current_user, from_user) -> Tuple[bool, str]:
         """Delegate to RejectFriendRequestHandler."""
         cmd = RejectFriendRequestCommand(
             current_user_id=current_user.id,
@@ -272,7 +214,7 @@ class UserService(BaseService):
         return handler.handle(cmd)
     
     @classmethod
-    def cancel_friend_request(cls, current_user: User, to_user: User) -> Tuple[bool, str]:
+    def cancel_friend_request(cls, current_user, to_user) -> Tuple[bool, str]:
         """Delegate to CancelFriendRequestHandler."""
         cmd = CancelFriendRequestCommand(
             current_user_id=current_user.id,
@@ -282,7 +224,7 @@ class UserService(BaseService):
         return handler.handle(cmd)
 
     @classmethod
-    def block_user(cls, current_user: User, target_user: User) -> Tuple[bool, str]:
+    def block_user(cls, current_user, target_user) -> Tuple[bool, str]:
         """Delegate to BlockUserHandler."""
         cmd = BlockUserCommand(
             blocker_id=current_user.id,
@@ -292,7 +234,7 @@ class UserService(BaseService):
         return handler.handle(cmd)
     
     @classmethod
-    def unfriend_user(cls, current_user: User, target_user: User) -> Tuple[bool, str]:
+    def unfriend_user(cls, current_user, target_user) -> Tuple[bool, str]:
         """Delegate to UnfriendHandler."""
         cmd = UnfriendCommand(
             current_user_id=current_user.id,
@@ -302,35 +244,37 @@ class UserService(BaseService):
         return handler.handle(cmd)
     
     @classmethod
-    def is_group_member(cls, user: User, group) -> bool:
+    def is_group_member(cls, user, group) -> bool:
         return group.is_member(user)
     
     @classmethod
-    def can_view_profile(cls, current_user: User, target_user: User) -> bool:
+    def can_view_profile(cls, current_user, target_user) -> bool:
         if current_user == target_user:
             return True
         
-        friendship = Friendship.get_friendship(current_user, target_user)
-        if friendship and friendship.status == Friendship.BLOCKED:
-            if friendship.initiator == target_user:
+        friendship_repo = auth_factories.get_friendship_repo()
+        friendship = friendship_repo.get_friendship(current_user.id, target_user.id)
+        if friendship and friendship.status == 'blocked':
+            if friendship.initiator_id == target_user.id:
                 return False
         
         if getattr(target_user, 'is_profile_public', True):
             return True
         
-        return Friendship.are_friends(current_user, target_user)
+        return friendship_repo.are_friends(current_user.id, target_user.id)
     
     @classmethod
-    def get_block_status(cls, current_user: User, target_user: User) -> Dict[str, Any]:
+    def get_block_status(cls, current_user, target_user) -> Dict[str, Any]:
         if current_user == target_user:
             return {'status': 'self'}
         
-        friendship = Friendship.get_friendship(current_user, target_user)
+        friendship_repo = auth_factories.get_friendship_repo()
+        friendship = friendship_repo.get_friendship(current_user.id, target_user.id)
         
-        if not friendship or friendship.status != Friendship.BLOCKED:
+        if not friendship or friendship.status != 'blocked':
             return {'status': 'not_blocked'}
         
-        if friendship.initiator == current_user:
+        if friendship.initiator_id == current_user.id:
             return {
                 'status': 'blocked_by_me',
                 'can_unblock': True,
@@ -344,21 +288,23 @@ class UserService(BaseService):
             }
     
     @classmethod
-    def is_blocked_by(cls, current_user: User, target_user: User) -> bool:
-        friendship = Friendship.get_friendship(current_user, target_user)
+    def is_blocked_by(cls, current_user, target_user) -> bool:
+        friendship_repo = auth_factories.get_friendship_repo()
+        friendship = friendship_repo.get_friendship(current_user.id, target_user.id)
         return (
             friendship and 
-            friendship.status == Friendship.BLOCKED and 
-            friendship.initiator == target_user
+            friendship.status == 'blocked' and 
+            friendship.initiator_id == target_user.id
         )
     
     @classmethod 
-    def has_blocked(cls, current_user: User, target_user: User) -> bool:
-        friendship = Friendship.get_friendship(current_user, target_user)
+    def has_blocked(cls, current_user, target_user) -> bool:
+        friendship_repo = auth_factories.get_friendship_repo()
+        friendship = friendship_repo.get_friendship(current_user.id, target_user.id)
         return (
             friendship and 
-            friendship.status == Friendship.BLOCKED and 
-            friendship.initiator == current_user
+            friendship.status == 'blocked' and 
+            friendship.initiator_id == current_user.id
         )
 
     @classmethod

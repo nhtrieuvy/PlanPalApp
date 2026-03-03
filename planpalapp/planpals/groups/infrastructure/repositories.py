@@ -97,6 +97,22 @@ class DjangoGroupRepository(GroupRepository):
         except Group.DoesNotExist:
             return None
 
+    def get_group_plans(self, group_id: UUID) -> Any:
+        from planpals.plans.infrastructure.models import Plan
+        return (
+            Plan.objects
+            .filter(group_id=group_id)
+            .select_related('creator', 'group')
+            .prefetch_related('activities')
+            .order_by('-created_at')
+        )
+
+    def get_public_by_id(self, group_id: UUID) -> Optional[Group]:
+        try:
+            return Group.objects.select_related('admin').get(id=group_id, is_public=True)
+        except Group.DoesNotExist:
+            return None
+
 
 class DjangoGroupMembershipRepository(GroupMembershipRepository):
     """Django ORM implementation of GroupMembershipRepository."""

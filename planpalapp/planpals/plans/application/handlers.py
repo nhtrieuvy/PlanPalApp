@@ -16,7 +16,6 @@ from typing import Any, Optional
 from uuid import UUID
 
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
-from planpals.shared.infrastructure import DjangoUnitOfWork
 from planpals.plans.domain.repositories import PlanRepository, PlanActivityRepository
 from planpals.plans.domain.events import (
     PlanCreated, PlanUpdated, PlanStatusChanged, PlanDeleted,
@@ -64,11 +63,10 @@ class CreatePlanHandler(BaseCommandHandler[CreatePlanCommand, Any]):
                     "Bạn phải là thành viên nhóm để tạo kế hoạch nhóm."
                 )
 
-        with DjangoUnitOfWork():
-            # Delegate creation to repository (which handles ORM)
-            plan = self.plan_repo.save_new(command)
+        # Delegate creation to repository (which handles ORM)
+        plan = self.plan_repo.save_new(command)
 
-            self._log(f"Plan created: {plan.id} by user {command.creator_id}")
+        self._log(f"Plan created: {plan.id} by user {command.creator_id}")
 
         # Publish domain event (deferred until after transaction)
         self.event_publisher.publish(PlanCreated(
@@ -110,21 +108,20 @@ class UpdatePlanHandler(BaseCommandHandler[UpdatePlanCommand, Any]):
         if plan.status == 'cancelled':
             raise PlanCancelledException()
 
-        with DjangoUnitOfWork():
-            # Apply only non-None fields
-            update_fields = {}
-            for field_name in [
-                'title', 'description', 'start_date', 'end_date',
-                'is_public', 'cover_image', 'destination', 'budget', 'notes',
-            ]:
-                value = getattr(command, field_name, None)
-                if value is not None:
-                    update_fields[field_name] = value
+        # Apply only non-None fields
+        update_fields = {}
+        for field_name in [
+            'title', 'description', 'start_date', 'end_date',
+            'is_public', 'cover_image', 'destination', 'budget', 'notes',
+        ]:
+            value = getattr(command, field_name, None)
+            if value is not None:
+                update_fields[field_name] = value
 
-            if update_fields:
-                for k, v in update_fields.items():
-                    setattr(plan, k, v)
-                plan = self.plan_repo.save(plan)
+        if update_fields:
+            for k, v in update_fields.items():
+                setattr(plan, k, v)
+            plan = self.plan_repo.save(plan)
 
         self.event_publisher.publish(PlanUpdated(
             plan_id=str(plan.id),
@@ -165,8 +162,7 @@ class ChangePlanStatusHandler(BaseCommandHandler[ChangePlanStatusCommand, Any]):
                 f"Không thể chuyển trạng thái từ '{old_status}' sang '{command.new_status}'."
             )
 
-        with DjangoUnitOfWork():
-            plan = self.plan_repo.update_status(command.plan_id, command.new_status)
+        plan = self.plan_repo.update_status(command.plan_id, command.new_status)
 
         self.event_publisher.publish(PlanStatusChanged(
             plan_id=str(plan.id),
@@ -195,8 +191,7 @@ class DeletePlanHandler(BaseCommandHandler[DeletePlanCommand, bool]):
             raise NotPlanOwnerException()
 
         title = plan.title
-        with DjangoUnitOfWork():
-            self.plan_repo.delete(command.plan_id)
+        self.plan_repo.delete(command.plan_id)
 
         self.event_publisher.publish(PlanDeleted(
             plan_id=str(command.plan_id),
@@ -264,8 +259,7 @@ class AddActivityHandler(BaseCommandHandler[AddActivityCommand, Any]):
             if conflicts:
                 raise ActivityOverlapException()
 
-        with DjangoUnitOfWork():
-            activity = self.activity_repo.save_new(command)
+        activity = self.activity_repo.save_new(command)
 
         self.event_publisher.publish(ActivityCreated(
             plan_id=str(command.plan_id),
@@ -308,16 +302,15 @@ class UpdateActivityHandler(BaseCommandHandler[UpdateActivityCommand, Any]):
             if conflicts:
                 raise ActivityOverlapException()
 
-        with DjangoUnitOfWork():
-            for field_name in [
-                'title', 'description', 'activity_type', 'start_time', 'end_time',
-                'location_name', 'location_address', 'latitude', 'longitude',
-                'estimated_cost', 'notes',
-            ]:
-                value = getattr(command, field_name, None)
-                if value is not None:
-                    setattr(activity, field_name, value)
-            activity = self.activity_repo.save(activity)
+        for field_name in [
+            'title', 'description', 'activity_type', 'start_time', 'end_time',
+            'location_name', 'location_address', 'latitude', 'longitude',
+            'estimated_cost', 'notes',
+        ]:
+            value = getattr(command, field_name, None)
+            if value is not None:
+                setattr(activity, field_name, value)
+        activity = self.activity_repo.save(activity)
 
         self.event_publisher.publish(ActivityUpdated(
             plan_id=str(activity.plan_id),
@@ -345,8 +338,7 @@ class RemoveActivityHandler(BaseCommandHandler[RemoveActivityCommand, bool]):
         title = activity.title
         activity_id = str(activity.id)
 
-        with DjangoUnitOfWork():
-            self.activity_repo.delete(command.activity_id)
+        self.activity_repo.delete(command.activity_id)
 
         self.event_publisher.publish(ActivityDeleted(
             plan_id=plan_id,
@@ -367,9 +359,8 @@ class ToggleActivityCompletionHandler(BaseCommandHandler[ToggleActivityCompletio
         if not activity:
             raise ActivityNotFoundException()
 
-        with DjangoUnitOfWork():
-            activity.is_completed = not activity.is_completed
-            activity = self.activity_repo.save(activity)
+        activity.is_completed = not activity.is_completed
+        activity = self.activity_repo.save(activity)
 
         if activity.is_completed:
             self.event_publisher.publish(ActivityCompleted(

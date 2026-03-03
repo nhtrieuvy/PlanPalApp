@@ -37,13 +37,13 @@ class PlanRepository(ABC):
         ...
 
     @abstractmethod
-    def get_joined_plans(self, user_id: UUID) -> Any:
-        """Get plans the user has joined (public plans)."""
+    def get_joined_group_plans(self, user_id: UUID, search: str = None) -> Any:
+        """Get group plans the user is a member of (excluding own plans)."""
         ...
 
     @abstractmethod
-    def get_public_plans(self, exclude_user_id: UUID = None) -> Any:
-        """Get all public plans, optionally excluding a user's own plans."""
+    def get_public_plans(self, exclude_user_id: UUID = None, search: str = None) -> Any:
+        """Get all public plans, optionally excluding a user's own plans, with optional search."""
         ...
 
     @abstractmethod
@@ -51,10 +51,20 @@ class PlanRepository(ABC):
         """Get all plans for a group."""
         ...
 
+    @abstractmethod
+    def get_plans_needing_status_update(self) -> Any:
+        """Get plans whose status should be auto-updated based on dates."""
+        ...
+
     # ---------- Mutations ----------
     @abstractmethod
     def save(self, plan: Any) -> Any:
         """Create or update a plan."""
+        ...
+
+    @abstractmethod
+    def save_new(self, command: Any) -> Any:
+        """Create a new plan from a command."""
         ...
 
     @abstractmethod
@@ -81,6 +91,40 @@ class PlanRepository(ABC):
     @abstractmethod
     def update_status(self, plan_id: UUID, new_status: str) -> Any:
         """Update the plan's status."""
+        ...
+
+    @abstractmethod
+    def update_status_atomic(
+        self, plan_id: UUID, expected_status: str, new_status: str
+    ) -> Tuple[bool, Optional[Any]]:
+        """
+        Atomically update status with optimistic locking.
+        Returns (success, refreshed_plan). success=False if expected_status didn't match.
+        """
+        ...
+
+    @abstractmethod
+    def update_fields(self, plan_id: UUID, **fields) -> bool:
+        """Update specific fields on a plan by ID. Returns True if updated."""
+        ...
+
+    @abstractmethod
+    def update_scheduled_task_ids(
+        self, plan_id: UUID,
+        start_task_id: str = None, end_task_id: str = None,
+        expected_start_task_id: str = None, expected_end_task_id: str = None,
+    ) -> bool:
+        """Atomically update Celery task IDs with optimistic locking."""
+        ...
+
+    @abstractmethod
+    def clear_scheduled_task_ids(self, plan_id: UUID) -> bool:
+        """Clear both scheduled task IDs."""
+        ...
+
+    @abstractmethod
+    def refresh(self, plan: Any) -> Any:
+        """Refresh a plan instance from the database."""
         ...
 
 
@@ -113,6 +157,16 @@ class PlanActivityRepository(ABC):
         ...
 
     @abstractmethod
+    def save_new(self, command: Any) -> Any:
+        """Create a new activity from a command."""
+        ...
+
+    @abstractmethod
+    def save_new_from_dict(self, plan_id: UUID, data: Dict[str, Any]) -> Any:
+        """Create a new activity from a plain dictionary."""
+        ...
+
+    @abstractmethod
     def delete(self, activity_id: UUID) -> bool:
         ...
 
@@ -127,4 +181,14 @@ class PlanActivityRepository(ABC):
     @abstractmethod
     def get_plan_statistics(self, plan_id: UUID) -> Dict[str, Any]:
         """Compute aggregate statistics for a plan's activities."""
+        ...
+
+    @abstractmethod
+    def count_completed(self, plan_id: UUID) -> int:
+        """Count completed activities for a plan."""
+        ...
+
+    @abstractmethod
+    def count_total(self, plan_id: UUID) -> int:
+        """Count total activities for a plan."""
         ...

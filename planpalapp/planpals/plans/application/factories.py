@@ -104,3 +104,23 @@ def get_toggle_activity_completion_handler() -> ToggleActivityCompletionHandler:
         activity_repo=_activity_repo(),
         event_publisher=_event_publisher(),
     )
+
+
+# --- Repo / infrastructure service factories for service layer ---
+
+def get_plan_repo():
+    return DjangoPlanRepository()
+
+
+def get_activity_repo():
+    return DjangoPlanActivityRepository()
+
+
+def get_task_scheduler():
+    from planpals.plans.infrastructure.task_scheduler import PlanTaskScheduler
+    return PlanTaskScheduler(plan_repo=DjangoPlanRepository())
+
+
+def get_realtime_publisher():
+    from planpals.shared.realtime_publisher import RealtimeEventPublisher
+    return RealtimeEventPublisher()

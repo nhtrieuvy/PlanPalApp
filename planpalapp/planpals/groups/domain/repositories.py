@@ -2,7 +2,7 @@
 Groups Domain — Repository Interfaces
 """
 from abc import ABC, abstractmethod
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Dict
 from uuid import UUID
 
 
@@ -47,6 +47,16 @@ class GroupRepository(ABC):
     @abstractmethod
     def get_by_invite_code(self, invite_code: str) -> Optional[Any]:
         """Find a group by its invite code."""
+        ...
+
+    @abstractmethod
+    def get_group_plans(self, group_id: UUID) -> Any:
+        """Get all plans for a group."""
+        ...
+
+    @abstractmethod
+    def get_public_by_id(self, group_id: UUID) -> Optional[Any]:
+        """Get a group by ID only if it is public."""
         ...
 
 

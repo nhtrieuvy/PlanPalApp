@@ -100,3 +100,18 @@ def get_demote_member_handler() -> DemoteMemberHandler:
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
     )
+
+
+# --- Repo factories for service layer ---
+
+def get_group_repo():
+    return DjangoGroupRepository()
+
+
+def get_membership_repo():
+    return DjangoGroupMembershipRepository()
+
+
+def get_user_repo():
+    from planpals.auth.infrastructure.repositories import DjangoUserRepository
+    return DjangoUserRepository()

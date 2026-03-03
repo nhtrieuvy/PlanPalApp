@@ -4,12 +4,9 @@ Chat Application — Command Handlers
 Each handler encapsulates a single use-case for chat mutations.
 Handlers depend on repository interfaces and publish domain events.
 """
+import datetime
 import logging
 from typing import Tuple, Any
-
-from django.db import transaction
-from django.utils import timezone
-from django.core.exceptions import ValidationError
 
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
 from planpals.chat.domain.repositories import ConversationRepository, ChatMessageRepository
@@ -35,27 +32,29 @@ class SendMessageHandler(BaseCommandHandler[SendMessageCommand, Any]):
         conversation_repo: ConversationRepository,
         message_repo: ChatMessageRepository,
         event_publisher: DomainEventPublisher,
+        user_repo=None,
     ):
         self.conversation_repo = conversation_repo
         self.message_repo = message_repo
         self.event_publisher = event_publisher
+        self.user_repo = user_repo
 
     def handle(self, command: SendMessageCommand) -> Any:
         conversation = self.conversation_repo.get_by_id(command.conversation_id)
         if not conversation:
-            raise ValidationError("Conversation not found")
+            raise ValueError("Conversation not found")
 
         if not self.conversation_repo.can_user_access(
             command.conversation_id, command.sender_id
         ):
-            raise ValidationError("Access denied to this conversation")
+            raise ValueError("Access denied to this conversation")
 
         # Validate reply_to
         reply_to_id = command.reply_to_id
         if reply_to_id:
             reply_msg = self.message_repo.get_by_id(reply_to_id)
             if not reply_msg or reply_msg.conversation_id != conversation.id or reply_msg.is_deleted:
-                raise ValidationError("Reply message not found in this conversation")
+                raise ValueError("Reply message not found in this conversation")
 
         # Build data dict for repository
         data = {
@@ -70,13 +69,10 @@ class SendMessageHandler(BaseCommandHandler[SendMessageCommand, Any]):
             'reply_to_id': str(reply_to_id) if reply_to_id else None,
         }
 
-        # Look up sender entity for the ORM
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        sender = User.objects.get(id=command.sender_id)
+        # Look up sender entity via repository
+        sender = self.user_repo.get_by_id(command.sender_id) if self.user_repo else None
 
-        with transaction.atomic():
-            message = self.message_repo.create_message(conversation, sender, data)
+        message = self.message_repo.create_message(conversation, sender, data)
 
         return message
 
@@ -88,9 +84,11 @@ class CreateSystemMessageHandler(BaseCommandHandler[CreateSystemMessageCommand, 
         self,
         conversation_repo: ConversationRepository,
         message_repo: ChatMessageRepository,
+        group_query_repo=None,
     ):
         self.conversation_repo = conversation_repo
         self.message_repo = message_repo
+        self.group_query_repo = group_query_repo
 
     def handle(self, command: CreateSystemMessageCommand) -> Any:
         conversation = None
@@ -98,22 +96,21 @@ class CreateSystemMessageHandler(BaseCommandHandler[CreateSystemMessageCommand, 
             conversation = self.conversation_repo.get_by_id(command.conversation_id)
         elif command.group_id:
             conversation = self.conversation_repo.get_group_conversation(command.group_id)
-            if not conversation:
+            if not conversation and self.group_query_repo:
                 # Auto-create group conversation
-                from planpals.groups.infrastructure.models import Group
-                group = Group.objects.get(id=command.group_id)
-                conversation = self.conversation_repo.create_group_conversation(group)
+                group = self.group_query_repo.get_by_id(command.group_id)
+                if group:
+                    conversation = self.conversation_repo.create_group_conversation(group)
         
         if not conversation:
-            raise ValidationError("No conversation found or could be created")
+            raise ValueError("No conversation found or could be created")
 
         data = {
             'message_type': 'system',
             'content': command.content,
         }
 
-        with transaction.atomic():
-            message = self.message_repo.create_message(conversation, None, data)
+        message = self.message_repo.create_message(conversation, None, data)
 
         return message
 
@@ -137,8 +134,8 @@ class EditMessageHandler(BaseCommandHandler[EditMessageCommand, Tuple[bool, str]
         if message.message_type == 'system':
             return False, "Cannot edit system messages"
 
-        edit_deadline = message.created_at + timezone.timedelta(minutes=15)
-        if timezone.now() > edit_deadline:
+        edit_deadline = message.created_at + datetime.timedelta(minutes=15)
+        if datetime.datetime.now(datetime.timezone.utc) > edit_deadline:
             return False, "Message edit time expired (15 minutes limit)"
 
         self.message_repo.update_content(command.message_id, command.new_content)
