@@ -124,3 +124,8 @@ def get_task_scheduler():
 def get_realtime_publisher():
     from planpals.shared.realtime_publisher import RealtimeEventPublisher
     return RealtimeEventPublisher()
+
+
+def get_cache_service():
+    from planpals.shared.cache_infrastructure import DjangoCacheService
+    return DjangoCacheService()

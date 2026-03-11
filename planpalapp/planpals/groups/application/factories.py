@@ -8,6 +8,7 @@ from planpals.groups.infrastructure.repositories import (
 )
 from planpals.groups.application.handlers import (
     CreateGroupHandler,
+    UpdateGroupHandler,
     AddMemberHandler,
     RemoveMemberHandler,
     JoinGroupHandler,
@@ -50,6 +51,14 @@ def get_create_group_handler() -> CreateGroupHandler:
         event_publisher=_event_publisher(),
         friendship_checker=_friendship_checker(),
         conversation_creator=_conversation_creator(),
+    )
+
+
+def get_update_group_handler() -> UpdateGroupHandler:
+    return UpdateGroupHandler(
+        group_repo=_group_repo(),
+        membership_repo=_membership_repo(),
+        event_publisher=_event_publisher(),
     )
 
 
@@ -115,3 +124,8 @@ def get_membership_repo():
 def get_user_repo():
     from planpals.auth.infrastructure.repositories import DjangoUserRepository
     return DjangoUserRepository()
+
+
+def get_cache_service():
+    from planpals.shared.cache_infrastructure import DjangoCacheService
+    return DjangoCacheService()

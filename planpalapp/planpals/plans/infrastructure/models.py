@@ -10,14 +10,12 @@ from uuid import UUID
 from collections import defaultdict
 from decimal import Decimal
 from datetime import datetime, timedelta, date
-from typing import Dict, List, Optional, Any, Union, Tuple
+from typing import Dict, List, Optional, Any, Union
 
-from django.db import models, transaction
+from django.db import models
 from django.db.models import QuerySet, Q, F, Count, Sum
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-
-from celery import current_app
 
 from planpals.shared.base_models import BaseModel
 
@@ -206,53 +204,11 @@ class Plan(BaseModel):
         if self.plan_type == 'group' and self.group is None:
             raise ValidationError("Group plan must have a group")
 
-    def _auto_status(self) -> bool:
-        if not (self.start_date and self.end_date):
-            return False
-            
-        now = timezone.now()
-        original_status = self.status
-        
-        if self.status == 'upcoming' and now >= self.start_date:
-            self.status = 'ongoing'
-            
-        elif self.status == 'ongoing' and now > self.end_date:
-            self.status = 'completed'
-        
-        return self.status != original_status
-
     def save(self, *args: Any, **kwargs: Any) -> None:
+        # Infer plan_type from group FK — pure data derivation, not business logic.
         self.plan_type = 'personal' if self.group is None else 'group'
-        status_changed = self._auto_status()
-        # True khi chưa được lưu vào DB, kiểm tra xem đang xử lý plan mới hay cập nhật plan cũ
-        is_new = self._state.adding
-        
-        dates_changed = False
-        if not is_new and self.pk:
-            update_fields = kwargs.get('update_fields', None)
-            if update_fields is None or 'start_date' in update_fields or 'end_date' in update_fields:
-                try:
-                    old_plan = Plan.objects.only('start_date', 'end_date').get(pk=self.pk)
-                    dates_changed = (
-                        old_plan.start_date != self.start_date or 
-                        old_plan.end_date != self.end_date
-                    )
-                except Plan.DoesNotExist:
-                    is_new = True
-                    dates_changed = False
-        
         self.clean()
         super().save(*args, **kwargs)
-        
-        if is_new or dates_changed:
-            if self.status == 'upcoming':
-                try:
-                    self.schedule_celery_tasks()
-                except Exception:
-                    pass
-        
-        if status_changed:
-            pass  # Could add logging/notifications here
 
     def is_personal(self) -> bool:
         return self.plan_type == 'personal'

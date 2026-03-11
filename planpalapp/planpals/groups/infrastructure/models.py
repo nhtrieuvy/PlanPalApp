@@ -138,28 +138,10 @@ class Group(BaseModel):
         return f"{self.name} (Admin: {self.admin.username})"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
-        # Cờ kiểm tra nếu là nhóm mới
-        is_new = self._state.adding
-        
+        # Pure data persistence — no side effects.
+        # Membership creation and conversation creation are handled
+        # by CreateGroupHandler in the application layer.
         super().save(*args, **kwargs)
-        
-        if is_new and self.admin:
-            GroupMembership.objects.get_or_create(
-                group=self,
-                user=self.admin,
-                defaults={'role': GroupMembership.ADMIN}
-            )
-            
-            # Create group conversation - avoid circular import by using direct model approach
-            try:
-                from planpals.models import Conversation
-                self.conversation
-            except Exception:
-                from planpals.models import Conversation
-                Conversation.objects.create(
-                    conversation_type='group',
-                    group=self
-                )
 
     @property
     def has_avatar(self) -> bool: 

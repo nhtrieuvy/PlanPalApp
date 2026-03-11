@@ -113,6 +113,18 @@ class DjangoGroupRepository(GroupRepository):
         except Group.DoesNotExist:
             return None
 
+    def get_by_id_for_detail(self, group_id: UUID) -> Optional[Group]:
+        try:
+            return (
+                Group.objects
+                .select_related('admin')
+                .prefetch_related('memberships__user')
+                .with_full_stats()
+                .get(id=group_id)
+            )
+        except Group.DoesNotExist:
+            return None
+
 
 class DjangoGroupMembershipRepository(GroupMembershipRepository):
     """Django ORM implementation of GroupMembershipRepository."""

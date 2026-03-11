@@ -22,7 +22,7 @@ from planpals.auth.presentation.serializers import (
 )
 from planpals.auth.presentation.permissions import (
     IsAuthenticatedAndActive, FriendshipPermission, UserProfilePermission,
-    CanNotTargetSelf, CanViewUserProfile, CanManageFriendship
+    CanViewUserProfile, CanManageFriendship
 )
 from planpals.auth.application.services import UserService
 from planpals.auth.infrastructure.oauth2_utils import OAuth2ResponseFormatter
@@ -180,9 +180,10 @@ class UserViewSet(viewsets.GenericViewSet,
     
     @action(detail=False, methods=['get'])
     def profile(self, request):
-        user = UserService.get_user_with_counts(request.user.id)
-        serializer = self.get_serializer(user) 
-        return Response(serializer.data)
+        data = UserService.get_user_profile_cached(request.user.id)
+        if data is None:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(data)
     
     @action(detail=False, methods=['put', 'patch'])
     def update_profile(self, request):

@@ -7,15 +7,17 @@ import logging
 from typing import Any
 from uuid import UUID
 
+from django.db import transaction
+
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
 from planpals.groups.domain.repositories import GroupRepository, GroupMembershipRepository
 from planpals.groups.domain.events import GroupMemberAdded, GroupMemberRemoved, GroupRoleChanged
 from planpals.groups.application.commands import (
-    CreateGroupCommand, AddMemberCommand, RemoveMemberCommand,
+    CreateGroupCommand, UpdateGroupCommand, AddMemberCommand, RemoveMemberCommand,
     JoinGroupCommand, LeaveGroupCommand,
     PromoteMemberCommand, DemoteMemberCommand,
 )
-from planpals.shared.exceptions import (
+from planpals.shared.domain_exceptions import (
     GroupNotFoundException, NotGroupAdminException, NotGroupMemberException,
     AlreadyGroupMemberException, LastAdminException,
     CannotRemoveAdminException, InviteCodeInvalidException, NotFriendsException,
@@ -45,6 +47,7 @@ class CreateGroupHandler(BaseCommandHandler[CreateGroupCommand, Any]):
         self.friendship_checker = friendship_checker
         self.conversation_creator = conversation_creator
 
+    @transaction.atomic
     def handle(self, command: CreateGroupCommand) -> Any:
         # Business rule: initial members must be friends with admin
         if self.friendship_checker and command.initial_member_ids:
@@ -77,6 +80,44 @@ class CreateGroupHandler(BaseCommandHandler[CreateGroupCommand, Any]):
         return group
 
 
+class UpdateGroupHandler(BaseCommandHandler[UpdateGroupCommand, Any]):
+    """Use case: Update group details (name, description, avatar, etc.)."""
+
+    def __init__(
+        self,
+        group_repo: GroupRepository,
+        membership_repo: GroupMembershipRepository,
+        event_publisher: DomainEventPublisher,
+    ):
+        self.group_repo = group_repo
+        self.membership_repo = membership_repo
+        self.event_publisher = event_publisher
+
+    @transaction.atomic
+    def handle(self, command: UpdateGroupCommand) -> Any:
+        group = self.group_repo.get_by_id(command.group_id)
+        if not group:
+            raise GroupNotFoundException()
+
+        # Business rule: only admins can update group details
+        if not self.membership_repo.is_admin(command.group_id, command.user_id):
+            raise NotGroupAdminException()
+
+        update_fields = {}
+        for field_name in ['name', 'description', 'is_public', 'avatar', 'cover_image']:
+            value = getattr(command, field_name, None)
+            if value is not None:
+                update_fields[field_name] = value
+
+        if update_fields:
+            for k, v in update_fields.items():
+                setattr(group, k, v)
+            group = self.group_repo.save(group)
+
+        self._log(f"Group updated: {group.id} by {command.user_id}")
+        return group
+
+
 class AddMemberHandler(BaseCommandHandler[AddMemberCommand, Any]):
     """Use case: Admin adds a member to the group."""
 
@@ -92,6 +133,7 @@ class AddMemberHandler(BaseCommandHandler[AddMemberCommand, Any]):
         self.event_publisher = event_publisher
         self.friendship_checker = friendship_checker
 
+    @transaction.atomic
     def handle(self, command: AddMemberCommand) -> Any:
         group = self.group_repo.get_by_id(command.group_id)
         if not group:
@@ -140,6 +182,7 @@ class RemoveMemberHandler(BaseCommandHandler[RemoveMemberCommand, bool]):
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: RemoveMemberCommand) -> bool:
         group = self.group_repo.get_by_id(command.group_id)
         if not group:
@@ -180,6 +223,7 @@ class JoinGroupHandler(BaseCommandHandler[JoinGroupCommand, Any]):
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: JoinGroupCommand) -> Any:
         # Resolve group from ID or invite code
         group = None
@@ -225,6 +269,7 @@ class LeaveGroupHandler(BaseCommandHandler[LeaveGroupCommand, bool]):
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: LeaveGroupCommand) -> bool:
         if not self.membership_repo.is_member(command.group_id, command.user_id):
             raise NotGroupMemberException()
@@ -256,6 +301,7 @@ class PromoteMemberHandler(BaseCommandHandler[PromoteMemberCommand, bool]):
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: PromoteMemberCommand) -> bool:
         if not self.membership_repo.is_admin(command.group_id, command.user_id):
             raise NotGroupAdminException()
@@ -285,6 +331,7 @@ class DemoteMemberHandler(BaseCommandHandler[DemoteMemberCommand, bool]):
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: DemoteMemberCommand) -> bool:
         if not self.membership_repo.is_admin(command.group_id, command.user_id):
             raise NotGroupAdminException()

@@ -7,7 +7,6 @@ from planpals.chat.infrastructure.repositories import (
     DjangoChatMessageRepository,
 )
 from planpals.chat.application.handlers import (
-    SendMessageHandler,
     CreateSystemMessageHandler,
     EditMessageHandler,
     DeleteMessageHandler,
@@ -25,15 +24,6 @@ def _message_repo():
 
 def _event_publisher():
     return ChannelsDomainEventPublisher()
-
-
-def get_send_message_handler() -> SendMessageHandler:
-    return SendMessageHandler(
-        conversation_repo=_conversation_repo(),
-        message_repo=_message_repo(),
-        event_publisher=_event_publisher(),
-        user_repo=get_user_repo(),
-    )
 
 
 def get_create_system_message_handler() -> CreateSystemMessageHandler:

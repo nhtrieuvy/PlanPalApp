@@ -1,7 +1,7 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from django.contrib.auth import get_user_model
 
-from planpals.models import Plan, Group, Friendship
+from planpals.models import Plan, Group
 from planpals.groups.application.services import GroupService
 from planpals.plans.application.services import PlanService
 
@@ -84,21 +84,22 @@ class PlanActivityPermission(BasePermission):
 
 
 class CanJoinPlan(BasePermission):
+    """Allow joining a plan only if it is public or the group is public."""
+    
     def has_object_permission(self, request, view, obj):
         plan = obj
         user = request.user
         
+        # Creator cannot "join" their own plan
         if plan.creator == user:
             return False
         
         if plan.plan_type == 'group' and plan.group:
+            # Already a member — cannot join again
             if plan.group.members.filter(id=user.id).exists():
                 return False
-            
-            if getattr(plan.group, 'is_public', True):
-                return True
-            
-            return True
+            # Only allow joining public groups
+            return getattr(plan.group, 'is_public', False)
         
         return plan.is_public
 
@@ -119,6 +120,7 @@ class CanAccessPlan(BasePermission):
 
 
 class CanModifyPlan(BasePermission):
+    """Only plan creator or group admin can modify a plan."""
     
     def has_object_permission(self, request, view, obj):
         plan = obj
@@ -128,34 +130,8 @@ class CanModifyPlan(BasePermission):
             return True
         
         if plan.plan_type == 'group' and plan.group:
-            if plan.group.admin == user:
-                return True
-            return plan.group.is_member(user)
+            return plan.group.is_admin(user)
         
         return False
 
 
-class IsOwnerOrGroupAdmin(BasePermission):
-    def has_object_permission(self, request, view, obj):
-        user = request.user
-        
-        if hasattr(obj, 'creator'):
-            plan = obj
-            if plan.creator == user:
-                return True
-            
-            if plan.is_group_plan() and plan.group:
-                return plan.group.is_admin(user)
-        
-        return False
-
-
-class IsOwnerOrReadOnly(BasePermission):
-    def has_object_permission(self, request, view, obj):
-        if request.method in SAFE_METHODS:
-            return True
-        
-        owner_field = getattr(obj, 'creator', 
-                            getattr(obj, 'user', 
-                                   getattr(obj, 'owner', None)))
-        return owner_field == request.user

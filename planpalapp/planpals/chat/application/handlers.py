@@ -11,7 +11,6 @@ from typing import Tuple, Any
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
 from planpals.chat.domain.repositories import ConversationRepository, ChatMessageRepository
 from planpals.chat.application.commands import (
-    SendMessageCommand,
     EditMessageCommand,
     DeleteMessageCommand,
     MarkMessagesReadCommand,
@@ -19,62 +18,6 @@ from planpals.chat.application.commands import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-class SendMessageHandler(BaseCommandHandler[SendMessageCommand, Any]):
-    """
-    Create a new message in a conversation.
-    Validates access, creates message, publishes events.
-    """
-
-    def __init__(
-        self,
-        conversation_repo: ConversationRepository,
-        message_repo: ChatMessageRepository,
-        event_publisher: DomainEventPublisher,
-        user_repo=None,
-    ):
-        self.conversation_repo = conversation_repo
-        self.message_repo = message_repo
-        self.event_publisher = event_publisher
-        self.user_repo = user_repo
-
-    def handle(self, command: SendMessageCommand) -> Any:
-        conversation = self.conversation_repo.get_by_id(command.conversation_id)
-        if not conversation:
-            raise ValueError("Conversation not found")
-
-        if not self.conversation_repo.can_user_access(
-            command.conversation_id, command.sender_id
-        ):
-            raise ValueError("Access denied to this conversation")
-
-        # Validate reply_to
-        reply_to_id = command.reply_to_id
-        if reply_to_id:
-            reply_msg = self.message_repo.get_by_id(reply_to_id)
-            if not reply_msg or reply_msg.conversation_id != conversation.id or reply_msg.is_deleted:
-                raise ValueError("Reply message not found in this conversation")
-
-        # Build data dict for repository
-        data = {
-            'message_type': command.message_type,
-            'content': command.content,
-            'attachment': command.attachment,
-            'attachment_name': command.attachment_name,
-            'attachment_size': command.attachment_size,
-            'latitude': command.latitude,
-            'longitude': command.longitude,
-            'location_name': command.location_name,
-            'reply_to_id': str(reply_to_id) if reply_to_id else None,
-        }
-
-        # Look up sender entity via repository
-        sender = self.user_repo.get_by_id(command.sender_id) if self.user_repo else None
-
-        message = self.message_repo.create_message(conversation, sender, data)
-
-        return message
 
 
 class CreateSystemMessageHandler(BaseCommandHandler[CreateSystemMessageCommand, Any]):

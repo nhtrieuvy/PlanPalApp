@@ -9,6 +9,8 @@ import datetime
 import logging
 from typing import Tuple, Any
 
+from django.db import transaction
+
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
 from planpals.auth.domain.repositories import UserRepository, FriendshipRepository
 from planpals.auth.domain.entities import (
@@ -54,6 +56,7 @@ class SendFriendRequestHandler(BaseCommandHandler[SendFriendRequestCommand, Tupl
         self.friendship_repo = friendship_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: SendFriendRequestCommand) -> Tuple[bool, str]:
         if command.from_user_id == command.to_user_id:
             return False, "Cannot send friend request to yourself"
@@ -139,6 +142,7 @@ class AcceptFriendRequestHandler(BaseCommandHandler[AcceptFriendRequestCommand, 
         self.event_publisher = event_publisher
         self.conversation_creator = conversation_creator
 
+    @transaction.atomic
     def handle(self, command: AcceptFriendRequestCommand) -> Tuple[bool, str]:
         friendship = self.friendship_repo.get_friendship(
             command.from_user_id, command.current_user_id
@@ -179,6 +183,7 @@ class RejectFriendRequestHandler(BaseCommandHandler[RejectFriendRequestCommand, 
     def __init__(self, friendship_repo: FriendshipRepository):
         self.friendship_repo = friendship_repo
 
+    @transaction.atomic
     def handle(self, command: RejectFriendRequestCommand) -> Tuple[bool, str]:
         friendship = self.friendship_repo.get_friendship(
             command.from_user_id, command.current_user_id
@@ -221,6 +226,7 @@ class BlockUserHandler(BaseCommandHandler[BlockUserCommand, Tuple[bool, str]]):
     def __init__(self, friendship_repo: FriendshipRepository):
         self.friendship_repo = friendship_repo
 
+    @transaction.atomic
     def handle(self, command: BlockUserCommand) -> Tuple[bool, str]:
         if command.blocker_id == command.target_id:
             return False, "Cannot block yourself"

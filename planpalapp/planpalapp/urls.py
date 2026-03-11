@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include, re_path
+from django.conf import settings
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -29,8 +30,8 @@ schema_view = get_schema_view(
         contact=openapi.Contact(email="2251052146vy@ou.edu.vn"),
         license=openapi.License(name="@Copyright 2025 PlanPal"),
     ),
-    public=True,
-    permission_classes=(permissions.AllowAny,),
+    public=settings.DEBUG,
+    permission_classes=(permissions.AllowAny,) if settings.DEBUG else (permissions.IsAuthenticated,),
 )
 
 urlpatterns = [
@@ -40,13 +41,18 @@ urlpatterns = [
                        namespace='oauth2_provider')),
     
     re_path(r'^ckeditor/', include('ckeditor_uploader.urls')),
-    re_path(r'^swagger(?P<format>\.json|\.yaml)$',
-            schema_view.without_ui(cache_timeout=0),
-            name='schema-json'),
-    re_path(r'^swagger/$',
-            schema_view.with_ui('swagger', cache_timeout=0),
-            name='schema-swagger-ui'),
-    re_path(r'^redoc/$',
-            schema_view.with_ui('redoc', cache_timeout=0),
-            name='schema-redoc'),
 ]
+
+# Only expose API docs in DEBUG mode
+if settings.DEBUG:
+    urlpatterns += [
+        re_path(r'^swagger(?P<format>\.json|\.yaml)$',
+                schema_view.without_ui(cache_timeout=0),
+                name='schema-json'),
+        re_path(r'^swagger/$',
+                schema_view.with_ui('swagger', cache_timeout=0),
+                name='schema-swagger-ui'),
+        re_path(r'^redoc/$',
+                schema_view.with_ui('redoc', cache_timeout=0),
+                name='schema-redoc'),
+    ]

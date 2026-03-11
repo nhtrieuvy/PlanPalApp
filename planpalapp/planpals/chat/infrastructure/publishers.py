@@ -86,54 +86,38 @@ class ChatRealtimePublisher:
 
 
 class ChatPushNotificationPublisher:
-    """Sends push notifications for new chat messages."""
+    """Sends push notifications for new chat messages via Celery (async)."""
 
     def send_notification(self, message: Any) -> None:
-        """Send push notifications to all participants except the sender."""
+        """Dispatch a fan-out Celery task instead of looping participants synchronously."""
         try:
-            from planpals.integrations.notification_service import NotificationService
+            from planpals.chat.infrastructure.tasks import (
+                fanout_chat_push_notification_task,
+            )
 
             if not message.sender:
                 return
 
-            notification_service = NotificationService()
-            participants = message.conversation.participants.exclude(id=message.sender.id)
+            sender_name = (
+                message.sender.get_full_name() or message.sender.username
+            )
+            group_name = (
+                message.conversation.group.name
+                if message.conversation.group
+                else None
+            )
+            content_preview = (message.content or '')[:100]
 
-            for participant in participants:
-                if not (hasattr(participant, 'fcm_token') and participant.fcm_token):
-                    continue
-
-                title = self._build_title(message)
-                body = self._build_body(message)
-                data = {
-                    'action': 'new_message',
-                    'conversation_id': str(message.conversation.id),
-                    'message_id': str(message.id),
-                    'sender_id': str(message.sender.id),
-                }
-
-                notification_service.send_push_notification(
-                    [participant.fcm_token], title, body, data,
-                )
+            fanout_chat_push_notification_task.delay(
+                message_id=str(message.id),
+                conversation_id=str(message.conversation.id),
+                sender_id=str(message.sender.id),
+                sender_name=sender_name,
+                content_preview=content_preview,
+                message_type=message.message_type or 'text',
+                group_name=group_name,
+                conversation_type=message.conversation.conversation_type or 'direct',
+            )
 
         except Exception as e:
-            logger.error(f"Error sending push notification: {e}", exc_info=True)
-
-    def _build_title(self, message: Any) -> str:
-        sender_name = message.sender.get_full_name() or message.sender.username
-        if message.conversation.conversation_type == 'direct':
-            return f"Tin nhắn từ {sender_name}"
-        group_name = (
-            message.conversation.group.name if message.conversation.group else "Nhóm"
-        )
-        return f"{sender_name} trong {group_name}"
-
-    def _build_body(self, message: Any) -> str:
-        type_map = {
-            'text': lambda m: m.content[:100],
-            'image': lambda _: "📷 Đã gửi một hình ảnh",
-            'location': lambda m: f"📍 Đã chia sẻ vị trí: {m.location_name or 'Vị trí'}",
-            'file': lambda m: f"📎 Đã gửi file: {m.attachment_name or 'File'}",
-        }
-        formatter = type_map.get(message.message_type, lambda _: "Đã gửi một tin nhắn")
-        return formatter(message)
+            logger.error(f"Error dispatching chat push task: {e}", exc_info=True)

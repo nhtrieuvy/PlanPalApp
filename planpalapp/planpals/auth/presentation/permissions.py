@@ -59,12 +59,6 @@ class UserProfilePermission(BasePermission):
         return Friendship.are_friends(user, target_user)
 
 
-class IsFriend(BasePermission):
-    def has_object_permission(self, request, view, obj):
-        target_user = getattr(obj, 'user', obj)
-        return Friendship.are_friends(request.user, target_user)
-
-
 class CanNotTargetSelf(BasePermission):
     def has_object_permission(self, request, view, obj):
         return request.user != obj

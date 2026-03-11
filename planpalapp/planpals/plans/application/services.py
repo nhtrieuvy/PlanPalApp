@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple, Any
 
 from planpals.shared.base_service import BaseService
 from planpals.shared.events import RealtimeEvent, EventType
+from planpals.shared.cache import CacheKeys, CacheTTL
 
 # Commands & factories — thin delegation layer
 from planpals.plans.application.commands import (
@@ -95,6 +96,8 @@ class PlanService(BaseService):
             'updated_fields': list(data.keys())
         })
 
+        cls._invalidate_plan_cache(plan.id)
+
         plan = plan_factories.get_plan_repo().refresh(plan)
         return plan
     
@@ -122,6 +125,8 @@ class PlanService(BaseService):
             'activity_id': activity.id,
             'user_id': user.id
         })
+
+        cls._invalidate_plan_cache(plan.id)
 
         return activity
     
@@ -209,6 +214,7 @@ class PlanService(BaseService):
         except Exception as e:
             logger.warning(f"Failed to publish start event for plan {plan.id}: {e}")
         
+        cls._invalidate_plan_cache(plan.id)
         return plan
     
     @classmethod
@@ -243,6 +249,8 @@ class PlanService(BaseService):
             'forced': force,
             'timestamp': now.isoformat()
         })
+        
+        cls._invalidate_plan_cache(plan.id)
         
         try:
             publisher = plan_factories.get_realtime_publisher()
@@ -298,6 +306,7 @@ class PlanService(BaseService):
             'timestamp': now.isoformat()
         })
         
+        cls._invalidate_plan_cache(plan.id)
         return plan
     
     @classmethod
@@ -322,39 +331,45 @@ class PlanService(BaseService):
     
     @classmethod
     def get_plan_statistics(cls, plan) -> Dict[str, Any]:
-        plan_repo = plan_factories.get_plan_repo()
-        activity_repo = plan_factories.get_activity_repo()
+        cache_svc = plan_factories.get_cache_service()
+        key = CacheKeys.plan_summary(plan.id)
 
-        plan_with_stats = plan_repo.get_by_id_with_stats(plan.id)
-        
-        activities_count = plan_with_stats.activities_count
-        total_cost = plan_with_stats.total_estimated_cost
-        
-        completed_activities = activity_repo.count_completed(plan.id)
-        completion_rate = (completed_activities / activities_count * 100) if activities_count > 0 else 0
-        
-        return {
-            'activities': {
-                'total': activities_count,
-                'completed': completed_activities,
-                'completion_rate': completion_rate
-            },
-            'budget': {
-                'estimated': float(total_cost),
-                'over_budget': False
-            },
-            'duration': {
-                'days': plan.duration_days,
-                'start_date': plan.start_date,
-                'end_date': plan.end_date
-            },
-            'status': plan.status,
-            'collaboration': {
-                'type': plan.plan_type,
-                'group_id': plan.group.id if plan.group else None,
-                'collaborators_count': len(plan.collaborators)
+        def compute():
+            plan_repo = plan_factories.get_plan_repo()
+            activity_repo = plan_factories.get_activity_repo()
+
+            plan_with_stats = plan_repo.get_by_id_with_stats(plan.id)
+
+            activities_count = plan_with_stats.activities_count
+            total_cost = plan_with_stats.total_estimated_cost
+
+            completed_activities = activity_repo.count_completed(plan.id)
+            completion_rate = (completed_activities / activities_count * 100) if activities_count > 0 else 0
+
+            return {
+                'activities': {
+                    'total': activities_count,
+                    'completed': completed_activities,
+                    'completion_rate': completion_rate
+                },
+                'budget': {
+                    'estimated': float(total_cost),
+                    'over_budget': False
+                },
+                'duration': {
+                    'days': plan.duration_days,
+                    'start_date': plan.start_date,
+                    'end_date': plan.end_date
+                },
+                'status': plan.status,
+                'collaboration': {
+                    'type': plan.plan_type,
+                    'group_id': plan.group.id if plan.group else None,
+                    'collaborators_count': len(plan.collaborators)
+                }
             }
-        }
+
+        return cache_svc.get_or_set(key, compute, CacheTTL.PLAN_SUMMARY)
     
     @classmethod
     def get_plan_schedule(cls, plan, user) -> Dict[str, Any]:      
@@ -495,6 +510,7 @@ class PlanService(BaseService):
             'user_id': user.id
         })
 
+        cls._invalidate_plan_cache(plan.id)
         return True, "Activity updated successfully", activity
     
     @classmethod
@@ -517,6 +533,7 @@ class PlanService(BaseService):
             'user_id': user.id
         })
 
+        cls._invalidate_plan_cache(plan.id)
         return True, "Activity removed from plan"
     
     @classmethod
@@ -542,6 +559,7 @@ class PlanService(BaseService):
             'user_id': user.id
         })
 
+        cls._invalidate_plan_cache(plan.id)
         return True, f'Activity marked as {status_text}', activity
     
     @classmethod
@@ -571,6 +589,17 @@ class PlanService(BaseService):
         })
 
         return True, f'Successfully joined plan "{plan.title}"'
+
+    # ------------------------------------------------------------------
+    # Cache invalidation helper
+    # ------------------------------------------------------------------
+    @classmethod
+    def _invalidate_plan_cache(cls, plan_id) -> None:
+        try:
+            cache_svc = plan_factories.get_cache_service()
+            cache_svc.delete(CacheKeys.plan_summary(plan_id))
+        except Exception as e:
+            logger.warning("Failed to invalidate plan cache for %s: %s", plan_id, e)
 
 
 # Helper functions for attachment handling

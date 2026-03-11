@@ -52,6 +52,18 @@ class GroupViewSet(viewsets.GenericViewSet,
         ).prefetch_related(
             'memberships__user'
         ).with_full_stats()
+
+    def retrieve(self, request, *args, **kwargs):
+        pk = kwargs.get('pk') or kwargs.get(self.lookup_field)
+        serializer_class = self.get_serializer_class()
+
+        def serialize(group):
+            return serializer_class(group, context={'request': request}).data
+
+        data = GroupService.get_group_detail_cached(pk, request.user.id, serialize)
+        if data is None:
+            return Response({'error': 'Group not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(data)
     
     def list(self, request):
         queryset = self.get_queryset().order_by('-created_at')
@@ -129,10 +141,6 @@ class GroupViewSet(viewsets.GenericViewSet,
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-        return Response({
-            'groups': serializer.data,
-            'count': len(serializer.data)
-        })
     
     @action(detail=False, methods=['get'])
     def search(self, request):
@@ -239,11 +247,6 @@ class GroupViewSet(viewsets.GenericViewSet,
             'group_id': str(group.id),
             'count': len(serializer.data)
         })
-        group = self.get_object()
-        limit = int(request.query_params.get('limit', 50))
-        messages = group.get_recent_messages(limit=limit)
-        serializer = ChatMessageSerializer(messages, many=True)
-        return Response(serializer.data)
     
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsGroupMember])
     def unread_count(self, request, pk=None):

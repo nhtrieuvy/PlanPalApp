@@ -2,6 +2,7 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError, PermissionDenied
+from django.db.models import Q
 
 from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
@@ -10,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from planpals.chat.infrastructure.models import ChatMessage, Conversation
 from planpals.chat.presentation.serializers import ChatMessageSerializer, ConversationSerializer
-from planpals.chat.presentation.permissions import ChatMessagePermission, ConversationPermission
+from planpals.chat.presentation.permissions import ChatMessagePermission
 from planpals.chat.application.services import ConversationService, ChatService
 from planpals.models import Group
 from planpals.shared.paginators import StandardResultsPagination, ChatMessageCursorPagination
@@ -29,11 +30,14 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
     pagination_class = ChatMessageCursorPagination
     
     def get_queryset(self):
+        user = self.request.user
         return ChatMessage.objects.filter(
-            conversation__group__members=self.request.user
+            Q(conversation__group__members=user) |
+            Q(conversation__user_a=user) |
+            Q(conversation__user_b=user)
         ).select_related(
             'sender', 'conversation__group', 'reply_to__sender'
-        )
+        ).distinct()
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -181,7 +185,7 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
         
         return Response({
             'messages': serializer.data,
-            'count': len(messages),
+            'count': len(serializer.data),
             'query': query
         })
     

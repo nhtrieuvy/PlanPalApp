@@ -42,18 +42,25 @@ class DjangoUserRepository(UserRepository):
         user.save()
         return user
 
+    # Allowed profile fields for direct ORM update
+    PROFILE_FIELDS = {
+        'first_name', 'last_name', 'avatar', 'cover_image',
+        'bio', 'phone_number', 'date_of_birth', 'gender',
+    }
+
     def update_profile(self, user_id: UUID, data: Dict[str, Any]) -> Tuple[Any, bool]:
-        """Update user profile using DRF serializer (infrastructure concern)."""
+        """Update user profile using direct ORM (no presentation-layer dependency)."""
         try:
             user = User.objects.get(id=user_id)
-            from planpals.auth.presentation.serializers import UserSerializer
-            with transaction.atomic():
-                serializer = UserSerializer(user, data=data, partial=True)
-                if serializer.is_valid():
-                    user = serializer.save()
-                    user.update_last_seen()
-                    return user, True
+            update_data = {k: v for k, v in data.items() if k in self.PROFILE_FIELDS}
+            if not update_data:
                 return user, False
+            with transaction.atomic():
+                for field, value in update_data.items():
+                    setattr(user, field, value)
+                user.save(update_fields=list(update_data.keys()))
+                user.update_last_seen()
+                return user, True
         except User.DoesNotExist:
             return None, False
 

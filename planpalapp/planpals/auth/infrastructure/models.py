@@ -246,7 +246,7 @@ class User(AbstractUser, BaseModel):
     
     @property
     def friends(self) -> UserQuerySet:
-        return self.objects.friends_of(self)
+        return User.objects.friends_of(self)
 
 
     @property

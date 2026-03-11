@@ -4,7 +4,7 @@
 from enum import Enum
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
-from django.utils import timezone
+from datetime import datetime, timezone as _tz
 import uuid
 
 
@@ -55,7 +55,7 @@ class RealtimeEvent:
     
     def __post_init__(self):
         if self.timestamp is None:
-            self.timestamp = timezone.now().isoformat()
+            self.timestamp = datetime.now(_tz.utc).isoformat()
         if self.event_id is None:
             self.event_id = str(uuid.uuid4())
     

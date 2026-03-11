@@ -148,20 +148,6 @@ class PlanViewSet(viewsets.ModelViewSet):
         })
         
     
-    #API thêm hoạt động vào kế hoạch
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanModifyPlan])
-    def add_activity(self, request, pk=None):
-        plan = self.get_object()
-        
-        try:
-            activity = PlanService.add_activity_to_plan(plan, request.user, request.data)
-            return Response(
-                PlanActivitySerializer(activity).data, 
-                status=status.HTTP_201_CREATED
-            )
-        except ValidationError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
     #API lấy tóm tắt kế hoạch
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, CanAccessPlan])
     def summary(self, request, pk=None):
@@ -295,8 +281,9 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
     
     def get_queryset(self):
         return PlanActivity.objects.filter(
-            plan__group__members=self.request.user
-        ).select_related('plan', 'plan__group', 'plan__creator')
+            models.Q(plan__group__members=self.request.user) |
+            models.Q(plan__creator=self.request.user)
+        ).select_related('plan', 'plan__group', 'plan__creator').distinct()
     
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)

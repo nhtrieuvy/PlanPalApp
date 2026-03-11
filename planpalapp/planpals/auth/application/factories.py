@@ -122,3 +122,8 @@ def get_token_repo():
 def get_auth_group_repo():
     from planpals.auth.infrastructure.repositories import DjangoAuthGroupRepository
     return DjangoAuthGroupRepository()
+
+
+def get_cache_service():
+    from planpals.shared.cache_infrastructure import DjangoCacheService
+    return DjangoCacheService()

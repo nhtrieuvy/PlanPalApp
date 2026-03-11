@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from uuid import UUID
 
 from planpals.shared.base_service import BaseService
+from planpals.shared.cache import CacheKeys, CacheTTL
 
 # Commands & factories — thin delegation layer
 from planpals.auth.application.commands import (
@@ -24,6 +25,65 @@ class UserService(BaseService):
     @classmethod
     def get_user_with_counts(cls, user_id: UUID):
         return auth_factories.get_user_repo().get_by_id_with_counts(user_id)
+
+    @classmethod
+    def get_user_profile_cached(cls, user_id: UUID):
+        """Return user profile data as a cacheable dict.
+
+        On cache hit the dict is returned directly.
+        On cache miss the repo data is fetched, serialized to a dict,
+        cached, and returned.  The view should return this dict
+        as the response payload instead of running a serializer.
+        """
+        cache_svc = auth_factories.get_cache_service()
+        key = CacheKeys.user_profile(user_id)
+
+        def compute():
+            user = auth_factories.get_user_repo().get_by_id_with_counts(user_id)
+            if not user:
+                return None
+            return cls._user_to_dict(user)
+
+        return cache_svc.get_or_set(key, compute, CacheTTL.USER_PROFILE)
+
+    @staticmethod
+    def _user_to_dict(user) -> dict:
+        """Lightweight dict conversion (no DRF serializer dependency)."""
+        full_name = user.get_full_name() or user.username
+        if user.first_name and user.last_name:
+            initials = f"{user.first_name[0]}{user.last_name[0]}".upper()
+        elif user.first_name:
+            initials = user.first_name[0].upper()
+        else:
+            initials = user.username[0].upper() if user.username else "U"
+
+        return {
+            'id': str(user.id),
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'full_name': full_name,
+            'initials': initials,
+            'phone_number': getattr(user, 'phone_number', ''),
+            'avatar': getattr(user, 'avatar', None) and str(user.avatar) or None,
+            'avatar_url': getattr(user, 'avatar_url', ''),
+            'has_avatar': getattr(user, 'has_avatar', False),
+            'date_of_birth': str(user.date_of_birth) if getattr(user, 'date_of_birth', None) else None,
+            'bio': getattr(user, 'bio', ''),
+            'is_online': getattr(user, 'is_online', False),
+            'last_seen': user.last_seen.isoformat() if getattr(user, 'last_seen', None) else None,
+            'is_recently_online': getattr(user, 'is_recently_online', False),
+            'online_status': getattr(user, 'online_status', 'offline'),
+            'plans_count': getattr(user, 'plans_count', 0),
+            'personal_plans_count': getattr(user, 'personal_plans_count', 0),
+            'group_plans_count': getattr(user, 'group_plans_count', 0),
+            'groups_count': getattr(user, 'groups_count', 0),
+            'friends_count': getattr(user, 'friends_count', 0),
+            'unread_messages_count': getattr(user, 'unread_messages_count', 0),
+            'date_joined': user.date_joined.isoformat() if user.date_joined else None,
+            'is_active': user.is_active,
+        }
     
     @classmethod
     def get_friendship_status(cls, current_user, target_user) -> Dict[str, Any]:
@@ -115,6 +175,7 @@ class UserService(BaseService):
         user_repo = auth_factories.get_user_repo()
         user, success = user_repo.update_profile(user.id, data)
         if success:
+            cls._invalidate_user_cache(user.id)
             cls.log_operation("user_profile_updated", {'user_id': user.id})
         else:
             cls.log_operation("user_profile_update_failed", {'user_id': user.id})
@@ -201,7 +262,11 @@ class UserService(BaseService):
             from_user_id=from_user.id,
         )
         handler = auth_factories.get_accept_friend_request_handler()
-        return handler.handle(cmd)
+        result = handler.handle(cmd)
+        # Both users' friend counts change
+        cls._invalidate_user_cache(current_user.id)
+        cls._invalidate_user_cache(from_user.id)
+        return result
     
     @classmethod
     def reject_friend_request(cls, current_user, from_user) -> Tuple[bool, str]:
@@ -241,7 +306,10 @@ class UserService(BaseService):
             target_user_id=target_user.id,
         )
         handler = auth_factories.get_unfriend_handler()
-        return handler.handle(cmd)
+        result = handler.handle(cmd)
+        cls._invalidate_user_cache(current_user.id)
+        cls._invalidate_user_cache(target_user.id)
+        return result
     
     @classmethod
     def is_group_member(cls, user, group) -> bool:
@@ -316,3 +384,14 @@ class UserService(BaseService):
             return False, f'Search query must be at least {min_length} characters'
         
         return True, 'Valid query'
+
+    # ------------------------------------------------------------------
+    # Cache invalidation helper
+    # ------------------------------------------------------------------
+    @classmethod
+    def _invalidate_user_cache(cls, user_id) -> None:
+        try:
+            cache_svc = auth_factories.get_cache_service()
+            cache_svc.delete(CacheKeys.user_profile(user_id))
+        except Exception as e:
+            logger.warning("Failed to invalidate user cache for %s: %s", user_id, e)

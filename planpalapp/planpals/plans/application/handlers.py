@@ -15,6 +15,8 @@ import logging
 from typing import Any, Optional
 from uuid import UUID
 
+from django.db import transaction
+
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
 from planpals.plans.domain.repositories import PlanRepository, PlanActivityRepository
 from planpals.plans.domain.events import (
@@ -27,10 +29,11 @@ from planpals.plans.application.commands import (
     AddActivityCommand, UpdateActivityCommand,
     RemoveActivityCommand, ToggleActivityCompletionCommand,
 )
-from planpals.shared.exceptions import (
+from planpals.shared.domain_exceptions import (
     PlanNotFoundException, NotPlanOwnerException,
     PlanCompletedException, PlanCancelledException,
     ActivityNotFoundException, ActivityOverlapException,
+    InvalidStatusTransitionException, DomainException,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,6 +56,7 @@ class CreatePlanHandler(BaseCommandHandler[CreatePlanCommand, Any]):
         self.event_publisher = event_publisher
         self.membership_checker = membership_checker
 
+    @transaction.atomic
     def handle(self, command: CreatePlanCommand) -> Any:
         # Business rule: Group plans require group membership
         if command.plan_type == 'group' and command.group_id:
@@ -91,6 +95,7 @@ class UpdatePlanHandler(BaseCommandHandler[UpdatePlanCommand, Any]):
         self.plan_repo = plan_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: UpdatePlanCommand) -> Any:
         plan = self.plan_repo.get_by_id(command.plan_id)
         if not plan:
@@ -146,6 +151,7 @@ class ChangePlanStatusHandler(BaseCommandHandler[ChangePlanStatusCommand, Any]):
         self.plan_repo = plan_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: ChangePlanStatusCommand) -> Any:
         plan = self.plan_repo.get_by_id(command.plan_id)
         if not plan:
@@ -157,8 +163,7 @@ class ChangePlanStatusHandler(BaseCommandHandler[ChangePlanStatusCommand, Any]):
         old_status = plan.status
         allowed = self.VALID_TRANSITIONS.get(old_status, [])
         if command.new_status not in allowed:
-            from planpals.shared.exceptions import PlanPalException
-            raise PlanPalException(
+            raise InvalidStatusTransitionException(
                 f"Không thể chuyển trạng thái từ '{old_status}' sang '{command.new_status}'."
             )
 
@@ -182,6 +187,7 @@ class DeletePlanHandler(BaseCommandHandler[DeletePlanCommand, bool]):
         self.plan_repo = plan_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: DeletePlanCommand) -> bool:
         plan = self.plan_repo.get_by_id(command.plan_id)
         if not plan:
@@ -207,18 +213,17 @@ class JoinPlanHandler(BaseCommandHandler[JoinPlanCommand, Any]):
     def __init__(self, plan_repo: PlanRepository):
         self.plan_repo = plan_repo
 
+    @transaction.atomic
     def handle(self, command: JoinPlanCommand) -> Any:
         plan = self.plan_repo.get_by_id(command.plan_id)
         if not plan:
             raise PlanNotFoundException()
 
         if not plan.is_public:
-            from planpals.shared.exceptions import PlanPalException
-            raise PlanPalException("Kế hoạch này không công khai.")
+            raise DomainException("Kế hoạch này không công khai.")
 
         if self.plan_repo.is_collaborator(command.plan_id, command.user_id):
-            from planpals.shared.exceptions import PlanPalException
-            raise PlanPalException("Bạn đã tham gia kế hoạch này rồi.")
+            raise DomainException("Bạn đã tham gia kế hoạch này rồi.")
 
         self.plan_repo.add_collaborator(command.plan_id, command.user_id)
         return plan
@@ -241,6 +246,7 @@ class AddActivityHandler(BaseCommandHandler[AddActivityCommand, Any]):
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: AddActivityCommand) -> Any:
         plan = self.plan_repo.get_by_id(command.plan_id)
         if not plan:
@@ -286,6 +292,7 @@ class UpdateActivityHandler(BaseCommandHandler[UpdateActivityCommand, Any]):
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: UpdateActivityCommand) -> Any:
         activity = self.activity_repo.get_by_id(command.activity_id)
         if not activity:
@@ -329,6 +336,7 @@ class RemoveActivityHandler(BaseCommandHandler[RemoveActivityCommand, bool]):
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: RemoveActivityCommand) -> bool:
         activity = self.activity_repo.get_by_id(command.activity_id)
         if not activity:
@@ -354,6 +362,7 @@ class ToggleActivityCompletionHandler(BaseCommandHandler[ToggleActivityCompletio
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: ToggleActivityCompletionCommand) -> Any:
         activity = self.activity_repo.get_by_id(command.activity_id)
         if not activity:

@@ -59,6 +59,12 @@ class GroupRepository(ABC):
         """Get a group by ID only if it is public."""
         ...
 
+    @abstractmethod
+    def get_by_id_for_detail(self, group_id: UUID) -> Optional[Any]:
+        """Get a group with all data needed for the detail view
+        (admin, memberships, stats)."""
+        ...
+
 
 class GroupMembershipRepository(ABC):
     """Repository interface for GroupMembership entities."""

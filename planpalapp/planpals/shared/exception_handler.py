@@ -1,5 +1,9 @@
 """
-Custom exception handler for DRF to provide user-friendly error messages
+Custom exception handler for DRF to provide user-friendly error messages.
+
+This is the API-layer exception mapper that converts pure-Python
+DomainException instances into DRF Response objects — the ONLY place
+where domain exceptions meet HTTP status codes.
 """
 from typing import Any
 
@@ -7,7 +11,7 @@ from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework import status
 from django.core.exceptions import ValidationError as DjangoValidationError, PermissionDenied as DjangoPermissionDenied
-from planpals.shared.exceptions import PlanPalException
+from planpals.shared.domain_exceptions import DomainException
 import logging
 
 logger = logging.getLogger(__name__)
@@ -118,19 +122,18 @@ def custom_exception_handler(exc, context):
     # Call REST framework's default exception handler first
     response = exception_handler(exc, context)
     
-    # Handle PlanPal custom exceptions
-    if isinstance(exc, PlanPalException):
-        message, errors, non_field_errors, passthrough_fields = _normalize_error_data(exc.detail)
+    # Handle PlanPal domain exceptions (pure Python — no DRF dependency)
+    if isinstance(exc, DomainException):
+        message = str(exc.detail)
+        status_code = exc.status_hint
+        error_code = exc.code
         return Response(
             _build_error_response(
                 message=message,
-                status_code=exc.status_code,
-                error_code=exc.default_code,
-                errors=errors,
-                non_field_errors=non_field_errors,
-                extra_fields=passthrough_fields,
+                status_code=status_code,
+                error_code=error_code,
             ),
-            status=exc.status_code,
+            status=status_code,
         )
     
     # Handle Django ValidationError

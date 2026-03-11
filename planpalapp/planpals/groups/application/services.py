@@ -2,6 +2,7 @@ import logging
 from typing import Dict, List, Optional, Tuple, Any
 
 from planpals.shared.base_service import BaseService
+from planpals.shared.cache import CacheKeys, CacheTTL
 
 # Commands & factories — thin delegation layer
 from planpals.groups.application.commands import (
@@ -44,7 +45,9 @@ class GroupService(BaseService):
             role=role or 'member',
         )
         handler = group_factories.get_add_member_handler()
-        return handler.handle(cmd)
+        result = handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return result
     
     @classmethod
     def add_member_by_id(cls, group, user_id: str, added_by=None) -> Tuple[bool, str]:
@@ -65,14 +68,18 @@ class GroupService(BaseService):
             removed_by_id=removed_by.id,
         )
         handler = group_factories.get_remove_member_handler()
-        return handler.handle(cmd)
+        result = handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return result
     
     @classmethod
     def join_group_by_invite(cls, group, user) -> Tuple[bool, str]:
         """Delegate to JoinGroupHandler."""
         cmd = JoinGroupCommand(group_id=group.id, user_id=user.id)
         handler = group_factories.get_join_group_handler()
-        return handler.handle(cmd)
+        result = handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return result
     
     @classmethod
     def join_group(cls, user, group_id: str = None, invite_code: str = None) -> Tuple[bool, str, Optional[Any]]:
@@ -101,7 +108,9 @@ class GroupService(BaseService):
         """Delegate to LeaveGroupHandler."""
         cmd = LeaveGroupCommand(group_id=group.id, user_id=user.id)
         handler = group_factories.get_leave_group_handler()
-        return handler.handle(cmd)
+        result = handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return result
     
     @classmethod
     def can_manage_members(cls, group, user) -> bool:
@@ -121,7 +130,9 @@ class GroupService(BaseService):
             promoted_by_id=actor.id,
         )
         handler = group_factories.get_promote_member_handler()
-        return handler.handle(cmd)
+        result = handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return result
 
     @classmethod
     def demote_member(cls, group, user_to_demote, actor) -> Tuple[bool, str]:
@@ -132,7 +143,9 @@ class GroupService(BaseService):
             demoted_by_id=actor.id,
         )
         handler = group_factories.get_demote_member_handler()
-        return handler.handle(cmd)
+        result = handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return result
     
     @classmethod
     def search_user_groups(cls, user, query: str):        
@@ -150,3 +163,36 @@ class GroupService(BaseService):
             'count': len(plans),
             'can_create_plan': group.is_admin(user)
         }
+
+    # ------------------------------------------------------------------
+    # Cached reads
+    # ------------------------------------------------------------------
+    @classmethod
+    def get_group_detail_cached(cls, group_id, user_id, serializer_fn):
+        """Return group detail dict, backed by cache.
+
+        *serializer_fn* is a ``callable(group) -> dict`` provided by the
+        view so that the service layer never imports DRF serializers.
+        """
+        cache_svc = group_factories.get_cache_service()
+        key = CacheKeys.group_detail(group_id, user_id)
+
+        def compute():
+            group_repo = group_factories.get_group_repo()
+            group = group_repo.get_by_id_for_detail(group_id)
+            if not group:
+                return None
+            return serializer_fn(group)
+
+        return cache_svc.get_or_set(key, compute, CacheTTL.GROUP_DETAIL)
+
+    # ------------------------------------------------------------------
+    # Cache invalidation helper
+    # ------------------------------------------------------------------
+    @classmethod
+    def _invalidate_group_cache(cls, group_id) -> None:
+        try:
+            cache_svc = group_factories.get_cache_service()
+            cache_svc.delete_pattern(CacheKeys.group_detail_pattern(group_id))
+        except Exception as e:
+            logger.warning("Failed to invalidate group cache for %s: %s", group_id, e)
