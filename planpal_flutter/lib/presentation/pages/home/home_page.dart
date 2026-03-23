@@ -1,22 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:getwidget/getwidget.dart';
-import '../../../core/providers/theme_provider.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
-import 'package:planpal_flutter/core/providers/conversation_provider.dart';
-import 'package:planpal_flutter/core/dtos/user_model.dart';
+import '../../../core/riverpod/providers.dart';
 import 'package:planpal_flutter/core/dtos/plan_summary.dart';
 import 'package:planpal_flutter/core/dtos/group_summary.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import 'package:planpal_flutter/core/repositories/group_repository.dart';
-import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 import 'package:planpal_flutter/presentation/pages/friends/friend_search_page.dart';
 import 'package:planpal_flutter/presentation/pages/chat/conversation_list_page.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../../../shared/ui_states/ui_states.dart';
 
 /// Main home page with drawer navigation and content sections
 class HomePage extends StatelessWidget {
@@ -28,63 +24,21 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _HomeContent extends StatefulWidget {
+class _HomeContent extends ConsumerStatefulWidget {
   const _HomeContent({super.key});
 
   @override
-  State<_HomeContent> createState() => _HomeContentState();
+  ConsumerState<_HomeContent> createState() => _HomeContentState();
 }
 
-class _HomeContentState extends State<_HomeContent> with RefreshablePage {
-  late final GroupRepository _groupRepo;
-  late final PlanRepository _planRepo;
-  bool _loading = false;
-  String? _error;
-  List<PlanSummary> _recentPlans = const <PlanSummary>[];
-  List<GroupSummary> _activeGroups = const <GroupSummary>[];
-
-  @override
-  void initState() {
-    super.initState();
-    _groupRepo = GroupRepository(context.read<AuthProvider>());
-    _planRepo = PlanRepository(context.read<AuthProvider>());
-    _loadData();
-
-    // Load conversations to get unread count for badge
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      context.read<ConversationProvider>().loadConversations();
-    });
-  }
-
+class _HomeContentState extends ConsumerState<_HomeContent>
+    with RefreshablePage {
   @override
   Future<void> onRefresh() async {
-    // Capture the conversation loading future before awaiting other async work
-    final convFuture = context.read<ConversationProvider>().loadConversations();
-    await Future.wait([_loadData(), convFuture]);
-  }
-
-  Future<void> _loadData() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final plans = await _planRepo.getPlansLegacy();
-      final groups = await _groupRepo.getGroups();
-      if (!mounted) return;
-      setState(() {
-        _recentPlans = plans.take(5).toList();
-        _activeGroups = groups.take(5).toList();
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = 'Lỗi: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-    }
+    // Invalidate Riverpod providers to trigger re-fetch
+    ref.invalidate(plansNotifierProvider);
+    ref.invalidate(groupsNotifierProvider);
+    ref.invalidate(conversationListProvider);
   }
 
   Future<void> _handleQuickCreatePlan() async {
@@ -98,9 +52,7 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
       try {
         final map = Map<String, dynamic>.from(result['plan'] as Map);
         final summary = PlanSummary.fromJson(map);
-        setState(
-          () => _recentPlans = [summary, ..._recentPlans].take(5).toList(),
-        );
+        ref.read(plansNotifierProvider.notifier).addPlan(summary);
       } catch (_) {
         // ignore malformed return
       }
@@ -109,6 +61,15 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
 
   @override
   Widget build(BuildContext context) {
+    final plansAsync = ref.watch(plansNotifierProvider);
+    final groupsAsync = ref.watch(groupsNotifierProvider);
+
+    // Derive loading/error/data states from the two async values
+    final isLoading = plansAsync.isLoading || groupsAsync.isLoading;
+    final error = plansAsync.error ?? groupsAsync.error;
+    final recentPlans = (plansAsync.valueOrNull?.items ?? []).take(5).toList();
+    final activeGroups = (groupsAsync.valueOrNull ?? []).take(5).toList();
+
     return Scaffold(
       drawer: _buildDrawer(context),
       body: RefreshablePageWrapper(
@@ -119,29 +80,16 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: _loading
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.only(top: 60.0, bottom: 120),
-                          child: CircularProgressIndicator(),
-                        ),
+                child: isLoading && recentPlans.isEmpty && activeGroups.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.only(top: 24.0, bottom: 80),
+                        child: AppSkeleton.list(itemCount: 4),
                       )
-                    : _error != null
-                    ? Center(
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 80),
-                            const Icon(
-                              Icons.error_outline,
-                              size: 48,
-                              color: Colors.redAccent,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(_error!, textAlign: TextAlign.center),
-                            const SizedBox(height: 8),
-                            // Remove manual refresh button since we have pull-to-refresh
-                          ],
-                        ),
+                    : error != null && recentPlans.isEmpty
+                    ? AppError(
+                        message: 'Lỗi: $error',
+                        onRetry: () async => onRefresh(),
+                        retryLabel: 'Thử lại',
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,9 +98,9 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
                           const SizedBox(height: 24),
                           _buildQuickActions(context),
                           const SizedBox(height: 24),
-                          _buildRecentPlans(context),
+                          _buildRecentPlans(context, recentPlans),
                           const SizedBox(height: 24),
-                          _buildActiveGroups(context),
+                          _buildActiveGroups(context, activeGroups),
                           const SizedBox(height: 100),
                         ],
                       ),
@@ -193,14 +141,16 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
         ),
       ),
       actions: [
-        Consumer<ThemeProvider>(
-          builder: (context, themeProvider, child) {
+        Consumer(
+          builder: (context, ref, child) {
+            final isDark = ref.watch(isDarkModeProvider);
             return IconButton(
               icon: Icon(
-                themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                isDark ? Icons.light_mode : Icons.dark_mode,
                 color: Colors.white,
               ),
-              onPressed: () => themeProvider.toggleTheme(),
+              onPressed: () =>
+                  ref.read(themeNotifierProvider.notifier).toggleTheme(),
             );
           },
         ),
@@ -252,94 +202,88 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
   }
 
   Widget _buildDrawerHeader() {
-    return Selector<AuthProvider, UserModel?>(
-      selector: (_, auth) => auth.user,
-      builder: (context, user, _) {
-        return DrawerHeader(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: AppColors.primaryGradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+    final user = ref.read(authNotifierProvider).user;
+    return DrawerHeader(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: AppColors.primaryGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Avatar: use CachedNetworkImage to show placeholder / error states
+          Container(
+            width: 64,
+            height: 64,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
             ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Avatar: use CachedNetworkImage to show placeholder / error states
-              Container(
-                width: 64,
-                height: 64,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                ),
-                child: ClipOval(
-                  child: user != null && user.avatarUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: user.avatarUrl!,
-                          width: 64,
-                          height: 64,
-                          fit: BoxFit.cover,
-                          placeholder: (c, u) => Container(
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
+            child: ClipOval(
+              child: user != null && user.avatarUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: user.avatarUrl!,
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                      placeholder: (c, u) => Container(
+                        color: Colors.grey[200],
+                        child: const Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                          errorWidget: (c, u, e) => Container(
-                            color: Colors.grey[100],
-                            child: Center(
-                              child: Text(
-                                user.initials.isNotEmpty ? user.initials : '?',
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          color: Colors.grey[100],
-                          child: Center(
-                            child: Text(
-                              user?.initials ?? '?',
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey,
-                              ),
+                        ),
+                      ),
+                      errorWidget: (c, u, e) => Container(
+                        color: Colors.grey[100],
+                        child: Center(
+                          child: Text(
+                            user.initials.isNotEmpty ? user.initials : '?',
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey,
                             ),
                           ),
                         ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                user?.fullName ?? 'Chưa đăng nhập',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (user != null && user.email != null && user.email!.isNotEmpty)
-                Text(
-                  user.email!,
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-            ],
+                      ),
+                    )
+                  : Container(
+                      color: Colors.grey[100],
+                      child: Center(
+                        child: Text(
+                          user?.initials ?? '?',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
           ),
-        );
-      },
+          const SizedBox(height: 12),
+          Text(
+            user?.fullName ?? 'Chưa đăng nhập',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          if (user != null && user.email != null && user.email!.isNotEmpty)
+            Text(
+              user.email!,
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+        ],
+      ),
     );
   }
 
@@ -348,12 +292,9 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
     return Column(
       children: [
         // Chat functionality with unread count badge
-        Consumer<ConversationProvider>(
-          builder: (context, conversationProvider, child) {
-            // Show badge even if there's an error, but use 0 count
-            final unreadCount = conversationProvider.error != null
-                ? 0
-                : conversationProvider.totalUnreadCount;
+        Consumer(
+          builder: (context, ref, child) {
+            final unreadCount = ref.watch(totalUnreadCountProvider);
 
             return ListTile(
               leading: _buildNotificationBadge(
@@ -363,17 +304,14 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
               title: const Text('Cuộc hội thoại'),
               onTap: () async {
                 Navigator.of(context).pop();
-                // Capture provider before async gap to avoid using context after await
-                final convProv = context.read<ConversationProvider>();
                 await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const ConversationListPage(),
                   ),
                 );
-
                 // Refresh conversations to update unread count badge when returning
                 if (!mounted) return;
-                convProv.loadConversations();
+                ref.invalidate(conversationListProvider);
               },
             );
           },
@@ -637,7 +575,10 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
     );
   }
 
-  Widget _buildRecentPlans(BuildContext context) {
+  Widget _buildRecentPlans(
+    BuildContext context,
+    List<PlanSummary> recentPlans,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -657,16 +598,22 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
           ],
         ),
         const SizedBox(height: 16),
-        if (_recentPlans.isEmpty)
-          const Text('Chưa có kế hoạch', style: TextStyle(color: Colors.grey))
+        if (recentPlans.isEmpty)
+          AppEmpty(
+            icon: Icons.event_busy,
+            title: 'Chưa có kế hoạch',
+            description: 'Tạo kế hoạch đầu tiên cho hành trình của bạn',
+            actionLabel: 'Tạo kế hoạch',
+            onAction: _handleQuickCreatePlan,
+          )
         else
           SizedBox(
             height: 180,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: _recentPlans.length,
+              itemCount: recentPlans.length,
               itemBuilder: (context, index) {
-                final p = _recentPlans[index];
+                final p = recentPlans[index];
                 return GestureDetector(
                   onTap: () async {
                     final id = p.id;
@@ -684,16 +631,12 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
                     if (!mounted) return;
 
                     if (result != null) {
-                      // If the details page reported a delete, remove it from the recent list
+                      // If the details page reported a delete, remove it from shared state
                       if (result['action'] == 'delete' && result['id'] == id) {
-                        setState(
-                          () => _recentPlans = _recentPlans
-                              .where((x) => x.id != id)
-                              .toList(),
-                        );
+                        ref.read(plansNotifierProvider.notifier).removePlan(id);
                       }
 
-                      // If the plan was updated, try to replace it in the list with returned plan summary
+                      // If the plan was updated, update shared state
                       if ((result['action'] == 'updated' ||
                               result['action'] == 'edit') &&
                           result['plan'] is Map) {
@@ -701,18 +644,21 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
                           final updated = PlanSummary.fromJson(
                             Map<String, dynamic>.from(result['plan'] as Map),
                           );
-                          setState(
-                            () => _recentPlans = _recentPlans
-                                .map((x) => x.id == updated.id ? updated : x)
-                                .toList(),
-                          );
+                          ref
+                              .read(plansNotifierProvider.notifier)
+                              .updatePlan(updated);
                         } catch (_) {
                           // ignore malformed return
                         }
                       }
                     }
                   },
-                  child: _buildPlanCardItem(context, index, p),
+                  child: _buildPlanCardItem(
+                    context,
+                    index,
+                    p,
+                    totalCount: recentPlans.length,
+                  ),
                 );
               },
             ),
@@ -721,7 +667,10 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
     );
   }
 
-  Widget _buildActiveGroups(BuildContext context) {
+  Widget _buildActiveGroups(
+    BuildContext context,
+    List<GroupSummary> activeGroups,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -741,15 +690,19 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
           ],
         ),
         const SizedBox(height: 16),
-        if (_activeGroups.isEmpty)
-          const Text('Chưa có nhóm', style: TextStyle(color: Colors.grey))
+        if (activeGroups.isEmpty)
+          const AppEmpty(
+            icon: Icons.groups_outlined,
+            title: 'Chưa có nhóm',
+            description: 'Tham gia hoặc tạo nhóm để phối hợp kế hoạch',
+          )
         else
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: _activeGroups.length,
+            itemCount: activeGroups.length,
             itemBuilder: (context, index) {
-              final g = _activeGroups[index];
+              final g = activeGroups[index];
               return GestureDetector(
                 onTap: () {
                   final id = g.id;
@@ -769,14 +722,19 @@ class _HomeContentState extends State<_HomeContent> with RefreshablePage {
     );
   }
 
-  Widget _buildPlanCardItem(BuildContext context, int index, PlanSummary p) {
+  Widget _buildPlanCardItem(
+    BuildContext context,
+    int index,
+    PlanSummary p, {
+    int totalCount = 0,
+  }) {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
     final name = p.title.isNotEmpty ? p.title : 'Kế hoạch';
 
     return Container(
       width: 280,
-      margin: EdgeInsets.only(right: index == _recentPlans.length - 1 ? 0 : 16),
+      margin: EdgeInsets.only(right: index == totalCount - 1 ? 0 : 16),
       child: GFCard(
         padding: const EdgeInsets.all(16),
         margin: const EdgeInsets.all(0),

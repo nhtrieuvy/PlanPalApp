@@ -1,13 +1,8 @@
 import logging
-from typing import Dict, List, Optional, Tuple, Any
-
-from django.db import transaction, models
-from django.core.exceptions import ValidationError
-from django.contrib.auth import get_user_model
+from typing import Dict, Optional, Tuple, Any
 
 from planpals.shared.base_service import BaseService
-from planpals.groups.infrastructure.models import Group, GroupMembership
-from planpals.models import User, Friendship, Plan
+from planpals.shared.cache import CacheKeys, CacheTTL
 
 # Commands & factories — thin delegation layer
 from planpals.groups.application.commands import (
@@ -21,145 +16,138 @@ from planpals.groups.application.commands import (
 )
 from planpals.groups.application import factories as group_factories
 
-User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
 class GroupService(BaseService):    
     @classmethod
-    def create_group(cls, creator: User, name: str, description: str = "", 
-                    is_public: bool = False, initial_members: List[User] = None) -> Group:
+    def create_group(
+        cls,
+        creator,
+        name: str,
+        description: str = "",
+        initial_members=None,
+        avatar=None,
+        cover_image=None,
+    ):
         """Delegate to CreateGroupHandler."""
         cmd = CreateGroupCommand(
             admin_id=creator.id,
             name=name,
             description=description,
-            is_public=is_public,
             initial_member_ids=tuple(u.id for u in (initial_members or []) if u != creator),
+            avatar=avatar,
+            cover_image=cover_image,
         )
         handler = group_factories.get_create_group_handler()
         return handler.handle(cmd)
     
     @classmethod
-    def add_member(cls, group: Group, user: User, 
-                           role: str = None, added_by: User = None) -> Tuple[bool, str]:
+    def add_member(cls, group, user, role: str = None, added_by=None) -> Tuple[bool, str]:
         """Delegate to AddMemberHandler."""
+        actor = added_by or group.admin
         cmd = AddMemberCommand(
             group_id=group.id,
-            user_id=user.id,
-            added_by_id=added_by.id if added_by else None,
-            role=role or GroupMembership.MEMBER,
+            user_id=actor.id,
+            target_user_id=user.id,
         )
         handler = group_factories.get_add_member_handler()
-        return handler.handle(cmd)
+        handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return True, "Member added successfully"
     
     @classmethod
-    def add_member_by_id(cls, group: Group, user_id: str, added_by: User = None) -> Tuple[bool, str]:
-        try:
-            target_user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
+    def add_member_by_id(cls, group, user_id: str, added_by=None) -> Tuple[bool, str]:
+        user_repo = group_factories.get_user_repo()
+        target_user = user_repo.get_by_id(user_id)
+        if not target_user:
             return False, "User not found"
         
         return cls.add_member(group, target_user, added_by=added_by)
     
     @classmethod
-    def remove_member_from_group(cls, group: Group, user: User, 
-                                removed_by: User) -> Tuple[bool, str]:
+    def remove_member_from_group(cls, group, user, 
+                                removed_by) -> Tuple[bool, str]:
         """Delegate to RemoveMemberHandler."""
         cmd = RemoveMemberCommand(
             group_id=group.id,
-            user_id=user.id,
-            removed_by_id=removed_by.id,
+            user_id=removed_by.id,
+            target_user_id=user.id,
         )
         handler = group_factories.get_remove_member_handler()
-        return handler.handle(cmd)
+        handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return True, "Member removed successfully"
     
     @classmethod
-    def join_group_by_invite(cls, group: Group, user: User) -> Tuple[bool, str]:
-        """Delegate to JoinGroupHandler."""
-        cmd = JoinGroupCommand(group_id=group.id, user_id=user.id)
-        handler = group_factories.get_join_group_handler()
-        return handler.handle(cmd)
-    
-    @classmethod
-    def join_group(cls, user: User, group_id: str = None, invite_code: str = None) -> Tuple[bool, str, Optional[Group]]:
+    def join_group(cls, user, group_id: str) -> Tuple[bool, str, Optional[Any]]:
         """Delegate to JoinGroupHandler."""
         cmd = JoinGroupCommand(
             user_id=user.id,
             group_id=group_id,
-            invite_code=invite_code,
         )
         handler = group_factories.get_join_group_handler()
         try:
-            result = handler.handle(cmd)
-            if isinstance(result, tuple) and len(result) == 2:
-                success, message = result
-                if success:
-                    # Resolve group for caller
-                    from planpals.groups.infrastructure.repositories import DjangoGroupRepository
-                    repo = DjangoGroupRepository()
-                    group = repo.get_by_id(group_id) if group_id else repo.get_by_invite_code(invite_code)
-                    return True, message, group
-                return False, message, None
-            return False, "Unexpected handler result", None
+            handler.handle(cmd)
+            group_repo = group_factories.get_group_repo()
+            group = group_repo.get_by_id_for_detail(group_id)
+            cls._invalidate_group_cache(group_id)
+            return True, "Joined group successfully", group
         except Exception as e:
             return False, str(e), None
     
     @classmethod
-    @transaction.atomic  
-    def leave_group(cls, group: Group, user: User) -> Tuple[bool, str]:
+    def leave_group(cls, group, user) -> Tuple[bool, str]:
         """Delegate to LeaveGroupHandler."""
         cmd = LeaveGroupCommand(group_id=group.id, user_id=user.id)
         handler = group_factories.get_leave_group_handler()
-        return handler.handle(cmd)
+        handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return True, "Left group successfully"
     
     @classmethod
-    def can_manage_members(cls, group: Group, user: User) -> bool:
+    def can_manage_members(cls, group, user) -> bool:
         return group.is_admin(user)
     
     @classmethod
-    def can_edit_group(cls, group: Group, user: User) -> bool:
+    def can_edit_group(cls, group, user) -> bool:
         return group.is_admin(user)
     
     
     @classmethod
-    @transaction.atomic
-    def promote_member(cls, group: Group, user_to_promote: User, actor: User) -> Tuple[bool, str]:
+    def promote_member(cls, group, user_to_promote, actor) -> Tuple[bool, str]:
         """Delegate to PromoteMemberHandler."""
         cmd = PromoteMemberCommand(
             group_id=group.id,
-            user_id=user_to_promote.id,
-            promoted_by_id=actor.id,
+            user_id=actor.id,
+            target_user_id=user_to_promote.id,
         )
         handler = group_factories.get_promote_member_handler()
-        return handler.handle(cmd)
+        handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return True, "Member promoted successfully"
 
     @classmethod
-    @transaction.atomic
-    def demote_member(cls, group: Group, user_to_demote: User, actor: User) -> Tuple[bool, str]:
+    def demote_member(cls, group, user_to_demote, actor) -> Tuple[bool, str]:
         """Delegate to DemoteMemberHandler."""
         cmd = DemoteMemberCommand(
             group_id=group.id,
-            user_id=user_to_demote.id,
-            demoted_by_id=actor.id,
+            user_id=actor.id,
+            target_user_id=user_to_demote.id,
         )
         handler = group_factories.get_demote_member_handler()
-        return handler.handle(cmd)
+        handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return True, "Member demoted successfully"
     
     @classmethod
-    def search_user_groups(cls, user: User, query: str):        
-        return Group.objects.filter(
-            members=user
-        ).filter(
-            models.Q(name__icontains=query) |
-            models.Q(description__icontains=query)
-    ).select_related('admin').prefetch_related('members', 'memberships__user').with_full_stats()
+    def search_user_groups(cls, user, query: str):        
+        return group_factories.get_group_repo().search_groups(query, user.id)
     
     @classmethod
-    def get_group_plans(cls, group: Group, user: User) -> Dict[str, Any]:
-        plans = Plan.objects.filter(group=group).select_related(
-            'creator', 'group'
-        ).prefetch_related('activities').order_by('-created_at')
+    def get_group_plans(cls, group, user) -> Dict[str, Any]:
+        group_repo = group_factories.get_group_repo()
+        plans = group_repo.get_group_plans(group.id)
         
         return {
             'plans': plans,
@@ -168,3 +156,36 @@ class GroupService(BaseService):
             'count': len(plans),
             'can_create_plan': group.is_admin(user)
         }
+
+    # ------------------------------------------------------------------
+    # Cached reads
+    # ------------------------------------------------------------------
+    @classmethod
+    def get_group_detail_cached(cls, group_id, user_id, serializer_fn):
+        """Return group detail dict, backed by cache.
+
+        *serializer_fn* is a ``callable(group) -> dict`` provided by the
+        view so that the service layer never imports DRF serializers.
+        """
+        cache_svc = group_factories.get_cache_service()
+        key = CacheKeys.group_detail(group_id, user_id)
+
+        def compute():
+            group_repo = group_factories.get_group_repo()
+            group = group_repo.get_by_id_for_detail(group_id)
+            if not group:
+                return None
+            return serializer_fn(group)
+
+        return cache_svc.get_or_set(key, compute, CacheTTL.GROUP_DETAIL)
+
+    # ------------------------------------------------------------------
+    # Cache invalidation helper
+    # ------------------------------------------------------------------
+    @classmethod
+    def _invalidate_group_cache(cls, group_id) -> None:
+        try:
+            cache_svc = group_factories.get_cache_service()
+            cache_svc.delete_pattern(CacheKeys.group_detail_pattern(group_id))
+        except Exception as e:
+            logger.warning("Failed to invalidate group cache for %s: %s", group_id, e)

@@ -208,20 +208,6 @@ class GroupAdmin(admin.ModelAdmin):
         }),
     )
     
-    def cover_preview(self, obj):
-        if obj.cover_image:
-            # Cloudinary URL với transformation
-            cover_url = obj.cover_image.build_url(
-                width=200, height=100, crop='fill', gravity='center'
-            ) if hasattr(obj.cover_image, 'build_url') else obj.cover_image.url
-            
-            return format_html(
-                '<img src="{}" width="200" height="100" style="object-fit: cover;" />',
-                cover_url
-            )
-        return "Chưa có ảnh bìa"
-    cover_preview.short_description = "Preview Cover"
-    
     def member_count(self, obj):
         count = obj.members.count()
         url = reverse('admin:planpals_groupmembership_changelist') + f'?group__id__exact={obj.id}'
@@ -233,6 +219,19 @@ class GroupAdmin(admin.ModelAdmin):
         url = reverse('admin:planpals_plan_changelist') + f'?group__id__exact={obj.id}'
         return format_html('<a href="{}">{} kế hoạch</a>', url, count)
     plan_count.short_description = 'Số kế hoạch'
+
+    def cover_preview(self, obj):
+        if obj.cover_image:
+            cover_url = obj.cover_image.build_url(
+                width=200, height=100, crop='fill', gravity='center'
+            ) if hasattr(obj.cover_image, 'build_url') else obj.cover_image.url
+
+            return format_html(
+                '<img src="{}" width="200" height="100" style="object-fit: cover;" />',
+                cover_url
+            )
+        return "Chưa có ảnh bìa"
+    cover_preview.short_description = "Preview Cover"
 
 @admin.register(GroupMembership)
 class GroupMembershipAdmin(admin.ModelAdmin):

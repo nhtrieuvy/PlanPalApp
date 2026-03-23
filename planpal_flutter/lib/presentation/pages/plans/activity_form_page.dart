@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 // removed color_utils; use withAlpha directly
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/dtos/plan_activity_requests.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/presentation/pages/location/location_picker_page.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 
-class ActivityFormPage extends StatefulWidget {
+class ActivityFormPage extends ConsumerStatefulWidget {
   final String planId;
   final String planTitle;
 
@@ -21,12 +22,12 @@ class ActivityFormPage extends StatefulWidget {
   });
 
   @override
-  State<ActivityFormPage> createState() => _ActivityFormPageState();
+  ConsumerState<ActivityFormPage> createState() => _ActivityFormPageState();
 }
 
-class _ActivityFormPageState extends State<ActivityFormPage> {
+class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
   final _formKey = GlobalKey<FormState>();
-  late final PlanRepository _repo;
+  PlanRepository get _repo => ref.read(planRepositoryProvider);
 
   // Form controllers
   late final TextEditingController _titleCtrl;
@@ -63,7 +64,6 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
   @override
   void initState() {
     super.initState();
-    _repo = PlanRepository(context.read<AuthProvider>());
     _titleCtrl = TextEditingController();
     _descriptionCtrl = TextEditingController();
     _estimatedCostCtrl = TextEditingController();
@@ -538,7 +538,7 @@ class _ActivityFormPageState extends State<ActivityFormPage> {
     if (!_formKey.currentState!.validate()) return;
 
     // Check authentication first
-    final authProvider = context.read<AuthProvider>();
+    final authProvider = ref.read(authNotifierProvider);
     if (!authProvider.isLoggedIn) {
       ErrorDisplayService.showErrorSnackbar(
         context,

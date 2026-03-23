@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/auth/auth_session.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import '../dtos/user_summary.dart';

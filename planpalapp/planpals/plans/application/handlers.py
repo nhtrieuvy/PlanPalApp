@@ -15,8 +15,9 @@ import logging
 from typing import Any, Optional
 from uuid import UUID
 
+from django.db import transaction
+
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
-from planpals.shared.infrastructure import DjangoUnitOfWork
 from planpals.plans.domain.repositories import PlanRepository, PlanActivityRepository
 from planpals.plans.domain.events import (
     PlanCreated, PlanUpdated, PlanStatusChanged, PlanDeleted,
@@ -28,10 +29,11 @@ from planpals.plans.application.commands import (
     AddActivityCommand, UpdateActivityCommand,
     RemoveActivityCommand, ToggleActivityCompletionCommand,
 )
-from planpals.shared.exceptions import (
+from planpals.shared.domain_exceptions import (
     PlanNotFoundException, NotPlanOwnerException,
     PlanCompletedException, PlanCancelledException,
     ActivityNotFoundException, ActivityOverlapException,
+    InvalidStatusTransitionException, DomainException,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,6 +56,7 @@ class CreatePlanHandler(BaseCommandHandler[CreatePlanCommand, Any]):
         self.event_publisher = event_publisher
         self.membership_checker = membership_checker
 
+    @transaction.atomic
     def handle(self, command: CreatePlanCommand) -> Any:
         # Business rule: Group plans require group membership
         if command.plan_type == 'group' and command.group_id:
@@ -64,11 +67,10 @@ class CreatePlanHandler(BaseCommandHandler[CreatePlanCommand, Any]):
                     "Bạn phải là thành viên nhóm để tạo kế hoạch nhóm."
                 )
 
-        with DjangoUnitOfWork():
-            # Delegate creation to repository (which handles ORM)
-            plan = self.plan_repo.save_new(command)
+        # Delegate creation to repository (which handles ORM)
+        plan = self.plan_repo.save_new(command)
 
-            self._log(f"Plan created: {plan.id} by user {command.creator_id}")
+        self._log(f"Plan created: {plan.id} by user {command.creator_id}")
 
         # Publish domain event (deferred until after transaction)
         self.event_publisher.publish(PlanCreated(
@@ -93,6 +95,7 @@ class UpdatePlanHandler(BaseCommandHandler[UpdatePlanCommand, Any]):
         self.plan_repo = plan_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: UpdatePlanCommand) -> Any:
         plan = self.plan_repo.get_by_id(command.plan_id)
         if not plan:
@@ -110,21 +113,20 @@ class UpdatePlanHandler(BaseCommandHandler[UpdatePlanCommand, Any]):
         if plan.status == 'cancelled':
             raise PlanCancelledException()
 
-        with DjangoUnitOfWork():
-            # Apply only non-None fields
-            update_fields = {}
-            for field_name in [
-                'title', 'description', 'start_date', 'end_date',
-                'is_public', 'cover_image', 'destination', 'budget', 'notes',
-            ]:
-                value = getattr(command, field_name, None)
-                if value is not None:
-                    update_fields[field_name] = value
+        # Apply only non-None fields
+        update_fields = {}
+        for field_name in [
+            'title', 'description', 'start_date', 'end_date',
+            'is_public', 'cover_image', 'destination', 'budget', 'notes',
+        ]:
+            value = getattr(command, field_name, None)
+            if value is not None:
+                update_fields[field_name] = value
 
-            if update_fields:
-                for k, v in update_fields.items():
-                    setattr(plan, k, v)
-                plan = self.plan_repo.save(plan)
+        if update_fields:
+            for k, v in update_fields.items():
+                setattr(plan, k, v)
+            plan = self.plan_repo.save(plan)
 
         self.event_publisher.publish(PlanUpdated(
             plan_id=str(plan.id),
@@ -149,6 +151,7 @@ class ChangePlanStatusHandler(BaseCommandHandler[ChangePlanStatusCommand, Any]):
         self.plan_repo = plan_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: ChangePlanStatusCommand) -> Any:
         plan = self.plan_repo.get_by_id(command.plan_id)
         if not plan:
@@ -160,13 +163,11 @@ class ChangePlanStatusHandler(BaseCommandHandler[ChangePlanStatusCommand, Any]):
         old_status = plan.status
         allowed = self.VALID_TRANSITIONS.get(old_status, [])
         if command.new_status not in allowed:
-            from planpals.shared.exceptions import PlanPalException
-            raise PlanPalException(
+            raise InvalidStatusTransitionException(
                 f"Không thể chuyển trạng thái từ '{old_status}' sang '{command.new_status}'."
             )
 
-        with DjangoUnitOfWork():
-            plan = self.plan_repo.update_status(command.plan_id, command.new_status)
+        plan = self.plan_repo.update_status(command.plan_id, command.new_status)
 
         self.event_publisher.publish(PlanStatusChanged(
             plan_id=str(plan.id),
@@ -186,6 +187,7 @@ class DeletePlanHandler(BaseCommandHandler[DeletePlanCommand, bool]):
         self.plan_repo = plan_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: DeletePlanCommand) -> bool:
         plan = self.plan_repo.get_by_id(command.plan_id)
         if not plan:
@@ -195,8 +197,7 @@ class DeletePlanHandler(BaseCommandHandler[DeletePlanCommand, bool]):
             raise NotPlanOwnerException()
 
         title = plan.title
-        with DjangoUnitOfWork():
-            self.plan_repo.delete(command.plan_id)
+        self.plan_repo.delete(command.plan_id)
 
         self.event_publisher.publish(PlanDeleted(
             plan_id=str(command.plan_id),
@@ -212,18 +213,17 @@ class JoinPlanHandler(BaseCommandHandler[JoinPlanCommand, Any]):
     def __init__(self, plan_repo: PlanRepository):
         self.plan_repo = plan_repo
 
+    @transaction.atomic
     def handle(self, command: JoinPlanCommand) -> Any:
         plan = self.plan_repo.get_by_id(command.plan_id)
         if not plan:
             raise PlanNotFoundException()
 
         if not plan.is_public:
-            from planpals.shared.exceptions import PlanPalException
-            raise PlanPalException("Kế hoạch này không công khai.")
+            raise DomainException("Kế hoạch này không công khai.")
 
         if self.plan_repo.is_collaborator(command.plan_id, command.user_id):
-            from planpals.shared.exceptions import PlanPalException
-            raise PlanPalException("Bạn đã tham gia kế hoạch này rồi.")
+            raise DomainException("Bạn đã tham gia kế hoạch này rồi.")
 
         self.plan_repo.add_collaborator(command.plan_id, command.user_id)
         return plan
@@ -246,6 +246,7 @@ class AddActivityHandler(BaseCommandHandler[AddActivityCommand, Any]):
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: AddActivityCommand) -> Any:
         plan = self.plan_repo.get_by_id(command.plan_id)
         if not plan:
@@ -264,8 +265,7 @@ class AddActivityHandler(BaseCommandHandler[AddActivityCommand, Any]):
             if conflicts:
                 raise ActivityOverlapException()
 
-        with DjangoUnitOfWork():
-            activity = self.activity_repo.save_new(command)
+        activity = self.activity_repo.save_new(command)
 
         self.event_publisher.publish(ActivityCreated(
             plan_id=str(command.plan_id),
@@ -292,6 +292,7 @@ class UpdateActivityHandler(BaseCommandHandler[UpdateActivityCommand, Any]):
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: UpdateActivityCommand) -> Any:
         activity = self.activity_repo.get_by_id(command.activity_id)
         if not activity:
@@ -308,16 +309,15 @@ class UpdateActivityHandler(BaseCommandHandler[UpdateActivityCommand, Any]):
             if conflicts:
                 raise ActivityOverlapException()
 
-        with DjangoUnitOfWork():
-            for field_name in [
-                'title', 'description', 'activity_type', 'start_time', 'end_time',
-                'location_name', 'location_address', 'latitude', 'longitude',
-                'estimated_cost', 'notes',
-            ]:
-                value = getattr(command, field_name, None)
-                if value is not None:
-                    setattr(activity, field_name, value)
-            activity = self.activity_repo.save(activity)
+        for field_name in [
+            'title', 'description', 'activity_type', 'start_time', 'end_time',
+            'location_name', 'location_address', 'latitude', 'longitude',
+            'estimated_cost', 'notes',
+        ]:
+            value = getattr(command, field_name, None)
+            if value is not None:
+                setattr(activity, field_name, value)
+        activity = self.activity_repo.save(activity)
 
         self.event_publisher.publish(ActivityUpdated(
             plan_id=str(activity.plan_id),
@@ -336,6 +336,7 @@ class RemoveActivityHandler(BaseCommandHandler[RemoveActivityCommand, bool]):
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: RemoveActivityCommand) -> bool:
         activity = self.activity_repo.get_by_id(command.activity_id)
         if not activity:
@@ -345,8 +346,7 @@ class RemoveActivityHandler(BaseCommandHandler[RemoveActivityCommand, bool]):
         title = activity.title
         activity_id = str(activity.id)
 
-        with DjangoUnitOfWork():
-            self.activity_repo.delete(command.activity_id)
+        self.activity_repo.delete(command.activity_id)
 
         self.event_publisher.publish(ActivityDeleted(
             plan_id=plan_id,
@@ -362,14 +362,14 @@ class ToggleActivityCompletionHandler(BaseCommandHandler[ToggleActivityCompletio
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: ToggleActivityCompletionCommand) -> Any:
         activity = self.activity_repo.get_by_id(command.activity_id)
         if not activity:
             raise ActivityNotFoundException()
 
-        with DjangoUnitOfWork():
-            activity.is_completed = not activity.is_completed
-            activity = self.activity_repo.save(activity)
+        activity.is_completed = not activity.is_completed
+        activity = self.activity_repo.save(activity)
 
         if activity.is_completed:
             self.event_publisher.publish(ActivityCompleted(

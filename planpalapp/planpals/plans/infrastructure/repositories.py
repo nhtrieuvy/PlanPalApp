@@ -6,9 +6,10 @@ using Django's ORM. The application layer depends on the interface, not on this 
 """
 import logging
 from datetime import datetime, date
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from uuid import UUID
 
+from django.db import transaction
 from django.db.models import Q, Sum, Count, Avg, F
 from django.utils import timezone
 
@@ -32,7 +33,7 @@ class DjangoPlanRepository(PlanRepository):
             return (
                 Plan.objects
                 .select_related('creator', 'group')
-                .with_activity_count()
+                .with_stats()
                 .get(id=plan_id)
             )
         except Plan.DoesNotExist:
@@ -47,31 +48,44 @@ class DjangoPlanRepository(PlanRepository):
             qs = qs.filter(plan_type='personal')
         elif plan_type == 'group':
             qs = qs.filter(plan_type='group')
-        return qs.with_activity_count().order_by('-created_at')
+        return qs.with_stats().order_by('-created_at')
 
-    def get_joined_plans(self, user_id: UUID) -> Any:
-        return (
-            Plan.objects
-            .filter(collaborators=user_id)
-            .select_related('creator', 'group')
-            .with_activity_count()
-            .order_by('-created_at')
-        )
+    def get_joined_group_plans(self, user_id: UUID, search: str = None) -> Any:
+        qs = Plan.objects.filter(
+            plan_type='group',
+            group__members=user_id,
+        ).exclude(creator_id=user_id).distinct().select_related('creator', 'group')
+        if search:
+            qs = qs.filter(
+                Q(title__icontains=search) | Q(description__icontains=search)
+            )
+        return qs.order_by('-created_at')
 
-    def get_public_plans(self, exclude_user_id: UUID = None) -> Any:
-        qs = Plan.objects.filter(is_public=True).select_related('creator', 'group')
+    def get_public_plans(self, exclude_user_id: UUID = None, search: str = None) -> Any:
+        qs = Plan.objects.filter(
+            is_public=True,
+            status__in=['upcoming', 'ongoing'],
+        ).select_related('creator', 'group')
         if exclude_user_id:
             qs = qs.exclude(creator_id=exclude_user_id)
-        return qs.with_activity_count().order_by('-created_at')
+            qs = qs.exclude(plan_type='group', group__members=exclude_user_id)
+        if search:
+            qs = qs.filter(
+                Q(title__icontains=search) | Q(description__icontains=search)
+            )
+        return qs.order_by('-created_at')
 
     def get_group_plans(self, group_id: UUID) -> Any:
         return (
             Plan.objects
             .filter(group_id=group_id)
             .select_related('creator', 'group')
-            .with_activity_count()
+            .prefetch_related('activities')
             .order_by('-created_at')
         )
+
+    def get_plans_needing_status_update(self) -> Any:
+        return Plan.objects.plans_need_status_update()
 
     def save(self, plan: Plan) -> Plan:
         plan.save()
@@ -127,6 +141,65 @@ class DjangoPlanRepository(PlanRepository):
         elif new_status == 'completed':
             plan.actual_end_date = timezone.now().date()
         plan.save()
+        return plan
+
+    def update_status_atomic(
+        self, plan_id: UUID, expected_status: str, new_status: str
+    ) -> Tuple[bool, Optional[Plan]]:
+        with transaction.atomic():
+            updated_count = Plan.objects.filter(
+                pk=plan_id,
+                status=expected_status,
+            ).update(
+                status=new_status,
+                updated_at=timezone.now(),
+            )
+            if updated_count == 0:
+                try:
+                    plan = Plan.objects.get(pk=plan_id)
+                    logger.warning(
+                        f"update_status_atomic: expected={expected_status} "
+                        f"but db_status={plan.status} for plan {plan_id}"
+                    )
+                except Plan.DoesNotExist:
+                    pass
+                return False, None
+            plan = Plan.objects.select_related('creator', 'group').get(pk=plan_id)
+            return True, plan
+
+    def update_fields(self, plan_id: UUID, **fields) -> bool:
+        updated = Plan.objects.filter(pk=plan_id).update(**fields)
+        return updated > 0
+
+    def update_scheduled_task_ids(
+        self, plan_id: UUID,
+        start_task_id: str = None, end_task_id: str = None,
+        expected_start_task_id: str = None, expected_end_task_id: str = None,
+    ) -> bool:
+        filters = {'pk': plan_id}
+        if expected_start_task_id is not None:
+            filters['scheduled_start_task_id'] = expected_start_task_id
+        if expected_end_task_id is not None:
+            filters['scheduled_end_task_id'] = expected_end_task_id
+
+        updates = {}
+        if start_task_id is not None:
+            updates['scheduled_start_task_id'] = start_task_id
+        if end_task_id is not None:
+            updates['scheduled_end_task_id'] = end_task_id
+
+        if not updates:
+            return True
+        return Plan.objects.filter(**filters).update(**updates) > 0
+
+    def clear_scheduled_task_ids(self, plan_id: UUID) -> bool:
+        return Plan.objects.filter(pk=plan_id).update(
+            scheduled_start_task_id=None,
+            scheduled_end_task_id=None,
+        ) > 0
+
+    def refresh(self, plan: Any) -> Plan:
+        plan.refresh_from_db()
         return plan
 
 
@@ -194,6 +267,18 @@ class DjangoPlanActivityRepository(PlanActivityRepository):
         activity.save()
         return activity
 
+    def save_new_from_dict(self, plan_id: UUID, data: Dict[str, Any]) -> PlanActivity:
+        """Create a new PlanActivity from a dict (for add_activity_with_place)."""
+        allowed_fields = {
+            'title', 'description', 'activity_type', 'start_time', 'end_time',
+            'location_name', 'location_address', 'latitude', 'longitude',
+            'estimated_cost', 'notes',
+        }
+        filtered = {k: v for k, v in data.items() if k in allowed_fields}
+        activity = PlanActivity(plan_id=plan_id, **filtered)
+        activity.save()
+        return activity
+
     def delete(self, activity_id: UUID) -> bool:
         deleted_count, _ = PlanActivity.objects.filter(id=activity_id).delete()
         return deleted_count > 0
@@ -231,3 +316,9 @@ class DjangoPlanActivityRepository(PlanActivityRepository):
             'total_estimated_cost': float(stats['total_estimated_cost'] or 0),
             'average_cost_per_activity': float(stats['avg_estimated_cost'] or 0),
         }
+
+    def count_completed(self, plan_id: UUID) -> int:
+        return PlanActivity.objects.filter(plan_id=plan_id, is_completed=True).count()
+
+    def count_total(self, plan_id: UUID) -> int:
+        return PlanActivity.objects.filter(plan_id=plan_id).count()

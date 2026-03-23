@@ -31,17 +31,11 @@ class UpdateGroupRequest {
 }
 
 class JoinGroupRequest {
-  final String? groupId;
-  final String? inviteCode;
+  final String groupId;
 
-  JoinGroupRequest({this.groupId, this.inviteCode});
+  JoinGroupRequest({required this.groupId});
 
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {};
-    if (groupId != null) data['group_id'] = groupId;
-    if (inviteCode != null) data['invite_code'] = inviteCode;
-    return data;
-  }
+  Map<String, dynamic> toJson() => {'group_id': groupId};
 }
 
 class AddMemberRequest {

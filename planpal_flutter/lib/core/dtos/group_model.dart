@@ -2,7 +2,6 @@ import 'package:equatable/equatable.dart';
 import 'user_summary.dart';
 import 'group_membership.dart';
 
-
 bool _isValidImageUrl(String? url) {
   if (url == null || url.isEmpty) return false;
   final uri = Uri.tryParse(url);
@@ -10,7 +9,6 @@ bool _isValidImageUrl(String? url) {
       uri.isAbsolute &&
       (uri.scheme == 'http' || uri.scheme == 'https');
 }
-
 
 class GroupModel extends Equatable {
   final String id;

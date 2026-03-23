@@ -4,12 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:provider/provider.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/repositories/location_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 
-class LocationPickerPage extends StatefulWidget {
+class LocationPickerPage extends ConsumerStatefulWidget {
   final double? initialLatitude;
   final double? initialLongitude;
   final String? initialLocationName;
@@ -22,10 +22,10 @@ class LocationPickerPage extends StatefulWidget {
   });
 
   @override
-  State<LocationPickerPage> createState() => _LocationPickerPageState();
+  ConsumerState<LocationPickerPage> createState() => _LocationPickerPageState();
 }
 
-class _LocationPickerPageState extends State<LocationPickerPage> {
+class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
   late GoogleMapController _mapController;
   late LocationRepository _locationService;
   LatLng _selectedPosition = const LatLng(
@@ -44,7 +44,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   @override
   void initState() {
     super.initState();
-    _locationService = LocationRepository(context.read<AuthProvider>());
+    _locationService = ref.read(locationRepositoryProvider);
     _initializeLocation();
   }
 
@@ -223,7 +223,6 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         // Just update the name without moving map
         _locationName = suggestion['description'] ?? 'Vị trí đã chọn';
         _selectedAddress = suggestion['description'] ?? '';
-        setState(() {});
       }
     }
 

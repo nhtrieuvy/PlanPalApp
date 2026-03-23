@@ -1,31 +1,31 @@
 import 'package:flutter/material.dart';
 // ignore_for_file: use_build_context_synchronously
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:getwidget/getwidget.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
-import 'package:planpal_flutter/core/repositories/plan_repository.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import '../../../core/dtos/plan_model.dart';
 import '../../../core/dtos/plan_activity.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../../../shared/ui_states/ui_states.dart';
+import '../../../shared/widgets/widgets.dart';
 import '../plans/activity_form_page.dart';
 import '../plans/plan_schedule_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 
-class PlanDetailsPage extends StatefulWidget {
+class PlanDetailsPage extends ConsumerStatefulWidget {
   final String id;
   const PlanDetailsPage({super.key, required this.id});
 
   @override
-  State<PlanDetailsPage> createState() => _PlanDetailsPageState();
+  ConsumerState<PlanDetailsPage> createState() => _PlanDetailsPageState();
 }
 
-class _PlanDetailsPageState extends State<PlanDetailsPage>
+class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
     with RefreshablePage<PlanDetailsPage> {
-  late final PlanRepository _repo;
   PlanModel? _detail;
   Object? _error;
   bool _loading = true;
@@ -34,7 +34,6 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
   @override
   void initState() {
     super.initState();
-    _repo = PlanRepository(context.read<AuthProvider>());
     // If id is empty, avoid calling the list endpoint accidentally and show an error
     if (widget.id.isEmpty) {
       _loading = false;
@@ -56,13 +55,9 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
       _error = null;
     });
     try {
-      // debug: log load invocation and id
-      // ignore: avoid_print
-      print(
-        'PlanDetailsPage._load called for id=${widget.id}, refresh=$refresh',
-      );
-      if (refresh) _repo.clearCacheEntry(widget.id);
-      final d = await _repo.getPlanDetail(widget.id);
+      final repo = ref.read(planRepositoryProvider);
+      if (refresh) repo.clearCacheEntry(widget.id);
+      final d = await repo.getPlanDetail(widget.id);
       if (!mounted) return;
       setState(() {
         _detail = d;
@@ -91,7 +86,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const AppSkeleton.card(),
       );
     }
     if (_error != null || _detail == null) {
@@ -101,29 +96,10 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
         ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.redAccent[200],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Có lỗi xảy ra',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text('Lỗi: $_error', textAlign: TextAlign.center),
-              ],
-            ),
-          ),
+        body: AppError(
+          message: _error?.toString() ?? 'Không thể tải chi tiết kế hoạch',
+          onRetry: _load,
+          retryLabel: 'Thử lại',
         ),
       );
     }
@@ -133,33 +109,23 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
       backgroundColor: theme.scaffoldBackgroundColor,
       body: NestedScrollView(
         headerSliverBuilder: (context, inner) => [
-          SliverAppBar(
-            expandedHeight: 200,
-            pinned: true,
+          AppSliverHeader(
+            title: p.title,
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                p.title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
+            background: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: AppColors.primaryGradient,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: AppColors.primaryGradient,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.event_note,
-                    size: 80,
-                    color: Colors.white.withAlpha(75),
-                  ),
+              child: Center(
+                child: Icon(
+                  Icons.event_note,
+                  size: 80,
+                  color: Colors.white.withAlpha(75),
                 ),
               ),
             ),
@@ -351,7 +317,9 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                           );
                           if (confirm != true) return;
                           try {
-                            await _repo.deletePlan(p.id);
+                            await ref
+                                .read(planRepositoryProvider)
+                                .deletePlan(p.id);
                             if (!mounted) return;
                             Navigator.of(
                               context,
@@ -450,41 +418,11 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
     required Color color,
     required ThemeData theme,
   }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withAlpha(25),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: theme.textTheme.bodyLarge),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return InfoCard(
+      icon: icon,
+      title: title,
+      content: subtitle,
+      accentColor: color,
     );
   }
 

@@ -5,11 +5,11 @@ Each handler encapsulates a single use-case for auth mutations.
 Handlers depend on repository interfaces (not ORM) and publish
 domain events via the event publisher abstraction.
 """
+import datetime
 import logging
 from typing import Tuple, Any
 
 from django.db import transaction
-from django.utils import timezone
 
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
 from planpals.auth.domain.repositories import UserRepository, FriendshipRepository
@@ -56,6 +56,7 @@ class SendFriendRequestHandler(BaseCommandHandler[SendFriendRequestCommand, Tupl
         self.friendship_repo = friendship_repo
         self.event_publisher = event_publisher
 
+    @transaction.atomic
     def handle(self, command: SendFriendRequestCommand) -> Tuple[bool, str]:
         if command.from_user_id == command.to_user_id:
             return False, "Cannot send friend request to yourself"
@@ -96,7 +97,7 @@ class SendFriendRequestHandler(BaseCommandHandler[SendFriendRequestCommand, Tupl
 
         if last_rejection:
             can_resend, reason = can_resend_after_rejection(
-                rejection_count, last_rejection.created_at, timezone.now()
+                rejection_count, last_rejection.created_at, datetime.datetime.now(datetime.timezone.utc)
             )
             if not can_resend:
                 return False, reason
@@ -108,11 +109,10 @@ class SendFriendRequestHandler(BaseCommandHandler[SendFriendRequestCommand, Tupl
         return True, "Friend request sent successfully"
 
     def _create_new(self, from_user, to_user) -> Tuple[bool, str]:
-        with transaction.atomic():
-            self.friendship_repo.create_friendship(
-                from_user.id, to_user.id, from_user.id
-            )
-            self._publish_friend_request_event(from_user, to_user)
+        self.friendship_repo.create_friendship(
+            from_user.id, to_user.id, from_user.id
+        )
+        self._publish_friend_request_event(from_user, to_user)
 
         return True, "Friend request sent successfully"
 
@@ -142,6 +142,7 @@ class AcceptFriendRequestHandler(BaseCommandHandler[AcceptFriendRequestCommand, 
         self.event_publisher = event_publisher
         self.conversation_creator = conversation_creator
 
+    @transaction.atomic
     def handle(self, command: AcceptFriendRequestCommand) -> Tuple[bool, str]:
         friendship = self.friendship_repo.get_friendship(
             command.from_user_id, command.current_user_id
@@ -155,25 +156,24 @@ class AcceptFriendRequestHandler(BaseCommandHandler[AcceptFriendRequestCommand, 
 
         current_user = self.user_repo.get_by_id(command.current_user_id)
 
-        with transaction.atomic():
-            self.friendship_repo.update_status(friendship.id, FriendshipStatus.ACCEPTED)
+        self.friendship_repo.update_status(friendship.id, FriendshipStatus.ACCEPTED)
 
-            # Auto-create direct conversation
-            if self.conversation_creator:
-                try:
-                    self.conversation_creator(command.current_user_id, command.from_user_id)
-                except Exception:
-                    logger.exception("Failed to create conversation after friend acceptance")
+        # Auto-create direct conversation
+        if self.conversation_creator:
+            try:
+                self.conversation_creator(command.current_user_id, command.from_user_id)
+            except Exception:
+                logger.exception("Failed to create conversation after friend acceptance")
 
-            event = FriendRequestAccepted(
-                user_id=str(command.from_user_id),
-                accepted_by_id=str(command.current_user_id),
-                accepted_by_name=(
-                    current_user.get_full_name() or current_user.username
-                    if current_user else str(command.current_user_id)
-                ),
-            )
-            self.event_publisher.publish(event)
+        event = FriendRequestAccepted(
+            user_id=str(command.from_user_id),
+            accepted_by_id=str(command.current_user_id),
+            accepted_by_name=(
+                current_user.get_full_name() or current_user.username
+                if current_user else str(command.current_user_id)
+            ),
+        )
+        self.event_publisher.publish(event)
 
         return True, "Friend request accepted"
 
@@ -183,6 +183,7 @@ class RejectFriendRequestHandler(BaseCommandHandler[RejectFriendRequestCommand, 
     def __init__(self, friendship_repo: FriendshipRepository):
         self.friendship_repo = friendship_repo
 
+    @transaction.atomic
     def handle(self, command: RejectFriendRequestCommand) -> Tuple[bool, str]:
         friendship = self.friendship_repo.get_friendship(
             command.from_user_id, command.current_user_id
@@ -194,9 +195,8 @@ class RejectFriendRequestHandler(BaseCommandHandler[RejectFriendRequestCommand, 
         if friendship.initiator_id != command.from_user_id:
             return False, "You can only reject requests sent to you"
 
-        with transaction.atomic():
-            self.friendship_repo.create_rejection(friendship.id, command.current_user_id)
-            self.friendship_repo.update_status(friendship.id, FriendshipStatus.REJECTED)
+        self.friendship_repo.create_rejection(friendship.id, command.current_user_id)
+        self.friendship_repo.update_status(friendship.id, FriendshipStatus.REJECTED)
 
         return True, "Friend request rejected"
 
@@ -226,6 +226,7 @@ class BlockUserHandler(BaseCommandHandler[BlockUserCommand, Tuple[bool, str]]):
     def __init__(self, friendship_repo: FriendshipRepository):
         self.friendship_repo = friendship_repo
 
+    @transaction.atomic
     def handle(self, command: BlockUserCommand) -> Tuple[bool, str]:
         if command.blocker_id == command.target_id:
             return False, "Cannot block yourself"
@@ -234,18 +235,17 @@ class BlockUserHandler(BaseCommandHandler[BlockUserCommand, Tuple[bool, str]]):
             command.blocker_id, command.target_id
         )
 
-        with transaction.atomic():
-            if friendship:
-                if friendship.status == FriendshipStatus.BLOCKED:
-                    if friendship.initiator_id == command.blocker_id:
-                        return False, "User is already blocked"
-                    return False, "You cannot block this user as they have blocked you"
+        if friendship:
+            if friendship.status == FriendshipStatus.BLOCKED:
+                if friendship.initiator_id == command.blocker_id:
+                    return False, "User is already blocked"
+                return False, "You cannot block this user as they have blocked you"
 
-                self.friendship_repo.block_friendship(friendship.id, command.blocker_id)
-            else:
-                self.friendship_repo.create_blocked_friendship(
-                    command.blocker_id, command.target_id, command.blocker_id
-                )
+            self.friendship_repo.block_friendship(friendship.id, command.blocker_id)
+        else:
+            self.friendship_repo.create_blocked_friendship(
+                command.blocker_id, command.target_id, command.blocker_id
+            )
 
         return True, "User blocked successfully"
 

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:planpal_flutter/core/dtos/group_model.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
-import 'package:planpal_flutter/core/providers/conversation_provider.dart';
-import 'package:planpal_flutter/core/repositories/group_repository.dart';
-import 'package:planpal_flutter/core/repositories/friend_repository.dart';
-import 'package:planpal_flutter/core/repositories/plan_repository.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/riverpod/conversation_providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -16,22 +14,22 @@ import '../../../core/dtos/group_requests.dart';
 import '../../../core/dtos/conversation.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../../../shared/ui_states/ui_states.dart';
+import '../../../shared/widgets/widgets.dart';
 import 'plan_form_page.dart';
 import 'plan_details_page.dart';
 import '../chat/chat_page.dart';
 
-class GroupDetailsPage extends StatefulWidget {
+class GroupDetailsPage extends ConsumerStatefulWidget {
   final String id;
   const GroupDetailsPage({super.key, required this.id});
 
   @override
-  State<GroupDetailsPage> createState() => _GroupDetailsPageState();
+  ConsumerState<GroupDetailsPage> createState() => _GroupDetailsPageState();
 }
 
-class _GroupDetailsPageState extends State<GroupDetailsPage>
+class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     with RefreshablePage<GroupDetailsPage> {
-  late final GroupRepository repo;
-  late final PlanRepository planRepo;
   GroupModel? groupData;
   List<PlanSummary> groupPlans = [];
   bool isLoading = true;
@@ -42,8 +40,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   @override
   void initState() {
     super.initState();
-    repo = GroupRepository(context.read<AuthProvider>());
-    planRepo = PlanRepository(context.read<AuthProvider>());
     _loadGroupData();
   }
 
@@ -58,6 +54,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
         isLoading = true;
         error = null;
       });
+      final repo = ref.read(groupRepositoryProvider);
       final data = await repo.getGroupDetail(
         widget.id,
         forceRefresh: forceRefresh,
@@ -79,6 +76,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   Future<void> _loadGroupPlans() async {
     try {
       setState(() => isLoadingPlans = true);
+      final planRepo = ref.read(planRepositoryProvider);
       final plans = await planRepo.getGroupPlans(widget.id);
       setState(() {
         groupPlans = plans;
@@ -111,12 +109,14 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
           context: context,
           barrierDismissible: false,
           builder: (context) =>
-              const Center(child: CircularProgressIndicator()),
+              const AppLoading(message: 'Đang cập nhật ảnh bìa...'),
         );
 
         // Update group with new cover image using DTO (no changes to name/description)
         final req = UpdateGroupRequest();
-        await repo.updateGroup(widget.id, req, coverImage: coverFile);
+        await ref
+            .read(groupRepositoryProvider)
+            .updateGroup(widget.id, req, coverImage: coverFile);
 
         // Close loading dialog
         if (!mounted) return;
@@ -183,7 +183,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
             ),
           ),
         ],
-        body: const Center(child: CircularProgressIndicator()),
+        body: const AppSkeleton.card(),
       ),
     );
   }
@@ -202,39 +202,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
             ),
           ),
         ],
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.redAccent,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Đã xảy ra lỗi',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  error,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 24),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text('Quay lại'),
-                ),
-              ],
-            ),
-          ),
+        body: AppError(
+          message: error,
+          onRetry: () => _loadGroupData(forceRefresh: true),
+          retryLabel: 'Tải lại',
         ),
       ),
     );
@@ -421,53 +392,16 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   }
 
   Widget _buildInfoCard(String title, String content, IconData icon) {
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black26,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(25),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: AppColors.primary, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              content,
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey[700],
-                height: 1.5,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return InfoCard(
+      icon: icon,
+      title: title,
+      content: content,
+      accentColor: AppColors.primary,
     );
   }
 
   Widget _buildMembersCard(int membersCount, List<UserSummary> members) {
-    final currentUser = context.read<AuthProvider>().user;
+    final currentUser = ref.read(authNotifierProvider).user;
     final isAdmin = groupData!.admin.id == currentUser?.id;
 
     return Card(
@@ -481,25 +415,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
           children: [
             Row(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withAlpha(25),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.people_alt_outlined,
-                    color: AppColors.secondary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Thành viên',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                const Expanded(
+                  child: SectionHeader(
+                    title: 'Thành viên',
+                    icon: Icons.people_alt_outlined,
                   ),
                 ),
                 const Spacer(),
@@ -601,7 +520,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
                   final avatar = member.avatarUrl ?? '';
                   final isCurrentUserAdmin =
                       groupData!.admin.id ==
-                      context.read<AuthProvider>().user?.id;
+                      ref.read(authNotifierProvider).user?.id;
                   final isMemberAdmin = member.id == groupData!.admin.id;
 
                   return GestureDetector(
@@ -804,27 +723,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
           children: [
             Row(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(25),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.event_note_outlined,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    'Kế hoạch nhóm (${groupPlans.length})',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: SectionHeader(
+                    title: 'Kế hoạch nhóm (${groupPlans.length})',
+                    icon: Icons.event_note_outlined,
                   ),
                 ),
               ],
@@ -846,44 +748,20 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
             ),
             const SizedBox(height: 16),
             if (isLoadingPlans)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: CircularProgressIndicator(),
+              const Padding(
+                padding: EdgeInsets.all(8),
+                child: AppLoading(
+                  inline: true,
+                  message: 'Đang tải kế hoạch...',
                 ),
               )
             else if (groupPlans.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.event_note_outlined,
-                      size: 48,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Chưa có kế hoạch nào',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Hãy tạo kế hoạch đầu tiên cho nhóm',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                    ),
-                  ],
-                ),
+              AppEmpty(
+                icon: Icons.event_note_outlined,
+                title: 'Chưa có kế hoạch nào',
+                description: 'Hãy tạo kế hoạch đầu tiên cho nhóm',
+                actionLabel: 'Tạo kế hoạch mới',
+                onAction: () => _navigateToCreatePlan(g),
               )
             else
               Column(
@@ -965,11 +843,12 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   void _navigateToGroupChat(GroupModel group) async {
     try {
       // Load conversations and find the one for this group
-      final conversationProvider = context.read<ConversationProvider>();
-      await conversationProvider.loadConversations();
+      await ref.read(conversationListProvider.notifier).refresh();
 
+      final conversations =
+          ref.read(conversationListProvider).valueOrNull ?? [];
       // Find conversation by group ID
-      final conversation = conversationProvider.conversations.firstWhere(
+      final conversation = conversations.firstWhere(
         (conv) =>
             conv.conversationType == ConversationType.group &&
             conv.group?.id == group.id,
@@ -1074,7 +953,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   }
 
   Widget _buildActionButtons(BuildContext context, GroupModel g) {
-    final currentUser = context.read<AuthProvider>().user;
+    final currentUser = ref.read(authNotifierProvider).user;
     final isAdmin = g.admin.id == currentUser?.id;
 
     if (isAdmin) {
@@ -1153,7 +1032,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   }
 
   Future<void> _showAddMemberDialog() async {
-    final friendRepo = FriendRepository(context.read<AuthProvider>());
+    final friendRepo = ref.read(friendRepositoryProvider);
 
     // Load friends list
     List<UserSummary> friends = [];
@@ -1168,7 +1047,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
       loading = false;
     }
 
-    if (!mounted) return;
+    if (!context.mounted) return;
 
     // Filter out users who are already members
     final currentMemberIds = groupData!.members.map((m) => m.id).toSet();
@@ -1176,30 +1055,31 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
         .where((friend) => !currentMemberIds.contains(friend.id))
         .toList();
 
+    final pageContext = context;
     showDialog(
-      context: context,
-      builder: (context) => AddMemberDialog(
+      context: pageContext,
+      builder: (dialogContext) => AddMemberDialog(
         availableFriends: availableFriends,
         loading: loading,
         error: error,
         onAddMember: (friendId) async {
-          final navigator = Navigator.of(context);
+          final navigator = Navigator.of(dialogContext);
 
           try {
             final req = AddMemberRequest(userId: friendId);
-            await repo.addMember(widget.id, req);
-            if (!mounted) return;
+            await ref.read(groupRepositoryProvider).addMember(widget.id, req);
+            if (!pageContext.mounted) return;
             navigator.pop();
             await _loadGroupData(forceRefresh: true); // Reload group data
             _hasChanges = true;
-            if (!mounted) return;
+            if (!pageContext.mounted) return;
             ErrorDisplayService.showSuccessSnackbar(
-              context,
+              pageContext,
               'Đã thêm thành viên thành công',
             );
           } catch (e) {
-            if (!mounted) return;
-            ErrorDisplayService.handleError(context, e);
+            if (!pageContext.mounted) return;
+            ErrorDisplayService.handleError(pageContext, e);
           }
         },
       ),
@@ -1369,7 +1249,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   Future<void> _leaveGroup(GroupModel group) async {
     try {
       final navigator = Navigator.of(context);
-      await repo.leaveGroup(group.id);
+      await ref.read(groupRepositoryProvider).leaveGroup(group.id);
 
       if (!mounted) return;
       _hasChanges = true;
@@ -1389,11 +1269,12 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
   Future<void> _removeMember(UserSummary member) async {
     try {
       final request = RemoveMemberRequest(userId: member.id);
-      await repo.removeMember(widget.id, request);
+      await ref.read(groupRepositoryProvider).removeMember(widget.id, request);
 
       if (!mounted) return;
       await _loadGroupData(forceRefresh: true); // Reload group data
       _hasChanges = true;
+      if (!mounted) return;
 
       ErrorDisplayService.showSuccessSnackbar(
         context,
@@ -1437,7 +1318,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         title: const Text('Thêm thành viên'),
         content: const SizedBox(
           height: 100,
-          child: Center(child: CircularProgressIndicator()),
+          child: AppLoading(message: 'Đang tải danh sách bạn bè...'),
         ),
       );
     }

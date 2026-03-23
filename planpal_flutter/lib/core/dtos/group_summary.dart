@@ -8,7 +8,6 @@ bool _isValidImageUrl(String? url) {
       (uri.scheme == 'http' || uri.scheme == 'https');
 }
 
-
 class GroupSummary extends Equatable {
   final String id;
   final String name;

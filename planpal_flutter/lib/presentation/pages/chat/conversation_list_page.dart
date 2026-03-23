@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import '../../../core/providers/conversation_provider.dart';
+import '../../../core/riverpod/conversation_providers.dart';
 import '../../../core/dtos/conversation.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/common/custom_search_bar.dart';
-import '../../widgets/common/loading_state.dart';
-import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'chat_page.dart';
 import '../friends/friend_search_page.dart';
+import '../../../shared/ui_states/ui_states.dart';
 
-class ConversationListPage extends StatefulWidget {
+class ConversationListPage extends ConsumerStatefulWidget {
   const ConversationListPage({super.key});
 
   @override
-  State<ConversationListPage> createState() => _ConversationListPageState();
+  ConsumerState<ConversationListPage> createState() =>
+      _ConversationListPageState();
 }
 
-class _ConversationListPageState extends State<ConversationListPage>
+class _ConversationListPageState extends ConsumerState<ConversationListPage>
     with AutomaticKeepAliveClientMixin, RefreshablePage {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -29,16 +29,8 @@ class _ConversationListPageState extends State<ConversationListPage>
   bool get wantKeepAlive => true;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ConversationProvider>().loadConversations();
-    });
-  }
-
-  @override
   Future<void> onRefresh() async {
-    await context.read<ConversationProvider>().loadConversations();
+    await ref.read(conversationListProvider.notifier).refresh();
   }
 
   @override
@@ -51,19 +43,17 @@ class _ConversationListPageState extends State<ConversationListPage>
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
-    final conversationProvider = context.watch<ConversationProvider>();
+    final conversationsAsync = ref.watch(conversationListProvider);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      appBar: _buildAppBar(theme, conversationProvider),
+      appBar: _buildAppBar(theme),
       body: RefreshablePageWrapper(
         onRefresh: onRefresh,
         child: Column(
           children: [
             _buildSearchSection(theme),
-            Expanded(
-              child: _buildConversationsList(theme, conversationProvider),
-            ),
+            Expanded(child: _buildConversationsList(theme, conversationsAsync)),
           ],
         ),
       ),
@@ -71,11 +61,8 @@ class _ConversationListPageState extends State<ConversationListPage>
     );
   }
 
-  PreferredSizeWidget _buildAppBar(
-    ThemeData theme,
-    ConversationProvider provider,
-  ) {
-    final unreadCount = provider.totalUnreadCount;
+  PreferredSizeWidget _buildAppBar(ThemeData theme) {
+    final unreadCount = ref.watch(totalUnreadCountProvider);
 
     return AppBar(
       title: Row(
@@ -142,8 +129,6 @@ class _ConversationListPageState extends State<ConversationListPage>
           setState(() {
             _searchQuery = query;
           });
-          // Ask provider to perform server-side search (debounced)
-          context.read<ConversationProvider>().searchConversationsRemote(query);
         },
         prefixIcon: PhosphorIcons.magnifyingGlass(),
       ),
@@ -152,37 +137,51 @@ class _ConversationListPageState extends State<ConversationListPage>
 
   Widget _buildConversationsList(
     ThemeData theme,
-    ConversationProvider provider,
+    AsyncValue<List<Conversation>> conversationsAsync,
   ) {
-    if (provider.isLoading && provider.conversations.isEmpty) {
-      return const LoadingState(message: 'Loading conversations...');
+    // If searching, use the search family provider
+    if (_searchQuery.isNotEmpty) {
+      final searchAsync = ref.watch(conversationSearchProvider(_searchQuery));
+      return searchAsync.when(
+        loading: () => const AppSkeleton.list(itemCount: 5),
+        error: (error, _) => _buildErrorState(theme, error.toString()),
+        data: (results) {
+          var filtered = results;
+          if (_showOnlineOnly) {
+            filtered = filtered
+                .where((c) => c.isDirect ? c.isOtherUserOnline : true)
+                .toList();
+          }
+          if (filtered.isEmpty) return _buildEmptyState();
+          return _buildList(theme, filtered);
+        },
+      );
     }
 
-    if (provider.error != null) {
-      return _buildErrorState(theme, provider);
-    }
+    return conversationsAsync.when(
+      loading: () => const AppSkeleton.list(itemCount: 6),
+      error: (error, _) => _buildErrorState(theme, error.toString()),
+      data: (conversations) {
+        var filtered = conversations;
+        if (_showOnlineOnly) {
+          filtered = filtered
+              .where((c) => c.isDirect ? c.isOtherUserOnline : true)
+              .toList();
+        }
+        if (filtered.isEmpty) return _buildEmptyState();
+        return _buildList(theme, filtered);
+      },
+    );
+  }
 
-    List<Conversation> filteredConversations = _searchQuery.isEmpty
-        ? provider.conversations
-        : provider.searchResults;
-
-    if (_showOnlineOnly) {
-      filteredConversations = filteredConversations.where((conv) {
-        return conv.isDirect ? conv.isOtherUserOnline : true;
-      }).toList();
-    }
-
-    if (filteredConversations.isEmpty) {
-      return _buildEmptyState();
-    }
-
+  Widget _buildList(ThemeData theme, List<Conversation> conversations) {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: filteredConversations.length,
+      itemCount: conversations.length,
       separatorBuilder: (context, index) =>
           Divider(height: 1, color: theme.colorScheme.outline.withAlpha(26)),
       itemBuilder: (context, index) {
-        final conversation = filteredConversations[index];
+        final conversation = conversations[index];
         return _buildConversationTile(theme, conversation);
       },
     );
@@ -378,47 +377,25 @@ class _ConversationListPageState extends State<ConversationListPage>
     );
   }
 
-  Widget _buildErrorState(ThemeData theme, ConversationProvider provider) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(PhosphorIcons.warning(), size: 48, color: AppColors.error),
-          const SizedBox(height: 16),
-          Text(
-            'Failed to load conversations',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: theme.colorScheme.onSurface.withAlpha(153),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            provider.error ?? 'Unknown error occurred',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: theme.colorScheme.onSurface.withAlpha(179),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          // Remove manual retry button since we have pull-to-refresh
-        ],
-      ),
+  Widget _buildErrorState(ThemeData theme, String errorMessage) {
+    return AppError(
+      message: 'Failed to load conversations\n$errorMessage',
+      onRetry: onRefresh,
+      retryLabel: 'Retry',
     );
   }
 
   Widget _buildEmptyState() {
-    return EmptyState(
-      icon: PhosphorIcons.chatCircle(),
+    return AppEmpty(
+      icon: Icons.chat_bubble_outline,
       title: _searchQuery.isNotEmpty
           ? 'No conversations found'
           : 'No conversations yet',
-      subtitle: _searchQuery.isNotEmpty
+      description: _searchQuery.isNotEmpty
           ? 'Try adjusting your search terms'
           : 'Start a conversation with your friends',
       actionLabel: _searchQuery.isEmpty ? 'Find Friends' : null,
-      onActionPressed: _searchQuery.isEmpty ? _navigateToFriends : null,
+      onAction: _searchQuery.isEmpty ? _navigateToFriends : null,
     );
   }
 
@@ -489,7 +466,7 @@ class _ConversationListPageState extends State<ConversationListPage>
 
     // Refresh conversations when returning from ChatPage to update unread counts
     if (mounted) {
-      context.read<ConversationProvider>().loadConversations();
+      ref.read(conversationListProvider.notifier).refresh();
     }
   }
 

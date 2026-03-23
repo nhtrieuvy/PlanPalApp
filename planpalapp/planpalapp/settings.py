@@ -35,9 +35,12 @@ load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-for-development')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = ['10.0.2.2', 'localhost', '127.0.0.1', '192.168.1.41', 'planpal-backend.fly.dev', '.internal', '*']
+ALLOWED_HOSTS = os.getenv(
+    'ALLOWED_HOSTS',
+    '10.0.2.2,localhost,127.0.0.1,192.168.1.41,planpal-backend.fly.dev'
+).split(',')
 
 CSRF_TRUSTED_ORIGINS = [
     "https://planpal-backend.fly.dev",
@@ -84,6 +87,9 @@ MIDDLEWARE = [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
@@ -238,17 +244,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    "http://10.0.2.2:8000"
-]
-
-# Allow all headers for mobile app
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS settings — restrict in production, allow all in development
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [
+        "https://planpal-backend.fly.dev",
+    ]
 CORS_ALLOW_CREDENTIALS = True
 
 
@@ -407,11 +410,25 @@ CLIENT_ID = os.getenv('CLIENT_ID')
 # Redis local trong container khi deploy, localhost khi dev
 CELERY_REDIS_URL = 'redis://127.0.0.1:6379/0'
 
+# ============================================================================
+# DJANGO CACHE (Redis via django-redis)
+# ============================================================================
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',   # DB 1 — separate from Celery/Channels (DB 0)
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'planpal',
+        'TIMEOUT': 300,   # Default 5 min TTL
+    }
+}
+
 # TIME_ZONE and USE_TZ are already configured above in Internationalization section
 
 CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
@@ -421,10 +438,90 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BROKER_URL = CELERY_REDIS_URL
 CELERY_RESULT_BACKEND = CELERY_REDIS_URL
 
-# Optional: Task routing for specific queues
+# ---------------------------------------------------------------------------
+# Queue Architecture — 4 priority queues
+# ---------------------------------------------------------------------------
+# Start workers with:
+#   celery -A planpalapp worker -Q high_priority,default,plan_status,low_priority \
+#          --concurrency=4 -l info
+# Or dedicated per-queue workers for isolation:
+#   celery -A planpalapp worker -Q high_priority -c 4 -n high@%h
+#   celery -A planpalapp worker -Q default,plan_status -c 2 -n default@%h
+#   celery -A planpalapp worker -Q low_priority -c 1 -n low@%h
+
+from kombu import Queue
+
+CELERY_TASK_QUEUES = [
+    Queue('high_priority', routing_key='high'),     # Push notifs, chat fan-out
+    Queue('default', routing_key='default'),         # General event processing
+    Queue('plan_status', routing_key='plan_status'), # Scheduled plan lifecycle (ETA)
+    Queue('low_priority', routing_key='low'),        # Analytics, cleanup
+]
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_DEFAULT_ROUTING_KEY = 'default'
+
+# ---------------------------------------------------------------------------
+# Task routing — map every task to the correct queue
+# ---------------------------------------------------------------------------
 CELERY_TASK_ROUTES = {
+    # Plan lifecycle (ETA-scheduled) → plan_status
     'planpals.tasks.start_plan_task': {'queue': 'plan_status'},
     'planpals.tasks.complete_plan_task': {'queue': 'plan_status'},
+    # Push notifications → high_priority
+    'planpals.shared.tasks.send_push_notification_task': {'queue': 'high_priority'},
+    'planpals.shared.tasks.send_event_push_notification_task': {'queue': 'high_priority'},
+    # Chat fan-out → high_priority
+    'planpals.chat.infrastructure.tasks.fanout_chat_push_notification_task': {'queue': 'high_priority'},
+    # Analytics / periodic → low_priority
+    'planpals.shared.analytics_tasks.aggregate_daily_statistics_task': {'queue': 'low_priority'},
+    'planpals.shared.analytics_tasks.cleanup_expired_offline_events_task': {'queue': 'low_priority'},
+    'planpals.shared.analytics_tasks.cleanup_invalid_fcm_tokens_task': {'queue': 'low_priority'},
+}
+
+# ---------------------------------------------------------------------------
+# Time limits — prevent runaway tasks
+# ---------------------------------------------------------------------------
+CELERY_TASK_SOFT_TIME_LIMIT = 120      # Soft limit: 2 min (raises SoftTimeLimitExceeded)
+CELERY_TASK_TIME_LIMIT = 300           # Hard kill: 5 min
+CELERY_TASK_ACKS_LATE = True           # ACK after execution → re-deliver on worker crash
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Fair scheduling across queues
+
+# ---------------------------------------------------------------------------
+# Reliability
+# ---------------------------------------------------------------------------
+CELERY_TASK_REJECT_ON_WORKER_LOST = True  # Re-queue if worker killed mid-task
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 200   # Recycle workers to prevent memory leaks
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'visibility_timeout': 3600,   # 1 h — must exceed longest ETA
+    'max_retries': 3,
+    'interval_start': 0,
+    'interval_step': 0.2,
+    'interval_max': 0.5,
+}
+
+# ---------------------------------------------------------------------------
+# Rate limiting defaults (overridable per-task)
+# ---------------------------------------------------------------------------
+CELERY_TASK_DEFAULT_RATE_LIMIT = '100/m'   # 100 tasks/min default
+
+# ---------------------------------------------------------------------------
+# Celery Beat — periodic task schedule
+# ---------------------------------------------------------------------------
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    'aggregate-daily-statistics': {
+        'task': 'planpals.shared.analytics_tasks.aggregate_daily_statistics_task',
+        'schedule': crontab(hour=2, minute=0),   # Every day at 02:00 AM
+    },
+    'cleanup-expired-offline-events': {
+        'task': 'planpals.shared.analytics_tasks.cleanup_expired_offline_events_task',
+        'schedule': crontab(hour=3, minute=0),   # Every day at 03:00 AM
+    },
+    'cleanup-invalid-fcm-tokens': {
+        'task': 'planpals.shared.analytics_tasks.cleanup_invalid_fcm_tokens_task',
+        'schedule': crontab(hour=4, minute=0, day_of_week=0),  # Weekly Sunday 04:00
+    },
 }
 
 # ============================================================================

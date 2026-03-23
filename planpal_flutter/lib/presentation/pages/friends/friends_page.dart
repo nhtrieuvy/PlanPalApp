@@ -1,36 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../../core/providers/auth_provider.dart';
+import '../../../core/riverpod/repository_providers.dart';
 import '../../../core/repositories/friend_repository.dart';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/friendship.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../../../shared/ui_states/ui_states.dart';
 import 'user_profile_page.dart';
 
-class FriendsPage extends StatefulWidget {
+class FriendsPage extends ConsumerStatefulWidget {
   const FriendsPage({super.key});
 
   @override
-  State<FriendsPage> createState() => _FriendsPageState();
+  ConsumerState<FriendsPage> createState() => _FriendsPageState();
 }
 
-class _FriendsPageState extends State<FriendsPage>
+class _FriendsPageState extends ConsumerState<FriendsPage>
     with SingleTickerProviderStateMixin, RefreshablePage<FriendsPage> {
-  late final FriendRepository _friendRepo;
   late final TabController _tabController;
 
   bool _loadingFriends = false;
   bool _loadingRequests = false;
+  String? _friendsError;
+  String? _requestsError;
   List<UserSummary> _friends = [];
   List<Friendship> _friendRequests = [];
+
+  FriendRepository get _friendRepo => ref.read(friendRepositoryProvider);
 
   @override
   void initState() {
     super.initState();
-    _friendRepo = FriendRepository(context.read<AuthProvider>());
     _tabController = TabController(length: 2, vsync: this);
     _loadData();
   }
@@ -51,23 +54,32 @@ class _FriendsPageState extends State<FriendsPage>
   }
 
   Future<void> _loadFriends() async {
-    setState(() => _loadingFriends = true);
+    setState(() {
+      _loadingFriends = true;
+      _friendsError = null;
+    });
     try {
       final friends = await _friendRepo.getFriends();
       if (!mounted) return;
       setState(() {
         _friends = friends;
         _loadingFriends = false;
+        _friendsError = null;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loadingFriends = false);
-      ErrorDisplayService.handleError(context, e);
+      setState(() {
+        _loadingFriends = false;
+        _friendsError = e.toString();
+      });
     }
   }
 
   Future<void> _loadFriendRequests() async {
-    setState(() => _loadingRequests = true);
+    setState(() {
+      _loadingRequests = true;
+      _requestsError = null;
+    });
     try {
       final requests = await _friendRepo.getPendingRequests();
       if (!mounted) return;
@@ -75,11 +87,14 @@ class _FriendsPageState extends State<FriendsPage>
         // Convert from pending friendships to friend request detail objects
         _friendRequests = requests.toList();
         _loadingRequests = false;
+        _requestsError = null;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loadingRequests = false);
-      ErrorDisplayService.handleError(context, e);
+      setState(() {
+        _loadingRequests = false;
+        _requestsError = e.toString();
+      });
     }
   }
 
@@ -188,32 +203,22 @@ class _FriendsPageState extends State<FriendsPage>
 
   Widget _buildFriendsList() {
     if (_loadingFriends) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppSkeleton.list();
+    }
+
+    if (_friendsError != null) {
+      return AppError(
+        message: 'Không thể tải danh sách bạn bè',
+        onRetry: _loadFriends,
+        retryLabel: 'Thử lại',
+      );
     }
 
     if (_friends.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Chưa có bạn bè',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Hãy tìm kiếm và kết bạn với những người bạn biết',
-              style: TextStyle(color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+      return const AppEmpty(
+        icon: Icons.people_outline,
+        title: 'Chưa có bạn bè',
+        description: 'Hãy tìm kiếm và kết bạn với những người bạn biết',
       );
     }
 
@@ -232,31 +237,22 @@ class _FriendsPageState extends State<FriendsPage>
 
   Widget _buildRequestsList() {
     if (_loadingRequests) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppSkeleton.list(itemCount: 4);
+    }
+
+    if (_requestsError != null) {
+      return AppError(
+        message: 'Không thể tải lời mời kết bạn',
+        onRetry: _loadFriendRequests,
+        retryLabel: 'Thử lại',
+      );
     }
 
     if (_friendRequests.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Không có lời mời nào',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Các lời mời kết bạn sẽ xuất hiện ở đây',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
+      return const AppEmpty(
+        icon: Icons.inbox_outlined,
+        title: 'Không có lời mời nào',
+        description: 'Các lời mời kết bạn sẽ xuất hiện ở đây',
       );
     }
 

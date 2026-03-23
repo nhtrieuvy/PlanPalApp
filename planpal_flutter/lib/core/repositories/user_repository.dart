@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/auth/auth_session.dart';
 import '../services/apis.dart';
 import '../dtos/user_model.dart';
 import '../services/api_error.dart';
@@ -17,7 +17,9 @@ class UserRepository {
         (c) => c.dio.get(Endpoints.profile),
       );
       if (res.statusCode == 200 && res.data is Map) {
-        final user = UserModel.fromJson(Map<String, dynamic>.from(res.data as Map));
+        final user = UserModel.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
         auth.setUser(user);
         return user;
       }

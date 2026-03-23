@@ -9,10 +9,11 @@ from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError as DRFValidationError, PermissionDenied as DRFPermissionDenied, NotFound
 
 from planpals.groups.infrastructure.models import Group, GroupMembership
 from planpals.groups.presentation.serializers import (
-    GroupSerializer, GroupCreateSerializer, GroupSummarySerializer
+    GroupDetailSerializer, GroupCreateSerializer, GroupSummarySerializer
 )
 from planpals.groups.presentation.permissions import (
     GroupPermission, IsGroupMember, IsGroupAdmin
@@ -33,14 +34,14 @@ class GroupViewSet(viewsets.GenericViewSet,
                    mixins.RetrieveModelMixin,
                    mixins.UpdateModelMixin,
                    mixins.DestroyModelMixin):
-    serializer_class = GroupSerializer
+    serializer_class = GroupDetailSerializer
     permission_classes = [IsAuthenticated, GroupPermission]
     pagination_class = StandardResultsPagination
     
     def get_serializer_class(self):
         if self.action == 'create':
             return GroupCreateSerializer
-        elif self.action == 'list':
+        elif self.action in ('list', 'my_groups', 'created_by_me', 'search'):
             return GroupSummarySerializer
         return self.serializer_class
 
@@ -52,6 +53,18 @@ class GroupViewSet(viewsets.GenericViewSet,
         ).prefetch_related(
             'memberships__user'
         ).with_full_stats()
+
+    def retrieve(self, request, *args, **kwargs):
+        pk = kwargs.get('pk') or kwargs.get(self.lookup_field)
+        serializer_class = self.get_serializer_class()
+
+        def serialize(group):
+            return serializer_class(group, context={'request': request}).data
+
+        data = GroupService.get_group_detail_cached(pk, request.user.id, serialize)
+        if data is None:
+            return Response({'error': 'Group not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(data)
     
     def list(self, request):
         queryset = self.get_queryset().order_by('-created_at')
@@ -71,40 +84,36 @@ class GroupViewSet(viewsets.GenericViewSet,
             creator=self.request.user,
             name=data.get('name', ''),
             description=data.get('description', ''),
+            avatar=data.get('avatar'),
+            cover_image=data.get('cover_image'),
         )
-        return group
+        serializer.instance = group
     
-    @action(detail=False, methods=['post'])
-    def join(self, request):
-        group_id = request.data.get('group_id')
-        invite_code = request.data.get('invite_code')
-        
-        if not group_id and not invite_code:
-            return Response(
-                {'error': 'group_id or invite_code required'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def join(self, request, pk=None):
         try:
             success, message, group = GroupService.join_group(
                 user=request.user,
-                group_id=group_id,
-                invite_code=invite_code
+                group_id=pk,
             )
             
             if not success:
+                if 'not found' in message.lower():
+                    return Response({'error': message}, status=status.HTTP_404_NOT_FOUND)
+                if 'permission' in message.lower():
+                    return Response({'error': message}, status=status.HTTP_403_FORBIDDEN)
                 return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
-            
-            return Response({
-                'message': message,
-                'group': GroupSummarySerializer(group, context={'request': request}).data
-            })
-            
-        except Exception as e:
-            return Response(
-                {'error': str(e)}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
+
+            return Response(GroupDetailSerializer(group, context={'request': request}).data)
+        except DRFValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except DRFPermissionDenied as e:
+            return Response({'error': str(e)}, status=status.HTTP_403_FORBIDDEN)
+        except NotFound as e:
+            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+        except Exception:
+            logger.exception("Unexpected error while joining group %s", pk)
+            return Response({'error': 'Internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['get'])
     def my_groups(self, request):
@@ -129,10 +138,6 @@ class GroupViewSet(viewsets.GenericViewSet,
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-        return Response({
-            'groups': serializer.data,
-            'count': len(serializer.data)
-        })
     
     @action(detail=False, methods=['get'])
     def search(self, request):
@@ -239,11 +244,6 @@ class GroupViewSet(viewsets.GenericViewSet,
             'group_id': str(group.id),
             'count': len(serializer.data)
         })
-        group = self.get_object()
-        limit = int(request.query_params.get('limit', 50))
-        messages = group.get_recent_messages(limit=limit)
-        serializer = ChatMessageSerializer(messages, many=True)
-        return Response(serializer.data)
     
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsGroupMember])
     def unread_count(self, request, pk=None):

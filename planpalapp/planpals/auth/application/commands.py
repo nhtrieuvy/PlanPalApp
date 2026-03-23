@@ -8,56 +8,58 @@ from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
+from planpals.shared.interfaces import BaseCommand
+
 
 @dataclass(frozen=True)
-class SendFriendRequestCommand:
+class SendFriendRequestCommand(BaseCommand):
     from_user_id: UUID
     to_user_id: UUID
 
 
 @dataclass(frozen=True)
-class AcceptFriendRequestCommand:
+class AcceptFriendRequestCommand(BaseCommand):
     current_user_id: UUID
     from_user_id: UUID
 
 
 @dataclass(frozen=True)
-class RejectFriendRequestCommand:
+class RejectFriendRequestCommand(BaseCommand):
     current_user_id: UUID
     from_user_id: UUID
 
 
 @dataclass(frozen=True)
-class CancelFriendRequestCommand:
+class CancelFriendRequestCommand(BaseCommand):
     current_user_id: UUID
     to_user_id: UUID
 
 
 @dataclass(frozen=True)
-class BlockUserCommand:
+class BlockUserCommand(BaseCommand):
     blocker_id: UUID
     target_id: UUID
 
 
 @dataclass(frozen=True)
-class UnblockUserCommand:
+class UnblockUserCommand(BaseCommand):
     blocker_id: UUID
     target_id: UUID
 
 
 @dataclass(frozen=True)
-class UnfriendCommand:
+class UnfriendCommand(BaseCommand):
     current_user_id: UUID
     target_user_id: UUID
 
 
 @dataclass(frozen=True)
-class SetOnlineStatusCommand:
+class SetOnlineStatusCommand(BaseCommand):
     user_id: UUID
     is_online: bool
 
 
 @dataclass(frozen=True)
-class UpdateFCMTokenCommand:
+class UpdateFCMTokenCommand(BaseCommand):
     user_id: UUID
     token: Optional[str]

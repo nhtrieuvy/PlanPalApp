@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/presentation/pages/plans/plans_list_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/profile_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_page.dart';
-import 'package:provider/provider.dart';
 import 'package:planpal_flutter/core/theme/app_theme.dart';
-import 'package:planpal_flutter/core/providers/theme_provider.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
-import 'package:planpal_flutter/core/providers/conversation_provider.dart';
+import 'package:planpal_flutter/core/auth/auth_session.dart';
+import 'package:planpal_flutter/core/riverpod/providers.dart';
 import 'package:planpal_flutter/core/services/firebase_service.dart';
 import 'package:planpal_flutter/presentation/pages/home/home_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/register_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
 
+  // Pre-initialize SharedPreferences for synchronous access
+  final prefs = await SharedPreferences.getInstance();
+
   // Initialize providers before runApp
-  final themeProvider = ThemeProvider();
-  await themeProvider.init();
   final authProvider = AuthProvider();
   await authProvider.init();
 
@@ -29,47 +30,38 @@ Future<void> main() async {
   }
 
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider<ThemeProvider>.value(value: themeProvider),
-        ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
-        ChangeNotifierProxyProvider<AuthProvider, ConversationProvider>(
-          create: (context) => ConversationProvider.withAuth(
-            Provider.of<AuthProvider>(context, listen: false),
-          ),
-          update: (context, auth, previous) =>
-              previous ?? ConversationProvider.withAuth(auth),
-        ),
+    // Riverpod ProviderScope wraps everything — overrides inject pre-init instances
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        authNotifierProvider.overrideWithValue(authProvider),
       ],
       child: const PlanPalApp(),
     ),
   );
 }
 
-class PlanPalApp extends StatelessWidget {
+class PlanPalApp extends ConsumerWidget {
   const PlanPalApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Consume the providers that were initialized in main()
-    return Consumer2<ThemeProvider, AuthProvider>(
-      builder: (context, themeProvider, authProvider, child) {
-        return MaterialApp(
-          title: 'PlanPal',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: themeProvider.themeMode,
-          initialRoute: authProvider.isLoggedIn ? '/home' : '/login',
-          routes: {
-            '/login': (context) => const LoginPage(),
-            '/register': (context) => const RegisterPage(),
-            '/home': (context) => const HomePage(),
-            '/group': (context) => const GroupPage(),
-            '/plan': (context) => const PlansListPage(),
-            '/profile': (context) => ProfilePage(),
-          },
-        );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeNotifierProvider);
+    final authProvider = ref.watch(authNotifierProvider);
+    return MaterialApp(
+      title: 'PlanPal',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
+      initialRoute: authProvider.isLoggedIn ? '/home' : '/login',
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/register': (context) => const RegisterPage(),
+        '/home': (context) => const HomePage(),
+        '/group': (context) => const GroupPage(),
+        '/plan': (context) => const PlansListPage(),
+        '/profile': (context) => ProfilePage(),
       },
     );
   }

@@ -14,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from planpals.plans.infrastructure.models import Plan, PlanActivity
 from planpals.plans.presentation.serializers import (
-    PlanSerializer, PlanCreateSerializer, PlanSummarySerializer,
+    PlanDetailSerializer, PlanCreateSerializer, PlanSummarySerializer,
     PlanActivitySerializer, PlanActivitySummarySerializer,
     PlanActivityCreateSerializer
 )
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 class PlanViewSet(viewsets.ModelViewSet):
-    serializer_class = PlanSerializer
+    serializer_class = PlanDetailSerializer
     permission_classes = [IsAuthenticated, PlanPermission]
 
     pagination_class = StandardResultsPagination
@@ -39,7 +39,7 @@ class PlanViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
             return PlanCreateSerializer
-        elif self.action == 'list':
+        elif self.action in ('list', 'my_plans', 'joined', 'public'):
             return PlanSummarySerializer
         return self.serializer_class
     
@@ -147,20 +147,6 @@ class PlanViewSet(viewsets.ModelViewSet):
             'plan_type': plan.plan_type
         })
         
-    
-    #API thêm hoạt động vào kế hoạch
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanModifyPlan])
-    def add_activity(self, request, pk=None):
-        plan = self.get_object()
-        
-        try:
-            activity = PlanService.add_activity_to_plan(plan, request.user, request.data)
-            return Response(
-                PlanActivitySerializer(activity).data, 
-                status=status.HTTP_201_CREATED
-            )
-        except ValidationError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     #API lấy tóm tắt kế hoạch
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, CanAccessPlan])
@@ -273,10 +259,7 @@ class PlanViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        return Response({
-            'message': message,
-            'plan': PlanSerializer(plan, context={'request': request}).data
-        })
+        return Response(PlanDetailSerializer(plan, context={'request': request}).data)
 
 
 class PlanActivityViewSet(viewsets.GenericViewSet,
@@ -295,8 +278,9 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
     
     def get_queryset(self):
         return PlanActivity.objects.filter(
-            plan__group__members=self.request.user
-        ).select_related('plan', 'plan__group', 'plan__creator')
+            models.Q(plan__group__members=self.request.user) |
+            models.Q(plan__creator=self.request.user)
+        ).select_related('plan', 'plan__group', 'plan__creator').distinct()
     
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)

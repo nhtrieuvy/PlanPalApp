@@ -12,10 +12,7 @@ from planpals.auth.presentation.views import (
 from planpals.plans.presentation.views import PlanViewSet, PlanActivityViewSet
 from planpals.groups.presentation.views import GroupViewSet
 from planpals.chat.presentation.views import ChatMessageViewSet, ConversationViewSet
-from planpals.notifications.presentation.views import SendNotificationView
 from planpals.locations.presentation.views import (
-    PlacesSearchView, PlaceDetailsView, NearbyPlacesView,
-    PlaceAutocompleteView, GeocodeView,
     LocationReverseGeocodeView, LocationSearchView, LocationAutocompleteView, LocationPlaceDetailsView,
 )
 
@@ -40,20 +37,11 @@ urlpatterns = [
     path('friends/requests/<uuid:request_id>/action/', FriendRequestActionView.as_view(), name='friend_request_action'),
     path('friends/', FriendsListView.as_view(), name='friends_list'),
     
-    # Location/Places API endpoints (using Goong Map API)
-    path('places/search/', PlacesSearchView.as_view(), name='places_search'),
-    path('places/<str:place_id>/details/', PlaceDetailsView.as_view(), name='place_details'),
-    path('places/nearby/', NearbyPlacesView.as_view(), name='nearby_places'),
-    path('places/autocomplete/', PlaceAutocompleteView.as_view(), name='place_autocomplete'),
-    path('geocode/', GeocodeView.as_view(), name='geocode'),
-    
     # Enhanced location API endpoints for minimap
     path('location/reverse-geocode/', LocationReverseGeocodeView.as_view(), name='location_reverse_geocode'),
     path('location/search/', LocationSearchView.as_view(), name='location_search'),
     path('location/autocomplete/', LocationAutocompleteView.as_view(), name='location_autocomplete'),
     path('location/place-details/', LocationPlaceDetailsView.as_view(), name='location_place_details'),
-    
-    path('notifications/send/', SendNotificationView.as_view(), name='send_notification'),
     
     # API routes
     path('', include(router.urls)),

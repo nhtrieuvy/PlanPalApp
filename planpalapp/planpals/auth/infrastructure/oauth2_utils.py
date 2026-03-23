@@ -77,6 +77,14 @@ class OAuth2ResponseFormatter:
     def error_response(error_code, description, status_code=400):
         """Format error response according to OAuth2 spec"""
         return {
+            'code': error_code,
+            'message': description,
+            'details': {
+                'oauth2': {
+                    'error': error_code,
+                    'error_description': description,
+                }
+            },
             'error': error_code,
             'error_description': description,
             'timestamp': timezone.now().isoformat()

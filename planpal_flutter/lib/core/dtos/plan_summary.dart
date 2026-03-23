@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'user_summary.dart';
 
-
 class PlanSummary extends Equatable {
   final String id;
   final String title;

@@ -2,6 +2,10 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
 from planpals.plans.infrastructure.models import Plan, PlanActivity
+from planpals.plans.domain.entities import (
+    validate_activity_times, validate_coordinates, validate_estimated_cost,
+    validate_plan_dates,
+)
 from planpals.models import Group, GroupMembership
 from planpals.auth.presentation.serializers import UserSummarySerializer
 from planpals.groups.presentation.serializers import GroupSummarySerializer
@@ -127,33 +131,20 @@ class PlanActivitySerializer(serializers.ModelSerializer):
         if not end_time:
             raise serializers.ValidationError({'end_time': 'End time is required'})
         
-        if end_time <= start_time:
-            raise serializers.ValidationError({
-                'end_time': 'End time must be after start time'
-            })
+        # Delegate to domain validation — single source of truth
+        time_error = validate_activity_times(start_time, end_time)
+        if time_error:
+            raise serializers.ValidationError({'end_time': time_error})
         
-        duration = end_time - start_time
-        if duration.total_seconds() > 24 * 3600:
-            raise serializers.ValidationError({
-                'end_time': 'Activity duration cannot exceed 24 hours'
-            })
+        coord_error = validate_coordinates(
+            attrs.get('latitude'), attrs.get('longitude')
+        )
+        if coord_error:
+            raise serializers.ValidationError(coord_error)
         
-        latitude = attrs.get('latitude')
-        longitude = attrs.get('longitude')
-        if latitude is not None and not (-90 <= latitude <= 90):
-            raise serializers.ValidationError({
-                'latitude': 'Latitude must be between -90 and 90'
-            })
-        if longitude is not None and not (-180 <= longitude <= 180):
-            raise serializers.ValidationError({
-                'longitude': 'Longitude must be between -180 and 180'
-            })
-        
-        estimated_cost = attrs.get('estimated_cost')
-        if estimated_cost is not None and estimated_cost < 0:
-            raise serializers.ValidationError({
-                'estimated_cost': 'Estimated cost must be non-negative'
-            })
+        cost_error = validate_estimated_cost(attrs.get('estimated_cost'))
+        if cost_error:
+            raise serializers.ValidationError({'estimated_cost': cost_error})
         
         return attrs
 
@@ -184,7 +175,7 @@ class PlanActivityCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class PlanSerializer(serializers.ModelSerializer):
+class PlanDetailSerializer(serializers.ModelSerializer):
     creator = UserSummarySerializer(read_only=True)
     group = GroupSummarySerializer(read_only=True)
     activities = PlanActivitySerializer(many=True, read_only=True)
@@ -296,10 +287,9 @@ class PlanSerializer(serializers.ModelSerializer):
     
     def validate(self, attrs):
         if attrs.get('start_date') and attrs.get('end_date'):
-            if attrs['end_date'] <= attrs['start_date']:
-                raise serializers.ValidationError(
-                    "End time must be after start time"
-                )
+            date_error = validate_plan_dates(attrs['start_date'], attrs['end_date'])
+            if date_error:
+                raise serializers.ValidationError(date_error)
         
         group_id = attrs.get('group_id')
         instance = getattr(self, 'instance', None)
@@ -364,10 +354,9 @@ class PlanCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs.get('start_date') and attrs.get('end_date'):
-            if attrs['end_date'] <= attrs['start_date']:
-                raise serializers.ValidationError(
-                    "End time must be after start time"
-                )
+            date_error = validate_plan_dates(attrs['start_date'], attrs['end_date'])
+            if date_error:
+                raise serializers.ValidationError(date_error)
         
         plan_type = attrs.get('plan_type')
         group_id = attrs.get('group_id')

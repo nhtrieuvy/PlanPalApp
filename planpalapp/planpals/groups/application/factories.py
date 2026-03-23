@@ -8,6 +8,7 @@ from planpals.groups.infrastructure.repositories import (
 )
 from planpals.groups.application.handlers import (
     CreateGroupHandler,
+    UpdateGroupHandler,
     AddMemberHandler,
     RemoveMemberHandler,
     JoinGroupHandler,
@@ -53,6 +54,14 @@ def get_create_group_handler() -> CreateGroupHandler:
     )
 
 
+def get_update_group_handler() -> UpdateGroupHandler:
+    return UpdateGroupHandler(
+        group_repo=_group_repo(),
+        membership_repo=_membership_repo(),
+        event_publisher=_event_publisher(),
+    )
+
+
 def get_add_member_handler() -> AddMemberHandler:
     return AddMemberHandler(
         group_repo=_group_repo(),
@@ -88,7 +97,6 @@ def get_leave_group_handler() -> LeaveGroupHandler:
 
 def get_promote_member_handler() -> PromoteMemberHandler:
     return PromoteMemberHandler(
-        group_repo=_group_repo(),
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
     )
@@ -96,7 +104,26 @@ def get_promote_member_handler() -> PromoteMemberHandler:
 
 def get_demote_member_handler() -> DemoteMemberHandler:
     return DemoteMemberHandler(
-        group_repo=_group_repo(),
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
     )
+
+
+# --- Repo factories for service layer ---
+
+def get_group_repo():
+    return DjangoGroupRepository()
+
+
+def get_membership_repo():
+    return DjangoGroupMembershipRepository()
+
+
+def get_user_repo():
+    from planpals.auth.infrastructure.repositories import DjangoUserRepository
+    return DjangoUserRepository()
+
+
+def get_cache_service():
+    from planpals.shared.cache_infrastructure import DjangoCacheService
+    return DjangoCacheService()

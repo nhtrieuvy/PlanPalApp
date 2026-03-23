@@ -19,18 +19,18 @@ class GroupMembershipSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
-class GroupSerializer(serializers.ModelSerializer):
+class GroupDetailSerializer(serializers.ModelSerializer):
     admin = UserSummarySerializer(read_only=True)
     memberships = GroupMembershipSerializer(many=True, read_only=True)
-    
-    member_count = serializers.IntegerField(read_only=True)
-    plans_count = serializers.IntegerField(read_only=True)
-    active_plans_count = serializers.IntegerField(read_only=True)
-    
+
     avatar_url = serializers.CharField(read_only=True)
     has_avatar = serializers.BooleanField(read_only=True)
     cover_image_url = serializers.CharField(read_only=True)
     has_cover_image = serializers.BooleanField(read_only=True)
+    
+    member_count = serializers.IntegerField(read_only=True)
+    plans_count = serializers.IntegerField(read_only=True)
+    active_plans_count = serializers.IntegerField(read_only=True)
     
     is_member = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
@@ -40,8 +40,9 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description', 'avatar', 'cover_image',
-            'avatar_url', 'has_avatar', 'cover_image_url', 'has_cover_image',
+            'id', 'name', 'description',
+            'avatar', 'avatar_url', 'has_avatar',
+            'cover_image', 'cover_image_url', 'has_cover_image',
             'admin', 'memberships', 'member_count', 'plans_count', 'active_plans_count',
             'is_active', 'is_member', 'user_role', 'can_edit', 'can_delete', 
             'created_at', 'updated_at'
@@ -108,11 +109,12 @@ class GroupSerializer(serializers.ModelSerializer):
 
 
 class GroupCreateSerializer(serializers.ModelSerializer):
+    member_count = serializers.IntegerField(read_only=True)
+
     avatar_url = serializers.CharField(read_only=True)
     has_avatar = serializers.BooleanField(read_only=True)
     cover_image_url = serializers.CharField(read_only=True)
     has_cover_image = serializers.BooleanField(read_only=True)
-    member_count = serializers.IntegerField(read_only=True)
     
     admin = UserSummarySerializer(read_only=True)
     
@@ -126,8 +128,10 @@ class GroupCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description', 'avatar', 'cover_image', 'initial_members',
-            'avatar_url', 'has_avatar', 'cover_image_url', 'has_cover_image',
+            'id', 'name', 'description',
+            'avatar', 'avatar_url', 'has_avatar',
+            'cover_image', 'cover_image_url', 'has_cover_image',
+            'initial_members',
             'member_count', 'admin', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'admin', 'created_at', 'updated_at']
@@ -200,12 +204,12 @@ class GroupCreateSerializer(serializers.ModelSerializer):
 class GroupSummarySerializer(serializers.ModelSerializer):
     member_count = serializers.IntegerField(read_only=True)
     avatar_url = serializers.CharField(read_only=True)
+    has_avatar = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description', 'member_count', 
-            'avatar_url', 'created_at'
+            'id', 'name', 'description', 'member_count', 'avatar_url', 'has_avatar', 'created_at'
         ]
     
     def to_representation(self, instance):

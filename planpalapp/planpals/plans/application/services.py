@@ -1,19 +1,11 @@
-from django.db import transaction, models
-from django.db.models import Q
-from django.utils import timezone
-from django.core.exceptions import ValidationError
-from typing import Dict, List, Optional, Tuple, Any
-import logging
+import datetime
 import re
-
-from celery import current_app
+import logging
+from typing import Dict, List, Optional, Tuple, Any
 
 from planpals.shared.base_service import BaseService
-from planpals.plans.infrastructure.models import Plan, PlanActivity
-from planpals.models import User, Group, GroupMembership
 from planpals.shared.events import RealtimeEvent, EventType
-from planpals.shared.realtime_publisher import RealtimeEventPublisher
-from planpals.plans.presentation.serializers import PlanActivitySummarySerializer
+from planpals.shared.cache import CacheKeys, CacheTTL
 
 # Commands & factories — thin delegation layer
 from planpals.plans.application.commands import (
@@ -34,10 +26,10 @@ logger = logging.getLogger(__name__)
 class PlanService(BaseService): 
        
     @classmethod
-    def create_plan(cls, creator: User, title: str, description: str = "",
-                   plan_type: str = 'personal', group: Group = None,
+    def create_plan(cls, creator, title: str, description: str = "",
+                   plan_type: str = 'personal', group=None,
                    start_date=None, end_date=None, budget=None,
-                   is_public: bool = False) -> Plan:
+                   is_public: bool = False):
         """Delegate to CreatePlanHandler, then schedule Celery tasks."""
         cmd = CreatePlanCommand(
             creator_id=creator.id,
@@ -54,7 +46,7 @@ class PlanService(BaseService):
         plan = handler.handle(cmd)
 
         # Infrastructure concern: schedule Celery tasks (not in handler)
-        cls._schedule_plan_tasks(plan)
+        plan_factories.get_task_scheduler().schedule_plan_tasks(plan)
 
         cls.log_operation("plan_created", {
             'plan_id': plan.id,
@@ -66,7 +58,7 @@ class PlanService(BaseService):
         return plan
 
     @classmethod
-    def update_plan(cls, plan: Plan, data: Dict[str, Any], user: User = None) -> Plan:
+    def update_plan(cls, plan, data: Dict[str, Any], user=None):
         """Delegate to UpdatePlanHandler, then reschedule Celery tasks."""
         # Determine whether schedule-affecting fields are changing
         old_start = getattr(plan, 'start_date', None)
@@ -86,14 +78,15 @@ class PlanService(BaseService):
         plan = handler.handle(cmd)
 
         # Infrastructure concern: reschedule Celery tasks if dates changed
+        task_scheduler = plan_factories.get_task_scheduler()
         if (('start_date' in data and new_start != old_start) or
                 ('end_date' in data and new_end != old_end)):
             try:
-                cls.revoke_scheduled_tasks(plan)
+                task_scheduler.revoke_scheduled_tasks(plan)
             except Exception as e:
                 logger.warning(f"Failed to revoke existing scheduled tasks for plan {plan.id}: {e}")
             try:
-                cls._schedule_plan_tasks(plan)
+                task_scheduler.schedule_plan_tasks(plan)
             except Exception as e:
                 logger.warning(f"Failed to schedule tasks after updating plan {plan.id}: {e}")
 
@@ -103,11 +96,13 @@ class PlanService(BaseService):
             'updated_fields': list(data.keys())
         })
 
-        plan.refresh_from_db()
+        cls._invalidate_plan_cache(plan.id)
+
+        plan = plan_factories.get_plan_repo().refresh(plan)
         return plan
     
     @classmethod
-    def add_activity_to_plan(cls, plan: Plan, user: User, activity_data: Dict[str, Any]) -> PlanActivity:
+    def add_activity_to_plan(cls, plan, user, activity_data: Dict[str, Any]):
         """Delegate to AddActivityHandler."""
         cmd = AddActivityCommand(
             plan_id=plan.id,
@@ -131,31 +126,27 @@ class PlanService(BaseService):
             'user_id': user.id
         })
 
+        cls._invalidate_plan_cache(plan.id)
+
         return activity
     
     @classmethod
-    def add_activity_with_place(cls, plan: Plan, title: str, start_time, end_time, 
+    def add_activity_with_place(cls, plan, title: str, start_time, end_time, 
                                place_id: str = None, **extra_fields):        
         activity_data = {
             'title': title,
             'start_time': start_time,
             'end_time': end_time,
-            **extra_fields
+            **{k: v for k, v in extra_fields.items() 
+               if k in ['description', 'activity_type', 'estimated_cost', 
+                        'location_name', 'location_address', 'notes']}
         }
         
         if place_id:
             activity_data['location_name'] = f"Place ID: {place_id}"
         
-        with transaction.atomic():
-            activity = PlanActivity.objects.create(
-                plan=plan,
-                title=title,
-                start_time=start_time,
-                end_time=end_time,
-                **{k: v for k, v in extra_fields.items() 
-                   if k in ['description', 'activity_type', 'estimated_cost', 
-                           'location_name', 'location_address', 'notes']}
-            )
+        activity_repo = plan_factories.get_activity_repo()
+        activity = activity_repo.save_new_from_dict(plan.id, activity_data)
         
         cls.log_operation("activity_added_with_place", {
             'plan_id': plan.id,
@@ -167,183 +158,159 @@ class PlanService(BaseService):
 
     
     @classmethod
-    def start_trip(cls, plan: Plan, user: User = None, force: bool = False):
+    def start_trip(cls, plan, user=None, force: bool = False):
+        now = datetime.datetime.now(datetime.timezone.utc)
+
         if plan.status != 'upcoming' and not force:
             raise ValueError(f"Cannot start trip in status: {plan.status}")
         
-        if not force and plan.start_date and timezone.now() < plan.start_date:
+        if not force and plan.start_date and now < plan.start_date:
             raise ValueError("Trip start time has not been reached yet")
         
-        with transaction.atomic():
-            updated_count = Plan.objects.filter(
-                pk=plan.pk,
-                status='upcoming'
-            ).update(
-                status='ongoing',
-                updated_at=timezone.now()
-            )
-            
-            if updated_count == 0 and not force:
-                # Log current DB state for debugging race conditions
-                try:
-                    latest = Plan.objects.get(pk=plan.pk)
-                    logger.warning(f"start_trip update_count=0 for plan {plan.id}: db_status={latest.status} start_date={latest.start_date}")
-                except Exception:
-                    logger.exception(f"start_trip failed to introspect plan {plan.id} after update_count==0")
-                raise ValueError("Plan status was changed by another operation")
-            
-            plan.refresh_from_db()
-            
-            try:
-                cls._schedule_completion_task(plan)
-            except Exception as e:
-                logger.warning(f"Failed to schedule completion task for plan {plan.id}: {e}")
+        plan_repo = plan_factories.get_plan_repo()
+        success, updated_plan = plan_repo.update_status_atomic(plan.id, 'upcoming', 'ongoing')
+        
+        if not success and not force:
+            raise ValueError("Plan status was changed by another operation")
+        
+        if success and updated_plan:
+            plan = updated_plan
+        else:
+            plan = plan_repo.refresh(plan)
+        
+        try:
+            plan_factories.get_task_scheduler().schedule_completion_task(plan)
+        except Exception as e:
+            logger.warning(f"Failed to schedule completion task for plan {plan.id}: {e}")
         
         cls.log_operation("trip_started", {
             'plan_id': str(plan.id),
             'user_id': str(user.id) if user else None,
             'forced': force,
-            'timestamp': timezone.now().isoformat()
+            'timestamp': now.isoformat()
         })
         
-        def _publish_start_event():
-            try:
-                publisher = RealtimeEventPublisher()
-                event = RealtimeEvent(
-                    event_type=EventType.PLAN_STATUS_CHANGED,
-                    plan_id=str(plan.id),
-                    user_id=str(user.id) if user else None,
-                    group_id=str(plan.group_id) if plan.group_id else None,
-                    data={
-                        'plan_id': str(plan.id),
-                        'title': plan.title,
-                        'old_status': 'upcoming',
-                        'new_status': 'ongoing',
-                        'started_by': str(user.id) if user else 'system',
-                        'started_by_name': user.get_full_name() or user.username if user else 'System',
-                        'timestamp': timezone.now().isoformat(),
-                        'forced': force,
-                        'initiator_id': str(user.id) if user else None
-                    }
-                )
-                publisher.publish_event(event, send_push=True)
-            except Exception as e:
-                logger.warning(f"Failed to publish start event for plan {plan.id}: {e}")
+        try:
+            publisher = plan_factories.get_realtime_publisher()
+            event = RealtimeEvent(
+                event_type=EventType.PLAN_STATUS_CHANGED,
+                plan_id=str(plan.id),
+                user_id=str(user.id) if user else None,
+                group_id=str(plan.group_id) if plan.group_id else None,
+                timestamp=now.isoformat(),
+                data={
+                    'plan_id': str(plan.id),
+                    'title': plan.title,
+                    'old_status': 'upcoming',
+                    'new_status': 'ongoing',
+                    'started_by': str(user.id) if user else 'system',
+                    'started_by_name': user.get_full_name() or user.username if user else 'System',
+                    'timestamp': now.isoformat(),
+                    'forced': force,
+                    'initiator_id': str(user.id) if user else None
+                }
+            )
+            publisher.publish_event(event, send_push=True)
+        except Exception as e:
+            logger.warning(f"Failed to publish start event for plan {plan.id}: {e}")
         
-        transaction.on_commit(_publish_start_event)
-        
+        cls._invalidate_plan_cache(plan.id)
         return plan
     
     @classmethod
-    def complete_trip(cls, plan: Plan, user: User = None, force: bool = False):
+    def complete_trip(cls, plan, user=None, force: bool = False):
+        now = datetime.datetime.now(datetime.timezone.utc)
+
         if plan.status != 'ongoing' and not force:
             raise ValueError(f"Cannot complete trip in status: {plan.status}")
         
-        if not force and plan.end_date and timezone.now() < plan.end_date:
+        if not force and plan.end_date and now < plan.end_date:
             raise ValueError("Trip end time has not been reached yet")
         
-        with transaction.atomic():
-            updated_count = Plan.objects.filter(
-                pk=plan.pk,
-                status='ongoing'
-            ).update(
-                status='completed',
-                updated_at=timezone.now()
-            )
-            
-            if updated_count == 0 and not force:
-                try:
-                    latest = Plan.objects.get(pk=plan.pk)
-                    logger.warning(f"complete_trip update_count=0 for plan {plan.id}: db_status={latest.status} end_date={latest.end_date}")
-                except Exception:
-                    logger.exception(f"complete_trip failed to introspect plan {plan.id} after update_count==0")
-                raise ValueError("Plan status was changed by another operation")
-            
-            plan.refresh_from_db()
-            
-            try:
-                cls._revoke_plan_tasks(plan)
-            except Exception as e:
-                logger.warning(f"Failed to revoke tasks for plan {plan.id}: {e}")
+        plan_repo = plan_factories.get_plan_repo()
+        success, updated_plan = plan_repo.update_status_atomic(plan.id, 'ongoing', 'completed')
+        
+        if not success and not force:
+            raise ValueError("Plan status was changed by another operation")
+        
+        if success and updated_plan:
+            plan = updated_plan
+        else:
+            plan = plan_repo.refresh(plan)
+        
+        try:
+            plan_factories.get_task_scheduler().revoke_plan_tasks(plan)
+        except Exception as e:
+            logger.warning(f"Failed to revoke tasks for plan {plan.id}: {e}")
         
         cls.log_operation("trip_completed", {
             'plan_id': str(plan.id),
             'user_id': str(user.id) if user else None,
             'forced': force,
-            'timestamp': timezone.now().isoformat()
+            'timestamp': now.isoformat()
         })
         
-        def _publish_complete_event():
-            try:
-                publisher = RealtimeEventPublisher()
-                event = RealtimeEvent(
-                    event_type=EventType.PLAN_STATUS_CHANGED,
-                    plan_id=str(plan.id),
-                    user_id=str(user.id) if user else None,
-                    group_id=str(plan.group_id) if plan.group_id else None,
-                    data={
-                        'plan_id': str(plan.id),
-                        'title': plan.title,
-                        'old_status': 'ongoing',
-                        'new_status': 'completed',
-                        'completed_by': str(user.id) if user else 'system',
-                        'completed_by_name': user.get_full_name() or user.username if user else 'System',
-                        'timestamp': timezone.now().isoformat(),
-                        'forced': force,
-                        'initiator_id': str(user.id) if user else None
-                    }
-                )
-                publisher.publish_event(event, send_push=True)
-            except Exception as e:
-                logger.warning(f"Failed to publish complete event for plan {plan.id}: {e}")
+        cls._invalidate_plan_cache(plan.id)
         
-        transaction.on_commit(_publish_complete_event)
+        try:
+            publisher = plan_factories.get_realtime_publisher()
+            event = RealtimeEvent(
+                event_type=EventType.PLAN_STATUS_CHANGED,
+                plan_id=str(plan.id),
+                user_id=str(user.id) if user else None,
+                group_id=str(plan.group_id) if plan.group_id else None,
+                timestamp=now.isoformat(),
+                data={
+                    'plan_id': str(plan.id),
+                    'title': plan.title,
+                    'old_status': 'ongoing',
+                    'new_status': 'completed',
+                    'completed_by': str(user.id) if user else 'system',
+                    'completed_by_name': user.get_full_name() or user.username if user else 'System',
+                    'timestamp': now.isoformat(),
+                    'forced': force,
+                    'initiator_id': str(user.id) if user else None
+                }
+            )
+            publisher.publish_event(event, send_push=True)
+        except Exception as e:
+            logger.warning(f"Failed to publish complete event for plan {plan.id}: {e}")
         
         return plan
     
     @classmethod
-    def cancel_trip(cls, plan: Plan, user: User = None, reason: str = None, force: bool = False):
+    def cancel_trip(cls, plan, user=None, reason: str = None, force: bool = False):
+        now = datetime.datetime.now(datetime.timezone.utc)
+
         if user and not cls.can_edit_plan(plan, user):
             raise ValueError("Permission denied to cancel this plan")
         
         if plan.status in ['cancelled', 'completed'] and not force:
             raise ValueError(f"Cannot cancel plan that is already {plan.status}")
         
-        with transaction.atomic():
-            # Atomic status update
-            updated_count = Plan.objects.filter(
-                pk=plan.pk
-            ).exclude(
-                status__in=['cancelled'] if not force else []
-            ).update(
-                status='cancelled',
-                updated_at=timezone.now()
-            )
-            
-            if updated_count == 0 and not force:
-                raise ValueError("Plan was already cancelled or status changed")
-            
-            # Refresh plan instance
-            plan.refresh_from_db()
-            
-            # Revoke any scheduled tasks
-            try:
-                cls._revoke_plan_tasks(plan)
-            except Exception as e:
-                logger.warning(f"Failed to revoke tasks for plan {plan.id}: {e}")
+        plan_repo = plan_factories.get_plan_repo()
+        plan_repo.update_fields(plan.id, status='cancelled')
+        plan = plan_repo.refresh(plan)
+        
+        # Revoke any scheduled tasks
+        try:
+            plan_factories.get_task_scheduler().revoke_plan_tasks(plan)
+        except Exception as e:
+            logger.warning(f"Failed to revoke tasks for plan {plan.id}: {e}")
         
         cls.log_operation("trip_cancelled", {
             'plan_id': str(plan.id),
             'user_id': str(user.id) if user else None,
             'reason': reason,
             'forced': force,
-            'timestamp': timezone.now().isoformat()
+            'timestamp': now.isoformat()
         })
         
+        cls._invalidate_plan_cache(plan.id)
         return plan
     
     @classmethod
-    def can_view_plan(cls, plan: Plan, user: User) -> bool:
+    def can_view_plan(cls, plan, user) -> bool:
         if plan.is_public:
             return True
         
@@ -353,7 +320,7 @@ class PlanService(BaseService):
         return user in plan.collaborators
     
     @classmethod
-    def can_edit_plan(cls, plan: Plan, user: User) -> bool:
+    def can_edit_plan(cls, plan, user) -> bool:
         if plan.creator == user:
             return True
         
@@ -363,41 +330,51 @@ class PlanService(BaseService):
         return False
     
     @classmethod
-    def get_plan_statistics(cls, plan: Plan) -> Dict[str, Any]:
-        plan_with_stats = Plan.objects.with_stats().get(id=plan.id)
-        
-        activities_count = plan_with_stats.activities_count
-        total_cost = plan_with_stats.total_estimated_cost
-        
-        completed_activities = plan.activities.filter(is_completed=True).count()
-        completion_rate = (completed_activities / activities_count * 100) if activities_count > 0 else 0
-        
-        return {
-            'activities': {
-                'total': activities_count,
-                'completed': completed_activities,
-                'completion_rate': completion_rate
-            },
-            'budget': {
-                'estimated': float(total_cost),
-                'over_budget': False
-            },
-            'duration': {
-                'days': plan.duration_days,
-                'start_date': plan.start_date,
-                'end_date': plan.end_date
-            },
-            'status': plan.status,
-            'collaboration': {
-                'type': plan.plan_type,
-                'group_id': plan.group.id if plan.group else None,
-                'collaborators_count': len(plan.collaborators)
+    def get_plan_statistics(cls, plan) -> Dict[str, Any]:
+        cache_svc = plan_factories.get_cache_service()
+        key = CacheKeys.plan_summary(plan.id)
+
+        def compute():
+            plan_repo = plan_factories.get_plan_repo()
+            activity_repo = plan_factories.get_activity_repo()
+
+            plan_with_stats = plan_repo.get_by_id_with_stats(plan.id)
+
+            activities_count = plan_with_stats.activities_count
+            total_cost = plan_with_stats.total_estimated_cost
+
+            completed_activities = activity_repo.count_completed(plan.id)
+            completion_rate = (completed_activities / activities_count * 100) if activities_count > 0 else 0
+
+            return {
+                'activities': {
+                    'total': activities_count,
+                    'completed': completed_activities,
+                    'completion_rate': completion_rate
+                },
+                'budget': {
+                    'estimated': float(total_cost),
+                    'over_budget': False
+                },
+                'duration': {
+                    'days': plan.duration_days,
+                    'start_date': plan.start_date,
+                    'end_date': plan.end_date
+                },
+                'status': plan.status,
+                'collaboration': {
+                    'type': plan.plan_type,
+                    'group_id': plan.group.id if plan.group else None,
+                    'collaborators_count': len(plan.collaborators)
+                }
             }
-        }
+
+        return cache_svc.get_or_set(key, compute, CacheTTL.PLAN_SUMMARY)
     
     @classmethod
-    def get_plan_schedule(cls, plan: 'Plan', user: User) -> Dict[str, Any]:      
-        activities = plan.activities.order_by('start_time')
+    def get_plan_schedule(cls, plan, user) -> Dict[str, Any]:      
+        activity_repo = plan_factories.get_activity_repo()
+        activities = activity_repo.get_activities_for_plan(plan.id)
         
         schedule_by_date = {}
         for activity in activities:
@@ -411,12 +388,21 @@ class PlanService(BaseService):
                         'activities': []
                     }
                 
-                # Use summary serializer for lightweight data
-                activity_data = PlanActivitySummarySerializer(activity).data
+                # Lightweight summary — no serializer dependency
+                activity_data = {
+                    'id': str(activity.id),
+                    'title': activity.title,
+                    'activity_type': getattr(activity, 'activity_type', 'other'),
+                    'start_time': activity.start_time.isoformat() if activity.start_time else None,
+                    'end_time': activity.end_time.isoformat() if activity.end_time else None,
+                    'is_completed': getattr(activity, 'is_completed', False),
+                    'location_name': getattr(activity, 'location_name', ''),
+                    'estimated_cost': str(getattr(activity, 'estimated_cost', 0) or 0),
+                }
                 schedule_by_date[date_str]['activities'].append(activity_data)
         
-        total_activities = activities.count()
-        completed_activities = activities.filter(is_completed=True).count()
+        total_activities = activity_repo.count_total(plan.id)
+        completed_activities = activity_repo.count_completed(plan.id)
         
         total_duration = 0
         for activity in activities:
@@ -449,37 +435,14 @@ class PlanService(BaseService):
     
     @classmethod
     def get_plans_needing_updates(cls):
-        return Plan.objects.plans_need_status_update()
+        return plan_factories.get_plan_repo().get_plans_needing_status_update()
     
     @classmethod
-    def revoke_scheduled_tasks(cls, plan: Plan) -> None:
-        
-        old_start_id = plan.scheduled_start_task_id
-        old_end_id = plan.scheduled_end_task_id
-        
-        for task_id in (old_start_id, old_end_id):
-            if not task_id:
-                continue
-            try:
-                current_app.control.revoke(task_id, terminate=False)
-            except Exception:
-                pass
-
-        updates = {}
-        if old_start_id:
-            updates['scheduled_start_task_id'] = None
-        if old_end_id:
-            updates['scheduled_end_task_id'] = None
-            
-        if updates:
-            Plan.objects.filter(
-                pk=plan.pk,
-                scheduled_start_task_id=old_start_id,
-                scheduled_end_task_id=old_end_id
-            ).update(**updates)
+    def revoke_scheduled_tasks(cls, plan) -> None:
+        plan_factories.get_task_scheduler().revoke_scheduled_tasks(plan)
     
     @classmethod
-    def refresh_plan_status(cls, plan: Plan) -> bool:
+    def refresh_plan_status(cls, plan) -> bool:
         if not cls.needs_status_update(plan):
             return False
             
@@ -487,8 +450,7 @@ class PlanService(BaseService):
         new_status = cls.get_expected_status(plan)
         
         if new_status != old_status:
-            plan.status = new_status
-            plan.save(update_fields=['status', 'updated_at'])
+            plan_factories.get_plan_repo().update_fields(plan.id, status=new_status)
             
             cls.log_operation("plan_status_refreshed", {
                 'plan_id': plan.id,
@@ -500,22 +462,22 @@ class PlanService(BaseService):
         return False
     
     @classmethod
-    def needs_status_update(cls, plan: Plan) -> bool:
+    def needs_status_update(cls, plan) -> bool:
         if not (plan.start_date and plan.end_date):
             return False
             
-        now = timezone.now()
+        now = datetime.datetime.now(datetime.timezone.utc)
         return (
             (plan.status == 'upcoming' and now >= plan.start_date) or
             (plan.status == 'ongoing' and now > plan.end_date)
         )
     
     @classmethod
-    def get_expected_status(cls, plan: Plan) -> str:
+    def get_expected_status(cls, plan) -> str:
         if not (plan.start_date and plan.end_date):
             return plan.status
             
-        now = timezone.now()
+        now = datetime.datetime.now(datetime.timezone.utc)
         if now < plan.start_date:
             return 'upcoming'
         elif now <= plan.end_date:
@@ -523,96 +485,8 @@ class PlanService(BaseService):
         else:
             return 'completed'
     
-    
     @classmethod
-    def _schedule_plan_tasks(cls, plan: Plan):
-        try:
-            def _do_schedule():
-                scheduled_start_id = None
-                scheduled_end_id = None
-
-                try:
-                    # Lazy import to avoid circular imports
-                    from planpals.plans.application.tasks import start_plan_task, complete_plan_task
-
-                    if plan.start_date:
-                        start_task = start_plan_task.apply_async(args=[str(plan.id)], eta=plan.start_date)
-                        scheduled_start_id = start_task.id
-
-                    if plan.end_date:
-                        end_task = complete_plan_task.apply_async(args=[str(plan.id)], eta=plan.end_date)
-                        scheduled_end_id = end_task.id
-
-                    updates = {}
-                    if scheduled_start_id:
-                        updates['scheduled_start_task_id'] = scheduled_start_id
-                    if scheduled_end_id:
-                        updates['scheduled_end_task_id'] = scheduled_end_id
-
-                    if updates:
-                        Plan.objects.filter(pk=plan.pk).update(**updates)
-
-                except Exception as exc:
-                    cls.log_operation("task_scheduling_failed", {
-                        'plan_id': plan.id,
-                        'error': str(exc)
-                    })
-
-            transaction.on_commit(_do_schedule)
-
-        except Exception as e:
-            cls.log_operation("task_scheduling_failed", {
-                'plan_id': plan.id,
-                'error': str(e)
-            })
-    
-    @classmethod
-    def _revoke_plan_tasks(cls, plan: Plan):
-        old_start_id = plan.scheduled_start_task_id
-        old_end_id = plan.scheduled_end_task_id
-        
-        for task_id in (old_start_id, old_end_id):
-            if not task_id:
-                continue
-            try:
-                current_app.control.revoke(task_id, terminate=False)
-            except Exception:
-                pass
-
-        Plan.objects.filter(pk=plan.pk).update(
-            scheduled_start_task_id=None,
-            scheduled_end_task_id=None
-        )
-    
-    @classmethod
-    def _schedule_completion_task(cls, plan: Plan):
-        if not plan.end_date:
-            return
-            
-        try:            
-            def _do_schedule_completion():
-                try:
-                    from planpals.plans.application.tasks import complete_plan_task
-
-                    if plan.scheduled_end_task_id:
-                        try:
-                            current_app.control.revoke(plan.scheduled_end_task_id, terminate=False)
-                        except Exception:
-                            pass
-
-                    end_task = complete_plan_task.apply_async(args=[str(plan.id)], eta=plan.end_date)
-
-                    Plan.objects.filter(pk=plan.pk).update(scheduled_end_task_id=end_task.id)
-                except Exception as exc:
-                    logger.warning(f"Failed to schedule completion task for plan {plan.id}: {exc}")
-
-            transaction.on_commit(_do_schedule_completion)
-
-        except Exception as e:
-            logger.warning(f"Failed to schedule completion task: {e}")
-    
-    @classmethod
-    def update_activity(cls, plan: 'Plan', activity_id: str, user: User, data: Dict[str, Any]) -> Tuple[bool, str, Optional['PlanActivity']]:
+    def update_activity(cls, plan, activity_id: str, user, data: Dict[str, Any]) -> Tuple[bool, str, Optional[Any]]:
         """Delegate to UpdateActivityHandler."""
         from uuid import UUID as _UUID
         cmd = UpdateActivityCommand(
@@ -636,10 +510,11 @@ class PlanService(BaseService):
             'user_id': user.id
         })
 
+        cls._invalidate_plan_cache(plan.id)
         return True, "Activity updated successfully", activity
     
     @classmethod
-    def remove_activity(cls, plan: 'Plan', activity_id: str, user: User) -> Tuple[bool, str]:
+    def remove_activity(cls, plan, activity_id: str, user) -> Tuple[bool, str]:
         """Delegate to RemoveActivityHandler."""
         from uuid import UUID as _UUID
         cmd = RemoveActivityCommand(
@@ -658,10 +533,11 @@ class PlanService(BaseService):
             'user_id': user.id
         })
 
+        cls._invalidate_plan_cache(plan.id)
         return True, "Activity removed from plan"
     
     @classmethod
-    def toggle_activity_completion(cls, plan: 'Plan', activity_id: str, user: User) -> Tuple[bool, str, Optional['PlanActivity']]:
+    def toggle_activity_completion(cls, plan, activity_id: str, user) -> Tuple[bool, str, Optional[Any]]:
         """Delegate to ToggleActivityCompletionHandler."""
         from uuid import UUID as _UUID
         cmd = ToggleActivityCompletionCommand(
@@ -683,46 +559,19 @@ class PlanService(BaseService):
             'user_id': user.id
         })
 
+        cls._invalidate_plan_cache(plan.id)
         return True, f'Activity marked as {status_text}', activity
     
     @classmethod
-    def get_joined_plans(cls, user: User, search: str = None):        
-        group_plans = Plan.objects.filter(
-            plan_type='group',
-            group__members=user
-        ).exclude(creator=user).distinct()
-        
-        if search:
-            group_plans = group_plans.filter(
-                models.Q(title__icontains=search) |
-                models.Q(description__icontains=search)
-            )
-        
-        return group_plans
+    def get_joined_plans(cls, user, search: str = None):        
+        return plan_factories.get_plan_repo().get_joined_group_plans(user.id, search=search)
     
     @classmethod
-    def get_public_plans(cls, user: User, search: str = None):
-        
-        public_plans = Plan.objects.filter(
-            is_public=True,
-            status__in=['upcoming', 'ongoing']
-        ).exclude(creator=user)
-        
-        public_plans = public_plans.exclude(
-            plan_type='group',
-            group__members=user
-        )
-        
-        if search:
-            public_plans = public_plans.filter(
-                models.Q(title__icontains=search) |
-                models.Q(description__icontains=search)
-            )
-        
-        return public_plans.order_by('-created_at')
+    def get_public_plans(cls, user, search: str = None):
+        return plan_factories.get_plan_repo().get_public_plans(exclude_user_id=user.id, search=search)
     
     @classmethod
-    def join_plan(cls, plan: 'Plan', user: User) -> Tuple[bool, str]:
+    def join_plan(cls, plan, user) -> Tuple[bool, str]:
         """Delegate to JoinPlanHandler."""
         cmd = JoinPlanCommand(
             plan_id=plan.id,
@@ -740,6 +589,17 @@ class PlanService(BaseService):
         })
 
         return True, f'Successfully joined plan "{plan.title}"'
+
+    # ------------------------------------------------------------------
+    # Cache invalidation helper
+    # ------------------------------------------------------------------
+    @classmethod
+    def _invalidate_plan_cache(cls, plan_id) -> None:
+        try:
+            cache_svc = plan_factories.get_cache_service()
+            cache_svc.delete(CacheKeys.plan_summary(plan_id))
+        except Exception as e:
+            logger.warning("Failed to invalidate plan cache for %s: %s", plan_id, e)
 
 
 # Helper functions for attachment handling

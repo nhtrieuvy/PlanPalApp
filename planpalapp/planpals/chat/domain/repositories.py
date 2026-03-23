@@ -43,6 +43,11 @@ class ConversationRepository(ABC):
     def can_user_access(self, conversation_id: UUID, user_id: UUID) -> bool:
         ...
 
+    @abstractmethod
+    def update_last_message_time(self, conversation_id: UUID, timestamp: Any = None) -> None:
+        """Update the last_message_at timestamp for a conversation."""
+        ...
+
 
 class ChatMessageRepository(ABC):
     """Repository interface for ChatMessage entities."""
@@ -76,5 +81,39 @@ class ChatMessageRepository(ABC):
         ...
 
     @abstractmethod
+    def bulk_mark_read_for_conversation(
+        self, conversation_id: UUID, user_id: UUID, up_to_message_id: UUID = None
+    ) -> int:
+        """Mark all unread messages in a conversation as read for a user."""
+        ...
+
+    @abstractmethod
     def get_unread_count(self, conversation_id: UUID, user_id: UUID) -> int:
+        ...
+
+    @abstractmethod
+    def get_valid_reply_message(
+        self, message_id: UUID, conversation_id: UUID
+    ) -> Optional[Any]:
+        """Get a non-deleted message in a conversation (for reply validation)."""
+        ...
+
+
+class FriendshipQueryRepository(ABC):
+    """Cross-context query interface for friendship checks needed by chat."""
+
+    @abstractmethod
+    def are_friends(self, user1_id: UUID, user2_id: UUID) -> bool:
+        ...
+
+
+class GroupQueryRepository(ABC):
+    """Cross-context query interface for group checks needed by chat."""
+
+    @abstractmethod
+    def get_by_id(self, group_id: UUID) -> Optional[Any]:
+        ...
+
+    @abstractmethod
+    def is_member(self, group_id: UUID, user_id: UUID) -> bool:
         ...

@@ -41,8 +41,8 @@ class ErrorDisplayService {
               ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Đóng'),
               style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
+              child: const Text('Đóng'),
             ),
           ],
         );

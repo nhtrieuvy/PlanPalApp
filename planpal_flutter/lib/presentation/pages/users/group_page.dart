@@ -1,57 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
-import 'package:planpal_flutter/core/repositories/group_repository.dart';
+import 'package:planpal_flutter/core/riverpod/groups_notifier.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_form_page.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../core/dtos/group_summary.dart';
 import '../../../core/services/error_display_service.dart';
+import '../../../shared/ui_states/ui_states.dart';
 
-class GroupPage extends StatefulWidget {
+class GroupPage extends ConsumerStatefulWidget {
   const GroupPage({super.key});
 
   @override
-  State<GroupPage> createState() => _GroupPageState();
+  ConsumerState<GroupPage> createState() => _GroupPageState();
 }
 
-class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
-  late final GroupRepository _repo;
-  bool _loading = false;
-  String? _error;
-  List<GroupSummary> _groups = const [];
-
-  @override
-  void initState() {
-    super.initState();
-    _repo = GroupRepository(context.read<AuthProvider>());
-    _loadGroups();
-  }
-
+class _GroupPageState extends ConsumerState<GroupPage>
+    with RefreshablePage<GroupPage> {
   @override
   Future<void> onRefresh() async {
-    await _loadGroups();
-  }
-
-  Future<void> _loadGroups() async {
-    if (_loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final data = await _repo.getGroups();
-      if (!mounted) return;
-      setState(() => _groups = data);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = 'Lỗi tải nhóm');
-      ErrorDisplayService.handleError(context, e);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    await ref.read(groupsNotifierProvider.notifier).refresh();
   }
 
   void _onCreateGroup() async {
@@ -67,7 +37,7 @@ class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
         created = GroupSummary.fromJson(raw);
       } catch (_) {}
       if (!mounted || created == null) return;
-      setState(() => _groups = [created!, ..._groups]);
+      ref.read(groupsNotifierProvider.notifier).addGroup(created);
       ErrorDisplayService.showSuccessSnackbar(context, 'Tạo nhóm thành công');
     }
   }
@@ -106,22 +76,28 @@ class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
 
   Widget _buildBody() {
     final theme = Theme.of(context);
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null) {
-      return _buildError(_error!);
-    }
-    if (_groups.isEmpty) {
-      return _buildEmpty();
-    }
-    return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      itemCount: _groups.length,
-      itemBuilder: (context, index) {
-        final g = _groups[index];
-        return _buildGroupCard(g, index, theme);
+    final groupsAsync = ref.watch(groupsNotifierProvider);
+
+    return groupsAsync.when(
+      loading: () => const AppSkeleton.list(itemCount: 6),
+      error: (error, _) => AppError(
+        message: 'Lỗi tải nhóm: $error',
+        onRetry: onRefresh,
+        retryLabel: 'Thử lại',
+      ),
+      data: (groups) {
+        if (groups.isEmpty) {
+          return _buildEmpty();
+        }
+        return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          itemCount: groups.length,
+          itemBuilder: (context, index) {
+            final g = groups[index];
+            return _buildGroupCard(g, index, theme);
+          },
+        );
       },
     );
   }
@@ -304,29 +280,23 @@ class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
 
     // Nếu user rời nhóm, xóa khỏi danh sách
     if (action['action'] == 'left' && action['id'] == id) {
-      setState(() {
-        _groups = _groups.where((group) => group.id != id).toList();
-      });
+      ref.read(groupsNotifierProvider.notifier).removeGroup(id);
       ErrorDisplayService.showSuccessSnackbar(
         context,
         'Đã rời nhóm thành công',
       );
     }
-    // Nếu có cập nhật thông tin nhóm, reload danh sách
+    // Nếu có cập nhật thông tin nhóm, update shared state
     else if (action['action'] == 'updated' && action['group'] is Map) {
       try {
         final updatedGroupRaw = Map<String, dynamic>.from(
           action['group'] as Map,
         );
         final updatedSummary = GroupSummary.fromJson(updatedGroupRaw);
-        setState(() {
-          _groups = _groups
-              .map((grp) => grp.id == updatedSummary.id ? updatedSummary : grp)
-              .toList();
-        });
+        ref.read(groupsNotifierProvider.notifier).updateGroup(updatedSummary);
       } catch (_) {
         // Nếu parse lỗi, reload toàn bộ danh sách
-        await _loadGroups();
+        await ref.read(groupsNotifierProvider.notifier).refresh();
       }
     }
   }
@@ -336,28 +306,10 @@ class _GroupPageState extends State<GroupPage> with RefreshablePage<GroupPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       children: const [
         SizedBox(height: 120),
-        Icon(Icons.group_outlined, size: 64, color: Colors.grey),
-        SizedBox(height: 12),
-        Center(child: Text('Chưa có nhóm nào', style: TextStyle(fontSize: 16))),
-      ],
-    );
-  }
-
-  Widget _buildError(String msg) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        const SizedBox(height: 120),
-        const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
-        const SizedBox(height: 12),
-        Center(child: Text(msg, textAlign: TextAlign.center)),
-        const SizedBox(height: 12),
-        Center(
-          child: OutlinedButton.icon(
-            onPressed: onRefresh,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Thử lại'),
-          ),
+        AppEmpty(
+          icon: Icons.group_outlined,
+          title: 'Chưa có nhóm nào',
+          description: 'Tạo nhóm đầu tiên để bắt đầu lập kế hoạch cùng nhau',
         ),
       ],
     );

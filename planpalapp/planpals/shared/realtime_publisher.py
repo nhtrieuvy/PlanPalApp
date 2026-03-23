@@ -7,8 +7,6 @@ from django.conf import settings
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from planpals.shared.events import RealtimeEvent, EventType, ChannelGroups, EventPriority
-from planpals.integrations.notification_service import NotificationService
-from planpals.models import User, Plan, Group
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +14,6 @@ logger = logging.getLogger(__name__)
 class RealtimeEventPublisher:    
     def __init__(self):
         self.channel_layer = get_channel_layer()
-        self.notification_service = NotificationService()
         
     def publish_event(self, event: RealtimeEvent, 
                      channel_groups: List[str] = None,
@@ -112,130 +109,18 @@ class RealtimeEventPublisher:
         return event.event_type in important_events
         
     def _send_push_notification(self, event: RealtimeEvent) -> bool:
-        """Send push notification for event"""
+        """Dispatch push notification via Celery task (async, off hot path)."""
         try:
-            # Get notification details based on event type
-            notification_data = self._get_notification_data(event)
-            if not notification_data:
-                return True  # No notification needed
-                
-            # Get target users for notification
-            target_users = self._get_notification_targets(event)
-            if not target_users:
-                return True  # No targets
-                
-            # Get FCM tokens for target users
-            fcm_tokens = self._get_fcm_tokens(target_users)
-            if not fcm_tokens:
-                return True  # No valid tokens
-                
-            # Send push notification
-            success = self.notification_service.send_push_notification(
-                fcm_tokens=fcm_tokens,
-                title=notification_data['title'],
-                body=notification_data['body'],
-                data={
-                    'event_type': event.event_type.value,
-                    'event_id': event.event_id,
-                    'plan_id': event.plan_id,
-                    'group_id': event.group_id,
-                    **notification_data.get('extra_data', {})
-                }
-            )
-            
-            return success
-            
+            from planpals.shared.tasks import send_event_push_notification_task
+
+            # Serialize event to plain dict — Celery tasks only accept
+            # JSON-serialisable primitives.
+            send_event_push_notification_task.delay(event.to_dict())
+            return True
+
         except Exception as e:
-            logger.error(f"Failed to send push notification: {e}")
+            logger.error(f"Failed to dispatch push notification task: {e}")
             return False
-            
-    def _get_notification_data(self, event: RealtimeEvent) -> Optional[Dict[str, Any]]:
-        """Get notification title and body based on event type"""
-        event_data = event.data
-        
-        notification_map = {
-            EventType.PLAN_STATUS_CHANGED: {
-                'title': f"Plan Status Updated",
-                'body': f"'{event_data.get('title', 'Your plan')}' is now {event_data.get('new_status', 'updated')}"
-            },
-            EventType.ACTIVITY_CREATED: {
-                'title': f"New Activity Added",
-                'body': f"New activity '{event_data.get('title', 'an activity')}' added to plan"
-            },
-            EventType.ACTIVITY_UPDATED: {
-                'title': f"Activity Updated",
-                'body': f"Activity '{event_data.get('title', 'an activity')}' was updated"
-            },
-            EventType.ACTIVITY_COMPLETED: {
-                'title': f"Activity Completed",
-                'body': f"'{event_data.get('title', 'An activity')}' was completed"
-            },
-            EventType.ACTIVITY_DELETED: {
-                'title': f"Activity Removed",
-                'body': f"Activity '{event_data.get('title', 'an activity')}' was removed from plan"
-            },
-            EventType.GROUP_MEMBER_ADDED: {
-                'title': f"New Group Member",
-                'body': f"{event_data.get('username', 'Someone')} joined {event_data.get('group_name', 'the group')}"
-            },
-            EventType.MESSAGE_SENT: {
-                'title': f"New Message",
-                'body': f"{event_data.get('sender_username', 'Someone')}: {event_data.get('content', 'Sent a message')[:50]}..."
-            },
-            EventType.FRIEND_REQUEST: {
-                'title': f"Friend Request",
-                'body': f"{event_data.get('from_name', 'Someone')} sent you a friend request"
-            }
-        }
-        
-        return notification_map.get(event.event_type)
-        
-    def _get_notification_targets(self, event: RealtimeEvent) -> List[str]:
-        """Get list of user IDs that should receive notifications"""
-        
-        target_users = []
-        
-        try:
-            # Plan events - notify all plan members except the initiator
-            if event.plan_id:
-                plan = Plan.objects.get(id=event.plan_id)
-                if plan.plan_type == 'personal':
-                    target_users.append(str(plan.creator_id))
-                elif plan.group:
-                    target_users.extend([str(uid) for uid in plan.group.members.values_list('id', flat=True)])
-                    
-            # Group events - notify all group members
-            elif event.group_id:
-                group = Group.objects.get(id=event.group_id)
-                target_users.extend([str(uid) for uid in group.members.values_list('id', flat=True)])
-                
-            # User events - notify specific user
-            elif event.user_id:
-                target_users.append(event.user_id)
-                
-            # Remove the event initiator from notifications (they already know)
-            event_initiator = event.data.get('initiator_id')
-            if event_initiator and event_initiator in target_users:
-                target_users.remove(event_initiator)
-                
-        except Exception as e:
-            logger.error(f"Failed to get notification targets: {e}")
-            
-        return list(set(target_users))  # Remove duplicates
-        
-    def _get_fcm_tokens(self, user_ids: List[str]) -> List[str]:
-        
-        try:
-            tokens = User.objects.filter(
-                id__in=user_ids,
-                fcm_token__isnull=False
-            ).exclude(fcm_token='').values_list('fcm_token', flat=True)
-            
-            return list(tokens)
-            
-        except Exception as e:
-            logger.error(f"Failed to get FCM tokens: {e}")
-            return []
             
     def _cache_event_for_offline_users(self, event: RealtimeEvent, channel_groups: List[str]):
         try:

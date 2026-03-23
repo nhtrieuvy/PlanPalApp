@@ -102,3 +102,28 @@ def get_update_fcm_token_handler() -> UpdateFCMTokenHandler:
     return UpdateFCMTokenHandler(
         user_repo=_user_repo(),
     )
+
+
+# --- Repo / infrastructure service factories for service layer ---
+
+def get_user_repo():
+    return DjangoUserRepository()
+
+
+def get_friendship_repo():
+    return DjangoFriendshipRepository()
+
+
+def get_token_repo():
+    from planpals.auth.infrastructure.repositories import DjangoTokenRepository
+    return DjangoTokenRepository()
+
+
+def get_auth_group_repo():
+    from planpals.auth.infrastructure.repositories import DjangoAuthGroupRepository
+    return DjangoAuthGroupRepository()
+
+
+def get_cache_service():
+    from planpals.shared.cache_infrastructure import DjangoCacheService
+    return DjangoCacheService()

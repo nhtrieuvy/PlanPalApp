@@ -83,8 +83,3 @@ class ConversationPermission(BasePermission):
         
         return False
 
-
-class IsConversationParticipant(BasePermission):
-    def has_object_permission(self, request, view, obj):
-        conversation = getattr(obj, 'conversation', obj)
-        return conversation.is_participant(request.user)
