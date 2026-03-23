@@ -2,24 +2,28 @@ import 'package:planpal_flutter/core/dtos/plan_summary.dart';
 
 class PlansResponse {
   final List<PlanSummary> plans;
-  final String? nextCursor;
+  final String? nextPageUrl;
+  final String? previousPageUrl;
   final bool hasMore;
   final int count;
 
   const PlansResponse({
     required this.plans,
-    this.nextCursor,
+    this.nextPageUrl,
+    this.previousPageUrl,
     required this.hasMore,
     required this.count,
   });
 
   factory PlansResponse.fromJson(Map<String, dynamic> json) {
+    final next = json['next'] as String?;
     return PlansResponse(
       plans: (json['results'] as List<dynamic>? ?? [])
           .map((item) => PlanSummary.fromJson(item as Map<String, dynamic>))
           .toList(),
-      nextCursor: json['next'] as String?,
-      hasMore: json['has_more'] as bool? ?? false,
+      nextPageUrl: next,
+      previousPageUrl: json['previous'] as String?,
+      hasMore: next != null,
       count: json['count'] as int? ?? 0,
     );
   }

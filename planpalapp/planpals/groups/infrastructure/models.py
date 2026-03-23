@@ -24,7 +24,7 @@ class GroupQuerySet(models.QuerySet['Group']):
     
     def with_member_count(self) -> 'GroupQuerySet':
         return self.annotate(
-            admin_count_annotated=Count(
+            member_count_annotated=Count(
                 'memberships',
                 distinct=True
             )
@@ -106,7 +106,6 @@ class Group(BaseModel):
         },
         help_text="Group cover image"
     )
-
     
     admin = models.ForeignKey(
         settings.AUTH_USER_MODEL,

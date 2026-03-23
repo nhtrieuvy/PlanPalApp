@@ -232,22 +232,19 @@ class UserService(BaseService):
         return handler.handle(cmd)
     
     @classmethod
-    def join_group(cls, user, group_id: str = None, invite_code: str = None) -> Tuple[bool, str, Optional[Any]]:
+    def join_group(cls, user, group_id: str) -> Tuple[bool, str, Optional[Any]]:
         from planpals.groups.application.services import GroupService
         group_repo = auth_factories.get_auth_group_repo()
         try:
-            if invite_code:
-                group = group_repo.get_by_invite_code(invite_code)
-            else:
-                group = group_repo.get_public_by_id(group_id)
+            group = group_repo.get_by_id(group_id)
             
-            if not group:
-                return False, "Group not found or not accessible", None
+            if group is None:
+                return False, "Group not found", None
             
-            success, message = GroupService.join_group_by_invite(group, user)
+            success, message, joined_group = GroupService.join_group(user=user, group_id=group_id)
             
             if success:
-                return True, message, group
+                return True, message, joined_group
             else:
                 return False, message, None
                 

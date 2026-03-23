@@ -32,7 +32,7 @@ from planpals.shared.paginators import (
 )
 
 # Cross-context imports for serializers used in mixed views
-from planpals.groups.presentation.serializers import GroupSerializer, GroupSummarySerializer
+from planpals.groups.presentation.serializers import GroupSummarySerializer
 from planpals.plans.presentation.serializers import PlanSummarySerializer, PlanActivitySerializer
 
 User = get_user_model()
@@ -257,7 +257,7 @@ class UserViewSet(viewsets.GenericViewSet,
     @action(detail=False, methods=['get'])
     def recent_conversations(self, request):
         conversations = UserService.get_recent_conversations(request.user)
-        serializer = GroupSerializer(conversations, many=True, context={'request': request})
+        serializer = GroupSummarySerializer(conversations, many=True, context={'request': request})
         
         return Response({
             'conversations': serializer.data,

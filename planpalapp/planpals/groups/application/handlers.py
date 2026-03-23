@@ -20,7 +20,7 @@ from planpals.groups.application.commands import (
 from planpals.shared.domain_exceptions import (
     GroupNotFoundException, NotGroupAdminException, NotGroupMemberException,
     AlreadyGroupMemberException, LastAdminException,
-    CannotRemoveAdminException, InviteCodeInvalidException, NotFriendsException,
+    CannotRemoveAdminException, NotFriendsException,
 )
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ class CreateGroupHandler(BaseCommandHandler[CreateGroupCommand, Any]):
 
 
 class UpdateGroupHandler(BaseCommandHandler[UpdateGroupCommand, Any]):
-    """Use case: Update group details (name, description, avatar, etc.)."""
+    """Use case: Update group details (name, description, media)."""
 
     def __init__(
         self,
@@ -104,7 +104,7 @@ class UpdateGroupHandler(BaseCommandHandler[UpdateGroupCommand, Any]):
             raise NotGroupAdminException()
 
         update_fields = {}
-        for field_name in ['name', 'description', 'is_public', 'avatar', 'cover_image']:
+        for field_name in ['name', 'description', 'avatar', 'cover_image']:
             value = getattr(command, field_name, None)
             if value is not None:
                 update_fields[field_name] = value
@@ -211,7 +211,7 @@ class RemoveMemberHandler(BaseCommandHandler[RemoveMemberCommand, bool]):
 
 
 class JoinGroupHandler(BaseCommandHandler[JoinGroupCommand, Any]):
-    """Use case: User joins a group (public or via invite code)."""
+    """Use case: User joins a group by explicit group ID."""
 
     def __init__(
         self,
@@ -225,19 +225,8 @@ class JoinGroupHandler(BaseCommandHandler[JoinGroupCommand, Any]):
 
     @transaction.atomic
     def handle(self, command: JoinGroupCommand) -> Any:
-        # Resolve group from ID or invite code
-        group = None
-        if command.invite_code:
-            group = self.group_repo.get_by_invite_code(command.invite_code)
-            if not group:
-                raise InviteCodeInvalidException()
-        elif command.group_id:
-            group = self.group_repo.get_by_id(command.group_id)
-            if not group:
-                raise GroupNotFoundException()
-            if not group.is_public:
-                raise GroupNotFoundException("Nhóm không công khai.")
-        else:
+        group = self.group_repo.get_by_id(command.group_id)
+        if not group:
             raise GroupNotFoundException()
 
         if self.membership_repo.is_member(group.id, command.user_id):

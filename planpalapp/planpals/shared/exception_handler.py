@@ -97,7 +97,18 @@ def _build_error_response(
     non_field_errors: list[str] | None = None,
     extra_fields: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    details: dict[str, Any] = {}
+    if errors:
+        details['fields'] = errors
+    if non_field_errors:
+        details['non_field_errors'] = non_field_errors
+    if extra_fields:
+        details.update(extra_fields)
+
     payload: dict[str, Any] = {
+        'code': error_code,
+        'message': message,
+        'details': details,
         'error': message,
         'detail': message,
         'message': message,

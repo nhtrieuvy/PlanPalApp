@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:planpal_flutter/core/repositories/friend_repository.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -12,23 +12,23 @@ import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/group_requests.dart';
 import '../../../core/services/error_display_service.dart';
 
-class GroupFormPage extends StatefulWidget {
+class GroupFormPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initial;
   const GroupFormPage({super.key, this.initial});
 
   @override
-  State<GroupFormPage> createState() => _GroupFormPageState();
+  ConsumerState<GroupFormPage> createState() => _GroupFormPageState();
 }
 
-class _GroupFormPageState extends State<GroupFormPage> {
+class _GroupFormPageState extends ConsumerState<GroupFormPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
   bool _submitting = false;
   File? _avatarFile;
   File? _coverFile;
-  late final GroupRepository _repo;
-  late final FriendRepository _friendRepo;
+  GroupRepository get _repo => ref.read(groupRepositoryProvider);
+  FriendRepository get _friendRepo => ref.read(friendRepositoryProvider);
 
   // Member selection for new groups
   List<UserSummary> _availableFriends = [];
@@ -38,8 +38,6 @@ class _GroupFormPageState extends State<GroupFormPage> {
   @override
   void initState() {
     super.initState();
-    _repo = GroupRepository(context.read<AuthProvider>());
-    _friendRepo = FriendRepository(context.read<AuthProvider>());
     _nameCtrl = TextEditingController(
       text: widget.initial?['name']?.toString() ?? '',
     );
@@ -98,7 +96,11 @@ class _GroupFormPageState extends State<GroupFormPage> {
           description: _descCtrl.text.trim(),
           initialMembers: _selectedMembers.map((m) => m.id).toList(),
         );
-        result = await _repo.createGroup(request, avatar: _avatarFile);
+        result = await _repo.createGroup(
+          request,
+          avatar: _avatarFile,
+          coverImage: _coverFile,
+        );
         if (!mounted) return;
 
         // Evict any cached images for the returned URLs to avoid stale images

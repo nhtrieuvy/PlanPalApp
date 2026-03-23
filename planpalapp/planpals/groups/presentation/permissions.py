@@ -16,8 +16,6 @@ class GroupPermission(BasePermission):
         return False
     
     def _can_view_group(self, user, group):
-        if getattr(group, 'is_public', False):
-            return True
         return group.is_member(user)
 
 

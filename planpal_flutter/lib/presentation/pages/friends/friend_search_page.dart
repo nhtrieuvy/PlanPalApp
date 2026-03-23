@@ -1,29 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../../core/providers/auth_provider.dart';
-import '../../../core/repositories/friend_repository.dart';
+import '../../../core/riverpod/repository_providers.dart';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/ui_states/ui_states.dart';
 import 'user_profile_page.dart';
 
-class FriendSearchPage extends StatefulWidget {
+class FriendSearchPage extends ConsumerStatefulWidget {
   const FriendSearchPage({super.key});
 
   @override
-  State<FriendSearchPage> createState() => _FriendSearchPageState();
+  ConsumerState<FriendSearchPage> createState() => _FriendSearchPageState();
 }
 
-class _FriendSearchPageState extends State<FriendSearchPage> {
-  late final FriendRepository _friendRepo;
+class _FriendSearchPageState extends ConsumerState<FriendSearchPage> {
   final TextEditingController _searchController = TextEditingController();
   bool _searching = false;
+  String? _searchError;
   List<UserSummary> _searchResults = [];
 
   @override
   void initState() {
     super.initState();
-    _friendRepo = FriendRepository(context.read<AuthProvider>());
     _loadSuggestions();
   }
 
@@ -43,28 +42,33 @@ class _FriendSearchPageState extends State<FriendSearchPage> {
       setState(() {
         _searchResults = [];
         _searching = false;
+        _searchError = null;
       });
       return;
     }
 
-    setState(() => _searching = true);
+    setState(() {
+      _searching = true;
+      _searchError = null;
+    });
 
     try {
-      final results = await _friendRepo.searchUsers(query.trim());
+      final results = await ref
+          .read(friendRepositoryProvider)
+          .searchUsers(query.trim());
       if (!mounted) return;
       setState(() {
         _searchResults = results;
         _searching = false;
+        _searchError = null;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _searchResults = [];
         _searching = false;
+        _searchError = 'Không thể tìm kiếm người dùng';
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi tìm kiếm: $e')));
     }
   }
 
@@ -123,7 +127,6 @@ class _FriendSearchPageState extends State<FriendSearchPage> {
                     theme.colorScheme.onSurface,
               ),
               onChanged: (value) {
-                setState(() {}); // Update suffix icon
                 if (value.trim().length >= 2) {
                   _performSearch(value);
                 } else {
@@ -135,19 +138,27 @@ class _FriendSearchPageState extends State<FriendSearchPage> {
           ),
 
           // Results
-          Expanded(child: _buildBody(theme)),
+          Expanded(child: _buildBody()),
         ],
       ),
     );
   }
 
-  Widget _buildBody(ThemeData theme) {
+  Widget _buildBody() {
     if (_searching) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppLoading(message: 'Đang tìm kiếm...');
     }
 
     if (_searchController.text.trim().isEmpty) {
       return _buildEmptyState();
+    }
+
+    if (_searchError != null) {
+      return AppError(
+        message: _searchError!,
+        onRetry: () => _performSearch(_searchController.text.trim()),
+        retryLabel: 'Tìm lại',
+      );
     }
 
     if (_searchResults.isEmpty) {
@@ -165,53 +176,18 @@ class _FriendSearchPageState extends State<FriendSearchPage> {
   }
 
   Widget _buildEmptyState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.person_search, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Tìm kiếm bạn bè',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Nhập tên, email hoặc username để tìm kiếm',
-            style: TextStyle(color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+    return const AppEmpty(
+      icon: Icons.person_search,
+      title: 'Tìm kiếm bạn bè',
+      description: 'Nhập tên, email hoặc username để tìm kiếm',
     );
   }
 
   Widget _buildNoResults() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search_off, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Không tìm thấy kết quả',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Thử tìm kiếm với từ khóa khác',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
-      ),
+    return const AppEmpty(
+      icon: Icons.search_off,
+      title: 'Không tìm thấy kết quả',
+      description: 'Thử tìm kiếm với từ khóa khác',
     );
   }
 

@@ -158,12 +158,3 @@ class GroupRepository(ABC):
     @abstractmethod
     def get_by_id(self, group_id: UUID) -> Optional[Any]:
         ...
-
-    @abstractmethod
-    def get_by_invite_code(self, invite_code: str) -> Optional[Any]:
-        ...
-
-    @abstractmethod
-    def get_public_by_id(self, group_id: UUID) -> Optional[Any]:
-        """Get a public group by ID."""
-        ...

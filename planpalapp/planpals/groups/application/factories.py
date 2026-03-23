@@ -97,7 +97,6 @@ def get_leave_group_handler() -> LeaveGroupHandler:
 
 def get_promote_member_handler() -> PromoteMemberHandler:
     return PromoteMemberHandler(
-        group_repo=_group_repo(),
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
     )
@@ -105,7 +104,6 @@ def get_promote_member_handler() -> PromoteMemberHandler:
 
 def get_demote_member_handler() -> DemoteMemberHandler:
     return DemoteMemberHandler(
-        group_repo=_group_repo(),
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
     )

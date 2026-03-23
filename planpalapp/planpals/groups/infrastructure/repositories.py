@@ -51,7 +51,8 @@ class DjangoGroupRepository(GroupRepository):
             name=command.name,
             description=command.description,
             admin_id=command.admin_id,
-            is_public=command.is_public,
+            avatar=command.avatar,
+            cover_image=command.cover_image,
         )
         group.save()
         return group
@@ -91,12 +92,6 @@ class DjangoGroupRepository(GroupRepository):
             .with_full_stats()
         )
 
-    def get_by_invite_code(self, invite_code: str) -> Optional[Group]:
-        try:
-            return Group.objects.select_related('admin').get(invite_code=invite_code)
-        except Group.DoesNotExist:
-            return None
-
     def get_group_plans(self, group_id: UUID) -> Any:
         from planpals.plans.infrastructure.models import Plan
         return (
@@ -106,12 +101,6 @@ class DjangoGroupRepository(GroupRepository):
             .prefetch_related('activities')
             .order_by('-created_at')
         )
-
-    def get_public_by_id(self, group_id: UUID) -> Optional[Group]:
-        try:
-            return Group.objects.select_related('admin').get(id=group_id, is_public=True)
-        except Group.DoesNotExist:
-            return None
 
     def get_by_id_for_detail(self, group_id: UUID) -> Optional[Group]:
         try:

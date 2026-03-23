@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/auth/auth_session.dart';
 import 'dart:io';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
@@ -194,7 +194,7 @@ class GroupRepository {
   Future<GroupModel> joinGroup(JoinGroupRequest request) async {
     try {
       final Response res = await auth.requestWithAutoRefresh(
-        (c) => c.dio.post(Endpoints.groupJoin, data: request.toJson()),
+        (c) => c.dio.post(Endpoints.groupJoin(request.groupId)),
       );
       if (res.statusCode == 200 && res.data is Map) {
         final detail = GroupModel.fromJson(
@@ -210,149 +210,6 @@ class GroupRepository {
       rethrow;
     }
   }
-
-  // // Additional methods from GroupService
-  // Future<List<GroupSummary>> getCreatedGroups() async {
-  //   try {
-  //     final Response res = await auth.requestWithAutoRefresh(
-  //       (c) => c.dio.get(Endpoints.groupsCreated),
-  //     );
-  //     if (res.statusCode == 200) {
-  //       final data = res.data;
-  //       final List<dynamic> rawList = (data is Map && data['groups'] is List)
-  //           ? List<dynamic>.from(data['groups'] as List)
-  //           : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
-
-  //       if (rawList.isEmpty) return const <GroupSummary>[];
-  //       final parsed = <GroupSummary>[];
-  //       for (final m in rawList) {
-  //         if (m is Map) {
-  //           parsed.add(GroupSummary.fromJson(Map<String, dynamic>.from(m)));
-  //         }
-  //       }
-  //       return parsed;
-  //     }
-  //     _throwApiError(res);
-  //   } on DioException catch (e) {
-  //     final r = e.response;
-  //     if (r != null) _throwApiError(r);
-  //     rethrow;
-  //   }
-  // }
-
-  // Future<GroupDetail> joinGroup(String groupId, {String? inviteCode}) async {
-  //   try {
-  //     final Map<String, dynamic> data = {'group_id': groupId};
-  //     if (inviteCode != null) data['invite_code'] = inviteCode;
-
-  //     final Response res = await auth.requestWithAutoRefresh(
-  //       (c) => c.dio.post(Endpoints.groupJoin(groupId), data: data),
-  //     );
-  //     if (res.statusCode == 200 && res.data is Map) {
-  //       final detail = GroupDetail.fromJson(
-  //         Map<String, dynamic>.from(res.data as Map),
-  //       );
-  //       _detailCache[groupId] = detail;
-  //       return detail;
-  //     }
-  //     _throwApiError(res);
-  //   } on DioException catch (e) {
-  //     final r = e.response;
-  //     if (r != null) _throwApiError(r);
-  //     rethrow;
-  //   }
-  // }
-
-  // Future<List<GroupSummary>> searchGroups(String query) async {
-  //   try {
-  //     final Response res = await auth.requestWithAutoRefresh(
-  //       (c) => c.dio.get(Endpoints.groupsSearch, queryParameters: {'q': query}),
-  //     );
-  //     if (res.statusCode == 200) {
-  //       final data = res.data;
-  //       final List<dynamic> rawList = (data is Map && data['groups'] is List)
-  //           ? List<dynamic>.from(data['groups'] as List)
-  //           : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
-
-  //       if (rawList.isEmpty) return const <GroupSummary>[];
-  //       final parsed = <GroupSummary>[];
-  //       for (final m in rawList) {
-  //         if (m is Map) {
-  //           parsed.add(GroupSummary.fromJson(Map<String, dynamic>.from(m)));
-  //         }
-  //       }
-  //       return parsed;
-  //     }
-  //     _throwApiError(res);
-  //   } on DioException catch (e) {
-  //     final r = e.response;
-  //     if (r != null) _throwApiError(r);
-  //     rethrow;
-  //   }
-  // }
-
-  // Future<void> leaveGroup(String groupId) async {
-  //   try {
-  //     final Response res = await auth.requestWithAutoRefresh(
-  //       (c) => c.dio.post(Endpoints.groupLeave(groupId)),
-  //     );
-  //     if (res.statusCode == 200) {
-  //       _detailCache.remove(groupId);
-  //       return;
-  //     }
-  //     _throwApiError(res);
-  //   } on DioException catch (e) {
-  //     final r = e.response;
-  //     if (r != null) _throwApiError(r);
-  //     rethrow;
-  //   }
-  // }
-
-  // Future<List<Map<String, dynamic>>> getGroupMembers(String groupId) async {
-  //   try {
-  //     final Response res = await auth.requestWithAutoRefresh(
-  //       (c) => c.dio.get(Endpoints.groupMembers(groupId)),
-  //     );
-  //     if (res.statusCode == 200) {
-  //       final data = res.data;
-  //       final List<dynamic> rawList = (data is Map && data['members'] is List)
-  //           ? List<dynamic>.from(data['members'] as List)
-  //           : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
-
-  //       return rawList
-  //           .map((item) => Map<String, dynamic>.from(item as Map))
-  //           .toList();
-  //     }
-  //     _throwApiError(res);
-  //   } on DioException catch (e) {
-  //     final r = e.response;
-  //     if (r != null) _throwApiError(r);
-  //     rethrow;
-  //   }
-  // }
-
-  // Future<List<Map<String, dynamic>>> getGroupAdmins(String groupId) async {
-  //   try {
-  //     final Response res = await auth.requestWithAutoRefresh(
-  //       (c) => c.dio.get(Endpoints.groupAdmins(groupId)),
-  //     );
-  //     if (res.statusCode == 200) {
-  //       final data = res.data;
-  //       final List<dynamic> rawList = (data is Map && data['admins'] is List)
-  //           ? List<dynamic>.from(data['admins'] as List)
-  //           : (data is List ? List<dynamic>.from(data) : const <dynamic>[]);
-
-  //       return rawList
-  //           .map((item) => Map<String, dynamic>.from(item as Map))
-  //           .toList();
-  //     }
-  //     _throwApiError(res);
-  //   } on DioException catch (e) {
-  //     final r = e.response;
-  //     if (r != null) _throwApiError(r);
-  //     rethrow;
-  //   }
-  // }
 
   // API rời nhóm
   Future<void> leaveGroup(String groupId) async {

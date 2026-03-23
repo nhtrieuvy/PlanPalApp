@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:planpal_flutter/core/repositories/group_repository.dart';
-import 'package:provider/provider.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/dtos/plan_requests.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -10,15 +9,15 @@ import '../../../core/dtos/group_summary.dart';
 import '../../../core/dtos/plan_model.dart';
 import '../../../core/services/error_display_service.dart';
 
-class PlanFormPage extends StatefulWidget {
+class PlanFormPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initial;
   const PlanFormPage({super.key, this.initial});
 
   @override
-  State<PlanFormPage> createState() => _PlanFormPageState();
+  ConsumerState<PlanFormPage> createState() => _PlanFormPageState();
 }
 
-class _PlanFormPageState extends State<PlanFormPage> {
+class _PlanFormPageState extends ConsumerState<PlanFormPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleCtrl;
   late final TextEditingController _descriptionCtrl;
@@ -26,7 +25,7 @@ class _PlanFormPageState extends State<PlanFormPage> {
   DateTime? _endDate;
   bool _isPublic = true;
   bool _submitting = false;
-  late final PlanRepository _repo;
+  PlanRepository get _repo => ref.read(planRepositoryProvider);
   List<GroupSummary> _groups = [];
   String? _selectedGroupId;
   String _planType = 'personal';
@@ -34,7 +33,6 @@ class _PlanFormPageState extends State<PlanFormPage> {
   @override
   void initState() {
     super.initState();
-    _repo = PlanRepository(context.read<AuthProvider>());
     _titleCtrl = TextEditingController(
       text: widget.initial?['title']?.toString() ?? '',
     );
@@ -64,8 +62,7 @@ class _PlanFormPageState extends State<PlanFormPage> {
 
   Future<void> _fetchGroups() async {
     try {
-      final repo = context.read<AuthProvider>();
-      final groupRepo = GroupRepository(repo);
+      final groupRepo = ref.read(groupRepositoryProvider);
       final groups = await groupRepo.getGroups();
       if (!mounted) return;
       setState(() => _groups = groups);

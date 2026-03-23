@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 
 // StatefullWidget là widget có trạng thái, cho phép thay đổi trạng thái trong quá trình sử dụng
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends ConsumerState<LoginPage> {
   // Form controllers and state
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _usernameController = TextEditingController();
@@ -36,7 +36,7 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final authProvider = ref.read(authNotifierProvider);
 
       await authProvider.login(
         username: _usernameController.text.trim(),

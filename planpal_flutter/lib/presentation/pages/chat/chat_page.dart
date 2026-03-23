@@ -1,31 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'dart:async';
 import 'dart:io';
-import '../../../core/providers/conversation_provider.dart';
-import '../../../core/providers/auth_provider.dart';
+import '../../../core/riverpod/conversation_providers.dart';
+import '../../../core/riverpod/auth_notifier.dart';
 import '../../../core/dtos/conversation.dart';
 import '../../../core/dtos/chat_message.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/chat_websocket_service.dart' as ws;
-import '../../widgets/common/loading_state.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/message_input.dart';
 import '../../widgets/chat/typing_indicator.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../../../shared/ui_states/ui_states.dart';
 
-class ChatPage extends StatefulWidget {
+class ChatPage extends ConsumerStatefulWidget {
   final Conversation conversation;
 
   const ChatPage({super.key, required this.conversation});
 
   @override
-  State<ChatPage> createState() => _ChatPageState();
+  ConsumerState<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage>
+class _ChatPageState extends ConsumerState<ChatPage>
     with WidgetsBindingObserver, RefreshablePage {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
@@ -33,10 +33,6 @@ class _ChatPageState extends State<ChatPage>
   // WebSocket service for realtime messaging
   late ws.ChatWebSocketService _webSocketService;
   StreamSubscription? _eventSubscription;
-  StreamSubscription? _connectionSubscription;
-
-  bool _isLoadingMore = false;
-  bool _hasReachedTop = false;
 
   @override
   void initState() {
@@ -48,11 +44,7 @@ class _ChatPageState extends State<ChatPage>
 
   @override
   Future<void> onRefresh() async {
-    final conversationProvider = context.read<ConversationProvider>();
-    await conversationProvider.loadMessages(
-      widget.conversation.id,
-      refresh: true,
-    );
+    await ref.read(messagesProvider(widget.conversation.id).notifier).refresh();
   }
 
   @override
@@ -61,7 +53,6 @@ class _ChatPageState extends State<ChatPage>
     _messageController.dispose();
     _scrollController.dispose();
     _eventSubscription?.cancel();
-    _connectionSubscription?.cancel();
 
     // Disconnect WebSocket when leaving chat
     _webSocketService.disconnect();
@@ -79,20 +70,18 @@ class _ChatPageState extends State<ChatPage>
   }
 
   void _initializeChat() {
-    final conversationProvider = context.read<ConversationProvider>();
-
-    // Load initial messages
-    conversationProvider.loadMessages(widget.conversation.id, refresh: true);
-
+    // Messages are loaded automatically by the family provider on first watch.
     // Setup WebSocket for realtime messaging
-    _webSocketService = ws.ChatWebSocketService();
+    _webSocketService = ref.read(
+      chatWebSocketServiceProvider(widget.conversation.id),
+    );
     _connectWebSocket();
     _setupWebSocketListeners();
   }
 
   void _connectWebSocket() {
     // Connect WebSocket with authentication
-    final authProvider = context.read<AuthProvider>();
+    final authProvider = ref.read(authNotifierProvider);
     if (authProvider.token != null) {
       _webSocketService.connect(widget.conversation.id, authProvider.token!);
     }
@@ -140,8 +129,7 @@ class _ChatPageState extends State<ChatPage>
   }
 
   void _handleNewMessage(Map<String, dynamic> data) {
-    final conversationProvider = context.read<ConversationProvider>();
-    final authProvider = context.read<AuthProvider>();
+    final authProvider = ref.read(authNotifierProvider);
 
     // Extract sender info from WebSocket data to avoid duplicate messages
     final senderId = data['sender']?['id'] as String?;
@@ -158,18 +146,25 @@ class _ChatPageState extends State<ChatPage>
 
     // For messages from other users, refresh to get the new message
     debugPrint('Refreshing messages for new message from $senderId');
-    conversationProvider.loadMessages(widget.conversation.id, refresh: true);
+    ref.read(messagesProvider(widget.conversation.id).notifier).refresh();
   }
 
   void _handleTypingStart(Map<String, dynamic> data) {
     final username = data['username'] as String?;
-    debugPrint('User $username started typing');
-    // TODO: Show typing indicator in UI
+    if (username != null) {
+      ref
+          .read(typingUsersProvider(widget.conversation.id).notifier)
+          .setTyping(username, true);
+    }
   }
 
   void _handleTypingStop(Map<String, dynamic> data) {
-    debugPrint('User stopped typing');
-    // TODO: Hide typing indicator in UI
+    final username = data['username'] as String?;
+    if (username != null) {
+      ref
+          .read(typingUsersProvider(widget.conversation.id).notifier)
+          .setTyping(username, false);
+    }
   }
 
   void _handleMessageRead(Map<String, dynamic> data) {
@@ -190,21 +185,7 @@ class _ChatPageState extends State<ChatPage>
   }
 
   void _loadMoreMessages() {
-    if (_isLoadingMore || _hasReachedTop) return;
-
-    setState(() {
-      _isLoadingMore = true;
-    });
-
-    final conversationProvider = context.read<ConversationProvider>();
-    conversationProvider.loadMessages(widget.conversation.id).then((_) {
-      setState(() {
-        _isLoadingMore = false;
-        _hasReachedTop = !conversationProvider.hasMoreMessages(
-          widget.conversation.id,
-        );
-      });
-    });
+    ref.read(messagesProvider(widget.conversation.id).notifier).loadMore();
   }
 
   void _scrollToBottom() {
@@ -222,27 +203,22 @@ class _ChatPageState extends State<ChatPage>
   void _sendMessage(String content) {
     if (content.trim().isEmpty) return;
 
-    final conversationProvider = context.read<ConversationProvider>();
-    conversationProvider.sendTextMessage(widget.conversation.id, content).then((
-      success,
-    ) {
-      if (success) {
-        _scrollToBottom();
-      }
-    });
+    ref
+        .read(messagesProvider(widget.conversation.id).notifier)
+        .sendTextMessage(content)
+        .then((success) {
+          if (success) {
+            _scrollToBottom();
+          }
+        });
   }
 
   void _sendImage(File imageFile) async {
     try {
-      // Upload image first (client-side) and send with valid URL
-      final provider = Provider.of<ConversationProvider>(
-        context,
-        listen: false,
+      final notifier = ref.read(
+        messagesProvider(widget.conversation.id).notifier,
       );
-      final success = await provider.sendImageFile(
-        widget.conversation.id,
-        imageFile,
-      );
+      final success = await notifier.sendImageFile(imageFile);
 
       if (!success) {
         if (mounted) {
@@ -264,12 +240,10 @@ class _ChatPageState extends State<ChatPage>
 
   void _sendLocation(double lat, double lng, String? locationName) async {
     try {
-      final provider = Provider.of<ConversationProvider>(
-        context,
-        listen: false,
+      final notifier = ref.read(
+        messagesProvider(widget.conversation.id).notifier,
       );
-      final success = await provider.sendLocationMessage(
-        widget.conversation.id,
+      final success = await notifier.sendLocationMessage(
         lat,
         lng,
         locationName ?? 'Vị trí được chia sẻ',
@@ -295,15 +269,10 @@ class _ChatPageState extends State<ChatPage>
 
   void _sendFile(File file, String fileName) async {
     try {
-      // Upload file first (client-side) and send with valid URL
-      final provider = Provider.of<ConversationProvider>(
-        context,
-        listen: false,
+      final notifier = ref.read(
+        messagesProvider(widget.conversation.id).notifier,
       );
-      final success = await provider.sendFileAttachment(
-        widget.conversation.id,
-        file,
-      );
+      final success = await notifier.sendFileAttachment(file);
 
       if (!success) {
         if (mounted) {
@@ -512,52 +481,68 @@ class _ChatPageState extends State<ChatPage>
   }
 
   Widget _buildConnectionStatus(ThemeData theme) {
-    // TODO: Implement proper connection status when WebSocket is ready
-    // For now, don't show any connection status
-    return const SizedBox.shrink();
+    final connectionStateAsync = ref.watch(
+      chatConnectionStateStreamProvider(widget.conversation.id),
+    );
+    final connectionState = connectionStateAsync.valueOrNull;
+
+    if (connectionState == null ||
+        connectionState == ws.ConnectionState.connected ||
+        connectionState == ws.ConnectionState.disconnected) {
+      return const SizedBox.shrink();
+    }
+
+    final isFailed = connectionState == ws.ConnectionState.failed;
+    final bg = isFailed
+        ? theme.colorScheme.errorContainer
+        : theme.colorScheme.tertiaryContainer;
+    final fg = isFailed
+        ? theme.colorScheme.onErrorContainer
+        : theme.colorScheme.onTertiaryContainer;
+    final message = isFailed
+        ? 'Mất kết nối realtime. Đang thử lại...'
+        : 'Đang kết nối realtime...';
+
+    return Container(
+      width: double.infinity,
+      color: bg,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(color: fg),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildMessagesList(ThemeData theme) {
-    return Consumer<ConversationProvider>(
-      builder: (context, provider, child) {
-        final messages = provider.getMessages(widget.conversation.id);
-        final isLoading = provider.isConversationLoading(
-          widget.conversation.id,
-        );
+    final messagesAsync = ref.watch(messagesProvider(widget.conversation.id));
 
-        if (isLoading && messages.isEmpty) {
-          return const LoadingState(message: 'Loading messages...');
-        }
+    return messagesAsync.when(
+      loading: () => const AppSkeleton.chat(itemCount: 10),
+      error: (error, _) => AppError(
+        message: 'Error loading messages: $error',
+        onRetry: () => ref.refresh(messagesProvider(widget.conversation.id)),
+      ),
+      data: (msgState) {
+        final messages = msgState.messages;
 
         if (messages.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  PhosphorIcons.chatCircle(),
-                  size: 48,
-                  color: theme.colorScheme.onSurface.withAlpha(75),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No messages yet',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.onSurface.withAlpha(175),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Start the conversation!',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: theme.colorScheme.onSurface.withAlpha(125),
-                  ),
-                ),
-              ],
-            ),
+          return const AppEmpty(
+            icon: Icons.chat_bubble_outline,
+            title: 'No messages yet',
+            description: 'Start the conversation!',
           );
         }
 
@@ -565,17 +550,18 @@ class _ChatPageState extends State<ChatPage>
           controller: _scrollController,
           reverse: true,
           padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: messages.length + (_isLoadingMore ? 1 : 0),
+          itemCount: messages.length + (msgState.isLoadingMore ? 1 : 0),
           itemBuilder: (context, index) {
-            if (_isLoadingMore && index == messages.length) {
-              return const Padding(
+            if (msgState.isLoadingMore && index == messages.length) {
+              return const AppLoading(
+                inline: true,
                 padding: EdgeInsets.all(16),
-                child: LoadingState(showMessage: false, size: 20),
+                size: 20,
               );
             }
 
             final message = messages[index];
-            final authProvider = context.read<AuthProvider>();
+            final authProvider = ref.read(authNotifierProvider);
             final currentUserId = authProvider.user?.id ?? '';
 
             return MessageBubble(
@@ -593,19 +579,15 @@ class _ChatPageState extends State<ChatPage>
   }
 
   Widget _buildTypingIndicator() {
-    return Consumer<ConversationProvider>(
-      builder: (context, provider, child) {
-        final typingUsers = provider.getTypingUsers(widget.conversation.id);
+    final typingUsers = ref.watch(typingUsersProvider(widget.conversation.id));
 
-        if (typingUsers.isEmpty) {
-          return const SizedBox.shrink();
-        }
+    if (typingUsers.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-        return TypingIndicator(
-          typingUsers: typingUsers.toList(),
-          isVisible: typingUsers.isNotEmpty,
-        );
-      },
+    return TypingIndicator(
+      typingUsers: typingUsers.toList(),
+      isVisible: typingUsers.isNotEmpty,
     );
   }
 

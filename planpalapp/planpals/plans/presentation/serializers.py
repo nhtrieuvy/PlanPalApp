@@ -175,7 +175,7 @@ class PlanActivityCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class PlanSerializer(serializers.ModelSerializer):
+class PlanDetailSerializer(serializers.ModelSerializer):
     creator = UserSummarySerializer(read_only=True)
     group = GroupSummarySerializer(read_only=True)
     activities = PlanActivitySerializer(many=True, read_only=True)

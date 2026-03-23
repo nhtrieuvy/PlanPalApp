@@ -5,83 +5,88 @@ const String baseUrl = 'https://planpal-backend.fly.dev';
 // Local development: 'http://10.0.2.2:8000'
 
 class Endpoints {
+  static const String _apiV1 = '/api/v1';
+
+  static String _v1(String path) => '$_apiV1$path';
+
   // OAuth2 endpoints
   static const String token = '/o/token/';
-  static const String logout = '/auth/logout/';
+  static String get logout => _v1('/auth/logout/');
 
   // User endpoints
-  static const String register = '/users/';
-  static const String users = '/users';
-  static const String profile = '/users/profile/';
-  static const String updateProfile = '/users/update_profile/';
-  static const String searchUsers = '/users/search/';
+  static String get register => _v1('/users/');
+  static String get users => _v1('/users');
+  static String get profile => _v1('/users/profile/');
+  static String get updateProfile => _v1('/users/update_profile/');
+  static String get searchUsers => _v1('/users/search/');
 
   // Core API endpoints
-  static const String plans = '/plans/';
-  static const String groups = '/groups/';
-  static const String groupJoin = '/groups/join/';
-  static const String activities = '/activities/';
+  static String get plans => _v1('/plans/');
+  static String get groups => _v1('/groups/');
+  static String get activities => _v1('/activities/');
 
   // Plan-related endpoints
-  static const String joinedPlans = '/plans/joined/';
-  static const String publicPlans = '/plans/public/';
+  static String get joinedPlans => _v1('/plans/joined/');
+  static String get publicPlans => _v1('/plans/public/');
 
   // Dynamic endpoints
-  static String planDetails(String planId) => '/plans/$planId/';
+  static String planDetails(String planId) => _v1('/plans/$planId/');
   static String planActivitiesByDate(String planId, String date) =>
-      '/plans/$planId/activities_by_date/?date=$date';
-  static String planSchedule(String planId) => '/plans/$planId/schedule/';
-  static String planJoin(String planId) => '/plans/$planId/join/';
+      _v1('/plans/$planId/activities_by_date/?date=$date');
+  static String planSchedule(String planId) => _v1('/plans/$planId/schedule/');
+  static String planJoin(String planId) => _v1('/plans/$planId/join/');
 
-  static String groupDetails(String groupId) => '/groups/$groupId/';
-  static String groupPlans(String groupId) => '/groups/$groupId/plans/';
+  static String groupDetails(String groupId) => _v1('/groups/$groupId/');
+  static String groupJoin(String groupId) => _v1('/groups/$groupId/join/');
+  static String groupPlans(String groupId) => _v1('/groups/$groupId/plans/');
   static String groupAddMember(String groupId) =>
-      '/groups/$groupId/add_member/';
-  static String groupLeave(String groupId) => '/groups/$groupId/leave/';
+      _v1('/groups/$groupId/add_member/');
+  static String groupLeave(String groupId) => _v1('/groups/$groupId/leave/');
   static String groupRemoveMember(String groupId) =>
-      '/groups/$groupId/remove_member/';
+      _v1('/groups/$groupId/remove_member/');
 
   static String activityDetails(String activityId) =>
-      '/activities/$activityId/';
-  static String activityDetail(String activityId) => '/activities/$activityId/';
+      _v1('/activities/$activityId/');
+  static String activityDetail(String activityId) =>
+      _v1('/activities/$activityId/');
   static String activityToggleCompletion(String planId, String activityId) =>
-      '/plans/$planId/activities/$activityId/complete/';
+      _v1('/plans/$planId/activities/$activityId/complete/');
 
   // Friendship endpoints
-  static const String friendRequest = '/friends/request/';
-  static const String friendRequests = '/friends/requests/';
-  static const String friends = '/friends/';
+  static String get friendRequest => _v1('/friends/request/');
+  static String get friendRequests => _v1('/friends/requests/');
+  static String get friends => _v1('/friends/');
   static String friendRequestAction(String requestId) =>
-      '/friends/requests/$requestId/action/';
+      _v1('/friends/requests/$requestId/action/');
 
   // User profile endpoints
-  static String userProfile(String userId) => '/users/$userId/';
+  static String userProfile(String userId) => _v1('/users/$userId/');
   static String userFriendshipStatus(String userId) =>
-      '/users/$userId/friendship_status/';
-  static String userUnfriend(String userId) => '/users/$userId/unfriend/';
-  static String userBlock(String userId) => '/users/$userId/block/';
-  static String userUnblock(String userId) => '/users/$userId/unblock/';
+      _v1('/users/$userId/friendship_status/');
+  static String userUnfriend(String userId) => _v1('/users/$userId/unfriend/');
+  static String userBlock(String userId) => _v1('/users/$userId/block/');
+  static String userUnblock(String userId) => _v1('/users/$userId/unblock/');
   // Device token registration
-  static const String registerDeviceToken = '/users/register_device_token/';
+  static String get registerDeviceToken => _v1('/users/register_device_token/');
 
   // Location endpoints
-  static const String locationReverseGeocode = '/location/reverse-geocode/';
-  static const String locationSearch = '/location/search/';
-  static const String locationAutocomplete = '/location/autocomplete/';
-  static const String locationPlaceDetails = '/location/place-details/';
+  static String get locationReverseGeocode => _v1('/location/reverse-geocode/');
+  static String get locationSearch => _v1('/location/search/');
+  static String get locationAutocomplete => _v1('/location/autocomplete/');
+  static String get locationPlaceDetails => _v1('/location/place-details/');
 
   // Chat endpoints
-  static const String conversations = '/conversations/';
-  static const String createDirectConversation =
-      '/conversations/create_direct/';
+  static String get conversations => _v1('/conversations/');
+  static String get createDirectConversation =>
+      _v1('/conversations/create_direct/');
   static String conversationDetails(String conversationId) =>
-      '/conversations/$conversationId/';
+      _v1('/conversations/$conversationId/');
   static String conversationMessages(String conversationId) =>
-      '/conversations/$conversationId/messages/';
+      _v1('/conversations/$conversationId/messages/');
   static String sendMessage(String conversationId) =>
-      '/conversations/$conversationId/send_message/';
+      _v1('/conversations/$conversationId/send_message/');
   static String markRead(String conversationId) =>
-      '/conversations/$conversationId/mark_read/';
+      _v1('/conversations/$conversationId/mark_read/');
 }
 
 class ApiClient {
@@ -100,4 +105,17 @@ class ApiClient {
   }
 
   Dio get dio => _dio;
+
+  /// Fetch paginated resources either from an endpoint path or an absolute
+  /// `next` URL returned by Django REST pagination.
+  Future<Response<dynamic>> getPaginated(
+    String endpoint, {
+    String? pageUrl,
+    Map<String, dynamic>? queryParameters,
+  }) {
+    if (pageUrl != null && pageUrl.isNotEmpty) {
+      return _dio.getUri(Uri.parse(pageUrl));
+    }
+    return _dio.get(endpoint, queryParameters: queryParameters);
+  }
 }

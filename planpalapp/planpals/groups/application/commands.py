@@ -4,7 +4,7 @@ Groups Application — Commands
 Immutable data transfer objects for group mutations.
 """
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional
 from uuid import UUID
 
 from planpals.shared.interfaces import BaseCommand
@@ -15,7 +15,6 @@ class CreateGroupCommand(BaseCommand):
     admin_id: UUID
     name: str
     description: str = ''
-    is_public: bool = True
     initial_member_ids: tuple = ()  # frozen needs immutable types
     avatar: Optional[str] = None
     cover_image: Optional[str] = None
@@ -27,7 +26,6 @@ class UpdateGroupCommand(BaseCommand):
     user_id: UUID
     name: Optional[str] = None
     description: Optional[str] = None
-    is_public: Optional[bool] = None
     avatar: Optional[str] = None
     cover_image: Optional[str] = None
 
@@ -48,10 +46,9 @@ class RemoveMemberCommand(BaseCommand):
 
 @dataclass(frozen=True)
 class JoinGroupCommand(BaseCommand):
-    """Command for a user to join a group (public or via invite code)."""
-    group_id: Optional[UUID] = None
-    user_id: UUID = None
-    invite_code: Optional[str] = None
+    """Command for a user to join a group by explicit group ID."""
+    group_id: UUID
+    user_id: UUID
 
 
 @dataclass(frozen=True)

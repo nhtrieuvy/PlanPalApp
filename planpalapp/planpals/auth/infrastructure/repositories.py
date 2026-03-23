@@ -239,17 +239,3 @@ class DjangoAuthGroupRepository(AuthGroupRepository):
             return Group.objects.get(id=group_id)
         except Group.DoesNotExist:
             return None
-
-    def get_by_invite_code(self, invite_code: str) -> Optional[Any]:
-        from planpals.groups.infrastructure.models import Group
-        try:
-            return Group.objects.get(invite_code=invite_code)
-        except Group.DoesNotExist:
-            return None
-
-    def get_public_by_id(self, group_id: UUID) -> Optional[Any]:
-        from planpals.groups.infrastructure.models import Group
-        try:
-            return Group.objects.get(id=group_id, is_public=True)
-        except Group.DoesNotExist:
-            return None

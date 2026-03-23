@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/auth/auth_session.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/dtos/plan_requests.dart';
@@ -31,15 +31,16 @@ class PlanRepository {
     }
   }
 
-  Future<PlansResponse> getPlans({String? cursor, int limit = 20}) async {
+  Future<PlansResponse> getPlans({String? nextPageUrl, int limit = 20}) async {
     try {
-      final queryParams = <String, dynamic>{
-        'limit': limit,
-        if (cursor != null) 'cursor': cursor,
-      };
+      final queryParams = <String, dynamic>{'limit': limit};
 
       final Response res = await _auth.requestWithAutoRefresh(
-        (c) => c.dio.get(Endpoints.plans, queryParameters: queryParams),
+        (c) => c.getPaginated(
+          Endpoints.plans,
+          pageUrl: nextPageUrl,
+          queryParameters: nextPageUrl == null ? queryParams : null,
+        ),
       );
 
       if (res.statusCode == 200) {

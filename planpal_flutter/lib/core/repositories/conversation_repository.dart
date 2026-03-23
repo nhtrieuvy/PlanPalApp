@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 import '../services/apis.dart';
 import '../dtos/conversation.dart';
 import '../dtos/chat_message.dart';
-import '../providers/auth_provider.dart';
+import '../auth/auth_session.dart';
 
 /// Repository for conversation and messaging operations
 class ConversationRepository {

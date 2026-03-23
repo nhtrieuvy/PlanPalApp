@@ -35,6 +35,7 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    path('api/v1/', include('planpals.urls')),
     path('', include('planpals.urls')),
     path('admin/', admin.site.urls),
     path('o/', include('oauth2_provider.urls',

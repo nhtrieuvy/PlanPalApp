@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import '../../../core/dtos/plan_activity.dart';
 import '../../../core/repositories/plan_repository.dart';
-import '../../../core/providers/auth_provider.dart';
-import '../../widgets/common/loading_widget.dart';
-import '../../widgets/common/error_widget.dart';
+import '../../../core/riverpod/repository_providers.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../widgets/activities/activity_details_dialog.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../shared/ui_states/ui_states.dart';
 
-class PlanSchedulePage extends StatefulWidget {
+class PlanSchedulePage extends ConsumerStatefulWidget {
   final String planId;
   final String planTitle;
 
@@ -21,12 +19,12 @@ class PlanSchedulePage extends StatefulWidget {
   });
 
   @override
-  State<PlanSchedulePage> createState() => _PlanSchedulePageState();
+  ConsumerState<PlanSchedulePage> createState() => _PlanSchedulePageState();
 }
 
-class _PlanSchedulePageState extends State<PlanSchedulePage>
+class _PlanSchedulePageState extends ConsumerState<PlanSchedulePage>
     with SingleTickerProviderStateMixin, RefreshablePage<PlanSchedulePage> {
-  late final PlanRepository _planRepo;
+  PlanRepository get _planRepo => ref.read(planRepositoryProvider);
 
   Map<String, List<PlanActivity>>? scheduleByDate;
   Map<String, dynamic>? statistics;
@@ -40,7 +38,6 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
   @override
   void initState() {
     super.initState();
-    _planRepo = PlanRepository(context.read<AuthProvider>());
     _loadScheduleData();
   }
 
@@ -164,31 +161,22 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
 
   Widget _buildBody() {
     if (isLoading) {
-      return const LoadingWidget();
+      return const AppSkeleton.list(itemCount: 6);
     }
 
     if (error != null) {
-      return CustomErrorWidget(message: error!, onRetry: onRefresh);
+      return AppError(
+        message: error!,
+        onRetry: onRefresh,
+        retryLabel: 'Thử lại',
+      );
     }
 
     if (dates.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_note, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Chưa có hoạt động nào',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Thêm hoạt động đầu tiên cho kế hoạch của bạn',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
+      return const AppEmpty(
+        icon: Icons.event_note,
+        title: 'Chưa có hoạt động nào',
+        description: 'Thêm hoạt động đầu tiên cho kế hoạch của bạn',
       );
     }
 
@@ -304,7 +292,18 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
 
   Widget _buildDaySchedule(String date, List<PlanActivity> activities) {
     if (activities.isEmpty) {
-      return Center(child: _buildEmptyState(date));
+      return AppEmpty(
+        icon: Icons.event_available,
+        title: 'Không có hoạt động',
+        description:
+            'Trong ngày ${DateFormat('dd/MM/yyyy').format(DateTime.parse(date))}',
+        actionLabel: permissions?['can_add_activity'] == true
+            ? 'Thêm hoạt động'
+            : null,
+        onAction: permissions?['can_add_activity'] == true
+            ? _showAddActivityDialog
+            : null,
+      );
     }
 
     return ListView.separated(
@@ -321,42 +320,13 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
     );
   }
 
-  Widget _buildEmptyState(String date) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.event_available, size: 48, color: Colors.grey[400]),
-        const SizedBox(height: 16),
-        Text(
-          'Không có hoạt động',
-          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-        ),
-        Text(
-          'trong ngày ${DateFormat('dd/MM/yyyy').format(DateTime.parse(date))}',
-          style: TextStyle(color: Colors.grey[500]),
-        ),
-        if (permissions?['can_add_activity'] == true) ...[
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _showAddActivityDialog,
-            icon: const Icon(Icons.add),
-            label: const Text('Thêm hoạt động'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
   void _showActivityDetails(PlanActivity activity) async {
     // Show loading dialog first
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (context) =>
+          const AppLoading(message: 'Đang tải chi tiết hoạt động...'),
     );
 
     try {
@@ -441,7 +411,8 @@ class _PlanSchedulePageState extends State<PlanSchedulePage>
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
+        builder: (context) =>
+            const AppLoading(message: 'Đang xóa hoạt động...'),
       );
 
       await _planRepo.deleteActivity(activity.id);

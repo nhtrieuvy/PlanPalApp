@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../services/apis.dart';
 import '../services/firebase_service.dart';
@@ -10,8 +10,8 @@ import 'dart:convert';
 import '../dtos/user_model.dart';
 import '../repositories/user_repository.dart';
 
-// ChangeNotifier cho phép lắng nghe khi dữ liệu thay đổi
-class AuthProvider extends ChangeNotifier {
+// Central auth/session service used by repositories and Riverpod providers.
+class AuthProvider {
   static const String _kAccessTokenKey = 'access_token';
   static const String _kRefreshTokenKey = 'refresh_token';
   static const String _kCachedUserKey = 'cached_user';
@@ -47,9 +47,8 @@ class AuthProvider extends ChangeNotifier {
             jsonDecode(cached) as Map,
           );
           final cachedUser = UserModel.fromJson(map);
-          // Set synchronously so UI can show immediately; repo will refresh later
+          // Set synchronously so UI can show immediately; repo will refresh later.
           _user = cachedUser;
-          notifyListeners();
         }
       } catch (_) {
         // ignore cache restore failures
@@ -100,13 +99,12 @@ class AuthProvider extends ChangeNotifier {
       await prefs.remove(_kCachedUserKey);
     } catch (_) {}
     await _clearTokens();
-    notifyListeners();
   }
 
   void setUser(UserModel userData) {
-    if (_user == userData) return; // Tránh rebuild không cần thiết
+    if (_user == userData) return;
     _user = userData;
-    // Persist cached user asynchronously (don't block callers)
+    // Persist cached user asynchronously (don't block callers).
     SharedPreferences.getInstance().then((prefs) {
       try {
         prefs.setString(_kCachedUserKey, jsonEncode(userData.toJson()));
@@ -114,7 +112,6 @@ class AuthProvider extends ChangeNotifier {
         // ignore
       }
     });
-    notifyListeners();
   }
 
   Future<bool> refreshAccessToken() async {
@@ -144,7 +141,6 @@ class AuthProvider extends ChangeNotifier {
           accessToken: response.data['access_token'] as String,
           refreshToken: response.data['refresh_token'] as String?,
         );
-        notifyListeners();
         _refreshCompleter!.complete(true);
         return true;
       }
@@ -226,7 +222,6 @@ class AuthProvider extends ChangeNotifier {
     } on DioException catch (e) {
       final res = e.response;
       if (res != null) {
-
         if (res.data is Map) {
           final errorType = res.data['error'];
           final errorDesc = res.data['error_description'];

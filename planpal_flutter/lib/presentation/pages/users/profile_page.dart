@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/dtos/user_model.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:getwidget/getwidget.dart';
@@ -9,15 +10,17 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:planpal_flutter/core/repositories/user_repository.dart';
 import 'package:planpal_flutter/presentation/pages/friends/friends_page.dart';
+import '../../../shared/widgets/widgets.dart';
+import '../../../shared/ui_states/ui_states.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends ConsumerState<ProfilePage> {
   // Constants
   static const double _avatarRadius = 54.0;
   static const double _editIconSize = 20.0;
@@ -27,12 +30,11 @@ class _ProfilePageState extends State<ProfilePage> {
   );
 
   // Repo & API result
-  late final UserRepository _repo;
+  UserRepository get _repo => ref.read(userRepositoryProvider);
 
   @override
   void initState() {
     super.initState();
-    _repo = UserRepository(context.read<AuthProvider>());
   }
 
   @override
@@ -40,34 +42,29 @@ class _ProfilePageState extends State<ProfilePage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // Use Selector instead of watch so only this subtree rebuilds on user changes
+    // Watch auth provider for user changes via Riverpod
+    final user = ref.watch(authNotifierProvider).user;
     return Scaffold(
       appBar: AppBar(title: const Text('Trang cá nhân'), centerTitle: true),
-      body: Selector<AuthProvider, UserModel?>(
-        selector: (_, p) => p.user,
-        builder: (context, user, _) {
-          if (user == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return SingleChildScrollView(
-            padding: _pagePadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Center(child: _buildAvatarSection(user, colorScheme)),
-                const SizedBox(height: 24),
-                ..._buildStatisticsCards(user, colorScheme, theme),
-                const SizedBox(height: 24),
-                _buildUserNameSection(user, theme, colorScheme),
-                const SizedBox(height: 24),
-                _buildPersonalInfoCard(user, theme, colorScheme),
-                const SizedBox(height: 32),
-                _buildLogoutButton(context),
-              ],
+      body: user == null
+          ? const AppLoading(message: 'Đang tải hồ sơ')
+          : SingleChildScrollView(
+              padding: _pagePadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Center(child: _buildAvatarSection(user, colorScheme)),
+                  const SizedBox(height: 24),
+                  ..._buildStatisticsCards(user, colorScheme, theme),
+                  const SizedBox(height: 24),
+                  _buildUserNameSection(user, theme, colorScheme),
+                  const SizedBox(height: 24),
+                  _buildPersonalInfoCard(user, theme, colorScheme),
+                  const SizedBox(height: 32),
+                  _buildLogoutButton(context),
+                ],
+              ),
             ),
-          );
-        },
-      ),
     );
   }
 
@@ -132,7 +129,7 @@ class _ProfilePageState extends State<ProfilePage> {
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: () async {
-                final user = context.read<AuthProvider>().user;
+                final user = ref.read(authNotifierProvider).user;
                 if (user != null) await _showEditProfileDialog(context, user);
               },
               child: Padding(
@@ -200,46 +197,20 @@ class _ProfilePageState extends State<ProfilePage> {
       final index = entry.key;
       final stat = entry.value;
       final isFriendsCard = stat['label'] == 'Bạn bè';
-
-      Widget cardWidget = GFCard(
-        color: stat['containerColor'] as Color,
-        elevation: 1,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        content: Row(
-          children: [
-            Icon(
-              stat['icon'] as IconData,
-              color: stat['color'] as Color,
-              size: 28,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                stat['label'] as String,
-                style: theme.textTheme.titleMedium,
-              ),
-            ),
-            Text(
-              '${stat['count']}',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: stat['color'] as Color,
-              ),
-            ),
-          ],
-        ),
+      final cardWidget = StatCard(
+        icon: stat['icon'] as IconData,
+        label: stat['label'] as String,
+        value: '${stat['count']}',
+        color: stat['color'] as Color,
+        backgroundColor: stat['containerColor'] as Color,
+        onTap: isFriendsCard
+            ? () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const FriendsPage()),
+                );
+              }
+            : null,
       );
-
-      if (isFriendsCard) {
-        cardWidget = GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const FriendsPage()),
-            );
-          },
-          child: cardWidget,
-        );
-      }
 
       return Column(
         children: [
@@ -290,7 +261,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildLogoutButton(BuildContext context) {
     return GFButton(
       onPressed: () async {
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final authProvider = ref.read(authNotifierProvider);
         await authProvider.logout();
         if (context.mounted) {
           Navigator.of(context).pushReplacementNamed('/login');
@@ -350,7 +321,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final scaffoldMessenger = ScaffoldMessenger.of(pageContext);
     final pageNavigator = Navigator.of(pageContext);
-    final authProvider = Provider.of<AuthProvider>(pageContext, listen: false);
+    final authProvider = ref.read(authNotifierProvider);
 
     await showDialog(
       context: pageContext,

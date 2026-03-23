@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:getwidget/getwidget.dart';
-import 'package:planpal_flutter/core/repositories/user_repository.dart';
-import 'package:provider/provider.dart';
-import 'package:planpal_flutter/core/providers/auth_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
-class RegisterPage extends StatefulWidget {
+class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  ConsumerState<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _RegisterPageState extends ConsumerState<RegisterPage> {
   // Form controllers and state
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
@@ -75,9 +74,7 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
-      final repo = UserRepository(
-        Provider.of<AuthProvider>(context, listen: false),
-      );
+      final repo = ref.read(userRepositoryProvider);
 
       await repo.register(
         username: _usernameController.text.trim(),

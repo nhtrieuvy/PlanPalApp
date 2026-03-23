@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
-import '../../../core/providers/auth_provider.dart';
-import '../../../core/repositories/friend_repository.dart';
+import '../../../core/riverpod/auth_notifier.dart';
+import '../../../core/riverpod/repository_providers.dart';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/theme/app_colors.dart';
 
-class UserProfilePage extends StatefulWidget {
+class UserProfilePage extends ConsumerStatefulWidget {
   final UserSummary user;
 
   const UserProfilePage({super.key, required this.user});
 
   @override
-  State<UserProfilePage> createState() => _UserProfilePageState();
+  ConsumerState<UserProfilePage> createState() => _UserProfilePageState();
 }
 
-class _UserProfilePageState extends State<UserProfilePage> {
-  late final FriendRepository _friendRepo;
+class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   String? _friendshipStatus;
   String? _friendshipId;
   bool _loading = false;
@@ -28,14 +27,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
   @override
   void initState() {
     super.initState();
-    _friendRepo = FriendRepository(context.read<AuthProvider>());
     _checkProfileAccess();
   }
 
   Future<void> _checkProfileAccess() async {
     setState(() => _loading = true);
     try {
-      await _friendRepo.getUserProfile(widget.user.id);
+      await ref.read(friendRepositoryProvider).getUserProfile(widget.user.id);
 
       await _loadFriendshipStatus();
     } catch (e) {
@@ -72,7 +70,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _loadFriendshipStatus() async {
     try {
-      final details = await _friendRepo.getFriendshipDetails(widget.user.id);
+      final details = await ref
+          .read(friendRepositoryProvider)
+          .getFriendshipDetails(widget.user.id);
       if (!mounted) return;
       setState(() {
         if (details != null) {
@@ -116,7 +116,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> _sendFriendRequest() async {
     setState(() => _actionLoading = true);
     try {
-      await _friendRepo.sendFriendRequest(widget.user.id);
+      await ref
+          .read(friendRepositoryProvider)
+          .sendFriendRequest(widget.user.id);
       if (!mounted) return;
       setState(() {
         _friendshipStatus = 'pending_sent';
@@ -143,7 +145,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     setState(() => _actionLoading = true);
     try {
-      final success = await _friendRepo.acceptFriendRequest(_friendshipId!);
+      final success = await ref
+          .read(friendRepositoryProvider)
+          .acceptFriendRequest(_friendshipId!);
       if (!mounted) return;
 
       if (success) {
@@ -174,7 +178,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     setState(() => _actionLoading = true);
     try {
-      final success = await _friendRepo.rejectFriendRequest(_friendshipId!);
+      final success = await ref
+          .read(friendRepositoryProvider)
+          .rejectFriendRequest(_friendshipId!);
       if (!mounted) return;
 
       if (success) {
@@ -226,7 +232,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     setState(() => _actionLoading = true);
     try {
-      await _friendRepo.unfriend(widget.user.id);
+      await ref.read(friendRepositoryProvider).unfriend(widget.user.id);
       if (!mounted) return;
       setState(() {
         _friendshipStatus = 'none';
@@ -274,7 +280,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     setState(() => _actionLoading = true);
     try {
-      await _friendRepo.blockUser(widget.user.id);
+      await ref.read(friendRepositoryProvider).blockUser(widget.user.id);
       if (!mounted) return;
       setState(() {
         _friendshipStatus = 'blocked';
@@ -319,7 +325,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     setState(() => _actionLoading = true);
     try {
-      await _friendRepo.unblockUser(widget.user.id);
+      await ref.read(friendRepositoryProvider).unblockUser(widget.user.id);
       if (!mounted) return;
       await _loadFriendshipStatus();
       setState(() => _actionLoading = false);
@@ -341,7 +347,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = context.read<AuthProvider>().user;
+    final currentUser = ref.read(authNotifierProvider).user;
     final isOwnProfile = currentUser?.id == widget.user.id;
 
     return Scaffold(
@@ -445,7 +451,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Widget _buildProfileContent() {
     final theme = Theme.of(context);
-    final currentUser = context.read<AuthProvider>().user;
+    final currentUser = ref.read(authNotifierProvider).user;
     final isOwnProfile = currentUser?.id == widget.user.id;
 
     return SingleChildScrollView(

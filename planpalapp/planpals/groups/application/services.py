@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any
 
 from planpals.shared.base_service import BaseService
 from planpals.shared.cache import CacheKeys, CacheTTL
@@ -21,33 +21,40 @@ logger = logging.getLogger(__name__)
 
 class GroupService(BaseService):    
     @classmethod
-    def create_group(cls, creator, name: str, description: str = "", 
-                    is_public: bool = False, initial_members=None):
+    def create_group(
+        cls,
+        creator,
+        name: str,
+        description: str = "",
+        initial_members=None,
+        avatar=None,
+        cover_image=None,
+    ):
         """Delegate to CreateGroupHandler."""
         cmd = CreateGroupCommand(
             admin_id=creator.id,
             name=name,
             description=description,
-            is_public=is_public,
             initial_member_ids=tuple(u.id for u in (initial_members or []) if u != creator),
+            avatar=avatar,
+            cover_image=cover_image,
         )
         handler = group_factories.get_create_group_handler()
         return handler.handle(cmd)
     
     @classmethod
-    def add_member(cls, group, user, 
-                           role: str = None, added_by=None) -> Tuple[bool, str]:
+    def add_member(cls, group, user, role: str = None, added_by=None) -> Tuple[bool, str]:
         """Delegate to AddMemberHandler."""
+        actor = added_by or group.admin
         cmd = AddMemberCommand(
             group_id=group.id,
-            user_id=user.id,
-            added_by_id=added_by.id if added_by else None,
-            role=role or 'member',
+            user_id=actor.id,
+            target_user_id=user.id,
         )
         handler = group_factories.get_add_member_handler()
-        result = handler.handle(cmd)
+        handler.handle(cmd)
         cls._invalidate_group_cache(group.id)
-        return result
+        return True, "Member added successfully"
     
     @classmethod
     def add_member_by_id(cls, group, user_id: str, added_by=None) -> Tuple[bool, str]:
@@ -64,42 +71,28 @@ class GroupService(BaseService):
         """Delegate to RemoveMemberHandler."""
         cmd = RemoveMemberCommand(
             group_id=group.id,
-            user_id=user.id,
-            removed_by_id=removed_by.id,
+            user_id=removed_by.id,
+            target_user_id=user.id,
         )
         handler = group_factories.get_remove_member_handler()
-        result = handler.handle(cmd)
+        handler.handle(cmd)
         cls._invalidate_group_cache(group.id)
-        return result
+        return True, "Member removed successfully"
     
     @classmethod
-    def join_group_by_invite(cls, group, user) -> Tuple[bool, str]:
-        """Delegate to JoinGroupHandler."""
-        cmd = JoinGroupCommand(group_id=group.id, user_id=user.id)
-        handler = group_factories.get_join_group_handler()
-        result = handler.handle(cmd)
-        cls._invalidate_group_cache(group.id)
-        return result
-    
-    @classmethod
-    def join_group(cls, user, group_id: str = None, invite_code: str = None) -> Tuple[bool, str, Optional[Any]]:
+    def join_group(cls, user, group_id: str) -> Tuple[bool, str, Optional[Any]]:
         """Delegate to JoinGroupHandler."""
         cmd = JoinGroupCommand(
             user_id=user.id,
             group_id=group_id,
-            invite_code=invite_code,
         )
         handler = group_factories.get_join_group_handler()
         try:
-            result = handler.handle(cmd)
-            if isinstance(result, tuple) and len(result) == 2:
-                success, message = result
-                if success:
-                    group_repo = group_factories.get_group_repo()
-                    group = group_repo.get_by_id(group_id) if group_id else group_repo.get_by_invite_code(invite_code)
-                    return True, message, group
-                return False, message, None
-            return False, "Unexpected handler result", None
+            handler.handle(cmd)
+            group_repo = group_factories.get_group_repo()
+            group = group_repo.get_by_id_for_detail(group_id)
+            cls._invalidate_group_cache(group_id)
+            return True, "Joined group successfully", group
         except Exception as e:
             return False, str(e), None
     
@@ -108,9 +101,9 @@ class GroupService(BaseService):
         """Delegate to LeaveGroupHandler."""
         cmd = LeaveGroupCommand(group_id=group.id, user_id=user.id)
         handler = group_factories.get_leave_group_handler()
-        result = handler.handle(cmd)
+        handler.handle(cmd)
         cls._invalidate_group_cache(group.id)
-        return result
+        return True, "Left group successfully"
     
     @classmethod
     def can_manage_members(cls, group, user) -> bool:
@@ -126,26 +119,26 @@ class GroupService(BaseService):
         """Delegate to PromoteMemberHandler."""
         cmd = PromoteMemberCommand(
             group_id=group.id,
-            user_id=user_to_promote.id,
-            promoted_by_id=actor.id,
+            user_id=actor.id,
+            target_user_id=user_to_promote.id,
         )
         handler = group_factories.get_promote_member_handler()
-        result = handler.handle(cmd)
+        handler.handle(cmd)
         cls._invalidate_group_cache(group.id)
-        return result
+        return True, "Member promoted successfully"
 
     @classmethod
     def demote_member(cls, group, user_to_demote, actor) -> Tuple[bool, str]:
         """Delegate to DemoteMemberHandler."""
         cmd = DemoteMemberCommand(
             group_id=group.id,
-            user_id=user_to_demote.id,
-            demoted_by_id=actor.id,
+            user_id=actor.id,
+            target_user_id=user_to_demote.id,
         )
         handler = group_factories.get_demote_member_handler()
-        result = handler.handle(cmd)
+        handler.handle(cmd)
         cls._invalidate_group_cache(group.id)
-        return result
+        return True, "Member demoted successfully"
     
     @classmethod
     def search_user_groups(cls, user, query: str):        

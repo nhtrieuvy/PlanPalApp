@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/dtos/plan_summary.dart';
-import '../../../core/repositories/plan_repository.dart';
-import '../../../core/providers/auth_provider.dart';
-import '../../../core/providers/plan_provider.dart';
-import '../../widgets/common/loading_widget.dart';
-import '../../widgets/common/error_widget.dart';
-import '../../widgets/common/loading_state.dart';
+import '../../../core/riverpod/plans_notifier.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
+import '../../../shared/ui_states/ui_states.dart';
 
-class PlansListPage extends StatefulWidget {
+class PlansListPage extends ConsumerStatefulWidget {
   final String? groupId;
   final String? groupName;
   final bool showGroupPlansOnly;
@@ -24,28 +20,32 @@ class PlansListPage extends StatefulWidget {
   });
 
   @override
-  State<PlansListPage> createState() => _PlansListPageState();
+  ConsumerState<PlansListPage> createState() => _PlansListPageState();
 }
 
-class _PlansListPageState extends State<PlansListPage>
+class _PlansListPageState extends ConsumerState<PlansListPage>
     with SingleTickerProviderStateMixin, RefreshablePage<PlansListPage> {
-  late final PlanProvider _planProvider;
   late TabController _tabController;
   final ScrollController _scrollController = ScrollController();
+  static const double _prefetchThreshold = 0.7;
 
-  bool _isLoadingMore = false;
   String _currentFilter = 'all'; // 'all', 'personal', 'group'
 
   @override
   void initState() {
     super.initState();
-    _planProvider = PlanProvider(PlanRepository(context.read<AuthProvider>()));
     _tabController = TabController(
       length: widget.showGroupPlansOnly ? 1 : 3,
       vsync: this,
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final savedOffset = ref.read(plansFeedScrollOffsetProvider);
+      final maxScroll = _scrollController.position.maxScrollExtent;
+      final target = savedOffset.clamp(0.0, maxScroll);
+      _scrollController.jumpTo(target);
+    });
     _setupScrollListener();
-    _loadInitialPlans();
   }
 
   @override
@@ -57,33 +57,21 @@ class _PlansListPageState extends State<PlansListPage>
 
   @override
   Future<void> onRefresh() async {
-    await _planProvider.loadPlans(refresh: true);
+    await ref.read(plansNotifierProvider.notifier).refresh();
   }
 
   void _setupScrollListener() {
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 200) {
-        _loadMorePlans();
+      if (!_scrollController.hasClients) return;
+      final position = _scrollController.position;
+      ref.read(plansFeedScrollOffsetProvider.notifier).state = position.pixels;
+
+      if (position.maxScrollExtent <= 0) return;
+      final ratio = position.pixels / position.maxScrollExtent;
+      if (ratio >= _prefetchThreshold) {
+        // Near-bottom prefetch to improve perceived latency.
+        ref.read(plansNotifierProvider.notifier).prefetchNextPage();
       }
-    });
-  }
-
-  Future<void> _loadInitialPlans() async {
-    await _planProvider.loadPlans(refresh: true);
-  }
-
-  void _loadMorePlans() {
-    if (_isLoadingMore || !_planProvider.hasMore) return;
-
-    setState(() {
-      _isLoadingMore = true;
-    });
-
-    _planProvider.loadPlans().then((_) {
-      setState(() {
-        _isLoadingMore = false;
-      });
     });
   }
 
@@ -93,80 +81,73 @@ class _PlansListPageState extends State<PlansListPage>
     });
   }
 
-  List<PlanSummary> _getFilteredPlans() {
+  List<PlanSummary> _filterPlans(List<PlanSummary> plans) {
     if (widget.showGroupPlansOnly) {
-      return _planProvider.getPlansByType('group');
+      return plans.where((p) => p.planType == 'group').toList();
     }
-    return _planProvider.getPlansByType(_currentFilter);
+    if (_currentFilter == 'all') return plans;
+    return plans.where((p) => p.planType == _currentFilter).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _planProvider,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            widget.showGroupPlansOnly && widget.groupName != null
-                ? '${widget.groupName} - Kế hoạch'
-                : 'Kế hoạch của bạn',
-          ),
-          bottom: widget.showGroupPlansOnly
-              ? null
-              : TabBar(
-                  controller: _tabController,
-                  onTap: _onTabChanged,
-                  tabs: const [
-                    Tab(icon: Icon(Icons.all_inclusive), text: 'Tất cả'),
-                    Tab(icon: Icon(Icons.person), text: 'Cá nhân'),
-                    Tab(icon: Icon(Icons.group), text: 'Nhóm'),
-                  ],
-                ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.showGroupPlansOnly && widget.groupName != null
+              ? '${widget.groupName} - Kế hoạch'
+              : 'Kế hoạch của bạn',
         ),
-        body: _buildBody(),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => _showCreatePlanDialog(),
-          tooltip: 'Tạo kế hoạch mới',
-          child: const Icon(Icons.add),
-        ),
+        bottom: widget.showGroupPlansOnly
+            ? null
+            : TabBar(
+                controller: _tabController,
+                onTap: _onTabChanged,
+                tabs: const [
+                  Tab(icon: Icon(Icons.all_inclusive), text: 'Tất cả'),
+                  Tab(icon: Icon(Icons.person), text: 'Cá nhân'),
+                  Tab(icon: Icon(Icons.group), text: 'Nhóm'),
+                ],
+              ),
+      ),
+      body: _buildBody(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showCreatePlanDialog(),
+        tooltip: 'Tạo kế hoạch mới',
+        child: const Icon(Icons.add),
       ),
     );
   }
 
   Widget _buildBody() {
-    return Consumer<PlanProvider>(
-      builder: (context, provider, child) {
-        if (provider.isLoading && provider.plans.isEmpty) {
-          return const LoadingWidget(message: 'Đang tải kế hoạch...');
-        }
+    final plansAsync = ref.watch(plansNotifierProvider);
 
-        if (provider.error != null && provider.plans.isEmpty) {
-          return CustomErrorWidget(
-            message: provider.error!,
-            onRetry: () => provider.loadPlans(refresh: true),
-          );
-        }
+    return plansAsync.when(
+      loading: () => const AppSkeleton.list(itemCount: 6),
+      error: (error, _) => AppError(
+        message: error.toString(),
+        onRetry: () => ref.refresh(plansNotifierProvider),
+        retryLabel: 'Thử lại',
+      ),
+      data: (plansState) {
+        final filteredPlans = _filterPlans(plansState.items);
+        final isFirstPageEmpty = plansState.items.isEmpty;
 
-        final filteredPlans = _getFilteredPlans();
-
-        if (filteredPlans.isEmpty && !provider.isLoading) {
+        if (filteredPlans.isEmpty && isFirstPageEmpty) {
           return _buildEmptyState();
         }
 
         return RefreshablePageWrapper(
           onRefresh: onRefresh,
           child: ListView.builder(
+            key: const PageStorageKey<String>('plans_feed_list'),
             controller: _scrollController,
             padding: const EdgeInsets.all(16),
-            itemCount: filteredPlans.length + (_isLoadingMore ? 1 : 0),
+            itemCount: filteredPlans.length + 1,
             itemBuilder: (context, index) {
-              if (_isLoadingMore && index == filteredPlans.length) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: LoadingState(showMessage: false, size: 20),
-                );
+              if (index == filteredPlans.length) {
+                return _buildPaginationFooter(plansState);
               }
-
               final plan = filteredPlans[index];
               return _buildPlanCard(plan);
             },
@@ -176,40 +157,56 @@ class _PlansListPageState extends State<PlansListPage>
     );
   }
 
+  Widget _buildPaginationFooter(PlansFeedState state) {
+    if (state.isLoadingMore) {
+      return const AppLoading(
+        inline: true,
+        message: 'Đang tải thêm',
+        padding: EdgeInsets.symmetric(vertical: 20),
+      );
+    }
+
+    if (state.loadMoreError != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Center(
+          child: Column(
+            children: [
+              Text(
+                'Không tải được trang tiếp theo',
+                style: TextStyle(color: Colors.red[600]),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () =>
+                    ref.read(plansNotifierProvider.notifier).loadMore(),
+                child: const Text('Thử lại'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (!state.hasMore) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: Text('Đã hiển thị tất cả kế hoạch')),
+      );
+    }
+
+    return const SizedBox(height: 40);
+  }
+
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.event_note, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'Chưa có kế hoạch nào',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            widget.showGroupPlansOnly
-                ? 'Nhóm này chưa có kế hoạch nào'
-                : _getEmptyMessage(),
-            style: TextStyle(color: Colors.grey[500], fontSize: 16),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _showCreatePlanDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Tạo kế hoạch mới'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-          ),
-        ],
-      ),
+    return AppEmpty(
+      icon: Icons.event_note,
+      title: 'Chưa có kế hoạch nào',
+      description: widget.showGroupPlansOnly
+          ? 'Nhóm này chưa có kế hoạch nào'
+          : _getEmptyMessage(),
+      actionLabel: 'Tạo kế hoạch mới',
+      onAction: () => _showCreatePlanDialog(),
     );
   }
 
@@ -242,7 +239,7 @@ class _PlansListPageState extends State<PlansListPage>
 
           if (result == null) return;
           if (result['action'] == 'delete' && result['id'] == plan.id) {
-            _planProvider.removePlan(plan.id);
+            ref.read(plansNotifierProvider.notifier).removePlan(plan.id);
             return;
           }
 
@@ -252,7 +249,7 @@ class _PlansListPageState extends State<PlansListPage>
               final updated = PlanSummary.fromJson(
                 Map<String, dynamic>.from(result['plan'] as Map),
               );
-              _planProvider.updatePlan(updated);
+              ref.read(plansNotifierProvider.notifier).updatePlan(updated);
             } catch (_) {
               // ignore malformed return
             }
@@ -468,7 +465,7 @@ class _PlansListPageState extends State<PlansListPage>
         final summary = PlanSummary.fromJson(
           Map<String, dynamic>.from(result['plan'] as Map),
         );
-        _planProvider.addPlan(summary);
+        ref.read(plansNotifierProvider.notifier).addPlan(summary);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Tạo kế hoạch mới thành công')),
         );

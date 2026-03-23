@@ -14,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from planpals.plans.infrastructure.models import Plan, PlanActivity
 from planpals.plans.presentation.serializers import (
-    PlanSerializer, PlanCreateSerializer, PlanSummarySerializer,
+    PlanDetailSerializer, PlanCreateSerializer, PlanSummarySerializer,
     PlanActivitySerializer, PlanActivitySummarySerializer,
     PlanActivityCreateSerializer
 )
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 class PlanViewSet(viewsets.ModelViewSet):
-    serializer_class = PlanSerializer
+    serializer_class = PlanDetailSerializer
     permission_classes = [IsAuthenticated, PlanPermission]
 
     pagination_class = StandardResultsPagination
@@ -39,7 +39,7 @@ class PlanViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
             return PlanCreateSerializer
-        elif self.action == 'list':
+        elif self.action in ('list', 'my_plans', 'joined', 'public'):
             return PlanSummarySerializer
         return self.serializer_class
     
@@ -259,10 +259,7 @@ class PlanViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        return Response({
-            'message': message,
-            'plan': PlanSerializer(plan, context={'request': request}).data
-        })
+        return Response(PlanDetailSerializer(plan, context={'request': request}).data)
 
 
 class PlanActivityViewSet(viewsets.GenericViewSet,

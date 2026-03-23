@@ -172,11 +172,6 @@ class MaxMembersExceededException(ValidationException):
     default_code = 'max_members_exceeded'
 
 
-class InviteCodeInvalidException(ValidationException):
-    default_detail = 'Mã mời không hợp lệ hoặc đã hết hạn.'
-    default_code = 'invalid_invite_code'
-
-
 class NotFriendsException(ValidationException):
     default_detail = 'Chỉ có thể thêm bạn bè vào nhóm.'
     default_code = 'not_friends'
