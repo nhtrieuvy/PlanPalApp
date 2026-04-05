@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart';
 import 'user_summary.dart';
 import 'group_membership.dart';
 
@@ -98,12 +99,8 @@ class GroupModel extends Equatable {
       userRole: json['user_role']?.toString() ?? 'member',
       canEdit: json['can_edit'] == true,
       canDelete: json['can_delete'] == true,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'].toString())
-          : DateTime.now(),
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'].toString())
-          : DateTime.now(),
+      createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
+      updatedAt: parseServerDateTime(json['updated_at']) ?? DateTime.now(),
       initials: json['initials']?.toString() ?? 'G',
     );
   }

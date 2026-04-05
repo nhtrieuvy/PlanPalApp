@@ -73,9 +73,11 @@ class FriendRepository {
       );
 
       if (res.statusCode == 200) {
-        final List<dynamic> requests = res.data is List
-            ? res.data
-            : (res.data['results'] ?? []);
+        final List<dynamic> requests = (res.data is Map<String, dynamic>)
+            ? ((res.data as Map<String, dynamic>)['results']
+                      as List<dynamic>? ??
+                  const <dynamic>[])
+            : const <dynamic>[];
         return requests
             .whereType<Map>()
             .map((req) => Friendship.fromJson(Map<String, dynamic>.from(req)))
@@ -172,9 +174,11 @@ class FriendRepository {
       );
 
       if (res.statusCode == 200) {
-        final List<dynamic> friends = res.data is List
-            ? res.data
-            : (res.data['results'] ?? []);
+        final List<dynamic> friends = (res.data is Map<String, dynamic>)
+            ? ((res.data as Map<String, dynamic>)['results']
+                      as List<dynamic>? ??
+                  const <dynamic>[])
+            : const <dynamic>[];
         return friends
             .whereType<Map>()
             .map(

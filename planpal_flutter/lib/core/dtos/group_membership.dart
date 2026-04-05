@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart';
 import 'user_summary.dart';
-
 
 class GroupMembership extends Equatable {
   final String id;
@@ -20,9 +20,7 @@ class GroupMembership extends Equatable {
       id: json['id']?.toString() ?? '',
       user: UserSummary.fromJson(json['user'] ?? {}),
       role: json['role']?.toString() ?? 'member',
-      joinedAt: json['joined_at'] != null
-          ? DateTime.parse(json['joined_at'].toString())
-          : DateTime.now(),
+      joinedAt: parseServerDateTime(json['joined_at']) ?? DateTime.now(),
     );
   }
 

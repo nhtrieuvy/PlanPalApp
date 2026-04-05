@@ -49,6 +49,9 @@ from planpals.chat.infrastructure.models import (  # noqa: F401
     MessageReadStatus,
 )
 
+# Audit infrastructure models (ORM)
+from planpals.audit.infrastructure.models import AuditLog  # noqa: F401
+
 __all__ = [
     'BaseModel',
     'UserQuerySet', 'UserManager', 'User',
@@ -56,4 +59,5 @@ __all__ = [
     'GroupQuerySet', 'Group', 'GroupMembershipQuerySet', 'GroupMembership',
     'PlanQuerySet', 'Plan', 'PlanActivity',
     'ConversationQuerySet', 'Conversation', 'ChatMessageQuerySet', 'ChatMessage', 'MessageReadStatus',
+    'AuditLog',
 ]

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import 'package:flutter/foundation.dart';
@@ -33,9 +34,32 @@ class WebSocketEvent {
   const WebSocketEvent({required this.type, required this.data});
 
   factory WebSocketEvent.fromJson(Map<String, dynamic> json) {
+    final rawType = (json['type'] as String?) ?? 'error';
+    final rawData = json['data'];
+    final data = rawData is Map<String, dynamic>
+        ? rawData
+        : (rawData is Map
+              ? Map<String, dynamic>.from(rawData)
+              : <String, dynamic>{});
+
+    if (rawType == 'typing') {
+      final isTyping = data['is_typing'] == true;
+      return WebSocketEvent(
+        type: isTyping
+            ? WebSocketEventType.typingStart
+            : WebSocketEventType.typingStop,
+        data: data,
+      );
+    }
+
     return WebSocketEvent(
-      type: WebSocketEventType.fromString(json['type'] as String),
-      data: json['data'] as Map<String, dynamic>? ?? {},
+      type: WebSocketEventType.fromString(rawType),
+      data: data.isNotEmpty
+          ? data
+          : <String, dynamic>{
+              if (json['message'] != null)
+                'message': json['message'].toString(),
+            },
     );
   }
 }
@@ -51,10 +75,6 @@ enum ConnectionState {
 
 /// WebSocket service for realtime chat
 class ChatWebSocketService {
-  // Production WebSocket on Fly.io
-  static const String baseWsUrl = 'wss://planpal-backend.fly.dev';
-  // Local development: 'ws://10.0.2.2:8000'
-
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   ConnectionState _connectionState = ConnectionState.disconnected;
@@ -123,16 +143,14 @@ class ChatWebSocketService {
 
     _isTyping = isTyping;
 
-    if (isTyping) {
-      _sendEvent('typing_start', {});
+    _sendEvent('typing', {'is_typing': isTyping});
 
-      // Auto-stop typing after 3 seconds
+    if (isTyping) {
       _typingTimer?.cancel();
       _typingTimer = Timer(const Duration(seconds: 3), () {
         sendTypingIndicator(false);
       });
     } else {
-      _sendEvent('typing_stop', {});
       _typingTimer?.cancel();
     }
   }
@@ -141,7 +159,7 @@ class ChatWebSocketService {
   void sendMessageRead(List<String> messageIds) {
     if (!isConnected || messageIds.isEmpty) return;
 
-    _sendEvent('message_read', {'message_ids': messageIds});
+    _sendEvent('mark_read', {'message_ids': messageIds});
   }
 
   /// Private methods

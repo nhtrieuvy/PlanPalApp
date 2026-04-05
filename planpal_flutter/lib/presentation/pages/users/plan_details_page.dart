@@ -10,6 +10,7 @@ import '../../../core/dtos/plan_model.dart';
 import '../../../core/dtos/plan_activity.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../../widgets/audit/audit_log_list.dart';
 import '../../../shared/ui_states/ui_states.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../plans/activity_form_page.dart';
@@ -233,6 +234,12 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                     df: _df,
                   ),
                 ],
+                const SizedBox(height: 16),
+                AuditLogList(
+                  title: 'Plan Audit Log',
+                  resourceType: 'plan',
+                  resourceId: p.id,
+                ),
                 const SizedBox(height: 32),
                 Row(
                   children: [

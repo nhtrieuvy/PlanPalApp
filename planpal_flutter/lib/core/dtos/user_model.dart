@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart';
 
 bool _isValidImageUrl(String? url) {
   if (url == null || url.isEmpty) return false;
@@ -80,14 +81,10 @@ class UserModel extends Equatable {
       avatar: json['avatar']?.toString(),
       avatarUrl: validatedAvatarUrl,
       hasAvatar: json['has_avatar'] == true,
-      dateOfBirth: json['date_of_birth'] != null
-          ? DateTime.tryParse(json['date_of_birth'].toString())
-          : null,
+      dateOfBirth: parseServerDateTime(json['date_of_birth']),
       bio: json['bio']?.toString(),
       isOnline: json['is_online'] == true,
-      lastSeen: json['last_seen'] != null
-          ? DateTime.tryParse(json['last_seen'].toString())
-          : null,
+      lastSeen: parseServerDateTime(json['last_seen']),
       isRecentlyOnline: json['is_recently_online'] == true,
       onlineStatus: json['online_status']?.toString() ?? 'offline',
       plansCount: _parseIntField(json['plans_count']),
@@ -96,9 +93,7 @@ class UserModel extends Equatable {
       groupsCount: _parseIntField(json['groups_count']),
       friendsCount: _parseIntField(json['friends_count']),
       unreadMessagesCount: _parseIntField(json['unread_messages_count']),
-      dateJoined: json['date_joined'] != null
-          ? DateTime.parse(json['date_joined'].toString())
-          : DateTime.now(),
+      dateJoined: parseServerDateTime(json['date_joined']) ?? DateTime.now(),
       isActive: json['is_active'] != false,
       fullName: json['full_name']?.toString() ?? '',
       initials: json['initials']?.toString() ?? '',

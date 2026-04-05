@@ -17,6 +17,7 @@ from uuid import UUID
 
 from django.db import transaction
 
+from planpals.audit.domain.entities import AuditAction, AuditResourceType
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
 from planpals.plans.domain.repositories import PlanRepository, PlanActivityRepository
 from planpals.plans.domain.events import (
@@ -50,10 +51,12 @@ class CreatePlanHandler(BaseCommandHandler[CreatePlanCommand, Any]):
         self,
         plan_repo: PlanRepository,
         event_publisher: DomainEventPublisher,
+        audit_service=None,
         membership_checker=None,  # callable(group_id, user_id) -> bool
     ):
         self.plan_repo = plan_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
         self.membership_checker = membership_checker
 
     @transaction.atomic
@@ -85,15 +88,38 @@ class CreatePlanHandler(BaseCommandHandler[CreatePlanCommand, Any]):
             end_date=str(command.end_date) if command.end_date else None,
         ))
 
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.creator_id,
+                action=AuditAction.CREATE_PLAN.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan.id,
+                metadata={
+                    'title': plan.title,
+                    'plan_type': plan.plan_type,
+                    'group_id': plan.group_id,
+                    'is_public': plan.is_public,
+                    'start_date': plan.start_date,
+                    'end_date': plan.end_date,
+                    'status': plan.status,
+                },
+            )
+
         return plan
 
 
 class UpdatePlanHandler(BaseCommandHandler[UpdatePlanCommand, Any]):
     """Use case: Update an existing plan's details."""
 
-    def __init__(self, plan_repo: PlanRepository, event_publisher: DomainEventPublisher):
+    def __init__(
+        self,
+        plan_repo: PlanRepository,
+        event_publisher: DomainEventPublisher,
+        audit_service=None,
+    ):
         self.plan_repo = plan_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: UpdatePlanCommand) -> Any:
@@ -115,6 +141,7 @@ class UpdatePlanHandler(BaseCommandHandler[UpdatePlanCommand, Any]):
 
         # Apply only non-None fields
         update_fields = {}
+        previous_values = {}
         for field_name in [
             'title', 'description', 'start_date', 'end_date',
             'is_public', 'cover_image', 'destination', 'budget', 'notes',
@@ -122,6 +149,7 @@ class UpdatePlanHandler(BaseCommandHandler[UpdatePlanCommand, Any]):
             value = getattr(command, field_name, None)
             if value is not None:
                 update_fields[field_name] = value
+                previous_values[field_name] = getattr(plan, field_name, None)
 
         if update_fields:
             for k, v in update_fields.items():
@@ -134,6 +162,21 @@ class UpdatePlanHandler(BaseCommandHandler[UpdatePlanCommand, Any]):
             status=str(plan.status),
             last_updated=str(plan.updated_at),
         ))
+
+        if update_fields and self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.UPDATE_PLAN.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan.id,
+                metadata={
+                    'title': plan.title,
+                    'updated_fields': list(update_fields.keys()),
+                    'before': previous_values,
+                    'after': update_fields,
+                    'status': plan.status,
+                },
+            )
 
         return plan
 
@@ -183,9 +226,15 @@ class ChangePlanStatusHandler(BaseCommandHandler[ChangePlanStatusCommand, Any]):
 class DeletePlanHandler(BaseCommandHandler[DeletePlanCommand, bool]):
     """Use case: Delete a plan."""
 
-    def __init__(self, plan_repo: PlanRepository, event_publisher: DomainEventPublisher):
+    def __init__(
+        self,
+        plan_repo: PlanRepository,
+        event_publisher: DomainEventPublisher,
+        audit_service=None,
+    ):
         self.plan_repo = plan_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: DeletePlanCommand) -> bool:
@@ -197,12 +246,29 @@ class DeletePlanHandler(BaseCommandHandler[DeletePlanCommand, bool]):
             raise NotPlanOwnerException()
 
         title = plan.title
+        deletion_metadata = {
+            'title': plan.title,
+            'plan_type': plan.plan_type,
+            'group_id': plan.group_id,
+            'status': plan.status,
+            'start_date': plan.start_date,
+            'end_date': plan.end_date,
+        }
         self.plan_repo.delete(command.plan_id)
 
         self.event_publisher.publish(PlanDeleted(
             plan_id=str(command.plan_id),
             title=title,
         ))
+
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.DELETE_PLAN.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=command.plan_id,
+                metadata=deletion_metadata,
+            )
 
         return True
 

@@ -147,6 +147,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
     // For messages from other users, refresh to get the new message
     debugPrint('Refreshing messages for new message from $senderId');
     ref.read(messagesProvider(widget.conversation.id).notifier).refresh();
+    ref.invalidate(conversationListProvider);
   }
 
   void _handleTypingStart(Map<String, dynamic> data) {

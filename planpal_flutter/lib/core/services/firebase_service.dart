@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import './apis.dart';
+import './firebase_runtime_config.dart';
 import '../../firebase_options.dart';
 
 /// Firebase Push Notification Service
@@ -20,18 +21,43 @@ class FirebaseService {
   FirebaseMessaging? _messaging;
   String? _currentToken;
   bool _initialized = false;
+  Future<bool>? _initializing;
+  StreamSubscription<String>? _tokenRefreshSub;
   FlutterLocalNotificationsPlugin? _localNotifications;
   // Message stream subscriptions (stored so we can cancel on reset)
   StreamSubscription<RemoteMessage>? _onMessageSub;
   StreamSubscription<RemoteMessage>? _onMessageOpenedAppSub;
+  String? _lastInitializationError;
 
   /// Initialize Firebase Core and Messaging
   /// Returns true if successful, false otherwise
   Future<bool> initialize() async {
+    if (!FirebaseRuntimeConfig.pushEnabled ||
+        !FirebaseRuntimeConfig.isSupportedPlatform) {
+      _lastInitializationError =
+          'Firebase messaging is disabled for this build.';
+      return false;
+    }
+
     if (_initialized) {
       return true;
     }
 
+    if (_initializing != null) {
+      return _initializing!;
+    }
+
+    final initializing = _initializeInternal();
+    _initializing = initializing;
+
+    try {
+      return await initializing;
+    } finally {
+      _initializing = null;
+    }
+  }
+
+  Future<bool> _initializeInternal() async {
     try {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp(
@@ -40,6 +66,7 @@ class FirebaseService {
       }
 
       _messaging = FirebaseMessaging.instance;
+      await _messaging!.setAutoInitEnabled(true);
 
       await _initializeLocalNotifications();
 
@@ -49,12 +76,9 @@ class FirebaseService {
 
           if (permissionStatus.isDenied ||
               permissionStatus.isPermanentlyDenied) {
-            final status = await Permission.notification.request();
-            if (status.isPermanentlyDenied) {
-              // Permission permanently denied; notifications may not work.
-            }
+            await Permission.notification.request();
           }
-        } catch (e) {
+        } catch (_) {
           // Ignore permission request errors in production flow
         }
       }
@@ -68,12 +92,13 @@ class FirebaseService {
       }
 
       await _getFCMTokenWithRetry();
-
       _setupMessageHandlers();
 
       _initialized = true;
+      _lastInitializationError = null;
       return true;
     } catch (e) {
+      _lastInitializationError = e.toString();
       return false;
     }
   }
@@ -92,7 +117,7 @@ class FirebaseService {
         _currentToken = await _messaging!.getToken();
 
         if (_currentToken != null) {
-          _messaging!.onTokenRefresh.listen((newToken) {
+          _tokenRefreshSub ??= _messaging!.onTokenRefresh.listen((newToken) {
             _currentToken = newToken;
           });
           return _currentToken;
@@ -183,6 +208,12 @@ class FirebaseService {
   /// Register FCM token with backend
   /// Requires auth token for API authentication
   Future<bool> registerToken(String authToken) async {
+    if (!await initialize()) {
+      return false;
+    }
+
+    _currentToken ??= await _getFCMTokenWithRetry();
+
     if (_currentToken == null) {
       return false;
     }
@@ -396,6 +427,9 @@ class FirebaseService {
   /// Check if service is initialized
   bool get isInitialized => _initialized;
 
+  /// Last initialization error that prevented Firebase Messaging from coming up.
+  String? get lastInitializationError => _lastInitializationError;
+
   /// Reset service (call on logout)
   void reset() {
     _currentToken = null;
@@ -406,6 +440,10 @@ class FirebaseService {
     _onMessageOpenedAppSub?.cancel();
     _onMessageSub = null;
     _onMessageOpenedAppSub = null;
+    _tokenRefreshSub?.cancel();
+    _tokenRefreshSub = null;
+    _initializing = null;
+    _lastInitializationError = null;
   }
 }
 

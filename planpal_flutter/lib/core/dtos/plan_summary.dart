@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart';
 import 'user_summary.dart';
 
 class PlanSummary extends Equatable {
@@ -38,12 +39,8 @@ class PlanSummary extends Equatable {
     return PlanSummary(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
-      startDate: json['start_date'] != null
-          ? DateTime.tryParse(json['start_date'].toString())
-          : null,
-      endDate: json['end_date'] != null
-          ? DateTime.tryParse(json['end_date'].toString())
-          : null,
+      startDate: parseServerDateTime(json['start_date']),
+      endDate: parseServerDateTime(json['end_date']),
       isPublic: json['is_public'] == true,
       status: json['status']?.toString() ?? 'upcoming',
       planType: json['plan_type']?.toString() ?? 'personal',
@@ -51,9 +48,7 @@ class PlanSummary extends Equatable {
       groupName: json['group_name']?.toString(),
       durationDays: json['duration_days']?.toInt() ?? 0,
       activitiesCount: json['activities_count']?.toInt() ?? 0,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'].toString())
-          : DateTime.now(),
+      createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
       statusDisplay: json['status_display']?.toString() ?? '',
       durationDisplay: json['duration_display']?.toString() ?? '',
     );

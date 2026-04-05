@@ -43,10 +43,11 @@ class GroupsResponse {
   });
 
   factory GroupsResponse.fromJson(Map<String, dynamic> json) {
+    final next = json['next'] as String?;
     return GroupsResponse(
       groups: json['results'] as List<dynamic>? ?? [],
-      nextCursor: json['next'] as String?,
-      hasMore: json['has_more'] as bool? ?? false,
+      nextCursor: next,
+      hasMore: json['has_more'] as bool? ?? (next != null),
       count: json['count'] as int? ?? 0,
     );
   }

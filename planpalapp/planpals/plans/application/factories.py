@@ -5,6 +5,7 @@ Construct fully-wired handler instances with concrete
 infrastructure dependencies. Views and services call these
 factories instead of constructing handlers manually.
 """
+from planpals.audit.application.factories import get_audit_log_service
 from planpals.shared.infrastructure import ChannelsDomainEventPublisher
 from planpals.plans.infrastructure.repositories import (
     DjangoPlanRepository,
@@ -46,6 +47,7 @@ def get_create_plan_handler() -> CreatePlanHandler:
     return CreatePlanHandler(
         plan_repo=_plan_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
         membership_checker=_membership_checker(),
     )
 
@@ -54,6 +56,7 @@ def get_update_plan_handler() -> UpdatePlanHandler:
     return UpdatePlanHandler(
         plan_repo=_plan_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
     )
 
 
@@ -68,6 +71,7 @@ def get_delete_plan_handler() -> DeletePlanHandler:
     return DeletePlanHandler(
         plan_repo=_plan_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
     )
 
 

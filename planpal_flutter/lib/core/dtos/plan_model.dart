@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart'
+    as server_datetime;
 import 'user_summary.dart';
 import 'group_summary.dart';
 import 'plan_activity.dart';
@@ -9,20 +11,7 @@ import 'plan_activity.dart';
 // naive (no offset), we assume it's UTC and convert to local; this mirrors the
 // server behavior which stores timezone-aware values.
 DateTime? _parseServerDateTime(String s) {
-  if (s.isEmpty) return null;
-  try {
-    final dt = DateTime.parse(s);
-    // DateTime.parse returns a value with isUtc==true if the string had a Z or offset.
-    // Convert to local so UI shows local wall-clock time.
-    return dt.toLocal();
-  } catch (_) {
-    // Fallback: try to parse manually with DateFormat (best-effort), assume local
-    try {
-      return DateTime.tryParse(s)?.toLocal();
-    } catch (_) {
-      return null;
-    }
-  }
+  return server_datetime.parseServerDateTime(s);
 }
 
 double _parseDoubleSafe(dynamic v, {double defaultValue = 0.0}) {
@@ -122,10 +111,12 @@ class PlanModel extends Equatable {
       canEdit: json['can_edit'] == true,
       collaborators: collaborators,
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'].toString())
+          ? _parseServerDateTime(json['created_at'].toString()) ??
+                DateTime.now()
           : DateTime.now(),
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'].toString())
+          ? _parseServerDateTime(json['updated_at'].toString()) ??
+                DateTime.now()
           : DateTime.now(),
       durationDisplay: json['duration_display']?.toString() ?? '',
       statusDisplay: json['status_display']?.toString() ?? '',

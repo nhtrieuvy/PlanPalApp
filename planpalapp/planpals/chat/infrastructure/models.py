@@ -45,10 +45,15 @@ class ConversationQuerySet(models.QuerySet['Conversation']):
         ).order_by('-created_at')
         
         return self.annotate(
+            last_message_id=Subquery(last_message_subquery.values('id')[:1]),
             last_message_time=Subquery(last_message_subquery.values('created_at')[:1]),
             last_message_content=Subquery(last_message_subquery.values('content')[:1]),
-            last_message_sender_id=Subquery(last_message_subquery.values('sender_id')[:1])
-        ).select_related('group')
+            last_message_message_type=Subquery(last_message_subquery.values('message_type')[:1]),
+            last_message_sender_id=Subquery(last_message_subquery.values('sender_id')[:1]),
+            last_message_sender_username=Subquery(last_message_subquery.values('sender__username')[:1]),
+            last_message_attachment_name=Subquery(last_message_subquery.values('attachment_name')[:1]),
+            last_message_location_name=Subquery(last_message_subquery.values('location_name')[:1]),
+        ).select_related('group', 'user_a', 'user_b')
 
     def get_direct_conversation(self, user1, user2) -> Optional['Conversation']:
         user1_id = getattr(user1, 'id', user1)

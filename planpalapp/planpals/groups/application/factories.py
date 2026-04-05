@@ -1,6 +1,7 @@
 """
 Groups Application — Handler Factories
 """
+from planpals.audit.application.factories import get_audit_log_service
 from planpals.shared.infrastructure import ChannelsDomainEventPublisher
 from planpals.groups.infrastructure.repositories import (
     DjangoGroupRepository,
@@ -13,6 +14,7 @@ from planpals.groups.application.handlers import (
     RemoveMemberHandler,
     JoinGroupHandler,
     LeaveGroupHandler,
+    DeleteGroupHandler,
     PromoteMemberHandler,
     DemoteMemberHandler,
 )
@@ -84,6 +86,7 @@ def get_join_group_handler() -> JoinGroupHandler:
         group_repo=_group_repo(),
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
     )
 
 
@@ -92,6 +95,15 @@ def get_leave_group_handler() -> LeaveGroupHandler:
         group_repo=_group_repo(),
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
+    )
+
+
+def get_delete_group_handler() -> DeleteGroupHandler:
+    return DeleteGroupHandler(
+        group_repo=_group_repo(),
+        membership_repo=_membership_repo(),
+        audit_service=get_audit_log_service(),
     )
 
 
@@ -99,6 +111,7 @@ def get_promote_member_handler() -> PromoteMemberHandler:
     return PromoteMemberHandler(
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
     )
 
 
@@ -106,6 +119,7 @@ def get_demote_member_handler() -> DemoteMemberHandler:
     return DemoteMemberHandler(
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
     )
 
 

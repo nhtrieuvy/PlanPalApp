@@ -19,7 +19,6 @@ from django.utils import timezone
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db.models import Q, F, Case, When, Count, Max, Sum, Exists, OuterRef, Subquery
-from django.core.cache import cache
 
 from cloudinary.models import CloudinaryField
 from cloudinary import CloudinaryImage
@@ -27,6 +26,7 @@ from cloudinary import CloudinaryImage
 from celery import current_app
 
 from planpals.shared.base_models import BaseModel
+from planpals.shared.cache_infrastructure import DjangoCacheService
 from planpals.auth.domain.entities import FriendshipStatus
 
 
@@ -330,8 +330,9 @@ class User(AbstractUser, BaseModel):
     @property
     def unread_messages_count(self) -> int:
         from planpals.models import Conversation, ChatMessage, MessageReadStatus
+        cache_service = DjangoCacheService()
         cache_key = f"user_unread_count_{self.id}"
-        cached_count = cache.get(cache_key)
+        cached_count = cache_service.get(cache_key)
         
         if cached_count is not None:
             return cached_count
@@ -355,17 +356,18 @@ class User(AbstractUser, BaseModel):
         
         count = unread_messages.count()
         
-        cache.set(cache_key, count, 30)
+        cache_service.set(cache_key, count, 30)
         return count
     
     def clear_unread_cache(self) -> None:
         cache_key = f"user_unread_count_{self.id}"
-        cache.delete(cache_key)
+        DjangoCacheService().delete(cache_key)
     
     @classmethod
     def clear_unread_cache_for_users(cls, user_ids: List[UUID]) -> None:
-        cache_keys = [f"user_unread_count_{uid}" for uid in user_ids]
-        cache.delete_many(cache_keys)
+        cache_service = DjangoCacheService()
+        for user_id in user_ids:
+            cache_service.delete(f"user_unread_count_{user_id}")
     
 
 class FriendshipQuerySet(models.QuerySet['Friendship']):

@@ -1,8 +1,15 @@
 import 'package:dio/dio.dart';
 
-// Production backend on Fly.io
-const String baseUrl = 'https://planpal-backend.fly.dev';
-// Local development: 'http://10.0.2.2:8000'
+const String baseUrl = String.fromEnvironment(
+  'PLANPAL_BASE_URL',
+  defaultValue: 'http://10.0.2.2:8000',
+);
+
+String get baseWsUrl {
+  final uri = Uri.parse(baseUrl);
+  final wsScheme = uri.scheme == 'https' ? 'wss' : 'ws';
+  return uri.replace(scheme: wsScheme, path: '', query: '').toString();
+}
 
 class Endpoints {
   static const String _apiV1 = '/api/v1';
@@ -24,6 +31,7 @@ class Endpoints {
   static String get plans => _v1('/plans/');
   static String get groups => _v1('/groups/');
   static String get activities => _v1('/activities/');
+  static String get auditLogs => _v1('/audit-logs/');
 
   // Plan-related endpoints
   static String get joinedPlans => _v1('/plans/joined/');
@@ -44,6 +52,8 @@ class Endpoints {
   static String groupLeave(String groupId) => _v1('/groups/$groupId/leave/');
   static String groupRemoveMember(String groupId) =>
       _v1('/groups/$groupId/remove_member/');
+  static String resourceAuditLogs(String resourceType, String resourceId) =>
+      _v1('/audit-logs/resource/$resourceType/$resourceId/');
 
   static String activityDetails(String activityId) =>
       _v1('/activities/$activityId/');

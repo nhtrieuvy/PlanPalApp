@@ -28,6 +28,19 @@ class ConversationListNotifier extends AsyncNotifier<List<Conversation>> {
       return response.conversations;
     });
   }
+
+  void markConversationRead(String conversationId) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+
+    state = AsyncData([
+      for (final conversation in current)
+        if (conversation.id == conversationId)
+          conversation.copyWith(unreadCount: 0)
+        else
+          conversation,
+    ]);
+  }
 }
 
 final conversationListProvider =
@@ -91,6 +104,7 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
     _conversationId = arg;
     _repo = ref.watch(conversationRepositoryProvider);
     final response = await _repo.getConversationMessages(_conversationId);
+    _scheduleMarkMessagesAsRead(response.messages);
     return MessagesState(
       messages: response.messages,
       hasMore: response.hasMore,
@@ -116,6 +130,7 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
           isLoadingMore: false,
         ),
       );
+      _scheduleMarkMessagesAsRead(response.messages);
     } catch (e) {
       state = AsyncData(current.copyWith(isLoadingMore: false));
     }
@@ -134,6 +149,7 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final response = await _repo.getConversationMessages(_conversationId);
+      _scheduleMarkMessagesAsRead(response.messages);
       return MessagesState(
         messages: response.messages,
         hasMore: response.hasMore,
@@ -150,6 +166,7 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
         content.trim(),
       );
       addMessage(message);
+      ref.invalidate(conversationListProvider);
       return true;
     } catch (_) {
       return false;
@@ -160,6 +177,7 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
     try {
       final message = await _repo.sendImageFile(_conversationId, imageFile);
       addMessage(message);
+      ref.invalidate(conversationListProvider);
       return true;
     } catch (_) {
       return false;
@@ -170,6 +188,7 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
     try {
       final message = await _repo.sendFileAttachment(_conversationId, file);
       addMessage(message);
+      ref.invalidate(conversationListProvider);
       return true;
     } catch (_) {
       return false;
@@ -189,10 +208,44 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
         locationName,
       );
       addMessage(message);
+      ref.invalidate(conversationListProvider);
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  void _scheduleMarkMessagesAsRead(List<ChatMessage> messages) {
+    Future.microtask(() async {
+      final currentUserId = _repo.currentUserId;
+      if (currentUserId == null) return;
+
+      final messageIds = messages
+          .where(
+            (message) =>
+                !message.isDeleted && message.sender.id != currentUserId,
+          )
+          .map((message) => message.id)
+          .toSet()
+          .toList();
+
+      if (messageIds.isEmpty) return;
+
+      try {
+        await _repo.markMessagesAsRead(
+          _conversationId,
+          MarkMessagesReadRequest(messageIds: messageIds),
+        );
+        ref
+            .read(conversationListProvider.notifier)
+            .markConversationRead(_conversationId);
+        ref
+            .read(chatWebSocketServiceProvider(_conversationId))
+            .sendMessageRead(messageIds);
+      } catch (_) {
+        // Keep the chat usable even if read receipts fail.
+      }
+    });
   }
 }
 

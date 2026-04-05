@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart';
 import 'user_summary.dart';
 
 enum MessageType {
@@ -124,8 +125,8 @@ class ChatMessage extends Equatable {
       isDeleted: json['is_deleted'] as bool,
       canEdit: json['can_edit'] as bool,
       canDelete: json['can_delete'] as bool,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
+      updatedAt: parseServerDateTime(json['updated_at']) ?? DateTime.now(),
     );
   }
 
