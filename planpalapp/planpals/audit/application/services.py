@@ -22,8 +22,13 @@ from planpals.audit.domain.entities import AuditAction
 class AuditLogService:
     MAX_PAGE_SIZE = 100
 
-    def __init__(self, audit_log_repo: AuditLogRepository):
+    def __init__(
+        self,
+        audit_log_repo: AuditLogRepository,
+        audit_log_notification_dispatcher=None,
+    ):
         self.audit_log_repo = audit_log_repo
+        self.audit_log_notification_dispatcher = audit_log_notification_dispatcher
 
     def log_action(
         self,
@@ -33,7 +38,7 @@ class AuditLogService:
         resource_id,
         metadata: dict[str, Any] | None = None,
     ):
-        user_id = self._normalize_required_uuid(user, field_name='user')
+        user_id = self._normalize_optional_uuid(user, field_name='user')
         resource_uuid = self._normalize_optional_uuid(resource_id, field_name='resource_id')
 
         if action not in AuditAction.values():
@@ -50,7 +55,10 @@ class AuditLogService:
             resource_id=resource_uuid,
             metadata=self._sanitize_metadata(metadata or {}),
         )
-        return self.audit_log_repo.create_log(payload)
+        log = self.audit_log_repo.create_log(payload)
+        if self.audit_log_notification_dispatcher:
+            self.audit_log_notification_dispatcher(log)
+        return log
 
     def list_logs(self, viewer, filters: AuditLogFilters):
         viewer_id = self._normalize_required_uuid(viewer, field_name='viewer')

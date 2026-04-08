@@ -506,10 +506,14 @@ CELERY_TASK_ROUTES = {
     # Push notifications → high_priority
     'planpals.shared.tasks.send_push_notification_task': {'queue': 'high_priority'},
     'planpals.shared.tasks.send_event_push_notification_task': {'queue': 'high_priority'},
+    'planpals.notifications.infrastructure.tasks.send_notification_task': {'queue': 'high_priority'},
+    'planpals.notifications.infrastructure.tasks.fanout_group_notification_task': {'queue': 'high_priority'},
+    'planpals.notifications.infrastructure.tasks.process_audit_log_notification_task': {'queue': 'high_priority'},
     # Chat fan-out → high_priority
     'planpals.chat.infrastructure.tasks.fanout_chat_push_notification_task': {'queue': 'high_priority'},
     # Analytics / periodic → low_priority
-    'planpals.shared.analytics_tasks.aggregate_daily_statistics_task': {'queue': 'low_priority'},
+    'planpals.analytics.infrastructure.tasks.aggregate_daily_metrics_task': {'queue': 'low_priority'},
+    'planpals.notifications.infrastructure.tasks.dispatch_plan_reminders_task': {'queue': 'low_priority'},
     'planpals.shared.analytics_tasks.cleanup_expired_offline_events_task': {'queue': 'low_priority'},
     'planpals.shared.analytics_tasks.cleanup_invalid_fcm_tokens_task': {'queue': 'low_priority'},
 }
@@ -546,9 +550,9 @@ CELERY_TASK_DEFAULT_RATE_LIMIT = '100/m'   # 100 tasks/min default
 from celery.schedules import crontab  # noqa: E402
 
 CELERY_BEAT_SCHEDULE = {
-    'aggregate-daily-statistics': {
-        'task': 'planpals.shared.analytics_tasks.aggregate_daily_statistics_task',
-        'schedule': crontab(hour=2, minute=0),   # Every day at 02:00 AM
+    'aggregate-daily-metrics': {
+        'task': 'planpals.analytics.infrastructure.tasks.aggregate_daily_metrics_task',
+        'schedule': crontab(hour=2, minute=15),   # Every day at 02:15 AM
     },
     'cleanup-expired-offline-events': {
         'task': 'planpals.shared.analytics_tasks.cleanup_expired_offline_events_task',
@@ -557,6 +561,10 @@ CELERY_BEAT_SCHEDULE = {
     'cleanup-invalid-fcm-tokens': {
         'task': 'planpals.shared.analytics_tasks.cleanup_invalid_fcm_tokens_task',
         'schedule': crontab(hour=4, minute=0, day_of_week=0),  # Weekly Sunday 04:00
+    },
+    'dispatch-plan-reminders': {
+        'task': 'planpals.notifications.infrastructure.tasks.dispatch_plan_reminders_task',
+        'schedule': crontab(minute=0),  # Every hour
     },
 }
 

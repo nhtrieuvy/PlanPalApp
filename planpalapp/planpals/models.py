@@ -52,6 +52,15 @@ from planpals.chat.infrastructure.models import (  # noqa: F401
 # Audit infrastructure models (ORM)
 from planpals.audit.infrastructure.models import AuditLog  # noqa: F401
 
+# Notification infrastructure models (ORM)
+from planpals.notifications.infrastructure.models import (  # noqa: F401
+    Notification,
+    UserDeviceToken,
+)
+
+# Analytics infrastructure models (ORM)
+from planpals.analytics.infrastructure.models import DailyMetric  # noqa: F401
+
 __all__ = [
     'BaseModel',
     'UserQuerySet', 'UserManager', 'User',
@@ -60,4 +69,6 @@ __all__ = [
     'PlanQuerySet', 'Plan', 'PlanActivity',
     'ConversationQuerySet', 'Conversation', 'ChatMessageQuerySet', 'ChatMessage', 'MessageReadStatus',
     'AuditLog',
+    'Notification', 'UserDeviceToken',
+    'DailyMetric',
 ]

@@ -33,6 +33,7 @@ class UserModel extends Equatable {
   final int unreadMessagesCount;
   final DateTime dateJoined;
   final bool isActive;
+  final bool isStaff;
   final String fullName;
   final String initials;
 
@@ -60,6 +61,7 @@ class UserModel extends Equatable {
     required this.unreadMessagesCount,
     required this.dateJoined,
     required this.isActive,
+    required this.isStaff,
     required this.fullName,
     required this.initials,
   });
@@ -95,6 +97,7 @@ class UserModel extends Equatable {
       unreadMessagesCount: _parseIntField(json['unread_messages_count']),
       dateJoined: parseServerDateTime(json['date_joined']) ?? DateTime.now(),
       isActive: json['is_active'] != false,
+      isStaff: json['is_staff'] == true,
       fullName: json['full_name']?.toString() ?? '',
       initials: json['initials']?.toString() ?? '',
     );
@@ -125,6 +128,7 @@ class UserModel extends Equatable {
       'unread_messages_count': unreadMessagesCount,
       'date_joined': dateJoined.toIso8601String(),
       'is_active': isActive,
+      'is_staff': isStaff,
       'full_name': fullName,
       'initials': initials,
     };
@@ -154,6 +158,7 @@ class UserModel extends Equatable {
     int? unreadMessagesCount,
     DateTime? dateJoined,
     bool? isActive,
+    bool? isStaff,
     String? fullName,
     String? initials,
   }) {
@@ -181,6 +186,7 @@ class UserModel extends Equatable {
       unreadMessagesCount: unreadMessagesCount ?? this.unreadMessagesCount,
       dateJoined: dateJoined ?? this.dateJoined,
       isActive: isActive ?? this.isActive,
+      isStaff: isStaff ?? this.isStaff,
       fullName: fullName ?? this.fullName,
       initials: initials ?? this.initials,
     );
@@ -211,6 +217,7 @@ class UserModel extends Equatable {
     unreadMessagesCount,
     dateJoined,
     isActive,
+    isStaff,
     fullName,
     initials,
   ];

@@ -99,9 +99,6 @@ class RealtimeEventPublisher:
             EventType.ACTIVITY_UPDATED,
             EventType.ACTIVITY_COMPLETED,
             EventType.ACTIVITY_DELETED,
-            EventType.GROUP_MEMBER_ADDED,
-            EventType.GROUP_MEMBER_REMOVED,
-            EventType.MESSAGE_SENT,
             EventType.FRIEND_REQUEST,
             EventType.FRIEND_REQUEST_ACCEPTED
         ]
@@ -231,7 +228,7 @@ def publish_plan_deleted(plan_id: str, title: str):
         }
     )
     
-    return event_publisher.publish_event(event)
+    return event_publisher.publish_event(event, send_push=False)
 
 
 # Activity Event Helpers
@@ -254,7 +251,7 @@ def publish_activity_created(plan_id: str, activity_id: str, title: str, activit
         }
     )
     
-    return event_publisher.publish_event(event)
+    return event_publisher.publish_event(event, send_push=False)
 
 
 def publish_activity_updated(plan_id: str, activity_id: str, title: str, 
@@ -272,7 +269,7 @@ def publish_activity_updated(plan_id: str, activity_id: str, title: str,
         }
     )
     
-    return event_publisher.publish_event(event)
+    return event_publisher.publish_event(event, send_push=False)
 
 
 def publish_activity_completed(plan_id: str, activity_id: str, title: str, 

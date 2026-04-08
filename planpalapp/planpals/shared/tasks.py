@@ -282,12 +282,11 @@ def _get_notification_targets(event) -> List[str]:
 def _get_fcm_tokens(user_ids: List[str]) -> List[str]:
     """Fetch FCM tokens for the given user IDs."""
     try:
-        from planpals.models import User
+        from planpals.notifications.infrastructure.models import UserDeviceToken
 
         tokens = (
-            User.objects.filter(id__in=user_ids, fcm_token__isnull=False)
-            .exclude(fcm_token='')
-            .values_list('fcm_token', flat=True)
+            UserDeviceToken.objects.filter(user_id__in=user_ids, is_active=True)
+            .values_list('token', flat=True)
         )
         return list(tokens)
     except Exception as e:

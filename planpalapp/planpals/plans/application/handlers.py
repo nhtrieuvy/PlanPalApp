@@ -253,6 +253,7 @@ class DeletePlanHandler(BaseCommandHandler[DeletePlanCommand, bool]):
             'status': plan.status,
             'start_date': plan.start_date,
             'end_date': plan.end_date,
+            'participant_ids': list(plan.get_members().values_list('id', flat=True)),
         }
         self.plan_repo.delete(command.plan_id)
 

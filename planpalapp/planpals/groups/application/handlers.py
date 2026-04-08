@@ -438,6 +438,7 @@ class DeleteGroupHandler(BaseCommandHandler[DeleteGroupCommand, bool]):
             'admin_id': group.admin_id,
             'member_count': group.member_count,
             'plans_count': group.plans_count,
+            'member_ids': list(group.members.values_list('id', flat=True)),
         }
         deleted = self.group_repo.delete(command.group_id)
 

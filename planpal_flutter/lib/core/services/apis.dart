@@ -32,6 +32,10 @@ class Endpoints {
   static String get groups => _v1('/groups/');
   static String get activities => _v1('/activities/');
   static String get auditLogs => _v1('/audit-logs/');
+  static String get notifications => _v1('/notifications/');
+  static String get analyticsSummary => _v1('/analytics/summary/');
+  static String get analyticsTimeseries => _v1('/analytics/timeseries/');
+  static String get analyticsTop => _v1('/analytics/top/');
 
   // Plan-related endpoints
   static String get joinedPlans => _v1('/plans/joined/');
@@ -54,6 +58,11 @@ class Endpoints {
       _v1('/groups/$groupId/remove_member/');
   static String resourceAuditLogs(String resourceType, String resourceId) =>
       _v1('/audit-logs/resource/$resourceType/$resourceId/');
+  static String notificationRead(String notificationId) =>
+      _v1('/notifications/$notificationId/read/');
+  static String get notificationsReadAll => _v1('/notifications/read-all/');
+  static String get notificationsUnreadCount =>
+      _v1('/notifications/unread-count/');
 
   static String activityDetails(String activityId) =>
       _v1('/activities/$activityId/');

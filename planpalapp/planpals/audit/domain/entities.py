@@ -14,10 +14,12 @@ class AuditAction(str, Enum):
     CREATE_PLAN = 'CREATE_PLAN'
     UPDATE_PLAN = 'UPDATE_PLAN'
     DELETE_PLAN = 'DELETE_PLAN'
+    COMPLETE_PLAN = 'COMPLETE_PLAN'
     JOIN_GROUP = 'JOIN_GROUP'
     LEAVE_GROUP = 'LEAVE_GROUP'
     CHANGE_ROLE = 'CHANGE_ROLE'
     DELETE_GROUP = 'DELETE_GROUP'
+    NOTIFICATION_OPENED = 'NOTIFICATION_OPENED'
 
     @classmethod
     def values(cls) -> tuple[str, ...]:
@@ -32,6 +34,7 @@ class AuditResourceType(str, Enum):
     PLAN = 'plan'
     GROUP = 'group'
     MEMBERSHIP = 'membership'
+    NOTIFICATION = 'notification'
 
     @classmethod
     def values(cls) -> tuple[str, ...]:

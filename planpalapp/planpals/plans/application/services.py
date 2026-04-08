@@ -264,7 +264,28 @@ class PlanService(BaseService):
             'forced': force,
             'timestamp': now.isoformat()
         })
-        
+
+        try:
+            from planpals.audit.application.factories import get_audit_log_service
+            from planpals.audit.domain.entities import AuditAction, AuditResourceType
+
+            get_audit_log_service().log_action(
+                user=user,
+                action=AuditAction.COMPLETE_PLAN.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan.id,
+                metadata={
+                    'title': plan.title,
+                    'group_id': plan.group_id,
+                    'status': plan.status,
+                    'completed_by_system': user is None,
+                    'forced': force,
+                    'completed_at': now,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Failed to write completion audit log for plan {plan.id}: {e}")
+
         cls._invalidate_plan_cache(plan.id)
         
         try:

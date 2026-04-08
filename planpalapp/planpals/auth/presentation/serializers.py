@@ -29,7 +29,7 @@ class UserSerializer(serializers.ModelSerializer):
             'is_recently_online', 'online_status',
             'plans_count', 'personal_plans_count', 'group_plans_count', 
             'groups_count', 'friends_count', 'unread_messages_count', 
-            'date_joined', 'is_active'
+            'date_joined', 'is_active', 'is_staff'
         ]
         read_only_fields = ['id', 'date_joined', 'last_seen', 'is_online']
     
@@ -110,7 +110,11 @@ class UserSummarySerializer(serializers.ModelSerializer):
 
 class FCMTokenSerializer(serializers.Serializer):
     fcm_token = serializers.CharField(max_length=255, allow_blank=False)
-    platform = serializers.ChoiceField(choices=[('android', 'android'), ('ios', 'ios')], required=False)
+    platform = serializers.ChoiceField(
+        choices=[('android', 'android'), ('ios', 'ios'), ('web', 'web')],
+        required=False,
+        default='android',
+    )
 
     def validate_fcm_token(self, value):
         if len(value) < 10:

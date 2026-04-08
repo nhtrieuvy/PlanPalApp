@@ -45,7 +45,9 @@ class DjangoCacheService(CachePort):
 
     def delete_pattern(self, pattern: str) -> None:
         try:
-            cache.delete_pattern(pattern)
+            delete_pattern = getattr(cache, 'delete_pattern', None)
+            if callable(delete_pattern):
+                delete_pattern(pattern)
         except Exception as e:
             logger.warning("Cache DELETE_PATTERN failed for pattern=%s: %s", pattern, e)
 

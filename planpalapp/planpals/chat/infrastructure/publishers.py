@@ -29,7 +29,7 @@ def publish_message_sent(conversation_id: str, message_id: str, sender_id: str,
         }
     )
     
-    return event_publisher.publish_event(event)
+    return event_publisher.publish_event(event, send_push=False)
 
 
 def publish_message_updated(conversation_id: str, message_id: str, sender_id: str, 
@@ -89,10 +89,11 @@ class ChatPushNotificationPublisher:
     """Sends push notifications for new chat messages via Celery (async)."""
 
     def send_notification(self, message: Any) -> None:
-        """Dispatch a fan-out Celery task instead of looping participants synchronously."""
+        """Dispatch notification fan-out into the unified notification pipeline."""
         try:
-            from planpals.chat.infrastructure.tasks import (
-                fanout_chat_push_notification_task,
+            from planpals.notifications.domain.entities import NotificationType
+            from planpals.notifications.infrastructure.tasks import (
+                fanout_group_notification_task,
             )
 
             if not message.sender:
@@ -107,16 +108,34 @@ class ChatPushNotificationPublisher:
                 else None
             )
             content_preview = (message.content or '')[:100]
+            recipient_ids = list(
+                message.conversation.participants.exclude(id=message.sender.id).values_list(
+                    'id',
+                    flat=True,
+                )
+            )
+            conversation_name = group_name
+            if message.conversation.conversation_type == 'direct':
+                other_user = message.conversation.get_other_participant(message.sender)
+                conversation_name = other_user.get_full_name() or other_user.username if other_user else None
 
-            fanout_chat_push_notification_task.delay(
-                message_id=str(message.id),
-                conversation_id=str(message.conversation.id),
-                sender_id=str(message.sender.id),
-                sender_name=sender_name,
-                content_preview=content_preview,
-                message_type=message.message_type or 'text',
-                group_name=group_name,
-                conversation_type=message.conversation.conversation_type or 'direct',
+            fanout_group_notification_task.delay(
+                notification_type=NotificationType.NEW_MESSAGE.value,
+                recipient_user_ids=[str(user_id) for user_id in recipient_ids],
+                exclude_user_ids=[str(message.sender.id)],
+                data={
+                    'message_id': str(message.id),
+                    'conversation_id': str(message.conversation.id),
+                    'conversation_name': conversation_name,
+                    'conversation_type': message.conversation.conversation_type or 'direct',
+                    'sender_id': str(message.sender.id),
+                    'sender_name': sender_name,
+                    'preview': content_preview,
+                    'message_type': message.message_type or 'text',
+                    'group_name': group_name,
+                    'actor_name': sender_name,
+                },
+                send_push=True,
             )
 
         except Exception as e:

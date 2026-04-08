@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/presentation/pages/plans/plans_list_page.dart';
+import 'package:planpal_flutter/presentation/pages/analytics/analytics_dashboard_page.dart';
+import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/profile_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_page.dart';
 import 'package:planpal_flutter/core/theme/app_theme.dart';
@@ -90,6 +92,8 @@ class _PlanPalAppState extends ConsumerState<PlanPalApp> {
             '/home': (context) => const HomePage(),
             '/group': (context) => const GroupPage(),
             '/plan': (context) => const PlansListPage(),
+            '/analytics': (context) => const AnalyticsDashboardPage(),
+            '/notifications': (context) => const NotificationListPage(),
             '/profile': (context) => ProfilePage(),
           },
         );

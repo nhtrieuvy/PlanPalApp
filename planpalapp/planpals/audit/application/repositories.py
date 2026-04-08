@@ -12,7 +12,7 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class AuditLogCreateData:
-    user_id: UUID
+    user_id: Optional[UUID]
     action: str
     resource_type: str
     resource_id: Optional[UUID]

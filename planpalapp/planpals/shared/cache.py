@@ -100,6 +100,23 @@ class CacheKeys:
         """Glob pattern to invalidate ALL per-user variants."""
         return f"{cls._V}:group:detail:{group_id}*"
 
+    # -- Analytics ----------------------------------------------------------
+    @classmethod
+    def analytics_summary(cls, range_key: str) -> str:
+        return f"{cls._V}:analytics:summary:{range_key}"
+
+    @classmethod
+    def analytics_timeseries(cls, metric: str, range_key: str) -> str:
+        return f"{cls._V}:analytics:timeseries:{metric}:{range_key}"
+
+    @classmethod
+    def analytics_top(cls, range_key: str, limit: int) -> str:
+        return f"{cls._V}:analytics:top:{range_key}:limit:{limit}"
+
+    @classmethod
+    def analytics_pattern(cls) -> str:
+        return f"{cls._V}:analytics:*"
+
 
 # ============================================================================
 # TTL CONSTANTS (seconds)
@@ -109,3 +126,6 @@ class CacheTTL:
     USER_PROFILE = 120   # 2 minutes
     PLAN_SUMMARY = 180   # 3 minutes
     GROUP_DETAIL = 180   # 3 minutes
+    ANALYTICS_SUMMARY = 300   # 5 minutes
+    ANALYTICS_TIMESERIES = 600   # 10 minutes
+    ANALYTICS_TOP = 600   # 10 minutes

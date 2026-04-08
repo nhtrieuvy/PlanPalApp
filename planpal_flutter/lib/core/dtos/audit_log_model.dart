@@ -37,10 +37,15 @@ class AuditLogModel extends Equatable {
     AuditActionOption(value: 'CREATE_PLAN', label: 'Create Plan'),
     AuditActionOption(value: 'UPDATE_PLAN', label: 'Update Plan'),
     AuditActionOption(value: 'DELETE_PLAN', label: 'Delete Plan'),
+    AuditActionOption(value: 'COMPLETE_PLAN', label: 'Complete Plan'),
     AuditActionOption(value: 'JOIN_GROUP', label: 'Join Group'),
     AuditActionOption(value: 'LEAVE_GROUP', label: 'Leave Group'),
     AuditActionOption(value: 'CHANGE_ROLE', label: 'Change Role'),
     AuditActionOption(value: 'DELETE_GROUP', label: 'Delete Group'),
+    AuditActionOption(
+      value: 'NOTIFICATION_OPENED',
+      label: 'Notification Opened',
+    ),
   ];
 
   factory AuditLogModel.fromJson(Map<String, dynamic> json) {
@@ -93,6 +98,8 @@ class AuditLogModel extends Equatable {
         return title.isNotEmpty ? 'Updated "$title"' : 'Updated a plan';
       case 'DELETE_PLAN':
         return title.isNotEmpty ? 'Deleted "$title"' : 'Deleted a plan';
+      case 'COMPLETE_PLAN':
+        return title.isNotEmpty ? 'Completed "$title"' : 'Completed a plan';
       case 'JOIN_GROUP':
         return groupName.isNotEmpty ? 'Joined "$groupName"' : 'Joined a group';
       case 'LEAVE_GROUP':
@@ -105,6 +112,8 @@ class AuditLogModel extends Equatable {
         return groupName.isNotEmpty
             ? 'Deleted "$groupName"'
             : 'Deleted a group';
+      case 'NOTIFICATION_OPENED':
+        return 'Opened ${metadata['notification_count'] ?? 1} notification(s)';
       default:
         return _fallbackSummary();
     }

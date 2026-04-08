@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/audit_log_repository.dart';
+import '../repositories/analytics_repository.dart';
 import '../repositories/plan_repository.dart';
 import '../repositories/group_repository.dart';
 import '../repositories/conversation_repository.dart';
+import '../repositories/notification_repository.dart';
 import '../repositories/user_repository.dart';
 import '../repositories/friend_repository.dart';
 import '../repositories/location_repository.dart';
@@ -25,6 +27,16 @@ final planRepositoryProvider = Provider<PlanRepository>((ref) {
 final auditLogRepositoryProvider = Provider<AuditLogRepository>((ref) {
   final auth = ref.watch(authNotifierProvider);
   return AuditLogRepository(auth);
+});
+
+final analyticsRepositoryProvider = Provider<AnalyticsRepository>((ref) {
+  final auth = ref.watch(authNotifierProvider);
+  return AnalyticsRepository(auth);
+});
+
+final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  final auth = ref.watch(authNotifierProvider);
+  return NotificationRepository(auth);
 });
 
 final groupRepositoryProvider = Provider<GroupRepository>((ref) {
