@@ -265,9 +265,13 @@ class AuthProvider {
     if (_token == null) return;
 
     try {
-      await FirebaseService.instance.initialize();
-
-      await FirebaseService.instance.registerToken(_token!);
+      final registered = await FirebaseService.instance.registerToken(_token!);
+      if (!registered) {
+        final error = FirebaseService.instance.lastInitializationError;
+        if (error != null && error.isNotEmpty) {
+          debugPrint('AuthProvider: Firebase unavailable: $error');
+        }
+      }
     } catch (e) {
       debugPrint('AuthProvider: Firebase initialization error: $e');
     }

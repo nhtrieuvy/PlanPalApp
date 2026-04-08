@@ -88,6 +88,9 @@ class GroupViewSet(viewsets.GenericViewSet,
             cover_image=data.get('cover_image'),
         )
         serializer.instance = group
+
+    def perform_destroy(self, instance):
+        GroupService.delete_group(instance, self.request.user)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def join(self, request, pk=None):
@@ -332,6 +335,40 @@ class GroupViewSet(viewsets.GenericViewSet,
                 {'error': 'Đã có lỗi xảy ra khi xóa thành viên'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsGroupAdmin])
+    def change_role(self, request, pk=None):
+        group = self.get_object()
+        user_id = request.data.get('user_id')
+        role = request.data.get('role')
+
+        if not user_id or not role:
+            return Response(
+                {'error': 'user_id and role are required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user_to_update = User.objects.get(id=user_id)
+            success, message = GroupService.change_member_role(
+                group=group,
+                target_user=user_to_update,
+                role=role,
+                actor=request.user,
+            )
+            if not success:
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'message': message,
+                'group_id': str(group.id),
+                'user_id': user_id,
+                'role': role,
+            })
+        except User.DoesNotExist:
+            return Response({'error': 'KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class EnhancedGroupViewSet(GroupViewSet):    

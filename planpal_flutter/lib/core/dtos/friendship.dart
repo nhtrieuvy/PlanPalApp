@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart';
 import 'user_summary.dart';
-
 
 class Friendship extends Equatable {
   final String id;
@@ -28,12 +28,8 @@ class Friendship extends Equatable {
       friend: UserSummary.fromJson(json['friend'] ?? {}),
       initiator: UserSummary.fromJson(json['initiator'] ?? {}),
       status: json['status']?.toString() ?? 'pending',
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'].toString())
-          : DateTime.now(),
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'].toString())
-          : DateTime.now(),
+      createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
+      updatedAt: parseServerDateTime(json['updated_at']) ?? DateTime.now(),
     );
   }
 

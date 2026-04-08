@@ -41,10 +41,17 @@ class ChatConsumer(BaseRealtimeConsumer):
     async def handle_message(self, data: Dict[str, Any]):
         """Handle chat-specific messages"""
         msg_type = data.get('type')
+        payload = data.get('data')
+        if not isinstance(payload, dict):
+            payload = data
         
         if msg_type == 'ping':
             await self.send(text_data=json.dumps({'type': 'pong'}))
-        elif msg_type == 'typing':
+        elif msg_type in {'typing', 'typing_start', 'typing_stop'}:
+            is_typing = payload.get('is_typing')
+            if is_typing is None:
+                is_typing = msg_type == 'typing_start'
+
             # Broadcast typing indicator to other participants
             await self.channel_layer.group_send(
                 ChannelGroups.conversation(self.conversation_id),
@@ -53,15 +60,25 @@ class ChatConsumer(BaseRealtimeConsumer):
                     'data': {
                         'user_id': str(self.user.id),
                         'username': self.user.username,
-                        'is_typing': data.get('is_typing', True)
+                        'is_typing': bool(is_typing),
                     }
                 }
             )
-        elif msg_type == 'mark_read':
+        elif msg_type in {'mark_read', 'message_read'}:
             # Mark messages as read
-            message_ids = data.get('message_ids', [])
+            message_ids = payload.get('message_ids', [])
             if message_ids:
                 await self.mark_messages_read(message_ids)
+                await self.channel_layer.group_send(
+                    ChannelGroups.conversation(self.conversation_id),
+                    {
+                        'type': 'message_read_event',
+                        'data': {
+                            'user_id': str(self.user.id),
+                            'message_ids': message_ids,
+                        },
+                    },
+                )
         elif msg_type == 'join_room':
             # Client explicitly joining room (re-connect scenario)
             await self.send(text_data=json.dumps({
@@ -73,6 +90,13 @@ class ChatConsumer(BaseRealtimeConsumer):
         """Handle typing indicator messages"""
         await self.send(text_data=json.dumps({
             'type': 'typing',
+            'data': event['data']
+        }))
+
+    async def message_read_event(self, event):
+        """Handle message read receipts"""
+        await self.send(text_data=json.dumps({
+            'type': 'message_read',
             'data': event['data']
         }))
         
@@ -132,6 +156,9 @@ class ChatConsumer(BaseRealtimeConsumer):
                     message=message,
                     user=self.user
                 )
+
+            if hasattr(self.user, 'clear_unread_cache'):
+                self.user.clear_unread_cache()
                 
         except Exception as e:
             logger.error(f"Error marking messages as read: {e}")

@@ -1,55 +1,79 @@
-from rest_framework import status
+from urllib.parse import urlencode
+
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.views import APIView
 
-from django.contrib.auth import get_user_model
+from planpals.notifications.application.factories import get_notification_service
+from planpals.notifications.application.repositories import NotificationFilters
+from planpals.notifications.presentation.serializers import (
+    NotificationFilterSerializer,
+    NotificationSerializer,
+)
 
-from planpals.integrations.notification_service import NotificationService
 
-User = get_user_model()
+class NotificationViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
 
+    def list(self, request):
+        service = get_notification_service()
+        filters = self._validated_filters(request)
+        page = service.list_notifications(request.user, filters)
+        return self._build_response(request, page)
 
-class SendNotificationView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    @action(detail=False, methods=['get'], url_path='unread-count')
+    def unread_count(self, request):
+        service = get_notification_service()
+        return Response(
+            {'unread_count': service.get_unread_count(request.user)},
+            status=status.HTTP_200_OK,
+        )
 
-    def post(self, request):
-        recipient_id = request.data.get('recipient_id')
-        title = request.data.get('title')
-        body = request.data.get('body')
-        data = request.data.get('data', {})
-
-        if not all([recipient_id, title, body]):
+    @action(detail=True, methods=['patch'], url_path='read')
+    def mark_read(self, request, pk=None):
+        service = get_notification_service()
+        updated = service.mark_as_read(request.user, pk)
+        if not updated:
             return Response(
-                {'error': 'recipient_id, title, and body are required'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': 'Notification not found'},
+                status=status.HTTP_404_NOT_FOUND,
             )
+        return Response({'message': 'Notification marked as read'}, status=status.HTTP_200_OK)
 
-        try:
-            recipient = User.objects.get(id=recipient_id)
-            if hasattr(recipient, 'fcm_token') and recipient.fcm_token:
-                success = NotificationService.send_push_notification(
-                    fcm_tokens=[recipient.fcm_token],
-                    title=title,
-                    body=body,
-                    data=data
-                )
+    @action(detail=False, methods=['patch'], url_path='read-all')
+    def mark_all_read(self, request):
+        service = get_notification_service()
+        updated_count = service.mark_all_as_read(request.user)
+        return Response(
+            {'message': 'Notifications marked as read', 'updated_count': updated_count},
+            status=status.HTTP_200_OK,
+        )
 
-                if success:
-                    return Response({'message': 'Notification sent successfully'})
-                else:
-                    return Response(
-                        {'error': 'Failed to send notification'},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
-            else:
-                return Response(
-                    {'error': 'Recipient has no FCM token'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+    def _validated_filters(self, request) -> NotificationFilters:
+        serializer = NotificationFilterSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        return NotificationFilters(**serializer.validated_data)
 
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'Recipient not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    def _build_response(self, request, page):
+        serializer = NotificationSerializer(page.items, many=True, context={'request': request})
+        return Response(
+            {
+                'next': self._build_next_link(request, page.next_cursor) if page.has_more else None,
+                'previous': None,
+                'has_more': page.has_more,
+                'page_size': page.page_size,
+                'unread_count': page.unread_count,
+                'results': serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def _build_next_link(self, request, next_cursor: str | None) -> str | None:
+        if not next_cursor:
+            return None
+
+        params = request.query_params.copy()
+        params['cursor'] = next_cursor
+        query_string = urlencode(params, doseq=True)
+        return request.build_absolute_uri(f'{request.path}?{query_string}')

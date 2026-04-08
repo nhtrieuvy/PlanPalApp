@@ -14,7 +14,7 @@ from planpals.chat.presentation.serializers import ChatMessageSerializer, Conver
 from planpals.chat.presentation.permissions import ChatMessagePermission
 from planpals.chat.application.services import ConversationService, ChatService
 from planpals.models import Group
-from planpals.shared.paginators import StandardResultsPagination, ChatMessageCursorPagination
+from planpals.shared.paginators import ChatMessageCursorPagination
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -212,7 +212,6 @@ class ConversationViewSet(viewsets.GenericViewSet,
                          mixins.CreateModelMixin):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = StandardResultsPagination
     
     def get_queryset(self):
         return ConversationService.get_user_conversations(self.request.user)
@@ -227,7 +226,10 @@ class ConversationViewSet(viewsets.GenericViewSet,
             conversations = self.get_queryset()
             
         serializer = self.get_serializer(conversations, many=True)
-        return Response({'conversations': serializer.data})
+        return Response({
+            'conversations': serializer.data,
+            'count': len(serializer.data),
+        })
     
     
     @action(detail=False, methods=['post'])
@@ -296,15 +298,6 @@ class ConversationViewSet(viewsets.GenericViewSet,
                 many=True, 
                 context={'request': request}
             )
-            
-            if not before_id and serializer.data:  # Only on first load, not pagination
-                message_ids = [msg['id'] for msg in serializer.data if msg['sender']['id'] != str(request.user.id)]
-                if message_ids:
-                    ConversationService.mark_messages_read(
-                        user=request.user,
-                        conversation_id=str(conversation.id),
-                        message_ids=message_ids
-                    )
             
             return Response({
                 'messages': serializer.data,

@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
 from datetime import datetime
@@ -93,6 +94,9 @@ class PlanViewSet(viewsets.ModelViewSet):
             raise DRFValidationError(str(e))
 
         serializer.instance = updated
+
+    def perform_destroy(self, instance):
+        PlanService.delete_plan(instance, user=self.request.user)
     
     
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
@@ -116,19 +120,31 @@ class PlanViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, CanAccessPlan])
     def activities_by_date(self, request, pk=None):
         plan = self.get_object()
-        
-        activities_by_date = plan.activities_by_date
-        
-        result = {}
-        for date, activities in activities_by_date.items():
-            result[date.isoformat()] = PlanActivitySerializer(
-                activities, many=True, context={'request': request}
-            ).data
-        
+
+        date_value = request.query_params.get('date')
+        if not date_value:
+            return Response(
+                {'error': 'date query parameter is required (YYYY-MM-DD)'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_date = parse_date(date_value)
+        if target_date is None:
+            return Response(
+                {'error': 'Invalid date format. Use YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        activities = plan.get_activities_by_date(target_date)
+        serializer = PlanActivitySerializer(
+            activities, many=True, context={'request': request}
+        )
+
         return Response({
-            'activities_by_date': result,
+            'date': target_date.isoformat(),
             'plan_id': str(plan.id),
-            'total_activities': plan.activities_count
+            'activities': serializer.data,
+            'count': len(serializer.data),
         })
         
     

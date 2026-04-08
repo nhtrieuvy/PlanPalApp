@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import '../services/apis.dart';
+import '../services/api_error.dart';
 import '../dtos/conversation.dart';
 import '../dtos/chat_message.dart';
 import '../auth/auth_session.dart';
@@ -10,6 +11,8 @@ class ConversationRepository {
   final AuthProvider auth;
 
   ConversationRepository(this.auth);
+
+  String? get currentUserId => auth.user?.id;
 
   /// Get all conversations for current user
   /// If [query] is provided, backend will perform search server-side and
@@ -22,34 +25,11 @@ class ConversationRepository {
         if (query != null && query.isNotEmpty) params['q'] = query;
         return c.dio.get(Endpoints.conversations, queryParameters: params);
       });
-
-      final data = res.data;
-      // Normalize different possible response shapes
-      if (data is Map<String, dynamic>) {
-        if (data.containsKey('conversations')) {
-          return ConversationsResponse.fromJson(
-            Map<String, dynamic>.from(data),
-          );
-        }
-        if (data.containsKey('results')) {
-          // Some endpoints return 'results' key
-          return ConversationsResponse.fromJson({
-            'conversations': data['results'],
-          });
-        }
-        // Fallback: wrap whole map as single conversation list if possible
-        if (data['conversations'] is List) {
-          return ConversationsResponse.fromJson(
-            Map<String, dynamic>.from(data),
-          );
-        }
-      } else if (data is List) {
-        return ConversationsResponse.fromJson({
-          'conversations': List<dynamic>.from(data),
-        });
+      if (res.data is! Map || (res.data as Map)['conversations'] is! List) {
+        throw const ConversationException(
+          'Unexpected conversations response format.',
+        );
       }
-
-      // If none matched, attempt direct parsing (may throw)
       return ConversationsResponse.fromJson(
         Map<String, dynamic>.from(res.data as Map),
       );
@@ -277,34 +257,9 @@ class ConversationRepository {
   /// Handle Dio exceptions and convert to appropriate errors
   Exception _handleDioException(DioException e) {
     if (e.response != null) {
-      final statusCode = e.response!.statusCode;
-      final data = e.response!.data;
-
-      String errorMessage = 'Unknown error occurred';
-      if (data is Map<String, dynamic> && data.containsKey('error')) {
-        errorMessage = data['error'] as String;
-      } else if (data is Map<String, dynamic> && data.containsKey('detail')) {
-        errorMessage = data['detail'] as String;
-      }
-
-      switch (statusCode) {
-        case 400:
-          return BadRequestException(errorMessage);
-        case 401:
-          return UnauthorizedException(errorMessage);
-        case 403:
-          return ForbiddenException(errorMessage);
-        case 404:
-          return NotFoundException(errorMessage);
-        case 500:
-          return ServerException(errorMessage);
-        default:
-          return ApiException(errorMessage, statusCode);
-      }
-    } else {
-      // Network error
-      return NetworkException('Network error: ${e.message}');
+      return buildApiException(e.response!);
     }
+    return const NetworkException('Khong the ket noi may chu.');
   }
 }
 
@@ -314,37 +269,9 @@ class ConversationException implements Exception {
   const ConversationException(this.message);
 
   @override
-  String toString() => 'ConversationException: $message';
-}
-
-class BadRequestException extends ConversationException {
-  const BadRequestException(super.message);
-}
-
-class UnauthorizedException extends ConversationException {
-  const UnauthorizedException(super.message);
-}
-
-class ForbiddenException extends ConversationException {
-  const ForbiddenException(super.message);
-}
-
-class NotFoundException extends ConversationException {
-  const NotFoundException(super.message);
-}
-
-class ServerException extends ConversationException {
-  const ServerException(super.message);
+  String toString() => message;
 }
 
 class NetworkException extends ConversationException {
   const NetworkException(super.message);
-}
-
-class ApiException extends ConversationException {
-  final int? statusCode;
-  const ApiException(super.message, this.statusCode);
-
-  @override
-  String toString() => 'ApiException($statusCode): $message';
 }

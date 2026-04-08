@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:planpal_flutter/core/services/error_display_service.dart';
 import '../../../core/dtos/plan_summary.dart';
 import '../../../core/riverpod/plans_notifier.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
@@ -125,7 +126,7 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
     return plansAsync.when(
       loading: () => const AppSkeleton.list(itemCount: 6),
       error: (error, _) => AppError(
-        message: error.toString(),
+        message: ErrorDisplayService.getUserFriendlyMessage(error),
         onRetry: () => ref.refresh(plansNotifierProvider),
         retryLabel: 'Thử lại',
       ),

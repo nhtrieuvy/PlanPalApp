@@ -77,10 +77,13 @@ class BaseRealtimeConsumer(AsyncWebsocketConsumer):
             
     async def track_connection(self, connected: bool):
         cache_key = f"ws_connected:{self.user.id}"
-        if connected:
-            cache.set(cache_key, True, timeout=300)  # 5 minutes
-        else:
-            cache.delete(cache_key)
+        try:
+            if connected:
+                cache.set(cache_key, True, timeout=300)  # 5 minutes
+            else:
+                cache.delete(cache_key)
+        except Exception as e:
+            logger.warning("Failed to update websocket connection cache for %s: %s", self.user.id, e)
             
     async def on_connect(self):
         """Called after successful connection"""

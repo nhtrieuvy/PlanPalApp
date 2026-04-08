@@ -9,9 +9,12 @@ from planpals.auth.presentation.views import (
     OAuth2LogoutView, UserViewSet,
     FriendRequestView, FriendRequestListView, FriendRequestActionView, FriendsListView,
 )
+from planpals.audit.presentation.views import AuditLogViewSet
 from planpals.plans.presentation.views import PlanViewSet, PlanActivityViewSet
 from planpals.groups.presentation.views import GroupViewSet
 from planpals.chat.presentation.views import ChatMessageViewSet, ConversationViewSet
+from planpals.notifications.presentation.views import NotificationViewSet
+from planpals.analytics.presentation.views import AnalyticsViewSet
 from planpals.locations.presentation.views import (
     LocationReverseGeocodeView, LocationSearchView, LocationAutocompleteView, LocationPlaceDetailsView,
 )
@@ -26,6 +29,9 @@ router.register(r'plans', PlanViewSet, basename='plan')  # FIXED - ModelViewSet 
 router.register(r'messages', ChatMessageViewSet, basename='chatmessage')
 router.register(r'conversations', ConversationViewSet, basename='conversation')
 router.register(r'activities', PlanActivityViewSet, basename='planactivity')
+router.register(r'audit-logs', AuditLogViewSet, basename='audit-log')
+router.register(r'notifications', NotificationViewSet, basename='notification')
+router.register(r'analytics', AnalyticsViewSet, basename='analytics')
 
 urlpatterns = [
     # OAuth2 Authentication endpoints

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/riverpod/conversation_providers.dart';
 import '../../../core/dtos/conversation.dart';
+import '../../../core/services/error_display_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/common/custom_search_bar.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
@@ -144,7 +145,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
       final searchAsync = ref.watch(conversationSearchProvider(_searchQuery));
       return searchAsync.when(
         loading: () => const AppSkeleton.list(itemCount: 5),
-        error: (error, _) => _buildErrorState(theme, error.toString()),
+        error: (error, _) => _buildErrorState(theme, _formatError(error)),
         data: (results) {
           var filtered = results;
           if (_showOnlineOnly) {
@@ -160,7 +161,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
 
     return conversationsAsync.when(
       loading: () => const AppSkeleton.list(itemCount: 6),
-      error: (error, _) => _buildErrorState(theme, error.toString()),
+      error: (error, _) => _buildErrorState(theme, _formatError(error)),
       data: (conversations) {
         var filtered = conversations;
         if (_showOnlineOnly) {
@@ -383,6 +384,10 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
       onRetry: onRefresh,
       retryLabel: 'Retry',
     );
+  }
+
+  String _formatError(Object error) {
+    return ErrorDisplayService.getUserFriendlyMessage(error);
   }
 
   Widget _buildEmptyState() {

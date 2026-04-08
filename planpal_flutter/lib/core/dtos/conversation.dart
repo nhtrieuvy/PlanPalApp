@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart';
 import 'user_summary.dart';
 import 'group_summary.dart';
 import 'chat_message.dart';
@@ -35,13 +36,11 @@ class OtherParticipant extends Equatable {
 
   factory OtherParticipant.fromJson(Map<String, dynamic> json) {
     return OtherParticipant(
-      id: json['id'] as String,
-      username: json['username'] as String,
+      id: json['id']?.toString() ?? '',
+      username: json['username']?.toString() ?? '',
       fullName: (json['full_name'] as String?) ?? '',
-      isOnline: json['is_online'] as bool,
-      lastSeen: json['last_seen'] != null
-          ? DateTime.parse(json['last_seen'] as String)
-          : null,
+      isOnline: json['is_online'] == true,
+      lastSeen: parseServerDateTime(json['last_seen']),
     );
   }
 
@@ -61,7 +60,7 @@ class OtherParticipant extends Equatable {
 
 /// Last message preview for conversation list
 class LastMessage extends Equatable {
-  final String id;
+  final String? id;
   final String content;
   final MessageType messageType;
   final String sender;
@@ -77,13 +76,13 @@ class LastMessage extends Equatable {
 
   factory LastMessage.fromJson(Map<String, dynamic> json) {
     return LastMessage(
-      id: json['id'] as String,
+      id: json['id']?.toString(),
       content: (json['content'] as String?) ?? '',
       messageType: MessageType.fromString(
         (json['message_type'] as String?) ?? 'text',
       ),
       sender: (json['sender'] as String?) ?? '',
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
     );
   }
 
@@ -153,7 +152,7 @@ class Conversation extends Equatable {
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
     return Conversation(
-      id: json['id'] as String,
+      id: json['id']?.toString() ?? '',
       conversationType: ConversationType.fromString(
         (json['conversation_type'] as String?) ?? 'direct',
       ),
@@ -170,16 +169,14 @@ class Conversation extends Equatable {
               )
               .toList() ??
           [],
-      lastMessageAt: json['last_message_at'] != null
-          ? DateTime.parse(json['last_message_at'] as String)
-          : null,
+      lastMessageAt: parseServerDateTime(json['last_message_at']),
       isActive: (json['is_active'] as bool?) ?? true,
       unreadCount: (json['unread_count'] as int?) ?? 0,
       lastMessage: json['last_message'] != null
           ? LastMessage.fromJson(json['last_message'] as Map<String, dynamic>)
           : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
+      updatedAt: parseServerDateTime(json['updated_at']) ?? DateTime.now(),
       otherParticipant: json['other_participant'] != null
           ? OtherParticipant.fromJson(
               json['other_participant'] as Map<String, dynamic>,

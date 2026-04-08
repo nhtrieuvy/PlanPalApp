@@ -11,6 +11,7 @@ from planpals.groups.application.commands import (
     RemoveMemberCommand,
     JoinGroupCommand,
     LeaveGroupCommand,
+    DeleteGroupCommand,
     PromoteMemberCommand,
     DemoteMemberCommand,
 )
@@ -104,6 +105,17 @@ class GroupService(BaseService):
         handler.handle(cmd)
         cls._invalidate_group_cache(group.id)
         return True, "Left group successfully"
+
+    @classmethod
+    def delete_group(cls, group, user) -> bool:
+        cmd = DeleteGroupCommand(
+            group_id=group.id,
+            user_id=user.id,
+        )
+        handler = group_factories.get_delete_group_handler()
+        deleted = handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return deleted
     
     @classmethod
     def can_manage_members(cls, group, user) -> bool:
@@ -139,6 +151,15 @@ class GroupService(BaseService):
         handler.handle(cmd)
         cls._invalidate_group_cache(group.id)
         return True, "Member demoted successfully"
+
+    @classmethod
+    def change_member_role(cls, group, target_user, role: str, actor) -> Tuple[bool, str]:
+        normalized_role = (role or '').strip().lower()
+        if normalized_role == 'admin':
+            return cls.promote_member(group, target_user, actor)
+        if normalized_role == 'member':
+            return cls.demote_member(group, target_user, actor)
+        raise ValueError("role must be either 'admin' or 'member'")
     
     @classmethod
     def search_user_groups(cls, user, query: str):        

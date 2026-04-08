@@ -175,7 +175,9 @@ class NotificationService(BaseService):
     def _cleanup_invalid_token(self, token: str):
         """Remove invalid token from database"""
         try:
+            from planpals.notifications.infrastructure.models import UserDeviceToken
             from ..models import User
+            UserDeviceToken.objects.filter(token=token).update(is_active=False)
             User.objects.filter(fcm_token=token).update(fcm_token=None)
             logger.info(f"Cleaned up invalid FCM token: {token[:10]}...")
         except Exception as e:
@@ -192,15 +194,21 @@ class NotificationService(BaseService):
                               data: Optional[Dict[str, Any]] = None) -> bool:
         """Send notification to all group members"""
         from ..models import Group
+        from planpals.notifications.infrastructure.models import UserDeviceToken
         
         try:
             group = Group.objects.prefetch_related('members').get(id=group_id)
-            members = group.members.exclude(fcm_token__isnull=True).exclude(fcm_token='')
+            member_ids = group.members.values_list('id', flat=True)
             
             if exclude_user_id:
-                members = members.exclude(id=exclude_user_id)
+                member_ids = member_ids.exclude(id=exclude_user_id)
             
-            fcm_tokens = list(members.values_list('fcm_token', flat=True))
+            fcm_tokens = list(
+                UserDeviceToken.objects.filter(
+                    user_id__in=member_ids,
+                    is_active=True,
+                ).values_list('token', flat=True)
+            )
             
             if not fcm_tokens:
                 logger.info(f"No FCM tokens found for group {group_id}")
@@ -227,11 +235,16 @@ class NotificationService(BaseService):
     def send_user_notification(self, user_id: str, title: str, body: str,
                              data: Optional[Dict[str, Any]] = None) -> bool:
         """Send notification to specific user"""
-        from ..models import User
+        from planpals.notifications.infrastructure.models import UserDeviceToken
         
         try:
-            user = User.objects.get(id=user_id)
-            if not user.fcm_token:
+            fcm_tokens = list(
+                UserDeviceToken.objects.filter(
+                    user_id=user_id,
+                    is_active=True,
+                ).values_list('token', flat=True)
+            )
+            if not fcm_tokens:
                 logger.info(f"User {user_id} has no FCM token")
                 return True
             
@@ -243,7 +256,7 @@ class NotificationService(BaseService):
             notification_data = data or {}
             notification_data.update({'user_id': user_id})
             
-            success = self.send_push_notification([user.fcm_token], title, body, notification_data)
+            success = self.send_push_notification(fcm_tokens, title, body, notification_data)
             logger.info(f"User notification sent to {user_id}: {success}")
             return success
             

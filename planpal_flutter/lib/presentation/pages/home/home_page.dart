@@ -11,6 +11,7 @@ import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart'
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 import 'package:planpal_flutter/presentation/pages/friends/friend_search_page.dart';
 import 'package:planpal_flutter/presentation/pages/chat/conversation_list_page.dart';
+import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../shared/ui_states/ui_states.dart';
 
@@ -39,6 +40,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     ref.invalidate(plansNotifierProvider);
     ref.invalidate(groupsNotifierProvider);
     ref.invalidate(conversationListProvider);
+    ref.invalidate(unreadCountProvider);
   }
 
   Future<void> _handleQuickCreatePlan() async {
@@ -141,6 +143,26 @@ class _HomeContentState extends ConsumerState<_HomeContent>
         ),
       ),
       actions: [
+        Consumer(
+          builder: (context, ref, child) {
+            final unreadCount = ref.watch(unreadCountProvider).valueOrNull ?? 0;
+            return IconButton(
+              icon: _buildNotificationBadge(
+                child: const Icon(
+                  Icons.notifications_none,
+                  color: Colors.white,
+                ),
+                count: unreadCount,
+                badgeColor: AppColors.error,
+              ),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const NotificationListPage(),
+                ),
+              ),
+            );
+          },
+        ),
         Consumer(
           builder: (context, ref, child) {
             final isDark = ref.watch(isDarkModeProvider);
@@ -291,6 +313,30 @@ class _HomeContentState extends ConsumerState<_HomeContent>
   Widget _buildDrawerMenuItems(BuildContext context) {
     return Column(
       children: [
+        Consumer(
+          builder: (context, ref, child) {
+            final unreadCount = ref.watch(unreadCountProvider).valueOrNull ?? 0;
+
+            return ListTile(
+              leading: _buildNotificationBadge(
+                child: const Icon(Icons.notifications_outlined),
+                count: unreadCount,
+                badgeColor: AppColors.primary,
+              ),
+              title: const Text('Notifications'),
+              onTap: () async {
+                Navigator.of(context).pop();
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationListPage(),
+                  ),
+                );
+                if (!mounted) return;
+                ref.invalidate(unreadCountProvider);
+              },
+            );
+          },
+        ),
         // Chat functionality with unread count badge
         Consumer(
           builder: (context, ref, child) {
@@ -334,6 +380,15 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             Navigator.of(context).pushNamed('/plan');
           },
         ),
+        if ((ref.read(authNotifierProvider).user?.isStaff ?? false))
+          ListTile(
+            leading: const Icon(Icons.insights),
+            title: const Text('Analytics'),
+            onTap: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pushNamed('/analytics');
+            },
+          ),
         // Profile
         ListTile(
           leading: const Icon(Icons.person),

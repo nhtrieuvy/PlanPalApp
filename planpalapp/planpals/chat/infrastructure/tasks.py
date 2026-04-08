@@ -68,19 +68,24 @@ def fanout_chat_push_notification_task(
     try:
         from planpals.models import Conversation
         from planpals.integrations.notification_service import NotificationService
+        from planpals.notifications.infrastructure.models import UserDeviceToken
 
         # --- Build notification text -----------------------------------------
         title = _build_chat_title(sender_name, conversation_type, group_name)
         body = _build_chat_body(content_preview, message_type)
 
         # --- Resolve FCM tokens in ONE query ---------------------------------
-        fcm_tokens = list(
+        participant_ids = list(
             Conversation.objects.get(id=conversation_id)
             .participants
             .exclude(id=sender_id)
-            .exclude(fcm_token__isnull=True)
-            .exclude(fcm_token='')
-            .values_list('fcm_token', flat=True)
+            .values_list('id', flat=True)
+        )
+        fcm_tokens = list(
+            UserDeviceToken.objects.filter(
+                user_id__in=participant_ids,
+                is_active=True,
+            ).values_list('token', flat=True)
         )
 
         if not fcm_tokens:

@@ -9,12 +9,13 @@ from uuid import UUID
 
 from django.db import transaction
 
+from planpals.audit.domain.entities import AuditAction, AuditResourceType
 from planpals.shared.interfaces import BaseCommandHandler, DomainEventPublisher
 from planpals.groups.domain.repositories import GroupRepository, GroupMembershipRepository
 from planpals.groups.domain.events import GroupMemberAdded, GroupMemberRemoved, GroupRoleChanged
 from planpals.groups.application.commands import (
     CreateGroupCommand, UpdateGroupCommand, AddMemberCommand, RemoveMemberCommand,
-    JoinGroupCommand, LeaveGroupCommand,
+    JoinGroupCommand, LeaveGroupCommand, DeleteGroupCommand,
     PromoteMemberCommand, DemoteMemberCommand,
 )
 from planpals.shared.domain_exceptions import (
@@ -218,10 +219,12 @@ class JoinGroupHandler(BaseCommandHandler[JoinGroupCommand, Any]):
         group_repo: GroupRepository,
         membership_repo: GroupMembershipRepository,
         event_publisher: DomainEventPublisher,
+        audit_service=None,
     ):
         self.group_repo = group_repo
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: JoinGroupCommand) -> Any:
@@ -244,6 +247,18 @@ class JoinGroupHandler(BaseCommandHandler[JoinGroupCommand, Any]):
             group_name=group.name,
         ))
 
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.JOIN_GROUP.value,
+                resource_type=AuditResourceType.GROUP.value,
+                resource_id=group.id,
+                metadata={
+                    'group_name': group.name,
+                    'role': 'member',
+                },
+            )
+
         return membership
 
 
@@ -252,19 +267,28 @@ class LeaveGroupHandler(BaseCommandHandler[LeaveGroupCommand, bool]):
 
     def __init__(
         self,
+        group_repo: GroupRepository,
         membership_repo: GroupMembershipRepository,
         event_publisher: DomainEventPublisher,
+        audit_service=None,
     ):
+        self.group_repo = group_repo
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: LeaveGroupCommand) -> bool:
+        group = self.group_repo.get_by_id(command.group_id)
+        if not group:
+            raise GroupNotFoundException()
+
         if not self.membership_repo.is_member(command.group_id, command.user_id):
             raise NotGroupMemberException()
 
         # Business rule: last admin cannot leave
-        if self.membership_repo.is_admin(command.group_id, command.user_id):
+        role = self.membership_repo.get_role(command.group_id, command.user_id)
+        if role == 'admin':
             admin_count = self.membership_repo.get_admin_count(command.group_id)
             if admin_count <= 1:
                 raise LastAdminException()
@@ -277,6 +301,18 @@ class LeaveGroupHandler(BaseCommandHandler[LeaveGroupCommand, bool]):
             username='',
         ))
 
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.LEAVE_GROUP.value,
+                resource_type=AuditResourceType.GROUP.value,
+                resource_id=command.group_id,
+                metadata={
+                    'group_name': group.name,
+                    'role': role,
+                },
+            )
+
         return True
 
 
@@ -286,9 +322,11 @@ class PromoteMemberHandler(BaseCommandHandler[PromoteMemberCommand, bool]):
         self,
         membership_repo: GroupMembershipRepository,
         event_publisher: DomainEventPublisher,
+        audit_service=None,
     ):
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: PromoteMemberCommand) -> bool:
@@ -298,6 +336,7 @@ class PromoteMemberHandler(BaseCommandHandler[PromoteMemberCommand, bool]):
         if not self.membership_repo.is_member(command.group_id, command.target_user_id):
             raise NotGroupMemberException()
 
+        previous_role = self.membership_repo.get_role(command.group_id, command.target_user_id)
         self.membership_repo.set_role(command.group_id, command.target_user_id, 'admin')
 
         self.event_publisher.publish(GroupRoleChanged(
@@ -306,6 +345,19 @@ class PromoteMemberHandler(BaseCommandHandler[PromoteMemberCommand, bool]):
             username='',
             new_role='admin',
         ))
+
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.CHANGE_ROLE.value,
+                resource_type=AuditResourceType.GROUP.value,
+                resource_id=command.group_id,
+                metadata={
+                    'target_user_id': command.target_user_id,
+                    'previous_role': previous_role,
+                    'new_role': 'admin',
+                },
+            )
 
         return True
 
@@ -316,9 +368,11 @@ class DemoteMemberHandler(BaseCommandHandler[DemoteMemberCommand, bool]):
         self,
         membership_repo: GroupMembershipRepository,
         event_publisher: DomainEventPublisher,
+        audit_service=None,
     ):
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: DemoteMemberCommand) -> bool:
@@ -332,6 +386,7 @@ class DemoteMemberHandler(BaseCommandHandler[DemoteMemberCommand, bool]):
         ):
             raise LastAdminException()
 
+        previous_role = self.membership_repo.get_role(command.group_id, command.target_user_id)
         self.membership_repo.set_role(command.group_id, command.target_user_id, 'member')
 
         self.event_publisher.publish(GroupRoleChanged(
@@ -341,4 +396,59 @@ class DemoteMemberHandler(BaseCommandHandler[DemoteMemberCommand, bool]):
             new_role='member',
         ))
 
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.CHANGE_ROLE.value,
+                resource_type=AuditResourceType.GROUP.value,
+                resource_id=command.group_id,
+                metadata={
+                    'target_user_id': command.target_user_id,
+                    'previous_role': previous_role,
+                    'new_role': 'member',
+                },
+            )
+
         return True
+
+
+class DeleteGroupHandler(BaseCommandHandler[DeleteGroupCommand, bool]):
+
+    def __init__(
+        self,
+        group_repo: GroupRepository,
+        membership_repo: GroupMembershipRepository,
+        audit_service=None,
+    ):
+        self.group_repo = group_repo
+        self.membership_repo = membership_repo
+        self.audit_service = audit_service
+
+    @transaction.atomic
+    def handle(self, command: DeleteGroupCommand) -> bool:
+        group = self.group_repo.get_by_id(command.group_id)
+        if not group:
+            raise GroupNotFoundException()
+
+        if str(group.admin_id) != str(command.user_id):
+            raise NotGroupAdminException()
+
+        deletion_metadata = {
+            'group_name': group.name,
+            'admin_id': group.admin_id,
+            'member_count': group.member_count,
+            'plans_count': group.plans_count,
+            'member_ids': list(group.members.values_list('id', flat=True)),
+        }
+        deleted = self.group_repo.delete(command.group_id)
+
+        if deleted and self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.DELETE_GROUP.value,
+                resource_type=AuditResourceType.GROUP.value,
+                resource_id=command.group_id,
+                metadata=deletion_metadata,
+            )
+
+        return deleted

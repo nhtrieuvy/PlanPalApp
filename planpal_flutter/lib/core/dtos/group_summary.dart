@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart';
 
 bool _isValidImageUrl(String? url) {
   if (url == null || url.isEmpty) return false;
@@ -40,9 +41,7 @@ class GroupSummary extends Equatable {
       description: json['description']?.toString(),
       memberCount: json['member_count']?.toInt() ?? 0,
       avatarUrl: validatedAvatarUrl,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'].toString())
-          : DateTime.now(),
+      createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
       initials: json['initials']?.toString() ?? 'G',
     );
   }

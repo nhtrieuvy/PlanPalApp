@@ -37,6 +37,13 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-for-developme
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.lower() in ('true', '1', 'yes', 'on')
+
 ALLOWED_HOSTS = os.getenv(
     'ALLOWED_HOSTS',
     '10.0.2.2,localhost,127.0.0.1,192.168.1.41,planpal-backend.fly.dev'
@@ -408,7 +415,11 @@ CLIENT_ID = os.getenv('CLIENT_ID')
 # CELERY SETTINGS
 # ============================================================================
 # Redis local trong container khi deploy, localhost khi dev
-CELERY_REDIS_URL = 'redis://127.0.0.1:6379/0'
+CELERY_REDIS_URL = os.getenv('CELERY_REDIS_URL')
+CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL')
+CHANNEL_REDIS_URL = os.getenv('CHANNEL_REDIS_URL') or CELERY_REDIS_URL
+USE_REDIS_CACHE = _env_flag('USE_REDIS_CACHE', default=bool(CACHE_REDIS_URL))
+USE_REDIS_CHANNELS = _env_flag('USE_REDIS_CHANNELS', default=bool(CHANNEL_REDIS_URL))
 
 # ============================================================================
 # DJANGO CACHE (Redis via django-redis)
@@ -425,6 +436,27 @@ CACHES = {
     }
 }
 
+if USE_REDIS_CACHE and CACHE_REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': CACHE_REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            },
+            'KEY_PREFIX': 'planpal',
+            'TIMEOUT': 300,
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'planpal-local-cache',
+            'TIMEOUT': 300,
+        }
+    }
+
 # TIME_ZONE and USE_TZ are already configured above in Internationalization section
 
 CELERY_TIMEZONE = 'Asia/Ho_Chi_Minh'
@@ -435,8 +467,12 @@ CELERY_ACCEPT_CONTENT = ['json']
 
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-CELERY_BROKER_URL = CELERY_REDIS_URL
-CELERY_RESULT_BACKEND = CELERY_REDIS_URL
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL') or CELERY_REDIS_URL or 'memory://'
+CELERY_RESULT_BACKEND = (
+    os.getenv('CELERY_RESULT_BACKEND')
+    or CELERY_REDIS_URL
+    or 'cache+memory://'
+)
 
 # ---------------------------------------------------------------------------
 # Queue Architecture — 4 priority queues
@@ -470,10 +506,14 @@ CELERY_TASK_ROUTES = {
     # Push notifications → high_priority
     'planpals.shared.tasks.send_push_notification_task': {'queue': 'high_priority'},
     'planpals.shared.tasks.send_event_push_notification_task': {'queue': 'high_priority'},
+    'planpals.notifications.infrastructure.tasks.send_notification_task': {'queue': 'high_priority'},
+    'planpals.notifications.infrastructure.tasks.fanout_group_notification_task': {'queue': 'high_priority'},
+    'planpals.notifications.infrastructure.tasks.process_audit_log_notification_task': {'queue': 'high_priority'},
     # Chat fan-out → high_priority
     'planpals.chat.infrastructure.tasks.fanout_chat_push_notification_task': {'queue': 'high_priority'},
     # Analytics / periodic → low_priority
-    'planpals.shared.analytics_tasks.aggregate_daily_statistics_task': {'queue': 'low_priority'},
+    'planpals.analytics.infrastructure.tasks.aggregate_daily_metrics_task': {'queue': 'low_priority'},
+    'planpals.notifications.infrastructure.tasks.dispatch_plan_reminders_task': {'queue': 'low_priority'},
     'planpals.shared.analytics_tasks.cleanup_expired_offline_events_task': {'queue': 'low_priority'},
     'planpals.shared.analytics_tasks.cleanup_invalid_fcm_tokens_task': {'queue': 'low_priority'},
 }
@@ -510,9 +550,9 @@ CELERY_TASK_DEFAULT_RATE_LIMIT = '100/m'   # 100 tasks/min default
 from celery.schedules import crontab  # noqa: E402
 
 CELERY_BEAT_SCHEDULE = {
-    'aggregate-daily-statistics': {
-        'task': 'planpals.shared.analytics_tasks.aggregate_daily_statistics_task',
-        'schedule': crontab(hour=2, minute=0),   # Every day at 02:00 AM
+    'aggregate-daily-metrics': {
+        'task': 'planpals.analytics.infrastructure.tasks.aggregate_daily_metrics_task',
+        'schedule': crontab(hour=2, minute=15),   # Every day at 02:15 AM
     },
     'cleanup-expired-offline-events': {
         'task': 'planpals.shared.analytics_tasks.cleanup_expired_offline_events_task',
@@ -522,6 +562,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'planpals.shared.analytics_tasks.cleanup_invalid_fcm_tokens_task',
         'schedule': crontab(hour=4, minute=0, day_of_week=0),  # Weekly Sunday 04:00
     },
+    'dispatch-plan-reminders': {
+        'task': 'planpals.notifications.infrastructure.tasks.dispatch_plan_reminders_task',
+        'schedule': crontab(minute=0),  # Every hour
+    },
 }
 
 # ============================================================================
@@ -530,13 +574,19 @@ CELERY_BEAT_SCHEDULE = {
 ASGI_APPLICATION = 'planpalapp.asgi.application'
 
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [CELERY_REDIS_URL],
-            'capacity': 1500,  # Maximum number of messages in queue
-            'expiry': 60,      # Message expiry time in seconds
-            'symmetric_encryption_keys': [SECRET_KEY],  # For message encryption
-        },
-    },
+    'default': (
+        {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [CHANNEL_REDIS_URL],
+                'capacity': 1500,
+                'expiry': 60,
+                'symmetric_encryption_keys': [SECRET_KEY],
+            },
+        }
+        if USE_REDIS_CHANNELS and CHANNEL_REDIS_URL
+        else {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
+    ),
 }

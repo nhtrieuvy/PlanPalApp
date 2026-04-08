@@ -38,6 +38,12 @@ class UserService(BaseService):
         cache_svc = auth_factories.get_cache_service()
         key = CacheKeys.user_profile(user_id)
 
+        cached_value = cache_svc.get(key)
+        if isinstance(cached_value, dict) and 'is_staff' in cached_value:
+            return cached_value
+        if cached_value is not None:
+            cache_svc.delete(key)
+
         def compute():
             user = auth_factories.get_user_repo().get_by_id_with_counts(user_id)
             if not user:
@@ -83,6 +89,7 @@ class UserService(BaseService):
             'unread_messages_count': getattr(user, 'unread_messages_count', 0),
             'date_joined': user.date_joined.isoformat() if user.date_joined else None,
             'is_active': user.is_active,
+            'is_staff': getattr(user, 'is_staff', False),
         }
     
     @classmethod

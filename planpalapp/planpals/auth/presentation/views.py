@@ -111,18 +111,22 @@ class UserViewSet(viewsets.GenericViewSet,
         Expected payload: { "fcm_token": "<token>", "platform": "android" }
         """
         from planpals.auth.presentation.serializers import FCMTokenSerializer
-        from planpals.auth.application.commands import UpdateFCMTokenCommand
-        from planpals.auth.application import factories as auth_factories
+        from planpals.notifications.application.factories import (
+            get_notification_service,
+        )
 
         serializer = FCMTokenSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         fcm_token = serializer.validated_data.get('fcm_token')
+        platform = serializer.validated_data.get('platform', 'android')
         try:
-            cmd = UpdateFCMTokenCommand(user_id=request.user.id, fcm_token=fcm_token)
-            handler = auth_factories.get_update_fcm_token_handler()
-            handler.handle(cmd)
+            get_notification_service().register_device_token(
+                user_id=request.user.id,
+                token=fcm_token,
+                platform=platform,
+            )
             return Response({'message': 'FCM token registered successfully'})
         except Exception as e:
             logger.error(f"Failed to register fcm token for user {request.user.id}: {e}")

@@ -14,6 +14,7 @@ import '../../../core/dtos/group_requests.dart';
 import '../../../core/dtos/conversation.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../../widgets/audit/audit_log_list.dart';
 import '../../../shared/ui_states/ui_states.dart';
 import '../../../shared/widgets/widgets.dart';
 import 'plan_form_page.dart';
@@ -381,6 +382,12 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               _buildMembersCard(membersCount, members),
               const SizedBox(height: 16),
               _buildPlansCard(g),
+              const SizedBox(height: 16),
+              AuditLogList(
+                title: 'Group Audit Log',
+                resourceType: 'group',
+                resourceId: g.id,
+              ),
               const SizedBox(height: 24),
               _buildActionButtons(context, g),
               const SizedBox(height: 100), // Extra space for scrolling

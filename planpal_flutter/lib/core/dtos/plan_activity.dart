@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart';
 
 double? _parseNullableDouble(dynamic v) {
   if (v == null) return null;
@@ -66,13 +67,8 @@ class PlanActivity extends Equatable {
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString(),
       activityType: json['activity_type']?.toString() ?? '',
-      // Parse datetime from backend (UTC) and convert to local time for display
-      startTime: json['start_time'] != null
-          ? DateTime.tryParse(json['start_time'].toString())?.toLocal()
-          : null,
-      endTime: json['end_time'] != null
-          ? DateTime.tryParse(json['end_time'].toString())?.toLocal()
-          : null,
+      startTime: parseServerDateTime(json['start_time']),
+      endTime: parseServerDateTime(json['end_time']),
       durationMinutes: json['duration_minutes']?.toInt(),
       locationName: json['location_name']?.toString(),
       locationAddress: json['location_address']?.toString(),
@@ -91,12 +87,8 @@ class PlanActivity extends Equatable {
       hasLocation:
           json['has_location'] == true ||
           (json['latitude'] != null && json['longitude'] != null),
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'].toString())
-          : DateTime.now(),
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'].toString())
-          : DateTime.now(),
+      createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
+      updatedAt: parseServerDateTime(json['updated_at']) ?? DateTime.now(),
       durationDisplay:
           json['duration_display']?.toString() ??
           _formatDuration(json['duration_minutes']?.toInt()),

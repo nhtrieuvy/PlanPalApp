@@ -58,6 +58,12 @@ class LeaveGroupCommand(BaseCommand):
 
 
 @dataclass(frozen=True)
+class DeleteGroupCommand(BaseCommand):
+    group_id: UUID
+    user_id: UUID
+
+
+@dataclass(frozen=True)
 class PromoteMemberCommand(BaseCommand):
     group_id: UUID
     user_id: UUID  # admin performing the action

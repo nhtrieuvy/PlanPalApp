@@ -144,13 +144,16 @@ class PlanRepository {
       );
 
       if (res.statusCode == 200) {
-        // Activities by date might return different structure, check if it's activities array
-        if (res.data is List) {
-          return res.data;
-        } else if (res.data is Map<String, dynamic>) {
-          return res.data['activities'] ?? res.data['results'] ?? [];
+        if (res.data is Map<String, dynamic>) {
+          return List<dynamic>.from(
+            (res.data as Map<String, dynamic>)['activities']
+                    as List<dynamic>? ??
+                const <dynamic>[],
+          );
         }
-        return [];
+        throw const FormatException(
+          'Unexpected activities_by_date response format.',
+        );
       }
       throw buildApiException(res);
     } on DioException catch (e) {

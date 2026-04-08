@@ -100,6 +100,21 @@ class PlanService(BaseService):
 
         plan = plan_factories.get_plan_repo().refresh(plan)
         return plan
+
+    @classmethod
+    def delete_plan(cls, plan, user) -> bool:
+        cmd = DeletePlanCommand(
+            plan_id=plan.id,
+            user_id=user.id,
+        )
+        handler = plan_factories.get_delete_plan_handler()
+        deleted = handler.handle(cmd)
+        cls._invalidate_plan_cache(plan.id)
+        cls.log_operation("plan_deleted", {
+            'plan_id': str(plan.id),
+            'deleted_by': str(user.id),
+        })
+        return deleted
     
     @classmethod
     def add_activity_to_plan(cls, plan, user, activity_data: Dict[str, Any]):
@@ -249,7 +264,28 @@ class PlanService(BaseService):
             'forced': force,
             'timestamp': now.isoformat()
         })
-        
+
+        try:
+            from planpals.audit.application.factories import get_audit_log_service
+            from planpals.audit.domain.entities import AuditAction, AuditResourceType
+
+            get_audit_log_service().log_action(
+                user=user,
+                action=AuditAction.COMPLETE_PLAN.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan.id,
+                metadata={
+                    'title': plan.title,
+                    'group_id': plan.group_id,
+                    'status': plan.status,
+                    'completed_by_system': user is None,
+                    'forced': force,
+                    'completed_at': now,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Failed to write completion audit log for plan {plan.id}: {e}")
+
         cls._invalidate_plan_cache(plan.id)
         
         try:

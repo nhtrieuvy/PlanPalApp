@@ -202,6 +202,10 @@ class ErrorDisplayService {
         : 'Đã xảy ra lỗi không mong đợi. Vui lòng thử lại.';
   }
 
+  static String getUserFriendlyMessage(dynamic error) {
+    return parseApiError(error);
+  }
+
   /// Get error title based on error type
   static String getErrorTitle(dynamic error) {
     if (error is DioException) {

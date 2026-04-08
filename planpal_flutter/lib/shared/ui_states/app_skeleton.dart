@@ -26,11 +26,15 @@ class AppSkeleton extends StatelessWidget {
     switch (type) {
       case AppSkeletonType.card:
         return ListView(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           children: const [_SkeletonCard()],
         );
       case AppSkeletonType.chat:
         return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           itemCount: itemCount,
           itemBuilder: (context, index) =>
@@ -38,6 +42,8 @@ class AppSkeleton extends StatelessWidget {
         );
       case AppSkeletonType.list:
         return ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           itemCount: itemCount,
           separatorBuilder: (_, __) => const SizedBox(height: 12),

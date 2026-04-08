@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:planpal_flutter/core/utils/server_datetime.dart';
 
 /// Utility function to validate image URLs
 bool _isValidImageUrl(String? url) {
@@ -59,12 +60,8 @@ class UserSummary extends Equatable {
       onlineStatus: json['online_status']?.toString() ?? 'offline',
       avatarUrl: validatedAvatarUrl,
       hasAvatar: json['has_avatar'] == true,
-      dateJoined: json['date_joined'] != null
-          ? DateTime.parse(json['date_joined'].toString())
-          : DateTime.now(),
-      lastSeen: json['last_seen'] != null
-          ? DateTime.tryParse(json['last_seen'].toString())
-          : null,
+      dateJoined: parseServerDateTime(json['date_joined']) ?? DateTime.now(),
+      lastSeen: parseServerDateTime(json['last_seen']),
       fullName: json['full_name']?.toString() ?? '',
       initials: json['initials']?.toString() ?? '',
     );
