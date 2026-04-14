@@ -35,6 +35,11 @@ from planpals.analytics.infrastructure.tasks import (  # noqa: F401
     aggregate_daily_metrics_task,
 )
 
+# Budgets — async notification fan-out
+from planpals.budgets.infrastructure.tasks import (  # noqa: F401
+    process_expense_notifications_task,
+)
+
 # Shared — analytics & maintenance (queue: low_priority, scheduled by Beat)
 from planpals.shared.analytics_tasks import (  # noqa: F401
     aggregate_daily_statistics_task,
@@ -57,6 +62,7 @@ __all__ = [
     'process_audit_log_notification_task',
     'dispatch_plan_reminders_task',
     'aggregate_daily_metrics_task',
+    'process_expense_notifications_task',
     # Analytics
     'aggregate_daily_statistics_task',
     'cleanup_expired_offline_events_task',

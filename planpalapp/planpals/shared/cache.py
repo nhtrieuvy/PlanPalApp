@@ -117,6 +117,11 @@ class CacheKeys:
     def analytics_pattern(cls) -> str:
         return f"{cls._V}:analytics:*"
 
+    # -- Budget -------------------------------------------------------------
+    @classmethod
+    def budget_summary(cls, plan_id) -> str:
+        return f"{cls._V}:budget:summary:{plan_id}"
+
 
 # ============================================================================
 # TTL CONSTANTS (seconds)
@@ -126,6 +131,7 @@ class CacheTTL:
     USER_PROFILE = 120   # 2 minutes
     PLAN_SUMMARY = 180   # 3 minutes
     GROUP_DETAIL = 180   # 3 minutes
+    BUDGET_SUMMARY = 180   # 3 minutes
     ANALYTICS_SUMMARY = 300   # 5 minutes
     ANALYTICS_TIMESERIES = 600   # 10 minutes
     ANALYTICS_TOP = 600   # 10 minutes

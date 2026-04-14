@@ -12,6 +12,8 @@ class DailyMetric(models.Model):
     monthly_active_users = models.PositiveIntegerField(default=0)
     plans_created = models.PositiveIntegerField(default=0)
     plans_completed = models.PositiveIntegerField(default=0)
+    expenses_created = models.PositiveIntegerField(default=0)
+    expense_total_amount = models.DecimalField(max_digits=16, decimal_places=2, default=0)
     group_joins = models.PositiveIntegerField(default=0)
     notifications_sent = models.PositiveIntegerField(default=0)
     notifications_opened = models.PositiveIntegerField(default=0)

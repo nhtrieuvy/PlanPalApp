@@ -97,6 +97,8 @@ class AnalyticsService:
                 totals=DashboardTotals(
                     plans_created=summary.plans_created,
                     plans_completed=summary.plans_completed,
+                    expenses_created=summary.expenses_created,
+                    expense_total_amount=summary.expense_total_amount,
                     group_joins=summary.group_joins,
                     notifications_sent=summary.notifications_sent,
                     notifications_opened=summary.notifications_opened,
@@ -187,6 +189,8 @@ class AnalyticsService:
             AnalyticsMetric.MONTHLY_ACTIVE_USERS: metric.monthly_active_users,
             AnalyticsMetric.PLANS_CREATED: metric.plans_created,
             AnalyticsMetric.PLANS_COMPLETED: metric.plans_completed,
+            AnalyticsMetric.EXPENSES_CREATED: metric.expenses_created,
+            AnalyticsMetric.EXPENSE_TOTAL_AMOUNT: metric.expense_total_amount,
             AnalyticsMetric.PLAN_CREATION_RATE: metric.plan_creation_rate,
             AnalyticsMetric.PLAN_COMPLETION_RATE: metric.plan_completion_rate,
             AnalyticsMetric.GROUP_JOINS: metric.group_joins,

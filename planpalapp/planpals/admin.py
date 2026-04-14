@@ -9,7 +9,7 @@ from django.forms import Textarea
 from .models import (
     User, Group, GroupMembership, Plan, PlanActivity, 
     ChatMessage, Friendship, FriendshipRejection, MessageReadStatus,
-    Conversation
+    Conversation, Budget, Expense
 )
 
 # ============================================================================
@@ -254,11 +254,11 @@ class PlanActivityInline(admin.TabularInline):
 class PlanAdmin(admin.ModelAdmin):
     list_display = [
         'title', 'creator', 'group', 'plan_type', 'status', 
-        'duration_days', 'activities_count', 'total_cost', 'created_at'
+        'duration_days', 'activities_count', 'configured_budget', 'total_cost', 'created_at'
     ]
     list_filter = ['plan_type', 'status', 'is_public', 'created_at']
     search_fields = ['title', 'description', 'creator__username', 'group__name']
-    readonly_fields = ['id', 'created_at', 'updated_at']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'configured_budget']
     
     inlines = [PlanActivityInline]
     
@@ -267,7 +267,7 @@ class PlanAdmin(admin.ModelAdmin):
             'fields': ('title', 'description', 'creator', 'group', 'plan_type')
         }),
         ('Thời gian & Ngân sách', {
-            'fields': ('start_date', 'end_date', 'budget')
+            'fields': ('start_date', 'end_date', 'configured_budget')
         }),
         ('Trạng thái', {
             'fields': ('status', 'is_public')
@@ -294,6 +294,13 @@ class PlanAdmin(admin.ModelAdmin):
             return f"{total:,.0f} VND"
         return "Chưa ước tính"
     total_cost.short_description = 'Tổng chi phí'
+
+    def configured_budget(self, obj):
+        budget = getattr(obj, 'budget_record', None)
+        if budget and budget.total_budget:
+            return f"{budget.total_budget:,.0f} {budget.currency}"
+        return "Not configured"
+    configured_budget.short_description = 'Budget'
 
 # ============================================================================
 # PLAN ACTIVITY ADMIN
@@ -485,6 +492,21 @@ class MessageReadStatusAdmin(admin.ModelAdmin):
     list_display = ['message', 'user', 'read_at']
     list_filter = ['read_at']
     search_fields = ['user__username', 'message__content']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(Budget)
+class BudgetAdmin(admin.ModelAdmin):
+    list_display = ['plan', 'total_budget', 'currency', 'created_at', 'updated_at']
+    search_fields = ['plan__title', 'plan__creator__username']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = ['plan', 'user', 'amount', 'category', 'created_at']
+    list_filter = ['category', 'created_at']
+    search_fields = ['plan__title', 'user__username', 'description']
     readonly_fields = ['id', 'created_at', 'updated_at']
 
 # ============================================================================

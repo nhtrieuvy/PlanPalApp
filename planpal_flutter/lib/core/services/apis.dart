@@ -8,7 +8,7 @@ const String baseUrl = String.fromEnvironment(
 String get baseWsUrl {
   final uri = Uri.parse(baseUrl);
   final wsScheme = uri.scheme == 'https' ? 'wss' : 'ws';
-  return uri.replace(scheme: wsScheme, path: '', query: '').toString();
+  return '$wsScheme://${uri.authority}';
 }
 
 class Endpoints {
@@ -47,6 +47,8 @@ class Endpoints {
       _v1('/plans/$planId/activities_by_date/?date=$date');
   static String planSchedule(String planId) => _v1('/plans/$planId/schedule/');
   static String planJoin(String planId) => _v1('/plans/$planId/join/');
+  static String planBudget(String planId) => _v1('/plans/$planId/budget/');
+  static String planExpenses(String planId) => _v1('/plans/$planId/expenses/');
 
   static String groupDetails(String groupId) => _v1('/groups/$groupId/');
   static String groupJoin(String groupId) => _v1('/groups/$groupId/join/');

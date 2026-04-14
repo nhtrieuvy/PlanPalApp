@@ -53,11 +53,13 @@ class CreatePlanHandler(BaseCommandHandler[CreatePlanCommand, Any]):
         event_publisher: DomainEventPublisher,
         audit_service=None,
         membership_checker=None,  # callable(group_id, user_id) -> bool
+        budget_initializer=None,
     ):
         self.plan_repo = plan_repo
         self.event_publisher = event_publisher
         self.audit_service = audit_service
         self.membership_checker = membership_checker
+        self.budget_initializer = budget_initializer
 
     @transaction.atomic
     def handle(self, command: CreatePlanCommand) -> Any:
@@ -74,6 +76,9 @@ class CreatePlanHandler(BaseCommandHandler[CreatePlanCommand, Any]):
         plan = self.plan_repo.save_new(command)
 
         self._log(f"Plan created: {plan.id} by user {command.creator_id}")
+
+        if self.budget_initializer:
+            self.budget_initializer(plan)
 
         # Publish domain event (deferred until after transaction)
         self.event_publisher.publish(PlanCreated(
@@ -144,7 +149,7 @@ class UpdatePlanHandler(BaseCommandHandler[UpdatePlanCommand, Any]):
         previous_values = {}
         for field_name in [
             'title', 'description', 'start_date', 'end_date',
-            'is_public', 'cover_image', 'destination', 'budget', 'notes',
+            'is_public',
         ]:
             value = getattr(command, field_name, None)
             if value is not None:

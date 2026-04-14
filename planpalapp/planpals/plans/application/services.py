@@ -28,7 +28,7 @@ class PlanService(BaseService):
     @classmethod
     def create_plan(cls, creator, title: str, description: str = "",
                    plan_type: str = 'personal', group=None,
-                   start_date=None, end_date=None, budget=None,
+                   start_date=None, end_date=None,
                    is_public: bool = False):
         """Delegate to CreatePlanHandler, then schedule Celery tasks."""
         cmd = CreatePlanCommand(
@@ -40,7 +40,6 @@ class PlanService(BaseService):
             start_date=start_date,
             end_date=end_date,
             is_public=is_public,
-            budget=budget,
         )
         handler = plan_factories.get_create_plan_handler()
         plan = handler.handle(cmd)
@@ -71,7 +70,7 @@ class PlanService(BaseService):
             user_id=user.id if user else plan.creator_id,
             **{k: v for k, v in data.items() if k in (
                 'title', 'description', 'start_date', 'end_date',
-                'is_public', 'cover_image', 'destination', 'budget', 'notes',
+                'is_public',
             )}
         )
         handler = plan_factories.get_update_plan_handler()
@@ -381,6 +380,16 @@ class PlanService(BaseService):
 
             completed_activities = activity_repo.count_completed(plan.id)
             completion_rate = (completed_activities / activities_count * 100) if activities_count > 0 else 0
+            budget_summary = None
+            try:
+                from planpals.budgets.application.factories import get_budget_service
+
+                budget_summary = get_budget_service().get_budget_summary(
+                    plan.id,
+                    plan.creator,
+                )
+            except Exception:
+                budget_summary = None
 
             return {
                 'activities': {
@@ -390,7 +399,11 @@ class PlanService(BaseService):
                 },
                 'budget': {
                     'estimated': float(total_cost),
-                    'over_budget': False
+                    'configured': float(budget_summary.budget.total_budget) if budget_summary else 0.0,
+                    'spent': float(budget_summary.total_spent) if budget_summary else 0.0,
+                    'remaining': float(budget_summary.remaining_budget) if budget_summary else 0.0,
+                    'currency': budget_summary.budget.currency if budget_summary else 'VND',
+                    'over_budget': budget_summary.is_over_budget if budget_summary else False,
                 },
                 'duration': {
                     'days': plan.duration_days,

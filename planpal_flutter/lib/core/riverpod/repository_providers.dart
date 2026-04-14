@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/audit_log_repository.dart';
 import '../repositories/analytics_repository.dart';
+import '../repositories/budget_repository.dart';
 import '../repositories/plan_repository.dart';
 import '../repositories/group_repository.dart';
 import '../repositories/conversation_repository.dart';
@@ -32,6 +33,11 @@ final auditLogRepositoryProvider = Provider<AuditLogRepository>((ref) {
 final analyticsRepositoryProvider = Provider<AnalyticsRepository>((ref) {
   final auth = ref.watch(authNotifierProvider);
   return AnalyticsRepository(auth);
+});
+
+final budgetRepositoryProvider = Provider<BudgetRepository>((ref) {
+  final auth = ref.watch(authNotifierProvider);
+  return BudgetRepository(auth);
 });
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {

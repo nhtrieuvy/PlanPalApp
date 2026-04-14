@@ -77,7 +77,6 @@ class PlanViewSet(viewsets.ModelViewSet):
             group=group,
             start_date=data.get('start_date'),
             end_date=data.get('end_date'),
-            budget=data.get('budget'),
             is_public=data.get('is_public', False)
         )
         

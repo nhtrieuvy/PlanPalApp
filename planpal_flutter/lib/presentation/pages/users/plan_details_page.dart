@@ -15,6 +15,7 @@ import '../../../shared/ui_states/ui_states.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../plans/activity_form_page.dart';
 import '../plans/plan_schedule_page.dart';
+import '../budget/budget_overview_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 
 class PlanDetailsPage extends ConsumerStatefulWidget {
@@ -158,6 +159,70 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                   activitiesCount: p.activitiesCount,
                   totalEstimatedCost: p.totalEstimatedCost,
                   groupName: p.groupName ?? '',
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withAlpha(20),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.account_balance_wallet_rounded,
+                            color: AppColors.success,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Budget Tracking',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Track spending, balances, and per-user contributions.',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        OutlinedButton(
+                          onPressed: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => BudgetOverviewPage(
+                                  planId: p.id,
+                                  planTitle: p.title,
+                                  canManageBudget: p.canEdit,
+                                ),
+                              ),
+                            );
+                            if (!mounted) return;
+                            await _load(refresh: true);
+                          },
+                          child: const Text('Open'),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 if (p.description != null && p.description!.isNotEmpty) ...[
                   const SizedBox(height: 16),

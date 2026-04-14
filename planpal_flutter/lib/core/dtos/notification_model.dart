@@ -39,6 +39,8 @@ class NotificationModel extends Equatable {
     NotificationTypeOption(value: 'ROLE_CHANGED', label: 'Role changed'),
     NotificationTypeOption(value: 'PLAN_UPDATED', label: 'Plan updated'),
     NotificationTypeOption(value: 'NEW_MESSAGE', label: 'New message'),
+    NotificationTypeOption(value: 'BUDGET_ALERT', label: 'Budget alert'),
+    NotificationTypeOption(value: 'LARGE_EXPENSE', label: 'Large expense'),
   ];
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {

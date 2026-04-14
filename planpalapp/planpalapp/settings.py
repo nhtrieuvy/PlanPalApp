@@ -509,6 +509,7 @@ CELERY_TASK_ROUTES = {
     'planpals.notifications.infrastructure.tasks.send_notification_task': {'queue': 'high_priority'},
     'planpals.notifications.infrastructure.tasks.fanout_group_notification_task': {'queue': 'high_priority'},
     'planpals.notifications.infrastructure.tasks.process_audit_log_notification_task': {'queue': 'high_priority'},
+    'planpals.budgets.infrastructure.tasks.process_expense_notifications_task': {'queue': 'high_priority'},
     # Chat fan-out → high_priority
     'planpals.chat.infrastructure.tasks.fanout_chat_push_notification_task': {'queue': 'high_priority'},
     # Analytics / periodic → low_priority

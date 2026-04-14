@@ -44,11 +44,14 @@ def _membership_checker():
 
 
 def get_create_plan_handler() -> CreatePlanHandler:
+    from planpals.budgets.application.factories import get_budget_initializer
+
     return CreatePlanHandler(
         plan_repo=_plan_repo(),
         event_publisher=_event_publisher(),
         audit_service=get_audit_log_service(),
         membership_checker=_membership_checker(),
+        budget_initializer=get_budget_initializer(),
     )
 
 
