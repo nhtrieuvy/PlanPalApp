@@ -45,6 +45,8 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     attachment_url = serializers.CharField(read_only=True)
     attachment_size_display = serializers.CharField(read_only=True)
     location_url = serializers.CharField(read_only=True)
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
 
     can_edit = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
@@ -103,6 +105,8 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         message_type = attrs.get('message_type', 'text')
         content = attrs.get('content', '').strip()
         attachment = attrs.get('attachment')
+        latitude = attrs.get('latitude')
+        longitude = attrs.get('longitude')
 
         if message_type == 'text':
             if not content:
@@ -135,11 +139,21 @@ class ChatMessageSerializer(serializers.ModelSerializer):
                 })
 
         elif message_type == 'location':
-            if not (attrs.get('latitude') and attrs.get('longitude')):
+            if latitude is None or longitude is None:
                 raise serializers.ValidationError({
                     'latitude': 'Location messages must have coordinates',
                     'longitude': 'Location messages must have coordinates'
                 })
+            if not (-90 <= latitude <= 90):
+                raise serializers.ValidationError({
+                    'latitude': 'Latitude must be between -90 and 90'
+                })
+            if not (-180 <= longitude <= 180):
+                raise serializers.ValidationError({
+                    'longitude': 'Longitude must be between -180 and 180'
+                })
+            attrs['latitude'] = round(float(latitude), 6)
+            attrs['longitude'] = round(float(longitude), 6)
 
         elif message_type == 'system':
             if not content:

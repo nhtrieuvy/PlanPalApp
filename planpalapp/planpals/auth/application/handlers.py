@@ -167,8 +167,8 @@ class AcceptFriendRequestHandler(BaseCommandHandler[AcceptFriendRequestCommand, 
 
         event = FriendRequestAccepted(
             user_id=str(command.from_user_id),
-            accepted_by_id=str(command.current_user_id),
-            accepted_by_name=(
+            accepter_id=str(command.current_user_id),
+            accepter_name=(
                 current_user.get_full_name() or current_user.username
                 if current_user else str(command.current_user_id)
             ),

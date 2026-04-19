@@ -90,9 +90,11 @@ class BudgetService:
             self.audit_service.log_action(
                 user=actor_id,
                 action=AuditAction.UPDATE_BUDGET.value,
-                resource_type=AuditResourceType.BUDGET.value,
-                resource_id=budget.id,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan_uuid,
                 metadata={
+                    'entity_type': AuditResourceType.BUDGET.value,
+                    'budget_id': budget.id,
                     'plan_id': plan_uuid,
                     'plan_title': getattr(plan, 'title', 'Plan'),
                     'total_budget': budget.total_budget,
@@ -143,9 +145,11 @@ class BudgetService:
             self.audit_service.log_action(
                 user=actor_id,
                 action=AuditAction.CREATE_EXPENSE.value,
-                resource_type=AuditResourceType.EXPENSE.value,
-                resource_id=expense.id,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan_uuid,
                 metadata={
+                    'entity_type': AuditResourceType.EXPENSE.value,
+                    'expense_id': expense.id,
                     'plan_id': plan_uuid,
                     'plan_title': getattr(plan, 'title', 'Plan'),
                     'amount': expense.amount,

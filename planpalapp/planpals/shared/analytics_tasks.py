@@ -160,7 +160,6 @@ def cleanup_expired_offline_events_task(self) -> Dict[str, Any]:
     max_retries=1,
     default_retry_delay=600,
     soft_time_limit=300,
-    rate_limit='1/d',
     acks_late=True,
 )
 def cleanup_invalid_fcm_tokens_task(self) -> Dict[str, Any]:

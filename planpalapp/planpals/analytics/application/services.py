@@ -36,7 +36,10 @@ class AnalyticsService:
 
     def get_dashboard_summary(self, range_key: str = AnalyticsRange.LAST_30_DAYS.value) -> DashboardSummary:
         normalized_range = self._normalize_range(range_key)
-        cache_key = CacheKeys.analytics_summary(normalized_range.value)
+        cache_key = CacheKeys.analytics_summary(
+            normalized_range.value,
+            version=self._get_cache_version(),
+        )
 
         def compute() -> DashboardSummary:
             date_from, date_to = self._resolve_dates(normalized_range)
@@ -118,7 +121,11 @@ class AnalyticsService:
     ) -> list[TimeSeriesPoint]:
         normalized_metric = self._normalize_metric(metric)
         normalized_range = self._normalize_range(range_key)
-        cache_key = CacheKeys.analytics_timeseries(normalized_metric.value, normalized_range.value)
+        cache_key = CacheKeys.analytics_timeseries(
+            normalized_metric.value,
+            normalized_range.value,
+            version=self._get_cache_version(),
+        )
 
         def compute() -> list[TimeSeriesPoint]:
             date_from, date_to = self._resolve_dates(normalized_range)
@@ -149,7 +156,11 @@ class AnalyticsService:
     ) -> TopEntitiesSnapshot:
         normalized_range = self._normalize_range(range_key)
         normalized_limit = min(max(limit, 1), 20)
-        cache_key = CacheKeys.analytics_top(normalized_range.value, normalized_limit)
+        cache_key = CacheKeys.analytics_top(
+            normalized_range.value,
+            normalized_limit,
+            version=self._get_cache_version(),
+        )
 
         def compute() -> TopEntitiesSnapshot:
             date_from, date_to = self._resolve_dates(normalized_range)
@@ -167,7 +178,21 @@ class AnalyticsService:
         )
 
     def invalidate_dashboard_cache(self) -> None:
+        current_version = self._get_cache_version()
+        self.cache_service.set(CacheKeys.analytics_version(), current_version + 1)
+        self.cache_service.delete(CacheKeys.analytics_summary(AnalyticsRange.LAST_7_DAYS.value, version=current_version))
+        self.cache_service.delete(CacheKeys.analytics_summary(AnalyticsRange.LAST_30_DAYS.value, version=current_version))
+        self.cache_service.delete(CacheKeys.analytics_summary(AnalyticsRange.LAST_90_DAYS.value, version=current_version))
         self.cache_service.delete_pattern(CacheKeys.analytics_pattern())
+
+    def _get_cache_version(self) -> int:
+        raw_version = self.cache_service.get(CacheKeys.analytics_version())
+        try:
+            version = int(raw_version)
+        except (TypeError, ValueError):
+            version = 1
+            self.cache_service.set(CacheKeys.analytics_version(), version)
+        return max(version, 1)
 
     @staticmethod
     def _rate(numerator: int, denominator: int) -> float:

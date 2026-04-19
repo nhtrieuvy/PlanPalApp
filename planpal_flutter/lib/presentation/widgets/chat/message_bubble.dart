@@ -1,9 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-// removed color_utils; use withAlpha directly
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+
 import '../../../core/dtos/chat_message.dart';
 
 enum MessageStatus { sending, sent, delivered, read, failed }
@@ -46,20 +46,16 @@ class MessageBubble extends StatelessWidget {
               : MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Avatar for other users
             if (!isCurrentUser && showAvatar) ...[
-              _buildAvatar(context),
+              _buildAvatar(),
               const SizedBox(width: 8),
             ],
-
-            // Message bubble
             Flexible(
               child: Column(
                 crossAxisAlignment: isCurrentUser
                     ? CrossAxisAlignment.end
                     : CrossAxisAlignment.start,
                 children: [
-                  // Sender name for group chats
                   if (!isCurrentUser && message.sender.fullName.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(left: 12, bottom: 4),
@@ -72,15 +68,13 @@ class MessageBubble extends StatelessWidget {
                         ),
                       ),
                     ),
-
-                  // Message content
                   Container(
                     constraints: BoxConstraints(
                       maxWidth: MediaQuery.of(context).size.width * 0.75,
                     ),
                     decoration: BoxDecoration(
                       color: isCurrentUser
-                          ? const Color(0xFF6366F1) // Indigo primary
+                          ? const Color(0xFF6366F1)
                           : colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(20),
@@ -98,17 +92,13 @@ class MessageBubble extends StatelessWidget {
                     ),
                     child: _buildMessageContent(context),
                   ),
-
-                  // Timestamp and status
                   if (showTimestamp) _buildMessageInfo(context),
                 ],
               ),
             ),
-
-            // Avatar placeholder for current user
             if (isCurrentUser && showAvatar) ...[
               const SizedBox(width: 8),
-              _buildAvatar(context),
+              _buildAvatar(),
             ],
           ],
         ),
@@ -116,17 +106,14 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildAvatar(BuildContext context) {
+  Widget _buildAvatar() {
     return Container(
       width: 32,
       height: 32,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
-          colors: [
-            const Color(0xFF6366F1), // Indigo
-            const Color(0xFF06B6D4), // Cyan
-          ],
+          colors: [Color(0xFF6366F1), Color(0xFF06B6D4)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -146,13 +133,9 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildAvatarPlaceholder() {
-    final initials = message.sender.fullName.isNotEmpty
-        ? message.sender.initials
-        : '?';
-
     return Center(
       child: Text(
-        initials,
+        message.sender.fullName.isNotEmpty ? message.sender.initials : '?',
         style: GoogleFonts.inter(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -173,13 +156,12 @@ class MessageBubble extends StatelessWidget {
       case MessageType.file:
         return _buildFileMessage(context);
       case MessageType.system:
-        return _buildTextMessage(context); // System messages as text
+        return _buildTextMessage(context);
     }
   }
 
   Widget _buildTextMessage(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Text(
@@ -194,6 +176,9 @@ class MessageBubble extends StatelessWidget {
   }
 
   Widget _buildImageMessage(BuildContext context) {
+    final caption = message.content.trim();
+    final imageUrl = message.attachmentUrl ?? message.content;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -206,9 +191,7 @@ class MessageBubble extends StatelessWidget {
                 top: Radius.circular(20),
               ),
               child: CachedNetworkImage(
-                // Use attachmentUrl provided by backend DTO when available;
-                // fall back to content for backward compatibility.
-                imageUrl: message.attachmentUrl ?? message.content,
+                imageUrl: imageUrl,
                 fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
                   height: 150,
@@ -224,11 +207,11 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
         ),
-        if (message.content.isNotEmpty)
+        if (caption.isNotEmpty)
           Padding(
             padding: const EdgeInsets.all(12),
             child: Text(
-              message.content,
+              caption,
               style: GoogleFonts.inter(
                 fontSize: 14,
                 color: isCurrentUser
@@ -243,25 +226,26 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildLocationMessage(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final title = (message.locationName?.trim().isNotEmpty ?? false)
+        ? message.locationName!.trim()
+        : 'Vi tri';
+    final subtitle = message.content.trim().isNotEmpty
+        ? message.content.trim()
+        : '${message.latitude}, ${message.longitude}';
 
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isCurrentUser
-                  ? Colors.white.withAlpha(50)
-                  : const Color(0xFF6366F1).withAlpha(25),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              PhosphorIcons.mapPin(),
-              size: 20,
-              color: isCurrentUser ? Colors.white : const Color(0xFF6366F1),
-            ),
+          _buildIconChip(
+            icon: PhosphorIcons.mapPin(),
+            backgroundColor: isCurrentUser
+                ? Colors.white.withAlpha(50)
+                : const Color(0xFF6366F1).withAlpha(25),
+            foregroundColor: isCurrentUser
+                ? Colors.white
+                : const Color(0xFF6366F1),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -269,7 +253,7 @@ class MessageBubble extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Vị trí',
+                  title,
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -280,7 +264,7 @@ class MessageBubble extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  message.content,
+                  subtitle,
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: isCurrentUser
@@ -289,6 +273,16 @@ class MessageBubble extends StatelessWidget {
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Nhan de mo ban do',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: isCurrentUser
+                        ? Colors.white.withAlpha(180)
+                        : colorScheme.onSurfaceVariant.withAlpha(150),
+                  ),
                 ),
               ],
             ),
@@ -300,7 +294,10 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildFileMessage(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final fileName = message.attachmentName ?? 'File';
+    final fileName =
+        (message.attachmentName?.trim().isNotEmpty ?? false)
+        ? message.attachmentName!.trim()
+        : 'File';
     final fileSize = message.attachmentSize != null
         ? _formatFileSize(message.attachmentSize!)
         : '';
@@ -310,19 +307,14 @@ class MessageBubble extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isCurrentUser
-                  ? Colors.white.withAlpha(50)
-                  : const Color(0xFF6366F1).withAlpha(25),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              _getFileIcon(fileName),
-              size: 20,
-              color: isCurrentUser ? Colors.white : const Color(0xFF6366F1),
-            ),
+          _buildIconChip(
+            icon: _getFileIcon(fileName),
+            backgroundColor: isCurrentUser
+                ? Colors.white.withAlpha(50)
+                : const Color(0xFF6366F1).withAlpha(25),
+            foregroundColor: isCurrentUser
+                ? Colors.white
+                : const Color(0xFF6366F1),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -353,11 +345,36 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ),
                 ],
+                const SizedBox(height: 4),
+                Text(
+                  'Nhan de mo tep',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: isCurrentUser
+                        ? Colors.white.withAlpha(180)
+                        : colorScheme.onSurfaceVariant.withAlpha(150),
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildIconChip({
+    required IconData icon,
+    required Color backgroundColor,
+    required Color foregroundColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, size: 20, color: foregroundColor),
     );
   }
 
@@ -376,8 +393,6 @@ class MessageBubble extends StatelessWidget {
               color: colorScheme.onSurfaceVariant.withAlpha(150),
             ),
           ),
-
-          // Message status for current user
           if (isCurrentUser) ...[
             const SizedBox(width: 4),
             Icon(
@@ -409,20 +424,20 @@ class MessageBubble extends StatelessWidget {
   Color _getStatusColor(ColorScheme colorScheme) {
     switch (status) {
       case MessageStatus.sending:
-        return colorScheme.onSurfaceVariant.withAlpha(150);
       case MessageStatus.sent:
-        return colorScheme.onSurfaceVariant.withAlpha(150);
       case MessageStatus.delivered:
         return colorScheme.onSurfaceVariant.withAlpha(150);
       case MessageStatus.read:
-        return const Color(0xFF06B6D4); // Cyan for read
+        return const Color(0xFF06B6D4);
       case MessageStatus.failed:
         return colorScheme.error;
     }
   }
 
   IconData _getFileIcon(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
+    final extension = fileName.contains('.')
+        ? fileName.split('.').last.toLowerCase()
+        : '';
 
     switch (extension) {
       case 'pdf':
@@ -454,9 +469,7 @@ class MessageBubble extends StatelessWidget {
   }
 
   String _formatFileSize(int bytes) {
-    if (bytes < 1024) {
-      return '$bytes B';
-    }
+    if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) {
       return '${(bytes / 1024).toStringAsFixed(1)} KB';
     }

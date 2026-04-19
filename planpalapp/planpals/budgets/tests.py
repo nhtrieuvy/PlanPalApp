@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+from uuid import uuid4
 
 from django.test import TestCase
 from django.urls import reverse
@@ -132,14 +133,16 @@ class BudgetTrackingTests(TestCase):
         self.assertEqual(
             AuditLog.objects.filter(
                 action=AuditAction.UPDATE_BUDGET.value,
-                resource_type=AuditResourceType.BUDGET.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=self.plan.id,
             ).count(),
             1,
         )
         self.assertEqual(
             AuditLog.objects.filter(
                 action=AuditAction.CREATE_EXPENSE.value,
-                resource_type=AuditResourceType.EXPENSE.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=self.plan.id,
             ).count(),
             2,
         )
@@ -252,3 +255,57 @@ class BudgetTrackingTests(TestCase):
         self.assertEqual(metric.expense_total_amount, 250000.0)
         self.assertGreaterEqual(metric.active_users, 1)
         self.assertEqual(Expense.objects.filter(plan=self.plan).count(), 1)
+
+    def test_plan_audit_feed_includes_budget_actions_and_legacy_related_logs(self):
+        self.budget_service.create_or_update_budget(
+            self.plan.id,
+            self.owner,
+            total_budget='1000000',
+            currency='VND',
+        )
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.member,
+            amount='250000',
+            category='Food',
+            description='Audit expense',
+        )
+        AuditLog.objects.create(
+            user=self.owner,
+            action=AuditAction.UPDATE_BUDGET.value,
+            resource_type=AuditResourceType.BUDGET.value,
+            resource_id=uuid4(),
+            metadata={
+                'plan_id': str(self.plan.id),
+                'plan_title': self.plan.title,
+                'total_budget': '1500000.00',
+            },
+        )
+        AuditLog.objects.create(
+            user=self.member,
+            action=AuditAction.CREATE_EXPENSE.value,
+            resource_type=AuditResourceType.EXPENSE.value,
+            resource_id=uuid4(),
+            metadata={
+                'plan_id': str(self.plan.id),
+                'plan_title': self.plan.title,
+                'amount': '125000.00',
+                'category': 'Transport',
+            },
+        )
+
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            reverse(
+                'audit-log-resource',
+                kwargs={
+                    'resource_type': AuditResourceType.PLAN.value,
+                    'resource_id': self.plan.id,
+                },
+            ),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        actions = [item['action'] for item in response.data['results']]
+        self.assertIn(AuditAction.UPDATE_BUDGET.value, actions)
+        self.assertIn(AuditAction.CREATE_EXPENSE.value, actions)

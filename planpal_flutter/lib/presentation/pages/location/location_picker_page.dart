@@ -1,19 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-// removed color_utils; use withAlpha directly
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 import 'package:planpal_flutter/core/repositories/location_repository.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class LocationPickerPage extends ConsumerStatefulWidget {
-  final double? initialLatitude;
-  final double? initialLongitude;
-  final String? initialLocationName;
-
   const LocationPickerPage({
     super.key,
     this.initialLatitude,
@@ -21,619 +17,605 @@ class LocationPickerPage extends ConsumerStatefulWidget {
     this.initialLocationName,
   });
 
+  final double? initialLatitude;
+  final double? initialLongitude;
+  final String? initialLocationName;
+
   @override
   ConsumerState<LocationPickerPage> createState() => _LocationPickerPageState();
 }
 
 class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
-  late GoogleMapController _mapController;
-  late LocationRepository _locationService;
-  LatLng _selectedPosition = const LatLng(
-    10.762622,
-    106.660172,
-  ); // Default: HCM
-  Set<Marker> _markers = {};
-  bool _isLoading = true;
-  bool _isReverseGeocoding = false;
+  static const LatLng _defaultPosition = LatLng(10.762622, 106.660172);
+  static const String _defaultLocationName = 'Vị trí đã chọn';
+
+  late final LocationRepository _locationRepository;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
+  GoogleMapController? _mapController;
+  Timer? _searchDebounce;
+
+  late LatLng _selectedPosition;
   String _selectedAddress = '';
   String _locationName = '';
-  final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _searchSuggestions = [];
+  bool _isInitializing = true;
+  bool _isResolvingLocation = false;
+  bool _isSearching = false;
   bool _showSuggestions = false;
+  List<Map<String, dynamic>> _suggestions = const [];
 
   @override
   void initState() {
     super.initState();
-    _locationService = ref.read(locationRepositoryProvider);
-    _initializeLocation();
+    _locationRepository = ref.read(locationRepositoryProvider);
+    _selectedPosition = _initialPositionFromWidget();
+    _locationName = widget.initialLocationName?.trim() ?? '';
+    _selectedAddress = _locationName;
+    _searchFocusNode.addListener(_handleSearchFocusChange);
+    unawaited(_initializeLocation());
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _mapController?.dispose();
     _searchController.dispose();
+    _searchFocusNode
+      ..removeListener(_handleSearchFocusChange)
+      ..dispose();
     super.dispose();
   }
 
-  Future<void> _initializeLocation() async {
-    debugPrint('🔄 Starting location initialization...');
-    setState(() => _isLoading = true);
-
-    // Use provided coordinates or default to HCMC
+  LatLng _initialPositionFromWidget() {
     if (widget.initialLatitude != null && widget.initialLongitude != null) {
-      _selectedPosition = LatLng(
-        widget.initialLatitude!,
-        widget.initialLongitude!,
-      );
-      _locationName = widget.initialLocationName ?? 'Vị trí đã chọn';
-      _selectedAddress = _locationName;
-      debugPrint(
-        '📍 Using initial coordinates: ${_selectedPosition.latitude}, ${_selectedPosition.longitude}',
-      );
-    } else {
-      debugPrint('📍 Using default HCMC coordinates');
-      // Keep default HCMC position, don't try to get current location to avoid complications
+      return LatLng(widget.initialLatitude!, widget.initialLongitude!);
     }
-
-    // Always ensure we have a marker
-    _updateMarker(_selectedPosition);
-
-    debugPrint('✅ Location initialization complete');
-    setState(() => _isLoading = false);
+    return _defaultPosition;
   }
 
-  Future<void> _getCurrentLocation() async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      _selectedPosition = LatLng(position.latitude, position.longitude);
-      _updateMarker(_selectedPosition);
-      await _reverseGeocode(_selectedPosition);
-    } catch (e) {
-      debugPrint('Error getting current location: $e');
+  Future<void> _initializeLocation() async {
+    _setMarkerOnly();
+    await _resolveSelectedAddress();
+    if (!mounted) {
+      return;
     }
-  }
-
-  void _updateMarker(LatLng position) {
     setState(() {
-      _markers = {
-        Marker(
-          markerId: const MarkerId('selected_location'),
-          position: position,
-          draggable: true,
-          onDragEnd: _onMarkerDragEnd,
-          infoWindow: InfoWindow(
-            title: _locationName.isNotEmpty ? _locationName : 'Vị trí đã chọn',
-            snippet: _selectedAddress,
-          ),
-        ),
-      };
+      _isInitializing = false;
     });
   }
 
-  void _onMarkerDragEnd(LatLng newPosition) {
-    _selectedPosition = newPosition;
-    _updateMarker(newPosition);
-    _reverseGeocode(newPosition);
-  }
-
-  void _onMapTap(LatLng position) {
-    _selectedPosition = position;
-    _updateMarker(position);
-    _reverseGeocode(position);
-  }
-
-  Future<void> _reverseGeocode(LatLng position) async {
-    setState(() => _isReverseGeocoding = true);
-
-    try {
-      final result = await _locationService.reverseGeocode(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (result != null) {
-        _selectedAddress =
-            result['formatted_address'] ??
-            '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
-        _locationName = result['location_name'] ?? 'Vị trí đã chọn';
-      } else {
-        _selectedAddress =
-            '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
-        _locationName = 'Vị trí đã chọn';
-      }
-
-      _updateMarker(position);
-    } catch (e) {
-      debugPrint('Error reverse geocoding: $e');
-      _selectedAddress =
-          '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
-      _locationName = 'Vị trí đã chọn';
-      _updateMarker(position);
-    } finally {
-      setState(() => _isReverseGeocoding = false);
+  void _handleSearchFocusChange() {
+    if (!_searchFocusNode.hasFocus && mounted) {
+      setState(() {
+        _showSuggestions = false;
+      });
     }
   }
 
-  Future<void> _searchPlaces(String query) async {
-    if (query.isEmpty) {
+  Future<void> _resolveSelectedAddress() async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isResolvingLocation = true;
+    });
+
+    final result = await _locationRepository.reverseGeocode(
+      _selectedPosition.latitude,
+      _selectedPosition.longitude,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedAddress =
+          result?['formatted_address']?.toString() ??
+          _formatCoordinates(_selectedPosition);
+      _locationName =
+          result?['location_name']?.toString().trim().isNotEmpty == true
+          ? result!['location_name'].toString()
+          : (_selectedAddress.isNotEmpty ? _selectedAddress : _defaultLocationName);
+      _isResolvingLocation = false;
+    });
+
+    _setMarkerOnly();
+  }
+
+  void _setMarkerOnly() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
+
+  Set<Marker> get _markers => {
+    Marker(
+      markerId: const MarkerId('selected_location'),
+      position: _selectedPosition,
+      draggable: true,
+      onDragEnd: _handleMapSelection,
+      infoWindow: InfoWindow(
+        title: _locationName.isNotEmpty ? _locationName : _defaultLocationName,
+        snippet: _selectedAddress,
+      ),
+    ),
+  };
+
+  Future<void> _handleMapSelection(LatLng position) async {
+    setState(() {
+      _selectedPosition = position;
+      _locationName = _defaultLocationName;
+      _selectedAddress = _formatCoordinates(position);
+      _showSuggestions = false;
+      _suggestions = const [];
+    });
+    await _animateTo(position, zoom: 16);
+    await _resolveSelectedAddress();
+  }
+
+  Future<void> _animateTo(LatLng position, {double? zoom}) async {
+    final controller = _mapController;
+    if (controller == null) {
+      return;
+    }
+
+    await controller.animateCamera(
+      zoom == null
+          ? CameraUpdate.newLatLng(position)
+          : CameraUpdate.newLatLngZoom(position, zoom),
+    );
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    final query = value.trim();
+
+    if (query.length < 2) {
       setState(() {
-        _searchSuggestions = [];
+        _isSearching = false;
         _showSuggestions = false;
+        _suggestions = const [];
       });
       return;
     }
 
-    try {
-      final suggestions = await _locationService.getAutocompleteSuggestions(
+    setState(() {
+      _isSearching = true;
+    });
+
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () async {
+      final suggestions = await _locationRepository.getAutocompleteSuggestions(
         query,
       );
-      setState(() {
-        _searchSuggestions = suggestions;
-        _showSuggestions = suggestions.isNotEmpty;
-      });
-    } catch (e) {
-      debugPrint('Error searching places: $e');
-    }
-  }
-
-  void _selectSuggestion(Map<String, dynamic> suggestion) async {
-    debugPrint('🔍 Selected suggestion: ${suggestion['description']}');
-
-    // First check if coordinates are available
-    final lat = suggestion['latitude']?.toDouble();
-    final lng = suggestion['longitude']?.toDouble();
-
-    if (lat != null && lng != null) {
-      // Direct coordinates available
-      final position = LatLng(lat, lng);
-      _selectedPosition = position;
-      _locationName = suggestion['description'] ?? 'Vị trí đã chọn';
-      _selectedAddress = suggestion['description'] ?? '';
-      _updateMarker(position);
-
-      _mapController.animateCamera(CameraUpdate.newLatLngZoom(position, 16.0));
-      debugPrint('📍 Moving map to: $lat, $lng');
-    } else {
-      // Need to get place details first
-      final placeId = suggestion['place_id'];
-      if (placeId != null && placeId.isNotEmpty) {
-        debugPrint('🔍 Getting place details for: $placeId');
-        await _getPlaceDetails(placeId, suggestion['description'] ?? '');
-      } else {
-        debugPrint('❌ No coordinates or place_id available');
-        // Just update the name without moving map
-        _locationName = suggestion['description'] ?? 'Vị trí đã chọn';
-        _selectedAddress = suggestion['description'] ?? '';
+      if (!mounted || _searchController.text.trim() != query) {
+        return;
       }
-    }
 
-    _searchController.clear();
-    setState(() {
-      _showSuggestions = false;
-      _searchSuggestions = [];
+      setState(() {
+        _isSearching = false;
+        _suggestions = suggestions;
+        _showSuggestions = suggestions.isNotEmpty && _searchFocusNode.hasFocus;
+      });
     });
   }
 
-  Future<void> _getPlaceDetails(String placeId, String description) async {
-    try {
-      setState(() => _isReverseGeocoding = true);
+  Future<void> _selectSuggestion(Map<String, dynamic> suggestion) async {
+    _searchFocusNode.unfocus();
 
-      final placeDetails = await _locationService.getPlaceDetails(placeId);
+    final directLatitude = (suggestion['latitude'] as num?)?.toDouble();
+    final directLongitude = (suggestion['longitude'] as num?)?.toDouble();
+    final description =
+        suggestion['description']?.toString().trim().isNotEmpty == true
+        ? suggestion['description'].toString()
+        : _defaultLocationName;
 
-      if (placeDetails != null) {
-        debugPrint('🔍 Place details response: $placeDetails');
+    setState(() {
+      _showSuggestions = false;
+      _suggestions = const [];
+      _searchController.text = description;
+    });
 
-        // Try to extract coordinates from different possible structures
-        double? lat, lng;
-
-        // Method 1: Direct latitude/longitude (if backend formats it this way)
-        lat = placeDetails['latitude']?.toDouble();
-        lng = placeDetails['longitude']?.toDouble();
-
-        // Method 2: From geometry.location (Goong API structure)
-        if (lat == null || lng == null) {
-          final geometry = placeDetails['geometry'] as Map<String, dynamic>?;
-          if (geometry != null) {
-            final location = geometry['location'] as Map<String, dynamic>?;
-            if (location != null) {
-              lat = location['lat']?.toDouble();
-              lng = location['lng']?.toDouble();
-            }
-          }
-        }
-
-        if (lat != null && lng != null) {
-          final position = LatLng(lat, lng);
-          _selectedPosition = position;
-          _locationName = description;
-          _selectedAddress =
-              placeDetails['address'] ??
-              placeDetails['formatted_address'] ??
-              description;
-          _updateMarker(position);
-
-          _mapController.animateCamera(
-            CameraUpdate.newLatLngZoom(position, 16.0),
-          );
-          debugPrint('📍 Place details - Moving map to: $lat, $lng');
-        } else {
-          debugPrint('❌ Place details API did not return coordinates');
-          debugPrint('Available keys: ${placeDetails.keys.toList()}');
-          _locationName = description;
-          _selectedAddress = description;
-        }
-      } else {
-        debugPrint('❌ Failed to get place details');
-        _locationName = description;
-        _selectedAddress = description;
-      }
-    } catch (e) {
-      debugPrint('❌ Error getting place details: $e');
+    if (directLatitude != null && directLongitude != null) {
+      _selectedPosition = LatLng(directLatitude, directLongitude);
       _locationName = description;
       _selectedAddress = description;
-    } finally {
-      setState(() => _isReverseGeocoding = false);
+      _setMarkerOnly();
+      await _animateTo(_selectedPosition, zoom: 16);
+      await _resolveSelectedAddress();
+      return;
     }
+
+    final placeId = suggestion['place_id']?.toString();
+    if (placeId == null || placeId.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _isResolvingLocation = true;
+    });
+
+    final details = await _locationRepository.getPlaceDetails(placeId);
+    if (!mounted) {
+      return;
+    }
+
+    final latitude = (details?['latitude'] as num?)?.toDouble();
+    final longitude = (details?['longitude'] as num?)?.toDouble();
+
+    if (latitude == null || longitude == null) {
+      setState(() {
+        _isResolvingLocation = false;
+      });
+      return;
+    }
+
+    _selectedPosition = LatLng(latitude, longitude);
+    _locationName = details?['name']?.toString().trim().isNotEmpty == true
+        ? details!['name'].toString()
+        : description;
+    _selectedAddress =
+        details?['formatted_address']?.toString() ??
+        details?['address']?.toString() ??
+        description;
+
+    _setMarkerOnly();
+    await _animateTo(_selectedPosition, zoom: 16);
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isResolvingLocation = false;
+    });
+  }
+
+  Future<void> _goToCurrentLocation() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _showSnackBar('Dịch vụ vị trí đang tắt.');
+      return;
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      _showSnackBar('Ứng dụng chưa có quyền truy cập vị trí.');
+      return;
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      await _handleMapSelection(LatLng(position.latitude, position.longitude));
+    } catch (_) {
+      _showSnackBar('Không thể lấy vị trí hiện tại.');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _confirmSelection() {
+    final normalizedLatitude = double.parse(
+      _selectedPosition.latitude.toStringAsFixed(6),
+    );
+    final normalizedLongitude = double.parse(
+      _selectedPosition.longitude.toStringAsFixed(6),
+    );
     Navigator.of(context).pop({
-      'latitude': _selectedPosition.latitude,
-      'longitude': _selectedPosition.longitude,
-      'location_name': _locationName,
-      'location_address': _selectedAddress,
+      'latitude': normalizedLatitude,
+      'longitude': normalizedLongitude,
+      'location_name': _locationName.isNotEmpty ? _locationName : _defaultLocationName,
+      'location_address': _selectedAddress.isNotEmpty
+          ? _selectedAddress
+          : _formatCoordinates(_selectedPosition),
+      'address': _selectedAddress.isNotEmpty
+          ? _selectedAddress
+          : _formatCoordinates(_selectedPosition),
     });
   }
 
+  String _formatCoordinates(LatLng position) =>
+      '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chọn vị trí'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        actions: [
-          TextButton(
-            onPressed: _confirmSelection,
-            child: const Text(
-              'Xác nhận',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+    final theme = Theme.of(context);
+
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Chọn vị trí'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          actions: [
+            TextButton(
+              onPressed: _confirmSelection,
+              child: const Text(
+                'Xác nhận',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: GoogleMap(
+                onMapCreated: (controller) async {
+                  _mapController = controller;
+                  await _animateTo(_selectedPosition, zoom: 15);
+                },
+                initialCameraPosition: CameraPosition(
+                  target: _selectedPosition,
+                  zoom: 15,
+                ),
+                markers: _markers,
+                onTap: _handleMapSelection,
+                myLocationEnabled: false,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+                compassEnabled: true,
+              ),
+            ),
+            Positioned(
+              top: 16,
+              left: 16,
+              right: 16,
+              child: _buildSearchPanel(theme),
+            ),
+            Positioned(
+              right: 16,
+              bottom: 220,
+              child: FloatingActionButton.small(
+                heroTag: 'current_location_button',
+                onPressed: _goToCurrentLocation,
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primary,
+                child: const Icon(Icons.my_location),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildBottomSheet(theme),
+            ),
+            if (_isInitializing)
+              const Positioned.fill(
+                child: ColoredBox(
+                  color: Color(0x55000000),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchPanel(ThemeData theme) {
+    return Material(
+      color: Colors.transparent,
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x22000000),
+                  blurRadius: 16,
+                  offset: Offset(0, 6),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Tìm kiếm địa điểm...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _isSearching
+                    ? const Padding(
+                        padding: EdgeInsets.all(14),
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : (_searchController.text.isNotEmpty
+                          ? IconButton(
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _showSuggestions = false;
+                                  _suggestions = const [];
+                                  _isSearching = false;
+                                });
+                              },
+                              icon: const Icon(Icons.close),
+                            )
+                          : null),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 16,
+                ),
+              ),
+              onChanged: _onSearchChanged,
+              onTap: () {
+                if (_suggestions.isNotEmpty) {
+                  setState(() {
+                    _showSuggestions = true;
+                  });
+                }
+              },
+            ),
+          ),
+          if (_showSuggestions && _suggestions.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              constraints: const BoxConstraints(maxHeight: 280),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemBuilder: (context, index) {
+                  final suggestion = _suggestions[index];
+                  final mainText =
+                      suggestion['structured_formatting']?['main_text']
+                          ?.toString() ??
+                      suggestion['description']?.toString() ??
+                      '';
+                  final secondaryText =
+                      suggestion['structured_formatting']?['secondary_text']
+                          ?.toString() ??
+                      '';
+                  return ListTile(
+                    leading: const Icon(
+                      Icons.location_on_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: Text(mainText),
+                    subtitle: secondaryText.isEmpty ? null : Text(secondaryText),
+                    onTap: () => _selectSuggestion(suggestion),
+                  );
+                },
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemCount: _suggestions.length,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomSheet(ThemeData theme) {
+    final displayTitle = _locationName.isNotEmpty ? _locationName : _defaultLocationName;
+    final displayAddress = _selectedAddress.isNotEmpty
+        ? _selectedAddress
+        : _formatCoordinates(_selectedPosition);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 18,
+            offset: Offset(0, -4),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Debug info bar
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            color: Colors.blue.shade50,
-            child: Text(
-              'Loading: $_isLoading | Position: ${_selectedPosition.latitude.toStringAsFixed(4)}, ${_selectedPosition.longitude.toStringAsFixed(4)}',
-              style: const TextStyle(fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ),
-
-          // Map container
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Đang tải bản đồ...'),
-                      ],
-                    ),
-                  )
-                : Stack(
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(Icons.place, color: Colors.redAccent),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GoogleMap(
-                        onMapCreated: (GoogleMapController controller) {
-                          _mapController = controller;
-                          debugPrint('✅ GoogleMap initialized successfully');
-                          debugPrint(
-                            '📍 Camera position: ${_selectedPosition.latitude}, ${_selectedPosition.longitude}',
-                          );
-
-                          // Ensure camera moves to correct position after map is ready
-                          Future.delayed(const Duration(milliseconds: 500), () {
-                            _mapController.animateCamera(
-                              CameraUpdate.newCameraPosition(
-                                CameraPosition(
-                                  target: _selectedPosition,
-                                  zoom: 15.0,
-                                ),
-                              ),
-                            );
-                          });
-                        },
-                        initialCameraPosition: CameraPosition(
-                          target: _selectedPosition,
-                          zoom: 15.0,
-                        ),
-                        markers: _markers,
-                        onTap: _onMapTap,
-                        myLocationEnabled:
-                            false, // Disable to avoid permission conflicts
-                        myLocationButtonEnabled: false,
-                        zoomControlsEnabled: false,
-                        mapType: MapType.normal,
-                        // Essential for Android - ensure map renders properly
-                        gestureRecognizers:
-                            const <Factory<OneSequenceGestureRecognizer>>{},
-                      ),
-
-                      // Search bar
-                      Positioned(
-                        top: 16,
-                        left: 16,
-                        right: 16,
-                        child: Column(
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withAlpha(25),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: TextField(
-                                controller: _searchController,
-                                decoration: const InputDecoration(
-                                  hintText: 'Tìm kiếm địa điểm...',
-                                  prefixIcon: Icon(Icons.search),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
-                                ),
-                                onChanged: _searchPlaces,
-                                onTap: () {
-                                  if (_searchSuggestions.isNotEmpty) {
-                                    setState(() => _showSuggestions = true);
-                                  }
-                                },
-                              ),
-                            ),
-
-                            // Search suggestions
-                            if (_showSuggestions &&
-                                _searchSuggestions.isNotEmpty)
-                              Container(
-                                margin: const EdgeInsets.only(top: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withAlpha(25),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: ListView.builder(
-                                  shrinkWrap: true,
-                                  itemCount: _searchSuggestions.length,
-                                  itemBuilder: (context, index) {
-                                    final suggestion =
-                                        _searchSuggestions[index];
-                                    return ListTile(
-                                      leading: const Icon(
-                                        Icons.location_on,
-                                        size: 20,
-                                      ),
-                                      title: Text(
-                                        suggestion['description'] ?? '',
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                      onTap: () =>
-                                          _selectSuggestion(suggestion),
-                                    );
-                                  },
-                                ),
-                              ),
-                          ],
+                      Text(
+                        displayTitle,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-
-                      // Map controls
-                      Positioned(
-                        bottom: 120,
-                        right: 16,
-                        child: Column(
-                          children: [
-                            FloatingActionButton.small(
-                              heroTag: "zoom_in",
-                              onPressed: () {
-                                _mapController.animateCamera(
-                                  CameraUpdate.zoomIn(),
-                                );
-                              },
-                              backgroundColor: Colors.white,
-                              child: const Icon(
-                                Icons.add,
-                                color: Colors.black54,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            FloatingActionButton.small(
-                              heroTag: "zoom_out",
-                              onPressed: () {
-                                _mapController.animateCamera(
-                                  CameraUpdate.zoomOut(),
-                                );
-                              },
-                              backgroundColor: Colors.white,
-                              child: const Icon(
-                                Icons.remove,
-                                color: Colors.black54,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            FloatingActionButton.small(
-                              heroTag: "my_location",
-                              onPressed: _getCurrentLocation,
-                              backgroundColor: Colors.white,
-                              child: const Icon(
-                                Icons.my_location,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Selected location info
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(16),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 8,
-                                offset: Offset(0, -2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.location_on,
-                                    color: Colors.red,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      _locationName.isNotEmpty
-                                          ? _locationName
-                                          : 'Vị trí đã chọn',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  if (_isReverseGeocoding)
-                                    const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _selectedAddress,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Tọa độ: ${_selectedPosition.latitude.toStringAsFixed(6)}, ${_selectedPosition.longitude.toStringAsFixed(6)}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              // Confirm selection button
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    // Return selected location data to parent
-                                    Navigator.pop(context, {
-                                      'latitude': _selectedPosition.latitude,
-                                      'longitude': _selectedPosition.longitude,
-                                      'location_name': _locationName.isNotEmpty
-                                          ? _locationName
-                                          : 'Vị trí đã chọn',
-                                      'location_address':
-                                          _selectedAddress.isNotEmpty
-                                          ? _selectedAddress
-                                          : null,
-                                      'address': _selectedAddress.isNotEmpty
-                                          ? _selectedAddress
-                                          : 'Địa chỉ không xác định',
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Chọn vị trí này',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                      const SizedBox(height: 6),
+                      Text(
+                        displayAddress,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
                   ),
-          ),
-        ],
+                ),
+                if (_isResolvingLocation)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Tọa độ: ${_formatCoordinates(_selectedPosition)}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _confirmSelection,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Chọn vị trí này',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

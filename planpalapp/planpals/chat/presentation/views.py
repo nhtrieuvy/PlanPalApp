@@ -324,6 +324,11 @@ class ConversationViewSet(viewsets.GenericViewSet,
         serializer = ChatMessageSerializer(data=request.data, context={'request': request})
         
         if not serializer.is_valid():
+            logger.warning(
+                "Chat send_message validation failed for conversation %s: %s",
+                conversation.id,
+                serializer.errors,
+            )
             return Response(
                 {'errors': serializer.errors}, 
                 status=status.HTTP_400_BAD_REQUEST

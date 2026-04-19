@@ -10,6 +10,21 @@ from planpals.shared.realtime_publisher import event_publisher
 logger = logging.getLogger(__name__)
 
 
+def _build_message_preview(message: Any) -> str:
+    message_type = getattr(message, 'message_type', 'text')
+    content = (getattr(message, 'content', '') or '').strip()
+    attachment_name = (getattr(message, 'attachment_name', '') or '').strip()
+    location_name = (getattr(message, 'location_name', '') or '').strip()
+
+    if message_type == 'image':
+        return content or attachment_name or 'Image'
+    if message_type == 'file':
+        return content or attachment_name or 'File'
+    if message_type == 'location':
+        return content or location_name or 'Location'
+    return content
+
+
 def publish_message_sent(conversation_id: str, message_id: str, sender_id: str, 
                         sender_username: str, content: str, timestamp: str,
                         message_type: str = 'text', group_id: str = None):
@@ -107,7 +122,7 @@ class ChatPushNotificationPublisher:
                 if message.conversation.group
                 else None
             )
-            content_preview = (message.content or '')[:100]
+            content_preview = _build_message_preview(message)[:100]
             recipient_ids = list(
                 message.conversation.participants.exclude(id=message.sender.id).values_list(
                     'id',

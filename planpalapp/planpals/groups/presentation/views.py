@@ -57,13 +57,16 @@ class GroupViewSet(viewsets.GenericViewSet,
     def retrieve(self, request, *args, **kwargs):
         pk = kwargs.get('pk') or kwargs.get(self.lookup_field)
         serializer_class = self.get_serializer_class()
+        group = get_object_or_404(
+            Group.objects.select_related('admin').prefetch_related('memberships__user').with_full_stats(),
+            id=pk,
+        )
+        self.check_object_permissions(request, group)
 
         def serialize(group):
             return serializer_class(group, context={'request': request}).data
 
         data = GroupService.get_group_detail_cached(pk, request.user.id, serialize)
-        if data is None:
-            return Response({'error': 'Group not found'}, status=status.HTTP_404_NOT_FOUND)
         return Response(data)
     
     def list(self, request):
@@ -84,10 +87,27 @@ class GroupViewSet(viewsets.GenericViewSet,
             creator=self.request.user,
             name=data.get('name', ''),
             description=data.get('description', ''),
+            initial_members=data.get('initial_members', []),
             avatar=data.get('avatar'),
             cover_image=data.get('cover_image'),
         )
         serializer.instance = group
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        instance = serializer.instance
+        headers = self.get_success_headers({'id': str(instance.id)})
+        response_serializer = GroupDetailSerializer(
+            instance,
+            context={'request': request},
+        )
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
 
     def perform_destroy(self, instance):
         GroupService.delete_group(instance, self.request.user)

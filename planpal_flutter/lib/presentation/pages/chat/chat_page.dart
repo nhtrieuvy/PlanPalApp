@@ -1,20 +1,23 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'dart:async';
-import 'dart:io';
-import '../../../core/riverpod/conversation_providers.dart';
-import '../../../core/riverpod/auth_notifier.dart';
-import '../../../core/dtos/conversation.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../../core/dtos/chat_message.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/dtos/conversation.dart';
+import '../../../core/riverpod/auth_notifier.dart';
+import '../../../core/riverpod/conversation_providers.dart';
 import '../../../core/services/chat_websocket_service.dart' as ws;
+import '../../../core/theme/app_colors.dart';
+import '../../../shared/ui_states/ui_states.dart';
 import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/message_input.dart';
 import '../../widgets/chat/typing_indicator.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
-import '../../../shared/ui_states/ui_states.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
   final Conversation conversation;
@@ -28,11 +31,9 @@ class ChatPage extends ConsumerStatefulWidget {
 class _ChatPageState extends ConsumerState<ChatPage>
     with WidgetsBindingObserver, RefreshablePage {
   final ScrollController _scrollController = ScrollController();
-  final TextEditingController _messageController = TextEditingController();
 
-  // WebSocket service for realtime messaging
   late ws.ChatWebSocketService _webSocketService;
-  StreamSubscription? _eventSubscription;
+  StreamSubscription<ws.WebSocketEvent>? _eventSubscription;
 
   @override
   void initState() {
@@ -50,11 +51,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _messageController.dispose();
-    _scrollController.dispose();
     _eventSubscription?.cancel();
-
-    // Disconnect WebSocket when leaving chat
+    _scrollController.dispose();
     _webSocketService.disconnect();
     super.dispose();
   }
@@ -64,14 +62,11 @@ class _ChatPageState extends ConsumerState<ChatPage>
     if (state == AppLifecycleState.resumed) {
       _connectWebSocket();
     } else if (state == AppLifecycleState.paused) {
-      // Disconnect WebSocket when app goes to background
       _webSocketService.disconnect();
     }
   }
 
   void _initializeChat() {
-    // Messages are loaded automatically by the family provider on first watch.
-    // Setup WebSocket for realtime messaging
     _webSocketService = ref.read(
       chatWebSocketServiceProvider(widget.conversation.id),
     );
@@ -80,25 +75,20 @@ class _ChatPageState extends ConsumerState<ChatPage>
   }
 
   void _connectWebSocket() {
-    // Connect WebSocket with authentication
-    final authProvider = ref.read(authNotifierProvider);
-    if (authProvider.token != null) {
-      _webSocketService.connect(widget.conversation.id, authProvider.token!);
+    final authState = ref.read(authNotifierProvider);
+    final token = authState.token;
+    if (token != null && token.isNotEmpty) {
+      _webSocketService.connect(widget.conversation.id, token);
     }
   }
 
   void _setupWebSocketListeners() {
-    // Listen to WebSocket events
     _eventSubscription = _webSocketService.eventStream.listen(
-      (event) => _handleWebSocketEvent(event),
+      _handleWebSocketEvent,
       onError: (error) {
-        debugPrint('WebSocket error: $error');
-        // Optionally show user-friendly error message
+        debugPrint('Chat WebSocket error: $error');
       },
     );
-
-    // For now, we'll just track connection state through events
-    // Connection state stream can be added later if needed
   }
 
   void _handleWebSocketEvent(ws.WebSocketEvent event) {
@@ -119,65 +109,49 @@ class _ChatPageState extends ConsumerState<ChatPage>
         break;
       case ws.WebSocketEventType.userJoined:
       case ws.WebSocketEventType.userLeft:
-        // Handle user presence if needed
-        debugPrint('User presence changed: ${event.data}');
-        break;
       case ws.WebSocketEventType.error:
-        debugPrint('WebSocket event error: ${event.data}');
+        debugPrint('Chat event ${event.type.value}: ${event.data}');
         break;
     }
   }
 
   void _handleNewMessage(Map<String, dynamic> data) {
-    final authProvider = ref.read(authNotifierProvider);
+    final currentUserId = ref.read(authNotifierProvider).user?.id;
+    final senderId = data['sender'] is Map<String, dynamic>
+        ? (data['sender'] as Map<String, dynamic>)['id'] as String?
+        : null;
 
-    // Extract sender info from WebSocket data to avoid duplicate messages
-    final senderId = data['sender']?['id'] as String?;
-    final currentUserId = authProvider.user?.id;
-
-    // If this message is from the current user, they already have it in their local state
-    // from the sendTextMessage response, so we don't need to refresh
     if (senderId != null && senderId == currentUserId) {
-      debugPrint(
-        'Skipping WebSocket message refresh for own message from $senderId',
-      );
       return;
     }
 
-    // For messages from other users, refresh to get the new message
-    debugPrint('Refreshing messages for new message from $senderId');
     ref.read(messagesProvider(widget.conversation.id).notifier).refresh();
     ref.invalidate(conversationListProvider);
   }
 
   void _handleTypingStart(Map<String, dynamic> data) {
     final username = data['username'] as String?;
-    if (username != null) {
-      ref
-          .read(typingUsersProvider(widget.conversation.id).notifier)
-          .setTyping(username, true);
-    }
+    if (username == null || username.isEmpty) return;
+    ref
+        .read(typingUsersProvider(widget.conversation.id).notifier)
+        .setTyping(username, true);
   }
 
   void _handleTypingStop(Map<String, dynamic> data) {
     final username = data['username'] as String?;
-    if (username != null) {
-      ref
-          .read(typingUsersProvider(widget.conversation.id).notifier)
-          .setTyping(username, false);
-    }
+    if (username == null || username.isEmpty) return;
+    ref
+        .read(typingUsersProvider(widget.conversation.id).notifier)
+        .setTyping(username, false);
   }
 
   void _handleMessageRead(Map<String, dynamic> data) {
-    final messageIds = data['message_ids'] as List<dynamic>?;
-    if (messageIds != null) {
-      debugPrint('Messages marked as read: $messageIds');
-      // TODO: Update message read status in UI
-    }
+    debugPrint('Messages marked as read: ${data['message_ids']}');
   }
 
   void _setupScrollListener() {
     _scrollController.addListener(() {
+      if (!_scrollController.hasClients) return;
       if (_scrollController.position.pixels >=
           _scrollController.position.maxScrollExtent - 200) {
         _loadMoreMessages();
@@ -191,144 +165,199 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
     });
   }
 
-  void _sendMessage(String content) {
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _sendMessage(String content) async {
     if (content.trim().isEmpty) return;
 
-    ref
+    final success = await ref
         .read(messagesProvider(widget.conversation.id).notifier)
-        .sendTextMessage(content)
-        .then((success) {
-          if (success) {
-            _scrollToBottom();
-          }
-        });
-  }
+        .sendTextMessage(content.trim());
 
-  void _sendImage(File imageFile) async {
-    try {
-      final notifier = ref.read(
-        messagesProvider(widget.conversation.id).notifier,
-      );
-      final success = await notifier.sendImageFile(imageFile);
-
-      if (!success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Không thể gửi ảnh. Vui lòng thử lại.'),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi gửi ảnh: ${e.toString()}')));
-      }
+    if (success) {
+      _scrollToBottom();
+    } else {
+      _showSnackBar('Khong the gui tin nhan. Vui long thu lai.');
     }
   }
 
-  void _sendLocation(double lat, double lng, String? locationName) async {
+  Future<void> _sendImage(File imageFile) async {
     try {
-      final notifier = ref.read(
-        messagesProvider(widget.conversation.id).notifier,
-      );
-      final success = await notifier.sendLocationMessage(
-        lat,
-        lng,
-        locationName ?? 'Vị trí được chia sẻ',
-      );
+      final success = await ref
+          .read(messagesProvider(widget.conversation.id).notifier)
+          .sendImageFile(imageFile);
 
-      if (!success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Không thể chia sẻ vị trí. Vui lòng thử lại.'),
-            ),
-          );
-        }
+      if (success) {
+        _scrollToBottom();
+      } else {
+        _showSnackBar('Khong the gui anh. Vui long thu lai.');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi chia sẻ vị trí: ${e.toString()}')),
-        );
-      }
+      _showSnackBar('Loi gui anh: $e');
     }
   }
 
-  void _sendFile(File file, String fileName) async {
+  Future<void> _sendLocation(
+    double lat,
+    double lng,
+    String? locationName,
+  ) async {
     try {
-      final notifier = ref.read(
-        messagesProvider(widget.conversation.id).notifier,
-      );
-      final success = await notifier.sendFileAttachment(file);
+      final success = await ref
+          .read(messagesProvider(widget.conversation.id).notifier)
+          .sendLocationMessage(lat, lng, locationName ?? 'Vi tri duoc chia se');
 
-      if (!success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Không thể gửi file. Vui lòng thử lại.'),
-            ),
-          );
-        }
+      if (success) {
+        _scrollToBottom();
+      } else {
+        _showSnackBar('Khong the chia se vi tri. Vui long thu lai.');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi gửi file: ${e.toString()}')),
-        );
+      _showSnackBar('Loi chia se vi tri: $e');
+    }
+  }
+
+  Future<void> _sendFile(File file, String _) async {
+    try {
+      final success = await ref
+          .read(messagesProvider(widget.conversation.id).notifier)
+          .sendFileAttachment(file);
+
+      if (success) {
+        _scrollToBottom();
+      } else {
+        _showSnackBar('Khong the gui file. Vui long thu lai.');
       }
+    } catch (e) {
+      _showSnackBar('Loi gui file: $e');
     }
   }
 
   void _onTypingStart() {
-    // Send typing indicator via WebSocket
     _webSocketService.sendTypingIndicator(true);
   }
 
   void _onTypingStop() {
-    // Stop typing indicator via WebSocket
     _webSocketService.sendTypingIndicator(false);
   }
 
   bool _shouldShowAvatar(int index, List<ChatMessage> messages) {
     if (index == messages.length - 1) {
-      return true; // Last message always shows avatar
+      return true;
     }
 
-    final currentMessage = messages[index];
-    final nextMessage = messages[index + 1];
-
-    // Show avatar if next message is from different sender or there's a time gap
-    return currentMessage.sender.id != nextMessage.sender.id ||
-        currentMessage.createdAt.difference(nextMessage.createdAt).inMinutes >
-            5;
+    final current = messages[index];
+    final next = messages[index + 1];
+    return current.sender.id != next.sender.id ||
+        current.createdAt.difference(next.createdAt).inMinutes > 5;
   }
 
   bool _shouldShowTimestamp(int index, List<ChatMessage> messages) {
-    if (index == 0) return true; // First message always shows timestamp
+    if (index == 0) return true;
 
-    final currentMessage = messages[index];
-    final previousMessage = messages[index - 1];
+    final current = messages[index];
+    final previous = messages[index - 1];
+    return current.sender.id != previous.sender.id ||
+        current.createdAt.difference(previous.createdAt).inMinutes > 15;
+  }
 
-    // Show timestamp if there's significant time gap or different sender
-    return currentMessage.sender.id != previousMessage.sender.id ||
-        currentMessage.createdAt
-                .difference(previousMessage.createdAt)
-                .inMinutes >
-            15;
+  Future<void> _openUrlString(
+    String? url, {
+    required String failureMessage,
+  }) async {
+    if (url == null || url.isEmpty) {
+      _showSnackBar(failureMessage);
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      _showSnackBar(failureMessage);
+      return;
+    }
+
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!launched) {
+      _showSnackBar(failureMessage);
+    }
+  }
+
+  Future<void> _handleMessageTap(ChatMessage message) async {
+    if (message.isLocationMessage) {
+      await _openUrlString(
+        message.locationUrl,
+        failureMessage: 'Khong the mo vi tri nay.',
+      );
+      return;
+    }
+
+    if (message.isFileMessage) {
+      await _openUrlString(
+        message.attachmentUrl,
+        failureMessage: 'Khong the mo tep dinh kem.',
+      );
+    }
+  }
+
+  Future<void> _showImagePreview(ChatMessage message) async {
+    final imageUrl = message.attachmentUrl ?? message.content;
+    if (imageUrl.isEmpty || !mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withAlpha(220),
+      builder: (dialogContext) {
+        return Dialog.fullscreen(
+          backgroundColor: Colors.black,
+          child: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 4,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Text(
+                          'Khong the tai anh.',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 24,
+                right: 16,
+                child: IconButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -343,7 +372,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
         child: Column(
           children: [
             _buildConnectionStatus(theme),
-            Expanded(child: _buildMessagesList(theme)),
+            Expanded(child: _buildMessagesList()),
             _buildTypingIndicator(),
             MessageInput(
               onSendMessage: _sendMessage,
@@ -352,7 +381,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
               onSendFile: _sendFile,
               onStartTyping: _onTypingStart,
               onStopTyping: _onTypingStop,
-              isEnabled: true, // TODO: Use proper connection state
+              isEnabled: true,
             ),
           ],
         ),
@@ -365,7 +394,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
       backgroundColor: theme.colorScheme.surface,
       elevation: 0,
       leading: IconButton(
-        onPressed: () => Navigator.pop(context),
+        onPressed: () => Navigator.of(context).pop(),
         icon: Icon(
           PhosphorIcons.arrowLeft(),
           color: theme.colorScheme.onSurface,
@@ -398,14 +427,14 @@ class _ChatPageState extends ConsumerState<ChatPage>
       actions: [
         if (widget.conversation.isDirect)
           IconButton(
-            onPressed: () => _showUserProfile(),
+            onPressed: _showUserProfile,
             icon: Icon(
               PhosphorIcons.user(),
               color: theme.colorScheme.onSurface,
             ),
           ),
         IconButton(
-          onPressed: () => _showConversationOptions(),
+          onPressed: _showConversationOptions,
           icon: Icon(
             PhosphorIcons.dotsThreeVertical(),
             color: theme.colorScheme.onSurface,
@@ -419,9 +448,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
     return Container(
       width: 40,
       height: 40,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: AppColors.primaryGradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -432,8 +461,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
               child: Image.network(
                 widget.conversation.avatarUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildAvatarPlaceholder(),
+                errorBuilder: (context, error, stackTrace) {
+                  return _buildAvatarPlaceholder();
+                },
               ),
             )
           : _buildAvatarPlaceholder(),
@@ -469,16 +499,16 @@ class _ChatPageState extends ConsumerState<ChatPage>
               : theme.colorScheme.onSurface.withAlpha(150),
         ),
       );
-    } else {
-      final memberCount = widget.conversation.participants.length;
-      return Text(
-        '$memberCount members',
-        style: GoogleFonts.inter(
-          fontSize: 12,
-          color: theme.colorScheme.onSurface.withAlpha(150),
-        ),
-      );
     }
+
+    final memberCount = widget.conversation.participants.length;
+    return Text(
+      '$memberCount members',
+      style: GoogleFonts.inter(
+        fontSize: 12,
+        color: theme.colorScheme.onSurface.withAlpha(150),
+      ),
+    );
   }
 
   Widget _buildConnectionStatus(ThemeData theme) {
@@ -501,8 +531,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
         ? theme.colorScheme.onErrorContainer
         : theme.colorScheme.onTertiaryContainer;
     final message = isFailed
-        ? 'Mất kết nối realtime. Đang thử lại...'
-        : 'Đang kết nối realtime...';
+        ? 'Mat ket noi realtime. Dang thu lai...'
+        : 'Dang ket noi realtime...';
 
     return Container(
       width: double.infinity,
@@ -527,7 +557,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
     );
   }
 
-  Widget _buildMessagesList(ThemeData theme) {
+  Widget _buildMessagesList() {
     final messagesAsync = ref.watch(messagesProvider(widget.conversation.id));
 
     return messagesAsync.when(
@@ -547,6 +577,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
           );
         }
 
+        final currentUserId = ref.read(authNotifierProvider).user?.id ?? '';
+
         return ListView.builder(
           controller: _scrollController,
           reverse: true,
@@ -562,16 +594,15 @@ class _ChatPageState extends ConsumerState<ChatPage>
             }
 
             final message = messages[index];
-            final authProvider = ref.read(authNotifierProvider);
-            final currentUserId = authProvider.user?.id ?? '';
 
             return MessageBubble(
               message: message,
               isCurrentUser: message.sender.id == currentUserId,
               showAvatar: _shouldShowAvatar(index, messages),
               showTimestamp: _shouldShowTimestamp(index, messages),
-              status: MessageStatus
-                  .sent, // You can implement proper status tracking later
+              status: MessageStatus.sent,
+              onTap: () => _handleMessageTap(message),
+              onImageTap: () => _showImagePreview(message),
             );
           },
         );
@@ -581,7 +612,6 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
   Widget _buildTypingIndicator() {
     final typingUsers = ref.watch(typingUsersProvider(widget.conversation.id));
-
     if (typingUsers.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -593,16 +623,10 @@ class _ChatPageState extends ConsumerState<ChatPage>
   }
 
   void _showUserProfile() {
-    // TODO: Navigate to user profile
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('User profile not implemented yet')),
-    );
+    _showSnackBar('User profile not implemented yet');
   }
 
   void _showConversationOptions() {
-    // TODO: Show conversation options (mute, block, etc.)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Conversation options not implemented yet')),
-    );
+    _showSnackBar('Conversation options not implemented yet');
   }
 }

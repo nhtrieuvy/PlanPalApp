@@ -1,519 +1,447 @@
-﻿# AI System Design - PlanPal
+# AI System Design - PlanPal
 
-Generated: 2026-04-08  
-Scope: Django backend, Flutter frontend, Riverpod state, Channels realtime, Celery async, Audit Log, Notification System, Analytics Dashboard.
+Generated: 2026-04-19  
+Repository root: `D:\Study\DoAnNganh\PlanPal`  
+Scope: Django backend, Flutter frontend, Riverpod state, Channels realtime, Celery async, Audit Log, Notifications, Analytics, Budget Tracking.
 
-This document is optimized for AI agents and senior engineers. It focuses on behavior, dependencies, invariants, contracts, and safe modification points.
+This document is AI-optimized. It is designed to let an engineer or an AI agent reason about behavior, trace dependencies, predict side effects, and modify the system safely without first reading the entire codebase.
 
 ---
 
 ## 1. System Mental Model
 
-PlanPal is a layered, event-enriched travel planning system.
+PlanPal is a layered social planning system. The product is organized around a small set of durable entities and a larger set of behavioral events.
 
-Core runtime pattern:
+Primary bounded contexts:
+
+- `auth`: users, profile, friendship, device token registration
+- `groups`: group lifecycle, membership, roles
+- `plans`: plans, activities, schedule, plan lifecycle
+- `chat`: conversations, messages, read state
+- `audit`: append-only behavioral history
+- `notifications`: in-app notifications, unread state, push abstraction, realtime delivery
+- `analytics`: pre-aggregated metrics and dashboard queries
+- `budgets`: budget + expense tracking per plan
+- `locations`: external place lookup
+- `shared`: cache, pagination, Celery utilities, cross-cutting abstractions
+
+Core system equation:
 
 ```text
 User
-  -> performs action in Flutter UI
-  -> Riverpod notifier/provider calls repository
-  -> repository calls REST API or WebSocket
-  -> DRF view validates request and delegates to application service
-  -> application service/command handler applies business rules
-  -> repository persists state
-  -> state change emits domain event and/or audit log
-  -> side effects run synchronously (cache invalidation, websocket publish)
-     or asynchronously (Celery notifications, reminders, analytics aggregation)
-  -> response is serialized back to Flutter DTOs
+  -> UI action
+  -> Riverpod provider/notifier
+  -> repository
+  -> REST API or WebSocket
+  -> presentation layer
+  -> application service / command handler
+  -> repository interface
+  -> infrastructure repository / ORM
+  -> DB state change
+  -> synchronous side effects
+  -> asynchronous side effects
+  -> serializer / DTO mapping
+  -> UI state update
 ```
 
-High-level system equation:
+Behavior model:
 
 ```text
 User -> Actions -> System -> State changes -> Side effects
 
 Examples
-- Create plan -> Plan row created -> Audit log -> Notification fan-out -> Scheduled status tasks
-- Join group -> Membership row created -> Audit log -> Notify admins
-- Send message -> ChatMessage row created -> Conversation updated -> WebSocket fan-out -> Push notification
-- Open notification -> Notification marked read -> Audit log NOTIFICATION_OPENED -> Analytics aggregate later
+- Create plan -> insert Plan + initialize Budget -> write AuditLog -> queue notification fan-out
+- Join group -> insert GroupMembership -> write AuditLog -> notify admins
+- Add expense -> insert Expense -> recompute budget summary -> write AuditLog -> maybe queue budget alerts
+- Mark notification read -> update Notification -> write AuditLog NOTIFICATION_OPENED -> analytics aggregate later
 ```
 
-Primary state stores:
+Mermaid overview:
 
-- MySQL: source of truth for users, groups, plans, activities, friendships, chat, audit logs, notifications, analytics snapshots.
-- Redis or local memory cache: short-lived read cache, Celery broker/result backend, Channels backend in deployed environments.
-- Channels groups: transient realtime fan-out transport.
-- Celery queues: deferred notification, reminder, analytics, cleanup execution.
+```mermaid
+flowchart LR
+    U["User"] --> UI["Flutter UI"]
+    UI --> RP["Riverpod Provider / Notifier"]
+    RP --> REPO["Flutter Repository"]
+    REPO --> API["REST API / WebSocket"]
+    API --> PRES["Django Presentation"]
+    PRES --> APP["Application Service / Handler"]
+    APP --> INF["Infrastructure Repository"]
+    INF --> DB["MySQL"]
+    APP --> CACHE["Cache Invalidation"]
+    APP --> AUDIT["Audit Log"]
+    AUDIT --> CEL["Celery Task Dispatch"]
+    CEL --> NOTIF["Notifications / Push / Analytics Jobs"]
+    DB --> PRES
+    PRES --> API
+    API --> REPO
+    REPO --> RP
+    RP --> UI
+```
 
-Primary design principle:
+Key design rule:
 
-- Request-time endpoints should do transactional state changes and lightweight reads.
-- Expensive or fan-out work is delegated to Celery.
-- Historical metrics come from pre-aggregated tables, not live scans.
+- request-time reads stay cheap
+- durable state lives in MySQL
+- audit logs are the canonical behavioral trace
+- analytics dashboard reads only pre-aggregated `DailyMetric` rows
+- background work is delegated to Celery
 
 ---
 
 ## 2. Domain Model Graph
 
+Core entity graph:
+
 ```text
 User
- ├── owns -> Plan
- ├── joins -> Group (through GroupMembership)
- ├── sends/receives -> Friendship
+ ├── creates -> Plan
+ ├── belongs to -> GroupMembership
  ├── participates in -> Conversation
  ├── sends -> ChatMessage
  ├── receives -> Notification
  ├── owns -> UserDeviceToken
- ├── causes -> AuditLog
- └── contributes to -> DailyMetric (through activity and audit history)
+ ├── writes -> AuditLog
+ ├── records -> Expense
+ └── relates to -> Friendship
 
 Friendship
  ├── connects -> User A
- ├── connects -> User B
- └── may have -> FriendshipRejection history
+ └── connects -> User B
 
 Group
- ├── owned by -> admin User
- ├── contains -> GroupMembership
- ├── contains -> member Users
- ├── owns -> Plan (group plans)
- └── owns -> Conversation (group chat)
+ ├── has many -> GroupMembership
+ ├── has one -> admin User
+ ├── has many -> Plan
+ └── has one group conversation -> Conversation
 
 GroupMembership
- ├── belongs to -> Group
  ├── belongs to -> User
- └── carries -> role (admin/member)
+ ├── belongs to -> Group
+ └── has role -> admin | member
 
 Plan
  ├── belongs to -> creator User
  ├── optionally belongs to -> Group
- ├── contains -> PlanActivity
- ├── referenced by -> AuditLog
- ├── referenced by -> Notification data
- └── contributes to -> DailyMetric
+ ├── has many -> PlanActivity
+ ├── has exactly one -> Budget
+ ├── has many -> Expense
+ ├── has many -> AuditLog (logical scope)
+ └── can trigger -> Notification
 
 PlanActivity
  └── belongs to -> Plan
 
+Budget
+ └── belongs to -> Plan (one-to-one)
+
+Expense
+ ├── belongs to -> Plan
+ └── belongs to -> User
+
 Conversation
- ├── direct: links -> user_a, user_b
- ├── group: links -> Group
- └── contains -> ChatMessage
+ ├── direct: has -> user_a, user_b
+ ├── group: belongs to -> Group
+ └── has many -> ChatMessage
 
 ChatMessage
  ├── belongs to -> Conversation
- ├── optionally replies to -> ChatMessage
+ ├── belongs to -> sender User
  └── has many -> MessageReadStatus
 
-MessageReadStatus
- ├── belongs to -> ChatMessage
- └── belongs to -> User
-
 AuditLog
- ├── belongs to -> nullable User actor
- ├── references -> resource_type/resource_id
- ├── stores -> metadata JSON
- ├── feeds -> Notification fan-out
- └── feeds -> DailyMetric aggregation
+ ├── belongs to -> acting User (nullable for some system actions)
+ ├── points to -> resource_type + resource_id
+ └── carries -> metadata JSON
 
 Notification
  ├── belongs to -> User
- ├── stores -> type/title/message/data
- ├── may trigger -> push notification
- ├── may emit -> realtime event
- └── contributes to -> DailyMetric (sent count)
+ ├── has type -> NotificationType
+ └── carries -> data JSON
 
 UserDeviceToken
- ├── belongs to -> User
- └── enables -> FCM push delivery
+ └── belongs to -> User
 
 DailyMetric
- ├── aggregates -> AuditLog
- ├── aggregates -> Notification open/send counts
- └── powers -> Analytics Dashboard
+ └── aggregates -> AuditLog + Notification activity per day
 ```
+
+Important logical relationships:
+
+- Every `Plan` must have exactly one `Budget`.
+- `Expense` is always scoped to a `Plan`.
+- `BudgetSummary` is derived, not stored.
+- `Plan` audit history logically includes direct plan logs and legacy `budget` / `expense` logs via `metadata.plan_id`.
 
 ---
 
 ## 3. Dependency Graph (Critical)
 
-### 3.1 Backend Layer Rule
+### 3.1 Layer rule
+
+Conceptual direction:
 
 ```text
 Presentation -> Application -> Domain
-Infrastructure -> Domain
-Infrastructure -> Application (factory wiring only)
-
-Forbidden direction:
-Domain -X-> Django, DRF, ORM, Celery, Channels
-Application -X-> ORM models directly
-Presentation -X-> ORM or business logic directly
+Infrastructure -> Application + Domain
+Shared -> imported by all layers as utility/port abstractions
 ```
 
-### 3.2 Actual Backend Module Map
+Important nuance:
+
+- Domain is framework-independent.
+- Application logic avoids ORM.
+- Infrastructure owns Django ORM, Celery task implementations, Channels consumers, push adapters.
+- Presentation owns DRF views and serializers. Some serializers read ORM models directly as boundary adapters. This is an allowed edge in this repo, but services and handlers must stay ORM-free.
+
+### 3.2 Backend module map
+
+```mermaid
+flowchart TD
+    P1["presentation"] --> A1["application"]
+    A1 --> D1["domain"]
+    I1["infrastructure"] --> A1
+    I1 --> D1
+    P1 --> I1
+    S["shared"] --> P1
+    S --> A1
+    S --> I1
+```
+
+Actual module families:
+
+- `planpals/<context>/domain/*`
+  - pure enums, entities, validation helpers, events
+- `planpals/<context>/application/*`
+  - services, command handlers, repository interfaces, factories
+- `planpals/<context>/infrastructure/*`
+  - Django models, ORM repositories, Celery tasks, Channels publishers/consumers
+- `planpals/<context>/presentation/*`
+  - DRF views, serializers, permissions
+- `planpals/shared/*`
+  - cache ports/keys, pagination, exception mapping, event and realtime helpers
+
+Critical cross-context dependencies:
+
+- `plans -> groups`
+  - group plan membership and admin checks
+- `plans -> audit`
+  - create/update/delete/complete plan audit logs
+- `plans -> budgets`
+  - create plan initializes one budget row
+- `groups -> auth`
+  - friendship validation and user identity
+- `groups -> chat`
+  - group messaging actions
+- `groups -> audit`
+  - join/leave/change role/delete group audit logs
+- `audit -> notifications`
+  - audit factory wires notification dispatcher closure
+- `notifications -> audit`
+  - mark-read and read-all emit `NOTIFICATION_OPENED`
+- `analytics -> audit + notifications`
+  - daily aggregation reads audit logs and notification rows
+- `budgets -> plans + groups`
+  - budget and expense permissions are plan/group scoped
+- `budgets -> audit + notifications`
+  - budget updates and expenses write audit logs and may queue notifications
+
+### 3.3 Circular dependency policy
+
+The codebase avoids hard architectural cycles in core logic, but there is one intentional event loop:
 
 ```text
-planpals.auth
-  presentation: views, serializers, permissions
-  application: services, commands, handlers, factories
-  domain: entities
-  infrastructure: models, repositories, websocket auth
-
-planpals.groups
-  presentation: views, serializers, permissions
-  application: services, commands, handlers, factories
-  domain: repositories, events
-  infrastructure: models, repositories, consumers
-
-planpals.plans
-  presentation: views, serializers, permissions
-  application: services, commands, handlers, factories
-  domain: repositories, events
-  infrastructure: models, repositories, publishers, consumers
-
-planpals.chat
-  presentation: views, serializers, permissions
-  application: services, factories
-  domain: repositories, events
-  infrastructure: models, repositories, publishers, tasks, consumers
-
-planpals.audit
-  presentation: views, serializers
-  application: services, repositories, factories
-  domain: entities
-  infrastructure: models, repositories
-
-planpals.notifications
-  presentation: views, serializers
-  application: services, repositories, factories
-  domain: entities, push ports
-  infrastructure: models, repositories, publishers, push, tasks, consumers
-
-planpals.analytics
-  presentation: views, serializers
-  application: services, repositories, factories
-  domain: entities
-  infrastructure: models, repositories, tasks
-
-planpals.locations
-  presentation: views
-  infrastructure: Goong service adapter
-
-planpals.shared
-  cache, paginators, base models, base services, consumers, events, task helpers
+business action -> AuditLog -> notification dispatcher
+notification read -> AuditLog NOTIFICATION_OPENED
+analytics aggregate -> consumes audit logs later
 ```
 
-### 3.3 Frontend Dependency Rule
+This loop is acceptable because:
 
-```text
-Pages/Widgets -> Riverpod providers/notifiers -> Repository -> API service/Auth session -> HTTP/WebSocket
-DTOs are passive data objects.
-UI does not call HTTP directly.
-```
+- it is event-driven, not synchronous business recursion
+- integration is wired through factories and tasks
+- repositories and domain models stay separate
 
-### 3.4 Frontend Module Map
-
-```text
-lib/presentation
-  pages: auth, home, plans, groups, chat, notifications, analytics, users
-  widgets: analytics, audit, chat, notifications, common
-
-lib/core/riverpod
-  auth_notifier
-  repository_providers
-  plans_notifier
-  groups_notifier
-  conversation_providers
-  notifications_provider
-  analytics_providers
-  audit_logs_provider
-
-lib/core/repositories
-  user_repository
-  friend_repository
-  group_repository
-  plan_repository
-  conversation_repository
-  notification_repository
-  analytics_repository
-  audit_log_repository
-  location_repository
-
-lib/core/services
-  apis
-  api_error
-  error_display_service
-  chat_websocket_service
-  notification_websocket_service
-  firebase_service
-```
-
-### 3.5 Circular Dependency Notes
-
-No hard circular dependency is required for runtime behavior. The only sensitive coupling is audit-to-notification orchestration:
-
-- `AuditLogService` can call an injected dispatcher.
-- `notifications.application.factories.get_audit_log_notification_dispatcher()` lazy-imports Celery task wiring.
-- This avoids a hard import cycle between audit and notification application modules.
+Do not bypass this wiring by calling notification side effects directly from views or ORM models.
 
 ---
 
 ## 4. Sequence Diagrams (Text)
 
-### 4.1 Create Plan
+### 4.1 Create plan
 
 ```text
 User
-  -> Flutter Plan Form
-  -> PlanRepository.createPlan()
-  -> POST /api/v1/plans/
-  -> PlanViewSet.create
-  -> PlanService.create_plan
-  -> CreatePlanHandler.handle
-  -> PlanRepository.save_new
-  -> DB: insert Plan
-  -> EventPublisher.publish(PlanCreated)
-  -> AuditLogService.log_action(CREATE_PLAN)
-  -> AuditLogRepository.create_log
-  -> DB: insert AuditLog
-  -> audit notification dispatcher
-  -> Celery: process_audit_log_notification_task
-  -> NotificationService.notify_many
-  -> NotificationRepository.bulk_create_notifications
-  -> DB: insert Notification rows
-  -> ChannelsNotificationPublisher.publish_created
-  -> WebSocket user channel
-  -> HTTP response serialized
-  -> Flutter DTO mapping
-  -> UI refresh
+ -> Flutter PlanFormPage
+ -> PlanRepository.createPlan()
+ -> POST /api/v1/plans/
+ -> PlanViewSet.create()
+ -> PlanService.create_plan()
+ -> CreatePlanHandler.handle()
+ -> PlanRepository.save_new()
+ -> DB insert Plan
+ -> BudgetService.initialize_plan_budget(plan)
+ -> DB insert Budget
+ -> AuditLogService.log_action(CREATE_PLAN, resource=plan)
+ -> DB insert AuditLog
+ -> Audit factory dispatches notification task
+ -> return PlanDetailSerializer payload
+ -> Flutter updates plan list / navigates to detail
 ```
 
-### 4.2 Join Group
+### 4.2 Join group
 
 ```text
 User
-  -> Flutter Group Detail Page
-  -> GroupRepository.joinGroup()
-  -> POST /api/v1/groups/{id}/join/
-  -> GroupViewSet.join
-  -> GroupService.join_group
-  -> JoinGroupHandler.handle
-  -> GroupMembershipRepository.create
-  -> DB: insert GroupMembership
-  -> AuditLogService.log_action(JOIN_GROUP)
-  -> DB: insert AuditLog
-  -> Celery: process_audit_log_notification_task
-  -> NotificationService.notify_many(admin recipients)
-  -> DB: insert Notification rows
-  -> Response
-  -> Flutter groups notifier refresh
+ -> Flutter GroupDetailPage
+ -> GroupRepository.joinGroup()
+ -> POST /api/v1/groups/{id}/join/
+ -> GroupViewSet.join()
+ -> GroupService.join_group()
+ -> JoinGroupHandler.handle()
+ -> DB insert GroupMembership
+ -> AuditLogService.log_action(JOIN_GROUP, resource=group)
+ -> DB insert AuditLog
+ -> process_audit_log_notification_task.delay()
+ -> return GroupDetailSerializer payload
+ -> Flutter refreshes group detail and user groups
 ```
 
-### 4.3 Send Message
+### 4.3 Send message
 
 ```text
 User
-  -> Flutter Chat Page
-  -> MessagesNotifier.sendTextMessage()
-  -> ConversationRepository.sendTextMessage()
-  -> POST /api/v1/conversations/{id}/send_message/
-  -> ConversationViewSet.send_message
-  -> ConversationService.create_message
-  -> ChatRepository.create_message
-  -> DB: insert ChatMessage
-  -> DB: update Conversation.last_message_at
-  -> Channels publisher -> conversation_{id}
-  -> Optional push fan-out task
-  -> Response with ChatMessage payload
-  -> MessagesNotifier.addMessage()
-  -> conversationListProvider invalidated
+ -> Flutter ConversationPage
+ -> ConversationRepository.sendMessage()
+ -> POST /api/v1/conversations/{id}/send_message/
+ -> ConversationViewSet.send_message()
+ -> ConversationService.create_message()
+ -> DB insert ChatMessage
+ -> Channels publish to ws/chat/{conversation_id}/
+ -> optional push fan-out task
+ -> response returns ChatMessageSerializer
+ -> Flutter appends message locally
+ -> other clients receive websocket event
 ```
 
-### 4.4 Notification Read Flow
+### 4.4 Notification flow
+
+```text
+Business action
+ -> AuditLogService.log_action(...)
+ -> DB insert AuditLog
+ -> audit notification dispatcher whitelist check
+ -> Celery process_audit_log_notification_task
+ -> NotificationService.notify() or notify_many()
+ -> DB insert Notification(s)
+ -> Channels user notification publish
+ -> optional FCM push send
+ -> Flutter NotificationWebSocketService receives event
+ -> notificationsProvider + unreadCountProvider update state
+```
+
+### 4.5 Expense flow
 
 ```text
 User
-  -> NotificationListPage
-  -> NotificationsNotifier.markAsRead()
-  -> PATCH /api/v1/notifications/{id}/read/
-  -> NotificationViewSet.mark_read
-  -> NotificationService.mark_as_read
-  -> NotificationRepository.mark_as_read
-  -> DB: update Notification.is_read/read_at
-  -> AuditLogService.log_action(NOTIFICATION_OPENED)
-  -> DB: insert AuditLog
-  -> ChannelsNotificationPublisher.publish_read
-  -> unreadCountProvider updates
-```
-
-### 4.5 Async Audit -> Notification Flow
-
-```text
-State-changing command
-  -> AuditLogService.log_action(...)
-  -> AuditLogRepository.create_log
-  -> DB: insert AuditLog
-  -> audit notification dispatcher whitelist check
-  -> Celery high_priority queue
-  -> process_audit_log_notification_task
-  -> compute recipients from GroupMembership / Plan membership / metadata
-  -> fanout_group_notification_task
-  -> NotificationService.notify_many
-  -> DB: bulk insert Notification
-  -> PushService.send(...)
-  -> ChannelsNotificationPublisher.publish_created
-```
-
-### 4.6 Analytics Aggregation Flow
-
-```text
-Celery Beat (02:15 daily)
-  -> aggregate_daily_metrics_task
-  -> AnalyticsService.aggregate_daily_metrics(target_date)
-  -> AnalyticsRepository.aggregate_day
-  -> read AuditLog and Notification tables
-  -> compute DAU/MAU/rates
-  -> upsert DailyMetric(date)
-  -> invalidate analytics cache
-  -> later dashboard requests read only DailyMetric
+ -> Flutter AddExpenseForm
+ -> BudgetRepository.addExpense()
+ -> POST /api/v1/plans/{id}/expenses/
+ -> PlanExpenseListCreateView.post()
+ -> BudgetService.add_expense()
+ -> ExpenseRepository.create_expense()
+ -> DB insert Expense
+ -> Budget summary recomputed
+ -> AuditLogService.log_action(CREATE_EXPENSE, resource=plan, entity_type=expense)
+ -> Celery process_expense_notifications_task.delay()
+ -> return {expense, summary, warnings}
+ -> Flutter refreshes budget summary and expense feed
 ```
 
 ---
 
 ## 5. Event Flow Map
 
-### 5.1 Primary Events
+System event map:
 
-| Event | Trigger | Immediate state change | Side effects |
+| Event | Trigger | Immediate State Change | Side Effects |
 |---|---|---|---|
-| `PlanCreated` | Create plan command succeeds | `Plan` row inserted | Audit log, scheduled lifecycle tasks, notifications to participants |
-| `PlanUpdated` | Update plan succeeds | `Plan` row updated | Audit log, cache invalidation, notifications to participants |
-| `PlanCompleted` | Manual complete or scheduled completion | `Plan.status=completed` | Audit log `COMPLETE_PLAN`, realtime publish, analytics aggregate later |
-| `GroupJoined` | Join group succeeds | `GroupMembership` row inserted | Audit log, notify group admins |
-| `GroupLeft` | Leave group succeeds | `GroupMembership` row deleted | Audit log, notify group admins |
-| `RoleChanged` | Admin changes member role | `GroupMembership.role` updated | Audit log, notify affected user |
-| `MessageSent` | Chat message created | `ChatMessage` row inserted | Conversation timestamp update, websocket broadcast, optional push |
-| `NotificationSent` | Notification service create/bulk-create | `Notification` row(s) inserted | WebSocket user event, optional FCM push |
-| `NotificationOpened` | Notification marked read | `Notification.is_read=true` | Audit log, unread badge update, analytics aggregate later |
-| `DailyMetricsAggregated` | Daily Celery beat task | `DailyMetric` upserted | Analytics caches invalidated |
+| `PlanCreated` | valid plan create | insert `Plan`, initialize `Budget` | write audit log, schedule notifications, schedule plan tasks |
+| `PlanUpdated` | valid plan update | update `Plan` | write audit log, invalidate plan cache, notify participants |
+| `PlanCompleted` | plan completion flow | `Plan.status = completed` | write `COMPLETE_PLAN` audit log, analytics picks it up later |
+| `GroupJoined` | join group | insert `GroupMembership` | write audit log, notify admins |
+| `GroupLeft` | leave group | delete membership | write audit log, notify admins |
+| `RoleChanged` | admin changes member role | update membership role | write audit log, notify affected user |
+| `NotificationSent` | notification service | insert `Notification` row(s) | websocket publish, optional push |
+| `NotificationOpened` | mark read / read all | update `Notification.is_read` | write `NOTIFICATION_OPENED` audit log |
+| `BudgetUpdated` | budget upsert | update `Budget` | invalidate budget cache, write audit log |
+| `ExpenseCreated` | expense add | insert `Expense` | invalidate budget + plan summary cache, write audit log, maybe queue alerts |
+| `DailyMetricsAggregated` | Celery beat at 02:15 | upsert `DailyMetric` | invalidate analytics cache |
 
-### 5.2 Audit Action to Analytics Mapping
+Important event rule:
 
-| Audit action | Analytics meaning |
-|---|---|
-| `CREATE_PLAN` | plan created |
-| `COMPLETE_PLAN` | plan completed |
-| `JOIN_GROUP` | group join event |
-| any action with user actor | contributes to active user count |
-| `NOTIFICATION_OPENED` | notification open count |
-
-### 5.3 Audit Action to Notification Mapping
-
-Only these audit actions are allowed to fan out notifications:
-
-- `CREATE_PLAN`
-- `UPDATE_PLAN`
-- `DELETE_PLAN`
-- `JOIN_GROUP`
-- `LEAVE_GROUP`
-- `CHANGE_ROLE`
-- `DELETE_GROUP`
-
-Explicitly excluded:
-
-- `NOTIFICATION_OPENED`
-- any unsupported future audit action until mapped intentionally
+- Notifications are not created for every audit action.
+- Audit-to-notification dispatch is explicitly whitelisted in `notifications/application/factories.py`.
 
 ---
 
 ## 6. State Transitions
 
-### 6.1 Plan State Machine
+### 6.1 Plan state machine
+
+Persisted field: `Plan.status`
 
 ```text
-upcoming
-  -> ongoing      (manual start or scheduled Celery start task)
-  -> cancelled    (manual cancel)
-
-ongoing
-  -> completed    (manual complete or scheduled Celery completion)
-  -> cancelled    (manual cancel)
-
-completed
-  -> terminal
-
-cancelled
-  -> terminal
+upcoming -> ongoing -> completed
+upcoming -> cancelled
+ongoing  -> cancelled
 ```
 
 Rules:
 
-- No draft state exists in the current model.
-- Completed or cancelled plans cannot be edited.
-- End date must be after start date.
-- Group plan must have a group.
-- Personal plan must not have a group.
+- Only creator or group admin can modify plan.
+- `complete_trip()` writes audit `COMPLETE_PLAN`.
+- Celery `plan_status` queue may advance state based on schedule.
 
-### 6.2 Plan Activity State Machine
+### 6.2 Friendship state machine
+
+Persisted field: `Friendship.status`
 
 ```text
-not_completed <-> completed
+pending -> accepted
+pending -> rejected (tracked via FriendshipRejection + status path)
+pending -> blocked
+accepted -> blocked
+blocked -> unblocked (relationship removed or changed by service flow)
 ```
 
 Rules:
 
-- Activity time must be inside the parent plan time range.
-- Duration cannot exceed 24 hours.
-- Estimated cost must be non-negative.
-- Coordinates must be valid if present.
+- cannot send friend request to self
+- cannot send duplicate pending request
+- accepted friendship is required for group initial member validation
 
-### 6.3 Group Membership State Machine
+### 6.3 Group membership state
+
+There is no persisted `pending` membership state. Membership is presence-based.
 
 ```text
-absent
-  -> member   (join/add member/create group initial members)
-  -> admin    (create group admin seed)
-
-member
-  -> admin    (change_role promote)
-  -> removed  (leave/remove/delete group)
-
-admin
-  -> member   (change_role demote)
-  -> removed  (leave/remove/delete group, subject to admin invariant)
+not_member -> member
+not_member -> admin
+member -> admin
+admin -> member (only if another admin remains)
+member/admin -> removed (row deleted)
 ```
 
 Rules:
 
-- The group must always retain at least one admin.
-- Group delete is owner-admin only.
-- Group read access is member-only.
+- `GroupMembership` is unique on `(user, group)`
+- a group must always have at least one admin
+- `GroupCreateSerializer` requires `initial_members` and at least 2 friend IDs
 
-### 6.4 Friendship State Machine
+### 6.4 Notification state
 
-```text
-none
-  -> pending
-
-pending
-  -> accepted
-  -> rejected
-  -> blocked
-  -> none      (cancel)
-
-accepted
-  -> blocked
-  -> none      (unfriend)
-
-rejected
-  -> pending   (new request after cooldown rules)
-
-blocked
-  -> none or pending depending on unblock + future request flow
-```
-
-### 6.5 Notification State Machine
+Persisted fields: `is_read`, `read_at`
 
 ```text
 unread -> read
@@ -521,539 +449,602 @@ unread -> read
 
 Rules:
 
-- Notifications are user-owned.
-- `read_all` is idempotent.
-- Marking read creates audit evidence.
+- read is monotonic
+- `mark_all_as_read()` marks all unread rows for the current user
+- notification open analytics is derived from audit logs, not from notification row counts alone
+
+### 6.5 Budget status
+
+`Budget` has no explicit status field. Operational state is derived:
+
+```text
+normal      : spent_percentage < 80
+near_limit  : 80 <= spent_percentage < 100
+over_budget : spent_percentage >= 100
+```
+
+Rules:
+
+- `Expense.amount > 0`
+- every plan has one budget row
+- updating budget does not delete history
 
 ---
 
 ## 7. Data Flow Pipeline
 
-### 7.1 Synchronous Read/Write Path
+### 7.1 Standard request path
 
 ```text
 Flutter UI
-  -> Riverpod notifier/provider
-  -> Repository
-  -> AuthProvider adds OAuth token
-  -> DRF endpoint
-  -> Serializer validates request
-  -> Application service / command handler
-  -> Repository interface
-  -> Infrastructure repository (ORM)
-  -> MySQL
-  -> Serializer / direct payload dict
-  -> JSON response
-  -> DTO mapping
-  -> Riverpod state
-  -> UI
+ -> Riverpod provider / notifier
+ -> Flutter repository
+ -> ApiClient (Dio)
+ -> Django view / viewset
+ -> serializer validates request
+ -> application service / handler
+ -> repository interface
+ -> ORM repository
+ -> DB
+ -> cache invalidation / websocket publish / task enqueue
+ -> serializer builds response
+ -> DTO parsing in Flutter
+ -> provider state update
+ -> widget rebuild
 ```
 
-### 7.2 Serialization and DTO Mapping
+### 7.2 Serialization and DTO mapping
 
 Backend:
 
-- DRF `ModelSerializer` or plain `Serializer` shapes HTTP contracts.
-- Some cached responses are built manually for speed, notably `/users/profile`.
-- Audit, notifications, and analytics use explicit serializers with stable field names.
+- DRF serializers validate input at the boundary
+- application services work with domain-level values or ORM-backed entities returned by repositories
+- response serializers define stable API shape
 
 Frontend:
 
-- DTOs in `lib/core/dtos` parse backend JSON.
-- Repositories normalize pagination and errors.
-- Providers keep UI state separate from DTO state.
+- repositories map JSON -> DTOs
+- `parseServerDateTime()` normalizes server timestamps
+- DTOs hide API shape differences from widgets
 
-### 7.3 Cache Touch Points
+### 7.3 Cache placement
 
-- `/users/profile` -> cacheable dict response
-- plan summary -> cached statistics payload
-- group detail -> per-user cached detail payload
-- analytics summary/time series/top -> cached aggregate views
-- websocket presence -> `ws_connected:{user_id}`
-- unread chat count -> short TTL user cache
-- plan reminder dedupe -> cache `add` key per plan/user/start time
+Cache is used only for read optimization:
 
-### 7.4 Realtime Side Channel
+- user profile
+- plan summary
+- group detail
+- budget summary
+- analytics summary / time series / top entities
 
-```text
-DB write
-  -> application/publisher
-  -> Channels group_send
-  -> WebSocket client
-  -> Riverpod notifier mutates in-memory state
-```
+Write operations update DB first, then invalidate or version-bump cache.
 
 ---
 
 ## 8. API Contract Map
 
-### 8.1 Global Rules
+Base path: `/api/v1`
 
-- Base API prefix: `/api/v1/`
-- Auth: OAuth2 bearer token for all application endpoints unless noted
-- Default pagination: `{"count","next","previous","results":[]}`
-- Custom cursor pagination used by audit logs and notifications
-- Conversation list intentionally uses custom response `{"conversations":[...],"count":N}`
+Pagination styles:
 
-### 8.2 Schema Aliases
+- Standard DRF lists: `count`, `next`, `previous`, `results`
+- Notifications and audit logs: custom cursor pagination
+- Budget expenses: custom page-number pagination
+- Conversation list: custom non-paginated `{conversations, count}`
 
-```text
-UserSummary:
-  id, username, full_name, avatar_url, online flags, counts
+### 8.1 Authentication and users
 
-PlanSummary:
-  lightweight plan list item for feeds/home cards
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `POST /o/token/` | OAuth2 password grant fields | access + refresh token payload | login |
+| `POST /api/v1/auth/logout/` | bearer token | `{message}` | logout |
+| `POST /api/v1/users/` | username, email, password, password_confirm, profile fields | created user | registration |
+| `GET /api/v1/users/` | optional filters | paginated user list | list/search support via separate route |
+| `GET /api/v1/users/profile/` | none | full current user profile | includes `is_staff` |
+| `PUT/PATCH /api/v1/users/update_profile/` | profile fields | updated user profile | current user only |
+| `GET /api/v1/users/search/` | `q` | list of users | custom search |
+| `POST /api/v1/users/register_device_token/` | `fcm_token`, `platform` | `{message, token_id}` style ack | persists `UserDeviceToken` |
+| `GET /api/v1/users/my_plans/` | none | list/paginated plans | current user scope |
+| `GET /api/v1/users/my_groups/` | none | list groups | current user scope |
+| `GET /api/v1/users/my_activities/` | none | list activities | current user scope |
+| `POST /api/v1/users/set_online_status/` | online flag | status ack | online presence |
+| `GET /api/v1/users/friendship_stats/` | none | counts | social stats |
+| `GET /api/v1/users/recent_conversations/` | none | recent conversations | profile shortcut |
+| `GET /api/v1/users/unread_count/` | none | unread message count | messaging badge |
+| `GET /api/v1/users/{id}/` | none | user detail | user summary/detail mix |
+| `GET /api/v1/users/{id}/friendship_status/` | none | friendship state | current user vs target |
+| `DELETE /api/v1/users/{id}/unfriend/` | none | ack | remove friendship |
+| `POST /api/v1/users/{id}/block/` | none | ack | block user |
+| `DELETE /api/v1/users/{id}/unblock/` | none | ack | unblock user |
 
-PlanDetail:
-  plan core fields + creator + group + activities + permission booleans
+### 8.2 Friendship
 
-GroupSummary / GroupDetail:
-  group metadata + memberships + counts + permission booleans
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `POST /api/v1/friends/request/` | `friend_id`, optional `message` | friendship/request payload | creates pending friendship |
+| `GET /api/v1/friends/requests/` | none | list pending requests | incoming/outgoing as serializer context |
+| `POST /api/v1/friends/requests/{id}/action/` | `action=accept|reject|cancel` | updated friendship result | accept path fixed to use correct event args |
+| `GET /api/v1/friends/` | none | friends list | accepted friendships only |
 
-ConversationSummary:
-  conversation metadata + last_message + unread_count
+### 8.3 Groups
 
-ChatMessageDetail:
-  id, sender, type, content, attachments/location, timestamps, reply_to, delete/edit flags
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `GET /api/v1/groups/` | optional filters | paginated or list groups | group summary |
+| `POST /api/v1/groups/` | `name`, `description`, media, `initial_members:[uuid,...]` | `GroupDetailSerializer` payload | `initial_members` required, at least 2 friend IDs |
+| `GET /api/v1/groups/{id}/` | none | `GroupDetailSerializer` | object permission checked before cached detail |
+| `PUT/PATCH /api/v1/groups/{id}/` | editable group fields | updated group detail | admin only |
+| `DELETE /api/v1/groups/{id}/` | none | ack | owner/admin delete path |
+| `POST /api/v1/groups/{id}/join/` | none | updated group detail | authenticated user |
+| `GET /api/v1/groups/my_groups/` | none | user groups | current user |
+| `GET /api/v1/groups/created_by_me/` | none | created groups | current user |
+| `GET /api/v1/groups/search/` | `q` | search results | custom |
+| `POST /api/v1/groups/{id}/add_member/` | target user data | ack/detail | admin only |
+| `POST /api/v1/groups/{id}/leave/` | none | ack | member only |
+| `POST /api/v1/groups/{id}/remove_member/` | `user_id` | ack/detail | admin only |
+| `POST /api/v1/groups/{id}/change_role/` | `user_id`, `role` | updated membership | admin only |
+| `GET /api/v1/groups/{id}/admins/` | none | admin list | member only |
+| `GET /api/v1/groups/{id}/plans/` | none | group plans | member only |
+| `POST /api/v1/groups/{id}/send_message/` | message payload | message result | group message shortcut |
+| `POST /api/v1/groups/{id}/send_message_with_notification/` | message payload | message result | group message + notifications |
+| `GET /api/v1/groups/{id}/recent_messages/` | none | recent messages | member only |
+| `GET /api/v1/groups/{id}/unread_count/` | none | unread count | member only |
 
-CursorPage<T>:
-  next, previous:null, has_more, page_size, results:[T]
+### 8.4 Plans and activities
 
-NotificationPage:
-  CursorPage<NotificationItem> + unread_count
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `GET /api/v1/plans/` | standard filters, pagination | paginated plan summaries/details | list |
+| `POST /api/v1/plans/` | title, description, dates, `group_id?`, `is_public` | `PlanDetailSerializer` payload | returns `id` and detail fields |
+| `GET /api/v1/plans/{id}/` | none | `PlanDetailSerializer` | plan detail |
+| `PUT/PATCH /api/v1/plans/{id}/` | mutable plan fields | updated `PlanDetailSerializer` | creator or group admin |
+| `DELETE /api/v1/plans/{id}/` | none | ack | owner only |
+| `GET /api/v1/plans/my_plans/` | none | list plans | current user |
+| `GET /api/v1/plans/joined/` | none | joined plans | public/collab scope |
+| `GET /api/v1/plans/public/` | none | public plans | discoverability |
+| `POST /api/v1/plans/{id}/join/` | none | joined plan result | public plan only |
+| `GET /api/v1/plans/{id}/activities_by_date/?date=YYYY-MM-DD` | date | `{date, activities}` style payload | current contract fixed |
+| `GET /api/v1/plans/{id}/collaborators/` | none | collaborator list | plan access required |
+| `GET /api/v1/plans/{id}/summary/` | none | cached summary | plan access required |
+| `GET /api/v1/plans/{id}/schedule/` | none | schedule payload | plan access required |
+| `POST /api/v1/plans/{id}/create_activity/` | activity fields | created activity | modifier only |
+| `PUT/PATCH /api/v1/plans/{id}/activities/{activity_id}/` | activity updates | updated activity | modifier only |
+| `DELETE /api/v1/plans/{id}/activities/{activity_id}/` | none | ack | modifier only |
+| `POST /api/v1/plans/{id}/activities/{activity_id}/complete/` | none | toggled activity | modifier only |
+| `POST /api/v1/plans/{id}/add_activity_with_place/` | place-backed activity fields | created activity | place helper |
+| `GET /api/v1/activities/` | standard pagination | activity list | separate viewset |
+| `GET /api/v1/activities/by_plan/` | `plan_id` | plan activities | custom |
+| `GET /api/v1/activities/by_date_range/` | range params | activities | custom |
+| `GET /api/v1/activities/upcoming/` | none | upcoming activities | custom |
+| `GET /api/v1/activities/search/` | `q` and filters | search results | custom |
+
+### 8.5 Chat
+
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `GET /api/v1/conversations/` | optional `q` | `{conversations: [...], count}` | not standard DRF pagination |
+| `POST /api/v1/conversations/create_direct/` | `user_id` | `{conversation, created}` | direct conversation |
+| `GET /api/v1/conversations/{id}/` | none | `ConversationSerializer` | retrieve |
+| `GET /api/v1/conversations/{id}/messages/` | `limit`, `before_id?` | `{messages, has_more, next_cursor, count}` | read-only fetch, no implicit mark-read |
+| `POST /api/v1/conversations/{id}/send_message/` | message payload | `ChatMessageSerializer` | send into conversation |
+| `POST /api/v1/conversations/{id}/mark_read/` | `message_ids:[]` | `{success, message}` | explicit read mutation |
+| `POST /api/v1/messages/` | group message payload incl. `group_id` | `ChatMessageSerializer` | legacy group-message create path |
+| `GET /api/v1/messages/{id}/` | none | `ChatMessageSerializer` | retrieve |
+| `PUT/PATCH /api/v1/messages/{id}/` | editable message content | updated message | edit |
+| `DELETE /api/v1/messages/{id}/` | none | ack | soft delete |
+| `GET /api/v1/messages/by_group/` | `group_id`, pagination params | `{messages, has_more, next_cursor, count}` | group feed |
+| `GET /api/v1/messages/search/` | `q`, optional `group_id` | message search results | custom |
+| `GET /api/v1/messages/recent/` | limit | recent messages | custom |
+
+Stable chat contract details:
+
+- `Conversation.last_message.id` is nullable in Flutter DTO but backend now returns a real ID whenever annotated last message exists.
+- `last_message.message_type` is derived from real annotated message data, not hard-coded.
+
+### 8.6 Audit log
+
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `GET /api/v1/audit-logs/` | `user_id`, `action`, `resource_type`, `date_from`, `date_to`, `cursor`, `page_size` | `{next, previous, has_more, page_size, results}` | custom cursor page |
+| `GET /api/v1/audit-logs/resource/{resource_type}/{resource_id}/` | same filters | same page shape plus `resource_type`, `resource_id` | permission-gated |
+
+Audit response notes:
+
+- serializer includes actor user summary
+- plan-scoped queries include direct plan logs and legacy budget/expense logs by `metadata.plan_id`
+
+### 8.7 Notifications
+
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `GET /api/v1/notifications/` | `is_read?`, `cursor?`, `page_size?` | `{next, previous, has_more, page_size, unread_count, results}` | custom cursor page |
+| `GET /api/v1/notifications/unread-count/` | none | `{unread_count}` | badge endpoint |
+| `PATCH /api/v1/notifications/{id}/read/` | none | notification or ack payload | marks one read |
+| `PATCH /api/v1/notifications/read-all/` | none | `{message, updated_count}` | marks all read |
+
+Stable notification contract:
+
+- list response always carries `unread_count`
+- websocket events mirror list mutations: `notification.created`, `notification.read`, `notification.read_all`
+
+### 8.8 Analytics
+
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `GET /api/v1/analytics/summary/?range=30d` | `range in {7d,30d,90d,180d}` | dashboard summary payload | staff only |
+| `GET /api/v1/analytics/timeseries/?metric=dau&range=30d` | metric + range | `{metric, range, points:[{date,value}]}` | staff only |
+| `GET /api/v1/analytics/top/?range=30d&limit=5` | range + limit | `{range, plans:[...], groups:[...]}` | staff only |
+
+Summary payload keys:
+
+- `dau`
+- `mau`
+- `plan_creation_rate`
+- `plan_completion_rate`
+- `group_join_rate`
+- `notification_open_rate`
+- `totals.plans_created`
+- `totals.plans_completed`
+- `totals.expenses_created`
+- `totals.expense_total_amount`
+- `totals.group_joins`
+- `totals.notifications_sent`
+- `totals.notifications_opened`
+
+### 8.9 Budget tracking
+
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `GET /api/v1/plans/{plan_id}/budget/` | none | `BudgetSummary` | creator or group member |
+| `POST /api/v1/plans/{plan_id}/budget/` | `total_budget`, `currency` | updated `BudgetSummary` | creator or group admin |
+| `GET /api/v1/plans/{plan_id}/expenses/` | `category`, `user_id`, `sort_by`, `sort_direction`, `page`, `page_size` | `{count, total_pages, current_page, page_size, next, previous, results}` | page-number pagination |
+| `POST /api/v1/plans/{plan_id}/expenses/` | `amount`, `category`, `description` | `{expense, summary, warnings}` | creator or group member |
+
+Budget summary shape:
+
+```json
+{
+  "budget_id": "uuid",
+  "plan_id": "uuid",
+  "currency": "VND",
+  "total_budget": "1200000.00",
+  "total_spent": "500000.00",
+  "remaining_budget": "700000.00",
+  "spent_percentage": 41.67,
+  "near_limit": false,
+  "over_budget": false,
+  "expense_count": 2,
+  "breakdown": [
+    { "user": { "id": "uuid", "username": "alice", "full_name": "Alice" }, "amount": "300000.00" }
+  ],
+  "trend": [
+    { "date": "2026-04-18", "amount": "500000.00" }
+  ]
+}
 ```
 
-### 8.3 OAuth and Session
+### 8.10 Locations
 
-| Endpoint | Method | Request schema | Response schema | Notes |
-|---|---|---|---|---|
-| `/o/token/` | POST | OAuth2 grant payload | access token + refresh token + expiry | Login/token refresh path |
-| `/api/v1/auth/logout/` | POST | optional current token | success/message | Revokes token and sets offline |
-
-### 8.4 Users and Friendship
-
-| Endpoint | Method | Request schema | Response schema | Notes |
-|---|---|---|---|---|
-| `/api/v1/users/` | GET | none | current user summary wrapper | authenticated self shortcut |
-| `/api/v1/users/` | POST | register fields | user/auth payload | registration |
-| `/api/v1/users/profile/` | GET | none | profile dict including `is_staff` | cached |
-| `/api/v1/users/update_profile/` | PUT/PATCH | editable profile fields | updated user | invalidates profile cache |
-| `/api/v1/users/search/?q=` | GET | query string | list of `UserSummary` | search |
-| `/api/v1/users/register_device_token/` | POST | `token`, `platform` | success/message | notification device token |
-| `/api/v1/users/my_plans/?type=` | GET | `all|personal|group` | list of plans | user-scoped |
-| `/api/v1/users/my_groups/` | GET | none | list of groups | user-scoped |
-| `/api/v1/users/my_activities/` | GET | none | list of activities | user-scoped |
-| `/api/v1/users/set_online_status/` | POST | `is_online` | success/message | presence |
-| `/api/v1/users/friendship_stats/` | GET | none | count summary | stats |
-| `/api/v1/users/recent_conversations/` | GET | none | recent conversation summaries | home/profile |
-| `/api/v1/users/unread_count/` | GET | none | unread chat count | badge |
-| `/api/v1/users/{id}/` | GET | none | user detail | target profile |
-| `/api/v1/users/{id}/friendship_status/` | GET | none | status object | friend relation state |
-| `/api/v1/users/{id}/unfriend/` | DELETE | none | success/message | friends only |
-| `/api/v1/users/{id}/block/` | POST | none | success/message | non-self |
-| `/api/v1/users/{id}/unblock/` | DELETE | none | success/message | blocker only |
-| `/api/v1/friends/request/` | POST | target user id | success/message | creates pending friendship |
-| `/api/v1/friends/requests/` | GET | none | pending/sent request lists | inbox |
-| `/api/v1/friends/requests/{request_id}/action/` | POST | `action=accept|reject` | success/message | permission-checked |
-| `/api/v1/friends/` | GET | none | friend list | accepted only |
-
-### 8.5 Groups
-
-| Endpoint | Method | Request schema | Response schema | Notes |
-|---|---|---|---|---|
-| `/api/v1/groups/` | GET | none | standard page of groups | member-visible groups |
-| `/api/v1/groups/` | POST | `name`, `description`, media, `initial_members[]` | `GroupDetail` | initial friend seed; admin auto-created |
-| `/api/v1/groups/{id}/` | GET | none | `GroupDetail` | member only |
-| `/api/v1/groups/{id}/` | PUT/PATCH | editable group fields | updated detail | admin only |
-| `/api/v1/groups/{id}/` | DELETE | none | success/message | owner-admin only |
-| `/api/v1/groups/{id}/join/` | POST | none | success/message | joins group directly |
-| `/api/v1/groups/{id}/leave/` | POST | none | success/message | leaves group |
-| `/api/v1/groups/{id}/add_member/` | POST | `user_id` | success/message | admin only |
-| `/api/v1/groups/{id}/remove_member/` | POST | `user_id` | success/message | admin only |
-| `/api/v1/groups/{id}/change_role/` | POST | `user_id`, `role` | success/message | admin only |
-| `/api/v1/groups/{id}/send_message/` | POST | message payload | message result | group member only |
-| `/api/v1/groups/{id}/recent_messages/` | GET | none | recent chat summaries | member only |
-| `/api/v1/groups/{id}/unread_count/` | GET | none | unread counter | member only |
-| `/api/v1/groups/{id}/admins/` | GET | none | admin user list | member only |
-| `/api/v1/groups/{id}/plans/` | GET | none | plan list | member only |
-| `/api/v1/groups/my_groups/` | GET | none | list | current user memberships |
-| `/api/v1/groups/created_by_me/` | GET | none | list | ownership |
-| `/api/v1/groups/search/?q=` | GET | query string | list | search |
-
-### 8.6 Plans and Activities
-
-| Endpoint | Method | Request schema | Response schema | Notes |
-|---|---|---|---|---|
-| `/api/v1/plans/` | GET | standard paging/filter query | standard page of `PlanSummary` or detail serializer depending endpoint | feed |
-| `/api/v1/plans/` | POST | `title`, `description`, `start_date`, `end_date`, `is_public`, `plan_type`, `group_id` | `PlanDetail` | group membership checked for group plans |
-| `/api/v1/plans/{id}/` | GET | none | `PlanDetail` | creator/group member/public access |
-| `/api/v1/plans/{id}/` | PUT/PATCH | editable plan fields | updated plan | creator or group admin |
-| `/api/v1/plans/{id}/` | DELETE | none | success/message | creator only |
-| `/api/v1/plans/my_plans/?type=` | GET | `all|personal|group` | plan list | personal dashboard |
-| `/api/v1/plans/joined/` | GET | none | plan list | joined/collaborative |
-| `/api/v1/plans/public/` | GET | none | public plan list | public browse |
-| `/api/v1/plans/{id}/join/` | POST | none | success/message | public plan join |
-| `/api/v1/plans/{id}/activities_by_date/?date=` | GET | date | activity list for that date | filtered by date |
-| `/api/v1/plans/{id}/collaborators/` | GET | none | user list | collaborators/group members |
-| `/api/v1/plans/{id}/summary/` | GET | none | plan statistics summary | cached |
-| `/api/v1/plans/{id}/schedule/` | GET | none | schedule by date | grouped activities |
-| `/api/v1/plans/{id}/create_activity/` | POST | activity payload | activity detail | creator or group admin |
-| `/api/v1/plans/{id}/activities/{activity_id}/` | PUT/PATCH | activity payload | updated activity | creator or group admin |
-| `/api/v1/plans/{id}/activities/{activity_id}/` | DELETE | none | success/message | creator or group admin |
-| `/api/v1/plans/{id}/activities/{activity_id}/complete/` | POST | none | updated activity | toggles completion |
-| `/api/v1/activities/` | CRUD | activity payload | activity detail | DRF activity viewset |
-| `/api/v1/activities/by_plan/?plan_id=` | GET | plan id | activity list | filtered |
-| `/api/v1/activities/by_date_range/?start_date=&end_date=` | GET | date range | activity list | filtered |
-| `/api/v1/activities/upcoming/?limit=` | GET | limit | activity list | upcoming |
-| `/api/v1/activities/search/?q=&plan_id=` | GET | search query | activity list | search |
-
-### 8.7 Chat and Conversations
-
-| Endpoint | Method | Request schema | Response schema | Notes |
-|---|---|---|---|---|
-| `/api/v1/messages/` | CRUD | chat message serializer payload | `ChatMessageDetail` | direct viewset path |
-| `/api/v1/messages/by_group/?group_id=&limit=&before_id=` | GET | group id + paging | message list | group chat history |
-| `/api/v1/messages/search/?q=&group_id=` | GET | search query | message list | search |
-| `/api/v1/messages/recent/?limit=` | GET | limit | message list | recents |
-| `/api/v1/conversations/` | GET | optional `q` | `{"conversations":[ConversationSummary], "count":N}` | custom list contract |
-| `/api/v1/conversations/` | POST | conversation create payload | conversation detail | generic create |
-| `/api/v1/conversations/{id}/` | GET | none | conversation detail | participant only |
-| `/api/v1/conversations/create_direct/` | POST | `user_id` | conversation detail | requires friendship |
-| `/api/v1/conversations/{id}/messages/?limit=&before_id=` | GET | cursor via `before_id` | message page | read-only fetch |
-| `/api/v1/conversations/{id}/send_message/` | POST | text/image/file/location payload | created message | explicit send |
-| `/api/v1/conversations/{id}/mark_read/` | POST | `message_ids[]` | success/message | explicit mark-read |
-
-### 8.8 Audit Logs
-
-| Endpoint | Method | Request schema | Response schema | Notes |
-|---|---|---|---|---|
-| `/api/v1/audit-logs/` | GET | `user_id`, `action`, `resource_type`, `date_from`, `date_to`, `cursor`, `page_size` | `CursorPage<AuditLogItem>` | access-filtered |
-| `/api/v1/audit-logs/resource/{resource_type}/{resource_id}/` | GET | same filters | `CursorPage<AuditLogItem>` + resource ids | resource-scoped |
-
-`AuditLogItem`:
-
-```text
-id, user_id, user, action, resource_type, resource_id, metadata, created_at
-```
-
-### 8.9 Notifications
-
-| Endpoint | Method | Request schema | Response schema | Notes |
-|---|---|---|---|---|
-| `/api/v1/notifications/` | GET | `is_read`, `cursor`, `page_size` | `NotificationPage` | owner-only |
-| `/api/v1/notifications/unread-count/` | GET | none | `{"unread_count": int}` | badge |
-| `/api/v1/notifications/{id}/read/` | PATCH | none | `{"message": "Notification marked as read"}` | idempotent for current user |
-| `/api/v1/notifications/read-all/` | PATCH | none | `{"message": "...", "updated_count": int}` | bulk read |
-
-`NotificationItem`:
-
-```text
-id, user_id, type, title, message, data, is_read, read_at, created_at
-```
-
-### 8.10 Analytics
-
-| Endpoint | Method | Request schema | Response schema | Notes |
-|---|---|---|---|---|
-| `/api/v1/analytics/summary/?range=` | GET | `range in {7d,30d,90d,180d}` | `AnalyticsSummary` | staff only, cached |
-| `/api/v1/analytics/timeseries/?metric=&range=` | GET | `metric` + `range` | `{metric, range, points[]}` | staff only, cached |
-| `/api/v1/analytics/top/?range=&limit=` | GET | `range`, `limit<=20` | `{range, plans[], groups[]}` | staff only, cached |
-
-### 8.11 Location Services
-
-Only these location endpoints are routed publicly through `planpals.urls`:
-
-| Endpoint | Method | Request schema | Response schema | Notes |
-|---|---|---|---|---|
-| `/api/v1/location/reverse-geocode/` | POST | `latitude`, `longitude` | address payload | Goong-backed reverse geocode |
-| `/api/v1/location/search/?q=` | GET | query string `q` | `{"results":[...]}` | place search |
-| `/api/v1/location/autocomplete/?input=` | GET | `input` | `{"predictions":[...]}` | autocomplete |
-| `/api/v1/location/place-details/?place_id=` | GET | `place_id` | place detail payload | details |
+| Endpoint | Request | Response | Notes |
+|---|---|---|---|
+| `GET /api/v1/location/reverse-geocode/` | lat/lng | place result | external service |
+| `GET /api/v1/location/search/` | query | places | external service |
+| `GET /api/v1/location/autocomplete/` | query | suggestions | external service |
+| `GET /api/v1/location/place-details/` | place id | place detail | external service |
 
 ---
 
 ## 9. Permission Model
 
-### 9.1 Role Vocabulary
+Roles used by the system:
 
-```text
-authenticated user
-self
-friend
-group member
-group admin
-group owner-admin (Group.admin)
-plan creator
-plan collaborator/group participant
-chat participant
-staff
-```
+- anonymous
+- authenticated user
+- friend / pending friend / blocked user
+- group member
+- group admin
+- plan creator
+- plan collaborator
+- staff user
 
-### 9.2 Action -> Required Role
+Action to role map:
 
-| Action | Required role / rule |
+| Action | Required role |
 |---|---|
-| View own profile | self |
-| Update profile | self |
-| Search users | authenticated |
-| Send friend request | authenticated, not self, not blocked |
-| Accept/reject friend request | receiver only |
-| View group detail | group member |
-| Edit group | any group admin |
-| Delete group | owner-admin only |
-| Join group | authenticated user, service rule |
-| Add/remove member | group admin |
-| Change member role | group admin |
-| Create personal plan | authenticated |
-| Create group plan | group member with edit ability |
-| View plan | creator, group member, or public plan |
-| Edit plan | creator or group admin |
-| Delete plan | creator only |
-| Modify plan activity | creator or group admin |
-| Join public plan | not creator, public access |
-| Create direct conversation | authenticated and friendship exists |
-| View conversation | participant only |
-| Send message | conversation participant or group member |
-| Edit message | sender only, text only, within 15 minutes, non-system |
-| Delete message | sender or group admin |
-| View audit log list | authenticated + access-filtered by owned/accessible resources |
-| View resource audit log | group member / plan participant / actor of deletion event |
-| View notifications | owner only |
-| Mark notification read | owner only |
-| View analytics | staff only |
+| register | anonymous |
+| login/logout | authenticated session lifecycle |
+| send friend request | authenticated user |
+| accept friend request | request receiver |
+| create group | authenticated user with at least 2 accepted friends selected |
+| edit group | group admin |
+| delete group | group owner/admin path |
+| add/remove/change member role | group admin |
+| join group | authenticated user |
+| leave group | group member |
+| view group detail | member or authorized path |
+| create personal plan | authenticated user |
+| create group plan | group member |
+| edit plan | creator or group admin |
+| delete plan | creator |
+| view plan | creator, collaborator, public user, or group member depending on scope |
+| add activity | plan modifier |
+| join public plan | authenticated user, if public and not already collaborator |
+| view notifications | notification owner only |
+| mark notifications read | notification owner only |
+| view analytics | staff only |
+| read audit logs | only if viewer can access underlying resource |
+| update budget | plan creator or group admin |
+| add expense | plan creator or group member |
+| view budget/expenses | plan creator or group member |
 
-### 9.3 Permission Enforcement Layers
+Special permission notes:
 
-- DRF permission classes guard broad access.
-- Application services and handlers enforce domain-specific rules.
-- Audit repository applies resource-aware visibility filters.
-- Chat service validates friendship and conversation participation.
+- `GET /groups/{id}/` explicitly checks object permissions before serving cached detail.
+- Audit log access is resource-aware, not global admin-only.
+- Analytics is intentionally staff-only on backend and hidden in Flutter for non-staff users.
 
 ---
 
 ## 10. Caching Flow
 
-### 10.1 Cache Usage Map
+Cache key registry lives in `planpalapp/planpals/shared/cache.py`.
 
-| Cache key | Source | TTL | Invalidation |
-|---|---|---:|---|
-| `v1:user:profile:{user_id}` | `UserService.get_user_profile_cached()` | 120s | profile update, friendship-affecting self updates, self-heal on schema mismatch |
-| `v1:plan:summary:{plan_id}` | `PlanService.get_plan_statistics()` | 180s | plan update/delete, summary-affecting changes |
-| `v1:group:detail:{group_id}:u{user_id}` | `GroupService.get_group_detail_cached()` | 180s | group membership/update/delete via pattern delete |
-| `v1:analytics:summary:{range}` | analytics summary | 300s | daily aggregate job invalidates all analytics cache |
-| `v1:analytics:timeseries:{metric}:{range}` | analytics time series | 600s | daily aggregate job invalidates all analytics cache |
-| `v1:analytics:top:{range}:limit:{n}` | analytics top entities | 600s | daily aggregate job invalidates all analytics cache |
-| `user_unread_count_{user_id}` | unread chat badge | 30s | message create/read clears user cache |
-| `ws_connected:{user_id}` | websocket presence | 300s | connection/disconnection |
-| `plan_reminder:{plan_id}:{user_id}:{start_iso}` | notification reminder dedupe | 36h | expires naturally |
+Primary keys:
 
-### 10.2 Cache Read/Write Pattern
+- `v1:user:profile:{user_id}`
+- `v1:plan:summary:{plan_id}`
+- `v1:group:detail:version:{group_id}`
+- `v1:group:detail:{group_id}:r{version}:u{user_id}`
+- `v1:budget:summary:{plan_id}`
+- `v1:analytics:version`
+- `v1:analytics:summary:{range}:r{version}`
+- `v1:analytics:timeseries:{metric}:{range}:r{version}`
+- `v1:analytics:top:{range}:limit:{limit}:r{version}`
+
+TTL strategy:
+
+- user profile: 120s
+- plan summary: 180s
+- group detail: 180s
+- budget summary: 180s
+- analytics summary: 300s
+- analytics time series / top: 600s
+
+Flow:
 
 ```text
 Request
-  -> CachePort.get_or_set(key)
-    -> cache hit: return payload
-    -> cache miss: compute from repository
-      -> DB read
-      -> cache write
-      -> return payload
+ -> cache lookup
+ -> hit: return cached payload
+ -> miss: query DB through service/repository
+ -> cache write
+ -> response
 ```
 
-### 10.3 Runtime Behavior
+Invalidation strategy:
 
-- In production Redis can back cache and Channels.
-- In local development cache can fall back to `LocMemCache`.
-- Cache failures are handled defensively; the system should still function without cache.
+- group mutations:
+  - bump `group_detail_version(group_id)`
+  - best-effort `delete_pattern(group_detail_pattern(group_id))`
+- plan mutations:
+  - delete `plan_summary(plan_id)`
+- budget / expense mutations:
+  - delete `budget_summary(plan_id)`
+  - delete `plan_summary(plan_id)` because summary fields depend on expenses
+- analytics aggregation:
+  - increment `analytics_version`
+  - delete old summary keys and pattern
+
+Why versioned keys exist:
+
+- Redis `delete_pattern` is best-effort and backend-dependent
+- version bump guarantees hard invalidation even if pattern deletion misses entries
 
 ---
 
 ## 11. Async Flow (Celery)
 
-### 11.1 Queues
+Runtime rule:
 
-| Queue | Purpose | Examples |
+- test env may use `memory://`
+- normal runtime defaults to Redis broker/result backend
+- local default if env is absent: `redis://127.0.0.1:6379/0`
+
+Queues:
+
+- `high_priority`
+- `default`
+- `plan_status`
+- `low_priority`
+
+Queue intent:
+
+- `high_priority`: user-triggered fan-out and push-sensitive work
+- `default`: general event processing
+- `plan_status`: ETA-scheduled plan lifecycle
+- `low_priority`: analytics, cleanup, reminders
+
+Key tasks:
+
+| Task | Queue | Purpose |
 |---|---|---|
-| `high_priority` | user-triggered fan-out | notification send, audit notification processing, chat push |
-| `default` | general async work | default routing fallback |
-| `plan_status` | scheduled lifecycle transitions | plan start/complete tasks |
-| `low_priority` | batch/periodic work | analytics aggregation, reminder dispatch, cleanup |
+| `send_notification_task` | high_priority | single-user notification |
+| `fanout_group_notification_task` | high_priority | bulk notification fan-out |
+| `process_audit_log_notification_task` | high_priority | audit -> notification mapping |
+| `process_expense_notifications_task` | high_priority | budget alerts and large expense alerts |
+| `aggregate_daily_metrics_task` | low_priority | build `DailyMetric` |
+| `dispatch_plan_reminders_task` | low_priority | reminder notifications |
+| plan start/complete tasks | plan_status | scheduled plan lifecycle |
+| cleanup invalid FCM tokens | low_priority | hygiene |
+| cleanup expired offline events | low_priority | hygiene |
 
-### 11.2 Scheduled Jobs
+Beat schedule:
 
-| Task | Schedule | Effect |
-|---|---|---|
-| `aggregate_daily_metrics_task` | daily 02:15 | upsert `DailyMetric`, invalidate analytics cache |
-| `cleanup_expired_offline_events_task` | daily 03:00 | cleanup |
-| `cleanup_invalid_fcm_tokens_task` | weekly Sunday 04:00 | token hygiene |
-| `dispatch_plan_reminders_task` | hourly | send reminder notifications for plans starting within 24h |
+- `02:15` daily: aggregate daily metrics
+- `03:00` daily: cleanup expired offline events
+- `04:00` Sunday: cleanup invalid FCM tokens
+- hourly: dispatch plan reminders
 
-### 11.3 Event -> Task -> Worker -> Effect
+Async flow:
 
 ```text
-AuditLog created
-  -> dispatcher whitelist
-  -> process_audit_log_notification_task
-  -> fanout_group_notification_task
-  -> NotificationService.notify_many
-  -> DB + realtime + push
-
-Plan approaching start time
-  -> dispatch_plan_reminders_task
-  -> dedupe with cache.add
-  -> NotificationService.notify_many
-  -> DB + push
-
-Daily beat
-  -> aggregate_daily_metrics_task
-  -> AnalyticsRepository.aggregate_day
-  -> DailyMetric upsert
-  -> analytics cache invalidated
+Event
+ -> Celery task enqueued
+ -> worker consumes from queue
+ -> service/repository work
+ -> DB / push / websocket side effects
+ -> optional retries on transient failures
 ```
 
-### 11.4 Reliability Model
+Important operational rule:
 
-- `acks_late=True` on important tasks
-- soft/hard time limits
-- retry with backoff for notification tasks
-- broker/result fallback to in-memory in dev if Redis env is absent
+- if Celery is down, core writes still succeed
+- async side effects become delayed or absent
+- dashboard still reads existing `DailyMetric`; it just will not refresh automatically
 
 ---
 
 ## 12. Frontend State Graph
 
-### 12.1 Root Provider Wiring
-
-```text
-ProviderScope
-  -> authNotifierProvider (override with pre-initialized AuthProvider)
-  -> repository_providers
-     -> all repositories depend on authNotifierProvider
-  -> feature notifiers/providers consume repositories
-```
-
-### 12.2 Major Providers
-
-#### Authentication
-
-- `authNotifierProvider`: exposes initialized `AuthProvider`; source of token/session state.
-
-#### Plans
-
-- `plansNotifierProvider`: `AsyncNotifier<PlansFeedState>`
-- `plansListProvider`: derived current list
-- `recentPlansProvider`: top 5 plans
-- `plansFeedScrollOffsetProvider`: scroll restoration
-
-#### Groups
-
-- `groupsNotifierProvider`: `AsyncNotifier<List<GroupSummary>>`
-- `activeGroupsProvider`: top 5 groups
-
-#### Chat
-
-- `conversationListProvider`: list of conversations
-- `totalUnreadCountProvider`: derived unread count
-- `conversationSearchProvider(query)`: server-side search
-- `messagesProvider(conversationId)`: paged messages state
-- `typingUsersProvider(conversationId)`: ephemeral typing state
-- `chatWebSocketServiceProvider(conversationId)`: realtime transport
-
-#### Notifications
-
-- `notificationsProvider`: `AsyncNotifier<NotificationFeedState>`
-- `unreadCountProvider`: unread notification badge with websocket + polling fallback
-- `notificationWebSocketServiceProvider`: realtime transport
-
-#### Audit Logs
-
-- `auditLogsProvider(filter)`
-- `resourceAuditLogsProvider(query)`
-
-#### Analytics
-
-- `analyticsRangeProvider`
-- `analyticsChartMetricProvider`
-- `analyticsSummaryProvider`
-- `analyticsTimeSeriesProvider`
-- `analyticsTopEntitiesProvider`
-
-### 12.3 Data Path
+Frontend architecture:
 
 ```text
 Widget
-  -> ref.watch(provider)
-  -> notifier/repository
-  -> API
-  -> DTO parse
-  -> AsyncValue<T>
-  -> UI state branch
+ -> Riverpod provider / notifier
+ -> repository
+ -> ApiClient / WebSocket service
+ -> backend
+ -> DTO mapping
+ -> provider state
+ -> widget rebuild
 ```
+
+Key provider groups:
+
+- auth/session
+  - `authNotifierProvider`
+  - `sharedPreferencesProvider`
+- home/dashboard aggregates
+  - `plansNotifierProvider`
+  - `groupsNotifierProvider`
+  - `conversationListProvider`
+  - `unreadCountProvider`
+- notifications
+  - `notificationsProvider`
+  - `unreadCountProvider`
+  - websocket service + polling fallback
+- analytics
+  - `analyticsRangeProvider`
+  - `analyticsChartMetricProvider`
+  - `analyticsSummaryProvider`
+  - `analyticsTimeSeriesProvider`
+  - `analyticsTopEntitiesProvider`
+- budgets
+  - `budgetProvider(planId)`
+  - `expensesProvider(ExpenseListQuery)`
+
+Provider behavior notes:
+
+- analytics fetches only the currently selected metric series, not all series
+- notifications merge realtime events into the list and poll every 60s as fallback
+- expense and notification feeds dedupe by page URL and by item ID when appending
 
 ---
 
 ## 13. UI State Machine
 
-Most async screens follow the same state machine:
+Common state model used across screens:
 
 ```text
-loading
-  -> success(non-empty)
-  -> empty
-  -> error
-
-success(non-empty)
-  -> refreshing
-  -> loading_more
-  -> error(loadMore only, list preserved)
-
-empty
-  -> refreshing
-
-error
-  -> retry -> loading
+loading -> success
+loading -> empty
+loading -> error
+success -> loading (refresh)
+success -> error (load more error or mutation error)
 ```
 
-Actual examples:
+Feature examples:
 
-- Plans feed preserves existing items during load-more failure.
-- Notifications feed supports optimistic read and rollback on failure.
-- Audit log list supports filter refresh and deduplicated page append.
-- Analytics page loads summary, one selected time series, and top entities independently.
+- `NotificationListPage`
+  - initial loading
+  - empty when no notifications
+  - inline load-more state
+  - optimistic read / read-all update with rollback on failure
+- `AnalyticsDashboardPage`
+  - guarded by `currentUser.isStaff`
+  - loading KPIs and chart
+  - empty-style zero chart if no data
+  - explicit retry on API error
+- `BudgetOverviewPage`
+  - loading summary
+  - success with progress bar and breakdown
+  - refresh after budget update or expense add
+
+UI rule:
+
+- widgets should not interpret raw HTTP payloads directly
+- repositories and DTOs own API-shape normalization
 
 ---
 
 ## 14. Pagination Flow
 
-### 14.1 Backend Patterns
+Three pagination strategies exist.
+
+### 14.1 Standard DRF
+
+Used by many list endpoints.
 
 ```text
-Standard DRF page:
-  count, next, previous, results[]
-
-Cursor page:
-  next, previous:null, has_more, page_size, results[]
-
-Conversation page:
-  conversations[], count
-
-Message page:
-  nextCursor/before_id style conversation history pagination
+Request -> {count,next,previous,results} -> repository maps results -> provider replaces or appends
 ```
 
-### 14.2 Frontend Merge Strategy
+### 14.2 Cursor pagination
 
-- Track already loaded page URLs or cursors.
-- Ignore duplicate page loads.
-- Merge by entity id, not raw append.
-- Preserve existing items on load-more error.
-- Use optimistic updates for single-row read actions.
+Used by:
 
-Concrete implementations:
+- audit logs
+- notifications
 
-- `PlansNotifier`: keeps `_loadedPageUrls`, merges unique plan ids.
-- `NotificationsNotifier`: keeps `_loadedPageUrls`, merges unique notification ids, updates unread count.
-- `AuditLogsNotifier` and `ResourceAuditLogsNotifier`: same cursor merge strategy.
-- `MessagesNotifier`: uses `before_id` cursor and appends older messages.
+Shape:
+
+```json
+{
+  "next": "absolute-url-or-null",
+  "previous": null,
+  "has_more": true,
+  "page_size": 20,
+  "results": []
+}
+```
+
+Frontend strategy:
+
+- store `nextPageUrl`
+- pass absolute `next` URL back to repository
+- dedupe page URLs to avoid duplicate requests
+
+### 14.3 Page-number pagination
+
+Used by budget expenses.
+
+Shape:
+
+```json
+{
+  "count": 53,
+  "total_pages": 3,
+  "current_page": 1,
+  "page_size": 20,
+  "next": "absolute-url-or-null",
+  "previous": null,
+  "results": []
+}
+```
+
+Frontend merge rule:
+
+- append only items whose IDs are not already present
 
 ---
 
@@ -1061,47 +1052,77 @@ Concrete implementations:
 
 ### 15.1 Backend
 
-- Indexed tables:
-  - audit logs: `(user, created_at)`, `(resource_type, resource_id)`, `(action)`, `(created_at, id)`
-  - notifications: `(user, is_read)`, `(created_at)`, `(type)`, `(user, created_at)`, `(created_at, id)`
-  - analytics: index on `date`
-  - plans, activities, groups, friendships, chat models include query-oriented indexes
-- Read-heavy endpoints use cache where beneficial.
-- Analytics uses pre-aggregated `DailyMetric`; no heavy audit scans at request time.
-- Notification fan-out uses `bulk_create_notifications()` and Celery.
-- Chat and audit log queries use `select_related` and scoped filters to avoid N+1.
+Primary optimization techniques:
+
+- indexed ORM models
+- `select_related` / `prefetch_related`
+- cached read models
+- Celery offload for heavy side effects
+- pre-aggregated analytics table
+
+Important indexes:
+
+- notifications:
+  - `(user, is_read)`
+  - `(created_at)`
+  - `(type)`
+  - `(user, created_at)`
+  - `(created_at, id)`
+- audit:
+  - `(user, created_at)`
+  - `(resource_type, resource_id)`
+  - `(action)`
+  - `(created_at, id)`
+- budgets / expenses:
+  - budget on plan
+  - expense `(plan, created_at)`
+  - expense `(user)`
+  - expense `(category)`
+  - expense `(plan, category)`
+  - expense `(created_at, id)`
+- analytics:
+  - `DailyMetric.date`
 
 ### 15.2 Frontend
 
-- List screens use incremental loading or capped home summaries.
-- Riverpod providers isolate rebuild scope.
-- Analytics loads only the selected chart metric, not all series.
-- Notification unread badge uses websocket first, polling fallback second.
-- Chat typing/read state is ephemeral and conversation-scoped.
+Performance controls:
 
-### 15.3 Known Non-Uniform Areas
+- Riverpod `AsyncNotifier` isolates network state
+- selected analytics series only
+- infinite scroll instead of loading entire feeds
+- page URL and ID dedupe prevent duplicate merges
+- websocket push avoids unnecessary full refreshes for notifications
 
-- Groups feed currently loads as a full list, not infinite scroll.
-- Conversation list uses a custom response instead of standard pagination.
-- Location endpoints are pass-through service calls and depend on external latency.
+### 15.3 Runtime expectations
+
+- analytics requests should be fast because they read `DailyMetric`, not raw `AuditLog`
+- notification badge should be fast because unread count is a direct query
+- budget summary is cheap because totals are aggregate queries scoped to one plan
 
 ---
 
 ## 16. Failure Modes
 
-| Failure mode | Symptom | Current handling |
+Known failure classes and intended behavior:
+
+| Failure | Cause | Expected handling |
 |---|---|---|
-| API contract mismatch | DTO parse error or null handling issue | serializers/DTOs aligned; critical custom contracts documented here |
-| Permission denial | 403 | DRF permissions + service checks |
-| Cache stale | outdated summary/profile/detail | targeted invalidation and short TTLs |
-| Cache unavailable | cache miss or warning | graceful fallback to DB/local memory |
-| Redis unavailable in dev | no shared cache/channel broker | LocMem cache and in-memory Channels fallback |
-| Celery lag | delayed notifications/analytics | queues separated by priority; dashboard still serves last aggregate |
-| Push failure | no mobile push | notification row still created; realtime/in-app remains available |
-| WebSocket disconnect | stale badges/typing | reconnect logic; polling fallback for unread notifications |
-| External map service failure | place lookup unavailable | location endpoints return empty/fallback/error payloads |
-| OAuth token expiry | 401 | frontend auth session refresh path |
-| Deleted resource referenced in audit/analytics | missing entity name | metadata fallback names used in audit/analytics top entity build |
+| API mismatch | serializer and DTO drift | repository/DTO layer must absorb shape changes; tests should catch it |
+| missing migrations | new tables not applied | backend returns `500`; fix by migrating before runtime |
+| stale cache | old cached detail after mutation | versioned keys on group/analytics, explicit key delete on plan/budget |
+| websocket disconnect | mobile network / server restart | notifications provider continues via polling fallback |
+| Celery unavailable | worker down or Redis unavailable | core writes still succeed, async side effects delayed |
+| push unavailable | FCM credentials invalid or token bad | in-app notifications still work; token cleanup task removes invalid tokens |
+| permission error | unauthorized user hits restricted endpoint | return `403`, UI should show error / hide feature |
+| large data volume | long feeds or many notifications | pagination + indexes + dedupe |
+| invalid input | serializer validation failure | structured `400` response |
+| analytics no data | fresh environment | dashboard returns zeros/empty series rather than computing raw history live |
+
+Failure handling notes:
+
+- profile caching has fallback/self-heal logic and should not hard-fail if cache content is partially stale
+- notification websocket URL is derived from `baseUrl` to prevent malformed WS paths
+- Celery local runtime is no longer silently downgraded to `memory://` outside tests
 
 ---
 
@@ -1109,103 +1130,83 @@ Concrete implementations:
 
 These invariants must never be violated.
 
-### Identity and Friendship
+### 17.1 Identity and membership
 
-- A user cannot friend themselves.
-- Friendship canonical ordering is enforced by `(user_a, user_b)` unique constraint.
-- Friendship initiator must be one of the two participants.
+- A friendship cannot connect a user to themself.
+- A user can have at most one friendship record pair with another user.
+- A user can have at most one `GroupMembership` per group.
+- A group must always have at least one admin.
 
-### Groups
+### 17.2 Plans
 
-- Every persisted group membership row is unique per `(user, group)`.
-- A group must always retain at least one admin.
-- Group detail and messages require membership.
+- `Plan.plan_type == personal` implies `group is null`.
+- `Plan.plan_type == group` implies `group is not null`.
+- A user must be a group member to create a group plan for that group.
+- A created plan must always have exactly one budget row.
 
-### Plans
+### 17.3 Budgets and expenses
 
-- `plan_type` is derived from `group`:
-  - `group is null` -> personal
-  - `group is not null` -> group
-- Personal plans cannot reference a group.
-- Group plans must reference a group.
-- `end_date > start_date`.
-- Only creator or authorized admins can mutate plans.
+- Every `Expense` belongs to an existing `Plan`.
+- Every `Expense` belongs to an existing `User`.
+- `Expense.amount > 0`.
+- Only plan creator or group admin can update budget.
+- Only plan creator or group member can add expenses.
+- Budget summary is derived from stored budget + expense rows, never manually edited.
 
-### Activities
+### 17.4 Audit and notifications
 
-- Activity must stay within parent plan date range.
-- Activity `end_time > start_time`.
-- Activity duration must not exceed 24 hours.
-- Activity estimated cost cannot be negative.
+- Audit log is append-only behavioral history.
+- Notification rows belong to exactly one user.
+- `NOTIFICATION_OPENED` must only be emitted from actual read operations.
+- Plan-scoped audit feeds must include budget/expense history logically tied to the plan.
 
-### Chat
+### 17.5 Analytics
 
-- Direct conversation must have `user_a` and `user_b`.
-- Group conversation must reference exactly one group.
-- System messages cannot have a sender.
-- Location messages must have coordinates.
+- Dashboard endpoints must not compute raw audit scans per request.
+- `DailyMetric` is the only source for dashboard summary and time series.
+- Only staff users may access analytics APIs and UI.
 
-### Audit and Notification
+### 17.6 Chat
 
-- Audit logs are written after successful state change, not from models or views.
-- Only whitelisted audit actions trigger notification tasks.
-- Notification ownership is immutable.
-- Marking notifications read is the only source of `NOTIFICATION_OPENED` audit evidence.
-
-### Analytics
-
-- Dashboard reads only from `DailyMetric` plus cached summaries, never live full-history scans.
-- Notification open rate is derived from `notifications_opened / notifications_sent`.
-- Plan creation/completion/group join rates are defined relative to active user totals in the selected window.
+- Conversation access requires participation or group membership.
+- Message read mutation is explicit; fetching messages does not silently mark read.
 
 ---
 
 ## 18. Extension Rules
 
-To extend the system safely:
+Safe extension recipe:
 
-### 18.1 Add a New Domain Feature
+1. Define domain model first.
+   - entity / enum / validation helpers in `domain`
+2. Define repository interface.
+   - keep application depending on abstractions only
+3. Implement service or command handler.
+   - business rules go here
+4. Implement infrastructure repository / model / task / consumer as needed.
+5. Add presentation adapter.
+   - serializer, view, permission, route
+6. Add frontend DTO and repository mapping.
+7. Add Riverpod provider or notifier.
+8. Add UI page/widget.
+9. Decide cross-cutting integration explicitly:
+   - should this write audit logs?
+   - should it notify users?
+   - should it affect analytics aggregates?
+   - should it invalidate cache?
+10. Add tests.
+    - backend service + API contract
+    - frontend DTO/provider/UI behavior
+11. Update this document.
 
-1. Define domain entities/enums/events in `domain/`.
-2. Define repository interfaces in `domain/` or `application/`.
-3. Implement use cases in `application/services.py` or command handlers.
-4. Implement ORM repositories and models in `infrastructure/`.
-5. Expose HTTP API in `presentation/views.py` and serializers.
-6. Add frontend DTO, repository method, provider/notifier, and page/widget.
+Rules for safe modifications:
 
-### 18.2 Add a New Audit-Tracked Action
-
-1. Add new `AuditAction`.
-2. Emit it only after successful state change.
-3. Decide whether it should trigger notifications.
-4. If yes, add it to the notification dispatcher whitelist and mapping task.
-5. Decide whether analytics should aggregate it.
-
-### 18.3 Add a New Notification Type
-
-1. Add `NotificationType`.
-2. Add formatting logic in `NotificationService._format_content`.
-3. Add payload conventions in notification `data`.
-4. Add push mapping if required.
-5. Update Flutter DTO/UI rendering if type-specific handling is needed.
-
-### 18.4 Add a New Analytics Metric
-
-1. Add enum value to `AnalyticsMetric`.
-2. Extend `DailyMetric` if the metric must be materialized.
-3. Update `AnalyticsRepository.aggregate_day()`.
-4. Update summary/time series serializers.
-5. Add frontend DTO enum and chart label mapping.
-6. Invalidate analytics cache when aggregate shape changes.
-
-### 18.5 Safe Change Checklist for AI Agents
-
-- Do not put business logic in Django models or DRF views.
-- Do not bypass repositories with raw ORM from application services.
-- Do not add new realtime payload shapes without updating DTOs/providers.
-- Do not add analytics queries that scan `AuditLog` per request.
-- Preserve existing pagination shapes unless the frontend is updated in the same change.
-- Preserve role invariants, especially the "group must always have an admin" rule.
+- do not put business logic into Django models
+- do not bypass services from views
+- do not use ORM directly in application services
+- do not add request-time heavy analytics queries
+- do not add new side effects without deciding sync vs async placement
+- if a new feature changes user-visible behavior, consider audit + notification + analytics touchpoints together
 
 ---
 
@@ -1215,9 +1216,12 @@ To extend the system safely:
 {
   "system": "PlanPal",
   "architecture": {
-    "backend": ["presentation", "application", "domain", "infrastructure"],
-    "frontend": ["presentation", "riverpod", "repositories", "services", "dtos"],
-    "style": ["layered", "event-enriched", "async side effects", "cache-assisted"]
+    "backend": "Django + DRF + Channels + Celery",
+    "frontend": "Flutter + Riverpod",
+    "database": "MySQL",
+    "cache": "Redis or LocMem",
+    "realtime": "Channels WebSocket",
+    "async": "Celery with Redis broker in normal runtime"
   },
   "entities": [
     "User",
@@ -1227,6 +1231,8 @@ To extend the system safely:
     "GroupMembership",
     "Plan",
     "PlanActivity",
+    "Budget",
+    "Expense",
     "Conversation",
     "ChatMessage",
     "MessageReadStatus",
@@ -1235,7 +1241,7 @@ To extend the system safely:
     "UserDeviceToken",
     "DailyMetric"
   ],
-  "actions": [
+  "core_actions": [
     "register",
     "login",
     "send_friend_request",
@@ -1251,13 +1257,16 @@ To extend the system safely:
     "create_activity",
     "send_message",
     "mark_notification_read",
-    "view_analytics"
+    "update_budget",
+    "create_expense"
   ],
   "audit_actions": [
     "CREATE_PLAN",
     "UPDATE_PLAN",
     "DELETE_PLAN",
     "COMPLETE_PLAN",
+    "UPDATE_BUDGET",
+    "CREATE_EXPENSE",
     "JOIN_GROUP",
     "LEAVE_GROUP",
     "CHANGE_ROLE",
@@ -1270,52 +1279,23 @@ To extend the system safely:
     "GROUP_INVITE",
     "ROLE_CHANGED",
     "PLAN_UPDATED",
-    "NEW_MESSAGE"
+    "NEW_MESSAGE",
+    "BUDGET_ALERT",
+    "LARGE_EXPENSE"
   ],
   "analytics_metrics": [
     "dau",
     "mau",
     "plans_created",
     "plans_completed",
+    "expenses_created",
+    "expense_total_amount",
     "plan_creation_rate",
     "plan_completion_rate",
     "group_joins",
     "group_join_rate",
     "notification_open_rate"
   ],
-  "flows": [
-    "ui -> provider -> repository -> api -> service -> repository -> db -> serializer -> dto -> ui",
-    "command success -> audit log -> celery notification task -> notification rows -> websocket/push",
-    "notification read -> audit log NOTIFICATION_OPENED -> daily analytics aggregate",
-    "daily beat -> aggregate audit and notification data -> upsert DailyMetric -> cache invalidation"
-  ],
-  "caches": [
-    "user_profile",
-    "plan_summary",
-    "group_detail",
-    "analytics_summary",
-    "analytics_timeseries",
-    "analytics_top",
-    "user_unread_count",
-    "ws_connected",
-    "plan_reminder_dedupe"
-  ],
-  "queues": {
-    "high_priority": [
-      "send_notification_task",
-      "fanout_group_notification_task",
-      "process_audit_log_notification_task",
-      "chat push fanout"
-    ],
-    "default": ["general async work"],
-    "plan_status": ["start_plan_task", "complete_plan_task"],
-    "low_priority": [
-      "aggregate_daily_metrics_task",
-      "dispatch_plan_reminders_task",
-      "cleanup_expired_offline_events_task",
-      "cleanup_invalid_fcm_tokens_task"
-    ]
-  },
   "websocket_routes": [
     "/ws/chat/{conversation_id}/",
     "/ws/plans/{plan_id}/",
@@ -1323,27 +1303,60 @@ To extend the system safely:
     "/ws/user/",
     "/ws/notifications/"
   ],
-  "permissions": {
-    "analytics": "staff_only",
-    "notifications": "owner_only",
-    "group_detail": "member_only",
-    "group_edit": "admin_only",
-    "group_delete": "owner_admin_only",
-    "plan_view": "creator_or_group_member_or_public",
-    "plan_edit": "creator_or_group_admin",
-    "chat_message_edit": "sender_text_only_within_15_minutes",
-    "audit_resource_view": "resource_access_required"
-  },
+  "cache_keys": [
+    "user_profile",
+    "plan_summary",
+    "group_detail_version",
+    "group_detail",
+    "budget_summary",
+    "analytics_version",
+    "analytics_summary",
+    "analytics_timeseries",
+    "analytics_top"
+  ],
+  "celery_queues": [
+    "high_priority",
+    "default",
+    "plan_status",
+    "low_priority"
+  ],
+  "api_groups": [
+    "auth",
+    "friends",
+    "users",
+    "groups",
+    "plans",
+    "activities",
+    "chat",
+    "audit_logs",
+    "notifications",
+    "analytics",
+    "budgets",
+    "locations"
+  ],
+  "frontend_providers": [
+    "authNotifierProvider",
+    "plansNotifierProvider",
+    "groupsNotifierProvider",
+    "conversationListProvider",
+    "notificationsProvider",
+    "unreadCountProvider",
+    "analyticsRangeProvider",
+    "analyticsChartMetricProvider",
+    "analyticsSummaryProvider",
+    "analyticsTimeSeriesProvider",
+    "analyticsTopEntitiesProvider",
+    "budgetProvider",
+    "expensesProvider"
+  ],
   "invariants": [
-    "group_must_have_admin",
-    "personal_plan_has_no_group",
-    "group_plan_has_group",
-    "plan_end_after_start",
-    "activity_within_plan_range",
-    "friendship_unique_per_user_pair",
-    "direct_conversation_has_two_users",
-    "group_conversation_has_group",
-    "analytics_reads_preaggregated_data"
+    "Every plan has exactly one budget",
+    "Expense amount is always > 0",
+    "Group must always have an admin",
+    "Analytics reads DailyMetric instead of raw AuditLog at request time",
+    "Plan-scoped audit feed includes related budget and expense history",
+    "Analytics is staff-only",
+    "Message fetch does not implicitly mark messages as read"
   ]
 }
 ```
@@ -1352,18 +1365,31 @@ To extend the system safely:
 
 ## 20. Final System Summary
 
-PlanPal is a layered system with explicit boundaries between presentation, application, domain, and infrastructure. Its behavior is request-driven at the edge, audit-enriched for traceability, notification-aware for user feedback, and analytics-backed through pre-aggregation rather than live expensive queries.
+PlanPal is a layered, event-aware product system.
 
-Operationally, the system is event-oriented even though it is not a full event-sourced architecture. State changes happen in transactional application services and command handlers. Audit logs provide durable event evidence, Celery handles heavy side effects, Channels handles realtime fan-out, and Redis-backed caches reduce repeated read cost.
+At runtime it behaves as:
 
-For AI agents, the safe modification model is:
+- stateful and relational for core entities
+- event-driven for audit, notification, and analytics integration
+- cache-accelerated for expensive read models
+- async for fan-out, reminders, cleanup, and aggregation
+- strongly boundary-oriented between Flutter DTOs and Django serializers
+
+The current architecture is optimized for:
+
+- predictable user-facing flows
+- explicit business rules in services and handlers
+- scalable analytics through pre-aggregation
+- extensibility through bounded contexts and repository abstractions
+
+Safe mental model for future work:
 
 ```text
-Understand the entity and invariant first.
-Modify application service / handler behavior next.
-Keep persistence in repositories.
-Keep transport contracts stable or update DTOs/providers together.
-Route heavy side effects to Celery.
-Use audit logs as the canonical behavioral history.
-Use DailyMetric as the canonical analytics read model.
+Change state through services.
+Record behavior through audit.
+Fan out user-facing side effects through notifications.
+Aggregate product insights through daily analytics jobs.
+Expose stable contracts to Flutter through serializers and DTOs.
 ```
+
+If an AI agent follows the dependency rule, respects the invariants above, and updates audit / notification / analytics touchpoints deliberately, it can modify PlanPal safely without rereading the whole codebase.

@@ -1,6 +1,7 @@
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -21,6 +22,7 @@ from planpals.models import User
 
 class AnalyticsTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.analytics_service = get_analytics_service()
         self.audit_service = AuditLogService(
@@ -259,6 +261,48 @@ class AnalyticsTests(TestCase):
         self.client.force_authenticate(self.member)
         response = self.client.get(reverse('analytics-summary'), {'range': '7d'})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_summary_cache_is_invalidated_after_reaggregation(self):
+        metric_date = timezone.localdate()
+        stale_row = DailyMetricModel.objects.create(
+            date=metric_date,
+            active_users=1,
+            monthly_active_users=1,
+            plans_created=0,
+            plans_completed=0,
+            expenses_created=0,
+            expense_total_amount=Decimal('0.00'),
+            group_joins=0,
+            notifications_sent=0,
+            notifications_opened=0,
+            notification_open_rate=Decimal('0.00'),
+            plan_creation_rate=Decimal('0.00'),
+            plan_completion_rate=Decimal('0.00'),
+            group_join_rate=Decimal('0.00'),
+        )
+        self.analytics_service.get_dashboard_summary('7d')
+
+        expense_log = self.audit_service.log_action(
+            user=self.owner,
+            action=AuditAction.CREATE_EXPENSE.value,
+            resource_type=AuditResourceType.PLAN.value,
+            resource_id=self.plan.id,
+            metadata={
+                'plan_id': str(self.plan.id),
+                'amount': '175000.00',
+                'category': 'Food',
+            },
+        )
+        self._set_created_at(expense_log, timezone.make_aware(datetime.combine(metric_date, time(hour=12))))
+
+        metric = self.analytics_service.aggregate_daily_metrics(metric_date)
+        summary = self.analytics_service.get_dashboard_summary('7d')
+
+        stale_row.refresh_from_db()
+        self.assertEqual(metric.expenses_created, 1)
+        self.assertEqual(metric.expense_total_amount, 175000.0)
+        self.assertEqual(summary.totals.expenses_created, 1)
+        self.assertEqual(summary.totals.expense_total_amount, 175000.0)
 
     def _set_created_at(self, instance, created_at):
         instance.__class__.objects.filter(pk=instance.pk).update(created_at=created_at)

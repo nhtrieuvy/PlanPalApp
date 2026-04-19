@@ -82,6 +82,22 @@ class PlanViewSet(viewsets.ModelViewSet):
         
         serializer.instance = plan
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        instance = serializer.instance
+        headers = self.get_success_headers({'id': str(instance.id)})
+        response_serializer = PlanDetailSerializer(
+            instance,
+            context={'request': request},
+        )
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
+
     def perform_update(self, serializer):
         instance = self.get_object()
 

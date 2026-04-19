@@ -15,7 +15,7 @@ from django.db.models import Q, Exists, OuterRef, Subquery, QuerySet
 from django.core.exceptions import ValidationError
 
 from cloudinary.models import CloudinaryField
-from cloudinary import CloudinaryImage
+from cloudinary import CloudinaryImage, CloudinaryResource
 
 from planpals.shared.base_models import BaseModel
 
@@ -344,11 +344,11 @@ class ChatMessage(BaseModel):
     )
     
     attachment = CloudinaryField(
-        'image',
+        'file',
         blank=True,
         null=True,
         folder='planpal/messages/attachments',
-        resource_type='image',
+        resource_type='auto',
         help_text="Attachment file (image, document, etc.)"
     )
     
@@ -356,6 +356,13 @@ class ChatMessage(BaseModel):
         max_length=255,
         blank=True,
         help_text="Original file name"
+    )
+
+    attachment_resource_type = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Cloudinary resource type for attachment"
     )
     
     attachment_size = models.PositiveIntegerField(
@@ -445,7 +452,7 @@ class ChatMessage(BaseModel):
         
         # Location messages cần coordinates
         if self.message_type == 'location':
-            if not (self.latitude and self.longitude):
+            if self.latitude is None or self.longitude is None:
                 raise ValidationError("Location message must have latitude and longitude")
 
     @property
@@ -472,9 +479,22 @@ class ChatMessage(BaseModel):
     def attachment_url(self):
         if not self.has_attachment:
             return None
-        if self.attachment:
-            cloudinary_image = CloudinaryImage(str(self.attachment))
+        attachment_identifier = str(self.attachment)
+        if attachment_identifier.startswith(('http://', 'https://')):
+            return attachment_identifier
+        resource_type = self.attachment_resource_type or (
+            'image' if self.message_type == 'image' else 'raw'
+        )
+        if attachment_identifier and resource_type == 'image':
+            cloudinary_image = CloudinaryImage(attachment_identifier)
             return cloudinary_image.build_url(secure=True)
+        if attachment_identifier:
+            cloudinary_resource = CloudinaryResource(
+                attachment_identifier,
+                resource_type=resource_type,
+                type='upload',
+            )
+            return cloudinary_resource.build_url(secure=True)
         return None
 
     @property
@@ -491,7 +511,7 @@ class ChatMessage(BaseModel):
 
     @property
     def location_url(self):
-        if self.latitude and self.longitude:
+        if self.latitude is not None and self.longitude is not None:
             return f"https://maps.google.com/?q={self.latitude},{self.longitude}"
         return None
 

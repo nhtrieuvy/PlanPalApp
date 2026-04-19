@@ -2,10 +2,14 @@
 Chat Infrastructure — Django ORM Repository Implementations
 """
 import logging
+from decimal import Decimal, ROUND_HALF_UP
+from pathlib import Path
 from typing import Optional, Any, List, Dict
 from uuid import UUID
 
+import cloudinary.uploader
 from django.db.models import Q, Exists, OuterRef
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 
 from planpals.chat.domain.repositories import (
@@ -15,6 +19,36 @@ from planpals.chat.domain.repositories import (
 from planpals.chat.infrastructure.models import Conversation, ChatMessage, MessageReadStatus
 
 logger = logging.getLogger(__name__)
+
+COORDINATE_QUANTIZER = Decimal('0.000001')
+AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.wma'}
+VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'}
+
+
+def _normalize_coordinate(value: Any) -> Decimal:
+    return Decimal(str(value)).quantize(
+        COORDINATE_QUANTIZER,
+        rounding=ROUND_HALF_UP,
+    )
+
+
+def _infer_attachment_resource_type(
+    *,
+    message_type: str,
+    content_type: str | None,
+    file_name: str,
+) -> str:
+    if message_type == 'image':
+        return 'image'
+
+    normalized_content_type = (content_type or '').lower()
+    suffix = Path(file_name or '').suffix.lower()
+
+    if normalized_content_type.startswith('audio/') or suffix in AUDIO_EXTENSIONS:
+        return 'video'
+    if normalized_content_type.startswith('video/') or suffix in VIDEO_EXTENSIONS:
+        return 'video'
+    return 'raw'
 
 
 class DjangoConversationRepository(ConversationRepository):
@@ -158,15 +192,21 @@ class DjangoChatMessageRepository(ChatMessageRepository):
 
         # Optional fields
         if data.get('attachment'):
-            message.attachment = data['attachment']
+            attachment_value, resource_type = self._prepare_attachment(
+                attachment=data['attachment'],
+                message_type=message.message_type,
+                attachment_name=data.get('attachment_name', ''),
+            )
+            message.attachment = attachment_value
+            message.attachment_resource_type = resource_type
         if data.get('attachment_name'):
             message.attachment_name = data['attachment_name']
         if data.get('attachment_size'):
             message.attachment_size = data['attachment_size']
         if data.get('latitude') is not None:
-            message.latitude = data['latitude']
+            message.latitude = _normalize_coordinate(data['latitude'])
         if data.get('longitude') is not None:
-            message.longitude = data['longitude']
+            message.longitude = _normalize_coordinate(data['longitude'])
         if data.get('location_name'):
             message.location_name = data['location_name']
         if data.get('reply_to_id'):
@@ -174,6 +214,65 @@ class DjangoChatMessageRepository(ChatMessageRepository):
 
         message.save()
         return message
+
+    def _prepare_attachment(
+        self,
+        *,
+        attachment: Any,
+        message_type: str,
+        attachment_name: str,
+    ) -> tuple[Any, str]:
+        if hasattr(attachment, 'read'):
+            file_name = attachment_name or getattr(attachment, 'name', '')
+            resource_type = _infer_attachment_resource_type(
+                message_type=message_type,
+                content_type=getattr(attachment, 'content_type', None),
+                file_name=file_name,
+            )
+            try:
+                result = self._upload_attachment_to_cloudinary(
+                    attachment=attachment,
+                    resource_type=resource_type,
+                )
+            except Exception as exc:
+                logger.exception('Attachment upload failed for chat message')
+                raise DjangoValidationError(
+                    {'attachment': ['Không thể tải lên tệp này. Định dạng có thể không được hỗ trợ.']}
+                ) from exc
+            return result['public_id'], result.get('resource_type', resource_type)
+
+        if isinstance(attachment, str):
+            resource_type = 'external' if attachment.startswith(('http://', 'https://')) else (
+                'image' if message_type == 'image' else 'raw'
+            )
+            return attachment, resource_type
+
+        raise DjangoValidationError({'attachment': ['Tệp đính kèm không hợp lệ.']})
+
+    def _upload_attachment_to_cloudinary(
+        self,
+        *,
+        attachment: Any,
+        resource_type: str,
+    ) -> dict[str, Any]:
+        options = {
+            'folder': 'planpal/messages/attachments',
+            'resource_type': resource_type,
+            'use_filename': True,
+            'unique_filename': True,
+            'overwrite': False,
+        }
+
+        try:
+            return cloudinary.uploader.upload(attachment, **options)
+        except Exception:
+            if resource_type != 'video':
+                raise
+
+            attachment.seek(0)
+            fallback_options = dict(options)
+            fallback_options['resource_type'] = 'raw'
+            return cloudinary.uploader.upload(attachment, **fallback_options)
 
     def soft_delete(self, message_id: UUID) -> bool:
         try:
