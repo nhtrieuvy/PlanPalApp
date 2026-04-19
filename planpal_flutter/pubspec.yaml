@@ -50,6 +50,7 @@ dependencies:
   
   # Image Picker
   image_picker: ^1.0.4
+  file_picker: ^8.1.2
   
   # Storage
   shared_preferences: ^2.2.2

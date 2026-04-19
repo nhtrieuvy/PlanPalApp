@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
 import cloudinary
 from urllib.parse import quote_plus
@@ -226,6 +227,13 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Upload limits
+# Support chat/file sharing without tripping Django's default 2.5 MB cap.
+MAX_UPLOAD_SIZE_MB = int(os.getenv('MAX_UPLOAD_SIZE_MB', '25'))
+DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE_MB * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
@@ -420,6 +428,7 @@ CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL')
 CHANNEL_REDIS_URL = os.getenv('CHANNEL_REDIS_URL') or CELERY_REDIS_URL
 USE_REDIS_CACHE = _env_flag('USE_REDIS_CACHE', default=bool(CACHE_REDIS_URL))
 USE_REDIS_CHANNELS = _env_flag('USE_REDIS_CHANNELS', default=bool(CHANNEL_REDIS_URL))
+IS_TEST_ENV = any(arg in {'test', 'pytest'} for arg in sys.argv)
 
 # ============================================================================
 # DJANGO CACHE (Redis via django-redis)
@@ -467,11 +476,16 @@ CELERY_ACCEPT_CONTENT = ['json']
 
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL') or CELERY_REDIS_URL or 'memory://'
+DEFAULT_LOCAL_CELERY_REDIS_URL = 'redis://127.0.0.1:6379/0'
+CELERY_BROKER_URL = (
+    os.getenv('CELERY_BROKER_URL')
+    or CELERY_REDIS_URL
+    or ('memory://' if IS_TEST_ENV else DEFAULT_LOCAL_CELERY_REDIS_URL)
+)
 CELERY_RESULT_BACKEND = (
     os.getenv('CELERY_RESULT_BACKEND')
     or CELERY_REDIS_URL
-    or 'cache+memory://'
+    or ('cache+memory://' if IS_TEST_ENV else DEFAULT_LOCAL_CELERY_REDIS_URL)
 )
 
 # ---------------------------------------------------------------------------
@@ -509,6 +523,7 @@ CELERY_TASK_ROUTES = {
     'planpals.notifications.infrastructure.tasks.send_notification_task': {'queue': 'high_priority'},
     'planpals.notifications.infrastructure.tasks.fanout_group_notification_task': {'queue': 'high_priority'},
     'planpals.notifications.infrastructure.tasks.process_audit_log_notification_task': {'queue': 'high_priority'},
+    'planpals.budgets.infrastructure.tasks.process_expense_notifications_task': {'queue': 'high_priority'},
     # Chat fan-out → high_priority
     'planpals.chat.infrastructure.tasks.fanout_chat_push_notification_task': {'queue': 'high_priority'},
     # Analytics / periodic → low_priority

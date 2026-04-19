@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, Optional, Tuple, Any
+from uuid import UUID
 
 from planpals.shared.base_service import BaseService
 from planpals.shared.cache import CacheKeys, CacheTTL
@@ -21,6 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 class GroupService(BaseService):    
+    @staticmethod
+    def _normalize_member_id(member) -> UUID | None:
+        raw_id = getattr(member, 'id', member)
+        if raw_id is None:
+            return None
+        if isinstance(raw_id, UUID):
+            return raw_id
+        return UUID(str(raw_id))
+
     @classmethod
     def create_group(
         cls,
@@ -32,11 +42,20 @@ class GroupService(BaseService):
         cover_image=None,
     ):
         """Delegate to CreateGroupHandler."""
+        creator_id = creator.id
+        initial_member_ids = tuple(
+            member_id
+            for member_id in (
+                cls._normalize_member_id(member)
+                for member in (initial_members or [])
+            )
+            if member_id and member_id != creator_id
+        )
         cmd = CreateGroupCommand(
             admin_id=creator.id,
             name=name,
             description=description,
-            initial_member_ids=tuple(u.id for u in (initial_members or []) if u != creator),
+            initial_member_ids=initial_member_ids,
             avatar=avatar,
             cover_image=cover_image,
         )
@@ -189,7 +208,8 @@ class GroupService(BaseService):
         view so that the service layer never imports DRF serializers.
         """
         cache_svc = group_factories.get_cache_service()
-        key = CacheKeys.group_detail(group_id, user_id)
+        version = cls._get_group_cache_version(group_id)
+        key = CacheKeys.group_detail(group_id, user_id, version=version)
 
         def compute():
             group_repo = group_factories.get_group_repo()
@@ -207,6 +227,21 @@ class GroupService(BaseService):
     def _invalidate_group_cache(cls, group_id) -> None:
         try:
             cache_svc = group_factories.get_cache_service()
+            version_key = CacheKeys.group_detail_version(group_id)
+            current_version = cls._get_group_cache_version(group_id)
+            cache_svc.set(version_key, current_version + 1)
             cache_svc.delete_pattern(CacheKeys.group_detail_pattern(group_id))
         except Exception as e:
             logger.warning("Failed to invalidate group cache for %s: %s", group_id, e)
+
+    @classmethod
+    def _get_group_cache_version(cls, group_id) -> int:
+        cache_svc = group_factories.get_cache_service()
+        version_key = CacheKeys.group_detail_version(group_id)
+        raw_version = cache_svc.get(version_key)
+        try:
+            version = int(raw_version)
+        except (TypeError, ValueError):
+            version = 1
+            cache_svc.set(version_key, version)
+        return max(version, 1)

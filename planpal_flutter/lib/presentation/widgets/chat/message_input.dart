@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
-// removed color_utils; use withAlpha directly
-import 'package:google_fonts/google_fonts.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+
+import '../../pages/location/location_picker_page.dart';
 
 class MessageInput extends StatefulWidget {
   final Function(String) onSendMessage;
@@ -24,7 +27,7 @@ class MessageInput extends StatefulWidget {
     this.onStartTyping,
     this.onStopTyping,
     this.isEnabled = true,
-    this.placeholder = 'Nhập tin nhắn...',
+    this.placeholder = 'Nhap tin nhan...',
   });
 
   @override
@@ -36,7 +39,7 @@ class _MessageInputState extends State<MessageInput> {
   final FocusNode _focusNode = FocusNode();
   final ImagePicker _imagePicker = ImagePicker();
 
-  bool _isExpanded = false;
+  bool _showAttachmentOptions = false;
   bool _isTyping = false;
 
   @override
@@ -69,7 +72,9 @@ class _MessageInputState extends State<MessageInput> {
 
   void _onFocusChanged() {
     setState(() {
-      _isExpanded = _focusNode.hasFocus;
+      if (_focusNode.hasFocus) {
+        _showAttachmentOptions = false;
+      }
     });
   }
 
@@ -78,7 +83,10 @@ class _MessageInputState extends State<MessageInput> {
     if (text.isNotEmpty && widget.isEnabled) {
       widget.onSendMessage(text);
       _textController.clear();
-      setState(() => _isTyping = false);
+      setState(() {
+        _isTyping = false;
+        _showAttachmentOptions = false;
+      });
       widget.onStopTyping?.call();
     }
   }
@@ -92,36 +100,88 @@ class _MessageInputState extends State<MessageInput> {
         imageQuality: 85,
       );
 
-      if (image != null) {
-        final file = File(image.path);
-        widget.onSendImage(file);
+      if (image == null) {
+        return;
+      }
+
+      widget.onSendImage(File(image.path));
+      if (mounted) {
+        setState(() => _showAttachmentOptions = false);
       }
     } catch (e) {
-      _showError('Không thể chọn ảnh: $e');
+      _showError('Khong the chon anh: $e');
     }
   }
 
   Future<void> _pickFile() async {
-    // Note: You'll need to add file_picker package for this to work
-    // For now, showing a placeholder
-    _showError('Tính năng gửi file sẽ được cập nhật sớm');
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: false,
+      );
+      final pickedFile = result?.files.singleOrNull;
+      final path = pickedFile?.path;
+
+      if (pickedFile == null || path == null || path.isEmpty) {
+        return;
+      }
+
+      widget.onSendFile(File(path), pickedFile.name);
+      if (mounted) {
+        setState(() => _showAttachmentOptions = false);
+      }
+    } catch (e) {
+      _showError('Khong the chon file: $e');
+    }
   }
 
-  void _shareLocation() {
-    // Note: You'll need to implement location sharing
-    // For now, showing a placeholder
-    _showError('Tính năng chia sẻ vị trí sẽ được cập nhật sớm');
+  Future<void> _shareLocation() async {
+    try {
+      final result = await Navigator.of(context).push<Map<String, dynamic>>(
+        MaterialPageRoute(builder: (_) => const LocationPickerPage()),
+      );
+
+      if (result == null) {
+        return;
+      }
+
+      final lat = (result['latitude'] as num?)?.toDouble();
+      final lng = (result['longitude'] as num?)?.toDouble();
+      final locationName =
+          result['location_name']?.toString() ??
+          result['address']?.toString() ??
+          result['location_address']?.toString();
+
+      if (lat == null || lng == null) {
+        _showError('Khong lay duoc toa do hop le.');
+        return;
+      }
+
+      widget.onSendLocation(lat, lng, locationName);
+      if (mounted) {
+        setState(() => _showAttachmentOptions = false);
+      }
+    } catch (e) {
+      _showError('Khong the chia se vi tri: $e');
+    }
+  }
+
+  void _toggleAttachmentOptions() {
+    if (!widget.isEnabled) return;
+    _focusNode.unfocus();
+    setState(() {
+      _showAttachmentOptions = !_showAttachmentOptions;
+    });
   }
 
   void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
+    );
   }
 
   void _showImagePicker() {
@@ -153,9 +213,8 @@ class _MessageInputState extends State<MessageInput> {
             ),
           ),
           const SizedBox(height: 24),
-
           Text(
-            'Chọn ảnh',
+            'Chon anh',
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -163,7 +222,6 @@ class _MessageInputState extends State<MessageInput> {
             ),
           ),
           const SizedBox(height: 24),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -177,7 +235,7 @@ class _MessageInputState extends State<MessageInput> {
               ),
               _buildPickerOption(
                 icon: PhosphorIcons.images(),
-                label: 'Thư viện',
+                label: 'Thu vien',
                 onTap: () {
                   Navigator.pop(context);
                   _pickImage(ImageSource.gallery);
@@ -185,7 +243,6 @@ class _MessageInputState extends State<MessageInput> {
               ),
             ],
           ),
-
           const SizedBox(height: 24),
         ],
       ),
@@ -246,17 +303,11 @@ class _MessageInputState extends State<MessageInput> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Attachment options (shown when expanded)
-            if (_isExpanded && !hasText) _buildAttachmentOptions(),
-
-            // Main input row
+            if (_showAttachmentOptions && !hasText) _buildAttachmentOptions(),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Attachment button
                 if (!hasText) _buildAttachmentButton(),
-
-                // Text input
                 Expanded(
                   child: Container(
                     margin: EdgeInsets.only(left: hasText ? 0 : 8, right: 8),
@@ -298,8 +349,6 @@ class _MessageInputState extends State<MessageInput> {
                     ),
                   ),
                 ),
-
-                // Send button
                 _buildSendButton(),
               ],
             ),
@@ -313,7 +362,7 @@ class _MessageInputState extends State<MessageInput> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return GestureDetector(
-      onTap: widget.isEnabled ? _showImagePicker : null,
+      onTap: _toggleAttachmentOptions,
       child: Container(
         width: 40,
         height: 40,
@@ -371,13 +420,13 @@ class _MessageInputState extends State<MessageInput> {
           const SizedBox(width: 16),
           _buildAttachmentOption(
             icon: PhosphorIcons.images(),
-            label: 'Ảnh',
-            onTap: () => _pickImage(ImageSource.gallery),
+            label: 'Anh',
+            onTap: _showImagePicker,
           ),
           const SizedBox(width: 16),
           _buildAttachmentOption(
             icon: PhosphorIcons.mapPin(),
-            label: 'Vị trí',
+            label: 'Vi tri',
             onTap: _shareLocation,
           ),
           const SizedBox(width: 16),
@@ -424,7 +473,7 @@ class _MessageInputState extends State<MessageInput> {
               fontSize: 11,
               fontWeight: FontWeight.w500,
               color: widget.isEnabled
-                  ? colorScheme.onSurfaceVariant
+                  ? colorScheme.onSurface
                   : colorScheme.onSurfaceVariant.withAlpha(125),
             ),
           ),

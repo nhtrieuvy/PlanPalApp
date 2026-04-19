@@ -17,6 +17,8 @@ class NotificationType(str, Enum):
     ROLE_CHANGED = 'ROLE_CHANGED'
     PLAN_UPDATED = 'PLAN_UPDATED'
     NEW_MESSAGE = 'NEW_MESSAGE'
+    BUDGET_ALERT = 'BUDGET_ALERT'
+    LARGE_EXPENSE = 'LARGE_EXPENSE'
 
     @classmethod
     def values(cls) -> list[str]:

@@ -27,10 +27,6 @@ class CreatePlanCommand(BaseCommand):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     is_public: bool = False
-    cover_image: Optional[str] = None
-    destination: str = ''
-    budget: Optional[float] = None
-    notes: str = ''
 
 
 @dataclass(frozen=True)
@@ -43,10 +39,6 @@ class UpdatePlanCommand(BaseCommand):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     is_public: Optional[bool] = None
-    cover_image: Optional[str] = None
-    destination: Optional[str] = None
-    budget: Optional[float] = None
-    notes: Optional[str] = None
 
 
 @dataclass(frozen=True)

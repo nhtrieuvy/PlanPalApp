@@ -47,8 +47,7 @@ class DjangoAuditLogRepository(AuditLogRepository):
         filters: AuditLogFilters,
     ) -> AuditLogPage:
         queryset = self._base_queryset().filter(
-            resource_type=resource_type,
-            resource_id=resource_id,
+            self._resource_scope_filter(resource_type, resource_id),
         )
         queryset = self._apply_access_filter(queryset, viewer_id)
         queryset = self._apply_filters(queryset, filters)
@@ -106,15 +105,27 @@ class DjangoAuditLogRepository(AuditLogRepository):
         return AuditLog.objects.select_related('user').order_by('-created_at', '-id')
 
     def _apply_access_filter(self, queryset: QuerySet[AuditLog], viewer_id: UUID) -> QuerySet[AuditLog]:
-        group_ids = GroupMembership.objects.filter(user_id=viewer_id).values('group_id')
-        plan_ids = Plan.objects.filter(
+        group_ids = list(
+            GroupMembership.objects.filter(user_id=viewer_id).values_list('group_id', flat=True)
+        )
+        plan_ids = list(
+            Plan.objects.filter(
             Q(creator_id=viewer_id) | Q(group__members__id=viewer_id)
-        ).values('id')
+            ).values_list('id', flat=True)
+        )
+        plan_id_strings = [str(plan_id) for plan_id in plan_ids]
 
         return queryset.filter(
             Q(user_id=viewer_id)
             | Q(resource_type=AuditResourceType.GROUP.value, resource_id__in=group_ids)
             | Q(resource_type=AuditResourceType.PLAN.value, resource_id__in=plan_ids)
+            | Q(
+                resource_type__in=[
+                    AuditResourceType.BUDGET.value,
+                    AuditResourceType.EXPENSE.value,
+                ],
+                metadata__plan_id__in=plan_id_strings,
+            )
         ).distinct()
 
     def _apply_filters(self, queryset: QuerySet[AuditLog], filters: AuditLogFilters) -> QuerySet[AuditLog]:
@@ -123,7 +134,19 @@ class DjangoAuditLogRepository(AuditLogRepository):
         if filters.action:
             queryset = queryset.filter(action=filters.action)
         if filters.resource_type:
-            queryset = queryset.filter(resource_type=filters.resource_type)
+            if filters.resource_type == AuditResourceType.PLAN.value:
+                queryset = queryset.filter(
+                    Q(resource_type=AuditResourceType.PLAN.value)
+                    | Q(
+                        resource_type__in=[
+                            AuditResourceType.BUDGET.value,
+                            AuditResourceType.EXPENSE.value,
+                        ],
+                        metadata__plan_id__isnull=False,
+                    )
+                )
+            else:
+                queryset = queryset.filter(resource_type=filters.resource_type)
         if filters.date_from:
             queryset = queryset.filter(created_at__gte=filters.date_from)
         if filters.date_to:
@@ -173,3 +196,24 @@ class DjangoAuditLogRepository(AuditLogRepository):
             return created_at, item_id
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             return None, None
+
+    @staticmethod
+    def _resource_scope_filter(resource_type: str, resource_id: UUID) -> Q:
+        normalized_resource_type = (resource_type or '').strip().lower()
+        if normalized_resource_type == AuditResourceType.PLAN.value:
+            resource_id_str = str(resource_id)
+            return (
+                Q(resource_type=AuditResourceType.PLAN.value, resource_id=resource_id)
+                | Q(
+                    resource_type__in=[
+                        AuditResourceType.BUDGET.value,
+                        AuditResourceType.EXPENSE.value,
+                    ],
+                    metadata__plan_id=resource_id_str,
+                )
+            )
+
+        return Q(
+            resource_type=normalized_resource_type,
+            resource_id=resource_id,
+        )

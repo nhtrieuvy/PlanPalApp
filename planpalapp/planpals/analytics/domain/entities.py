@@ -13,6 +13,8 @@ class AnalyticsMetric(str, Enum):
     MONTHLY_ACTIVE_USERS = 'mau'
     PLANS_CREATED = 'plans_created'
     PLANS_COMPLETED = 'plans_completed'
+    EXPENSES_CREATED = 'expenses_created'
+    EXPENSE_TOTAL_AMOUNT = 'expense_total_amount'
     PLAN_CREATION_RATE = 'plan_creation_rate'
     PLAN_COMPLETION_RATE = 'plan_completion_rate'
     GROUP_JOINS = 'group_joins'
@@ -55,6 +57,8 @@ class DailyMetric:
     monthly_active_users: int = 0
     plans_created: int = 0
     plans_completed: int = 0
+    expenses_created: int = 0
+    expense_total_amount: float = 0.0
     group_joins: int = 0
     notifications_sent: int = 0
     notifications_opened: int = 0
@@ -72,6 +76,8 @@ class MetricWindowAggregate:
     active_user_total: int = 0
     plans_created: int = 0
     plans_completed: int = 0
+    expenses_created: int = 0
+    expense_total_amount: float = 0.0
     group_joins: int = 0
     notifications_sent: int = 0
     notifications_opened: int = 0
@@ -88,6 +94,8 @@ class SummaryMetric:
 class DashboardTotals:
     plans_created: int = 0
     plans_completed: int = 0
+    expenses_created: int = 0
+    expense_total_amount: float = 0.0
     group_joins: int = 0
     notifications_sent: int = 0
     notifications_opened: int = 0

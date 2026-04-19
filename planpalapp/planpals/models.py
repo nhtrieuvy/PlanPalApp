@@ -61,6 +61,9 @@ from planpals.notifications.infrastructure.models import (  # noqa: F401
 # Analytics infrastructure models (ORM)
 from planpals.analytics.infrastructure.models import DailyMetric  # noqa: F401
 
+# Budget infrastructure models (ORM)
+from planpals.budgets.infrastructure.models import Budget, Expense  # noqa: F401
+
 __all__ = [
     'BaseModel',
     'UserQuerySet', 'UserManager', 'User',
@@ -71,4 +74,5 @@ __all__ = [
     'AuditLog',
     'Notification', 'UserDeviceToken',
     'DailyMetric',
+    'Budget', 'Expense',
 ]

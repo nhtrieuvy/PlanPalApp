@@ -91,8 +91,13 @@ class CacheKeys:
 
     # -- Group detail (per-user because serializer includes user-specific fields)
     @classmethod
-    def group_detail(cls, group_id, user_id=None) -> str:
-        base = f"{cls._V}:group:detail:{group_id}"
+    def group_detail_version(cls, group_id) -> str:
+        return f"{cls._V}:group:detail:version:{group_id}"
+
+    @classmethod
+    def group_detail(cls, group_id, user_id=None, version: int | None = None) -> str:
+        version_suffix = f":r{version}" if version is not None else ""
+        base = f"{cls._V}:group:detail:{group_id}{version_suffix}"
         return f"{base}:u{user_id}" if user_id else base
 
     @classmethod
@@ -102,20 +107,37 @@ class CacheKeys:
 
     # -- Analytics ----------------------------------------------------------
     @classmethod
-    def analytics_summary(cls, range_key: str) -> str:
-        return f"{cls._V}:analytics:summary:{range_key}"
+    def analytics_version(cls) -> str:
+        return f"{cls._V}:analytics:version"
 
     @classmethod
-    def analytics_timeseries(cls, metric: str, range_key: str) -> str:
-        return f"{cls._V}:analytics:timeseries:{metric}:{range_key}"
+    def analytics_summary(cls, range_key: str, version: int | None = None) -> str:
+        version_suffix = f":r{version}" if version is not None else ""
+        return f"{cls._V}:analytics:summary:{range_key}{version_suffix}"
 
     @classmethod
-    def analytics_top(cls, range_key: str, limit: int) -> str:
-        return f"{cls._V}:analytics:top:{range_key}:limit:{limit}"
+    def analytics_timeseries(
+        cls,
+        metric: str,
+        range_key: str,
+        version: int | None = None,
+    ) -> str:
+        version_suffix = f":r{version}" if version is not None else ""
+        return f"{cls._V}:analytics:timeseries:{metric}:{range_key}{version_suffix}"
+
+    @classmethod
+    def analytics_top(cls, range_key: str, limit: int, version: int | None = None) -> str:
+        version_suffix = f":r{version}" if version is not None else ""
+        return f"{cls._V}:analytics:top:{range_key}:limit:{limit}{version_suffix}"
 
     @classmethod
     def analytics_pattern(cls) -> str:
         return f"{cls._V}:analytics:*"
+
+    # -- Budget -------------------------------------------------------------
+    @classmethod
+    def budget_summary(cls, plan_id) -> str:
+        return f"{cls._V}:budget:summary:{plan_id}"
 
 
 # ============================================================================
@@ -126,6 +148,7 @@ class CacheTTL:
     USER_PROFILE = 120   # 2 minutes
     PLAN_SUMMARY = 180   # 3 minutes
     GROUP_DETAIL = 180   # 3 minutes
+    BUDGET_SUMMARY = 180   # 3 minutes
     ANALYTICS_SUMMARY = 300   # 5 minutes
     ANALYTICS_TIMESERIES = 600   # 10 minutes
     ANALYTICS_TOP = 600   # 10 minutes

@@ -290,12 +290,19 @@ class SendMessageRequest {
     this.attachmentSize,
   });
 
+  double? _normalizeCoordinate(double? value) {
+    if (value == null) {
+      return null;
+    }
+    return double.parse(value.toStringAsFixed(6));
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'content': content,
       'message_type': messageType.value,
-      if (latitude != null) 'latitude': latitude,
-      if (longitude != null) 'longitude': longitude,
+      if (latitude != null) 'latitude': _normalizeCoordinate(latitude),
+      if (longitude != null) 'longitude': _normalizeCoordinate(longitude),
       if (locationName != null) 'location_name': locationName,
       if (replyToId != null) 'reply_to_id': replyToId,
       if (attachment != null) 'attachment': attachment,

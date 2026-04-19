@@ -15,11 +15,30 @@ val localProperties = Properties().apply {
     }
 }
 
+val dotenvProperties = Properties().apply {
+    val dotenvFile = rootProject.file("../.env")
+    if (dotenvFile.exists()) {
+        dotenvFile.inputStream().use(::load)
+    }
+}
+
+fun readConfigValue(primaryKey: String, fallbackKey: String? = null): String? =
+    sequenceOf(
+        project.findProperty(primaryKey) as String?,
+        localProperties.getProperty(primaryKey),
+        System.getenv(primaryKey),
+        dotenvProperties.getProperty(primaryKey),
+        fallbackKey?.let { project.findProperty(it) as String? },
+        fallbackKey?.let(localProperties::getProperty),
+        fallbackKey?.let { key -> System.getenv(key) },
+        fallbackKey?.let(dotenvProperties::getProperty),
+    ).firstOrNull { !it.isNullOrBlank() }?.trim()
+
 val googleMapsAndroidApiKey =
-    (project.findProperty("GOOGLE_MAPS_ANDROID_API_KEY") as String?)
-        ?: localProperties.getProperty("GOOGLE_MAPS_ANDROID_API_KEY")
-        ?: System.getenv("GOOGLE_MAPS_ANDROID_API_KEY")
-        ?: ""
+    readConfigValue(
+        primaryKey = "GOOGLE_MAPS_ANDROID_API_KEY",
+        fallbackKey = "GOOGLE_API_KEY",
+    ) ?: ""
 
 android {
     namespace = "com.example.planpal_flutter"

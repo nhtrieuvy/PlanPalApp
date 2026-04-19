@@ -50,10 +50,16 @@ class ConversationService(BaseService):
                 # Allow Cloudinary URLs/public_ids
             elif hasattr(attachment, 'read'):
                 # File upload - will be handled by CloudinaryField on save
-                pass
+                if not attachment_name:
+                    attachment_name = getattr(attachment, 'name', '') or ''
+                if attachment_size is None:
+                    attachment_size = getattr(attachment, 'size', None)
             else:
                 raise ValueError("Attachment must be a file upload or valid URL/public_id")
-        
+
+        if message_type == 'location' and not content:
+            content = location_name or 'Shared location'
+
         data = {
             'message_type': message_type,
             'content': content,

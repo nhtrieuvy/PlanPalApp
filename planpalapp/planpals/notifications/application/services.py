@@ -253,6 +253,24 @@ class NotificationService:
                 return 'New message', f'{actor_name} in "{conversation_name}": {preview}'
             return 'New message', f'{actor_name}: {preview}'
 
+        if notification_type == NotificationType.BUDGET_ALERT.value:
+            plan_title = str(data.get('plan_title') or 'your plan')
+            spent_percentage = data.get('spent_percentage')
+            threshold_pct = data.get('threshold_pct')
+            if spent_percentage is not None:
+                return 'Budget alert', f'"{plan_title}" is now {spent_percentage}% used.'
+            if threshold_pct is not None:
+                return 'Budget alert', f'"{plan_title}" reached {threshold_pct}% of its budget.'
+            return 'Budget alert', f'"{plan_title}" is close to its budget limit.'
+
+        if notification_type == NotificationType.LARGE_EXPENSE.value:
+            plan_title = str(data.get('plan_title') or 'your plan')
+            amount = data.get('amount')
+            currency = str(data.get('currency') or 'VND')
+            if amount is not None:
+                return 'Large expense added', f'{actor_name} added {amount} {currency} to "{plan_title}".'
+            return 'Large expense added', f'{actor_name} added a large expense to "{plan_title}".'
+
         raise ValidationError({'type': f'Unsupported notification type: {notification_type}'})
 
     def _push_payload(self, notification) -> dict[str, Any]:

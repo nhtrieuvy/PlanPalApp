@@ -40,6 +40,8 @@ class SummaryMetricSerializer(serializers.Serializer):
 class DashboardTotalsSerializer(serializers.Serializer):
     plans_created = serializers.IntegerField()
     plans_completed = serializers.IntegerField()
+    expenses_created = serializers.IntegerField()
+    expense_total_amount = serializers.FloatField()
     group_joins = serializers.IntegerField()
     notifications_sent = serializers.IntegerField()
     notifications_opened = serializers.IntegerField()

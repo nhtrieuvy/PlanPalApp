@@ -152,12 +152,16 @@ class ConversationRepository {
     String? replyToId,
   }) async {
     try {
+      final fileName = imageFile.path.split(Platform.pathSeparator).last;
+      final fileSize = await imageFile.length();
       final formData = FormData.fromMap({
         'message_type': MessageType.image.name,
         'attachment': await MultipartFile.fromFile(
           imageFile.path,
-          filename: imageFile.path.split(Platform.pathSeparator).last,
+          filename: fileName,
         ),
+        'attachment_name': fileName,
+        'attachment_size': fileSize,
         if (replyToId != null) 'reply_to_id': replyToId,
       });
 
@@ -178,12 +182,16 @@ class ConversationRepository {
     String? replyToId,
   }) async {
     try {
+      final fileName = file.path.split(Platform.pathSeparator).last;
+      final fileSize = await file.length();
       final formData = FormData.fromMap({
         'message_type': MessageType.file.name,
         'attachment': await MultipartFile.fromFile(
           file.path,
-          filename: file.path.split(Platform.pathSeparator).last,
+          filename: fileName,
         ),
+        'attachment_name': fileName,
+        'attachment_size': fileSize,
         if (replyToId != null) 'reply_to_id': replyToId,
       });
 

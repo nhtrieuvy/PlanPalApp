@@ -41,6 +41,9 @@ class DjangoAnalyticsRepository(AnalyticsRepository):
         )
         plans_created = audit_logs.filter(action=AuditAction.CREATE_PLAN.value).count()
         plans_completed = audit_logs.filter(action=AuditAction.COMPLETE_PLAN.value).count()
+        expense_logs = audit_logs.filter(action=AuditAction.CREATE_EXPENSE.value)
+        expenses_created = expense_logs.count()
+        expense_total_amount = self._sum_expense_amount(expense_logs)
         group_joins = audit_logs.filter(action=AuditAction.JOIN_GROUP.value).count()
         notifications_opened = self._sum_notification_opens(
             audit_logs.filter(action=AuditAction.NOTIFICATION_OPENED.value)
@@ -56,6 +59,8 @@ class DjangoAnalyticsRepository(AnalyticsRepository):
             monthly_active_users=monthly_active_users,
             plans_created=plans_created,
             plans_completed=plans_completed,
+            expenses_created=expenses_created,
+            expense_total_amount=expense_total_amount,
             group_joins=group_joins,
             notifications_sent=notifications_sent,
             notifications_opened=notifications_opened,
@@ -73,6 +78,8 @@ class DjangoAnalyticsRepository(AnalyticsRepository):
                 'monthly_active_users': metric.monthly_active_users,
                 'plans_created': metric.plans_created,
                 'plans_completed': metric.plans_completed,
+                'expenses_created': metric.expenses_created,
+                'expense_total_amount': self._decimal(metric.expense_total_amount),
                 'group_joins': metric.group_joins,
                 'notifications_sent': metric.notifications_sent,
                 'notifications_opened': metric.notifications_opened,
@@ -98,6 +105,8 @@ class DjangoAnalyticsRepository(AnalyticsRepository):
             active_user_total=Sum('active_users'),
             plans_created=Sum('plans_created'),
             plans_completed=Sum('plans_completed'),
+            expenses_created=Sum('expenses_created'),
+            expense_total_amount=Sum('expense_total_amount'),
             group_joins=Sum('group_joins'),
             notifications_sent=Sum('notifications_sent'),
             notifications_opened=Sum('notifications_opened'),
@@ -109,6 +118,8 @@ class DjangoAnalyticsRepository(AnalyticsRepository):
             active_user_total=int(sums.get('active_user_total') or 0),
             plans_created=int(sums.get('plans_created') or 0),
             plans_completed=int(sums.get('plans_completed') or 0),
+            expenses_created=int(sums.get('expenses_created') or 0),
+            expense_total_amount=float(sums.get('expense_total_amount') or 0),
             group_joins=int(sums.get('group_joins') or 0),
             notifications_sent=int(sums.get('notifications_sent') or 0),
             notifications_opened=int(sums.get('notifications_opened') or 0),
@@ -261,6 +272,17 @@ class DjangoAnalyticsRepository(AnalyticsRepository):
                 total += 1
         return total
 
+    @staticmethod
+    def _sum_expense_amount(queryset) -> float:
+        total = Decimal('0')
+        for metadata in queryset.values_list('metadata', flat=True):
+            raw_amount = metadata.get('amount', 0) if isinstance(metadata, dict) else 0
+            try:
+                total += Decimal(str(raw_amount))
+            except Exception:
+                continue
+        return float(total)
+
     def _to_entity(self, metric: DailyMetric) -> DailyMetricEntity:
         return DailyMetricEntity(
             metric_date=metric.date,
@@ -268,6 +290,8 @@ class DjangoAnalyticsRepository(AnalyticsRepository):
             monthly_active_users=metric.monthly_active_users,
             plans_created=metric.plans_created,
             plans_completed=metric.plans_completed,
+            expenses_created=metric.expenses_created,
+            expense_total_amount=float(metric.expense_total_amount),
             group_joins=metric.group_joins,
             notifications_sent=metric.notifications_sent,
             notifications_opened=metric.notifications_opened,

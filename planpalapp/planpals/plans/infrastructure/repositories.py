@@ -102,10 +102,6 @@ class DjangoPlanRepository(PlanRepository):
             start_date=command.start_date,
             end_date=command.end_date,
             is_public=command.is_public,
-            cover_image=command.cover_image or '',
-            destination=command.destination,
-            budget=command.budget,
-            notes=command.notes,
         )
         plan.save()
         return plan
