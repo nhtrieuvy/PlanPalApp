@@ -10,6 +10,7 @@ import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/presentation/pages/budget/budget_overview_page.dart';
+import 'test_app.dart';
 
 void main() {
   setUpAll(() async {
@@ -107,8 +108,8 @@ void main() {
           authNotifierProvider.overrideWithValue(AuthProvider()),
           budgetRepositoryProvider.overrideWithValue(repository),
         ],
-        child: const MaterialApp(
-          home: BudgetOverviewPage(
+        child: buildLocalizedTestApp(
+          const BudgetOverviewPage(
             planId: 'plan-1',
             planTitle: 'Da Nang Trip',
             canManageBudget: true,
@@ -121,12 +122,12 @@ void main() {
     expect(find.text('Budget Overview'), findsWidgets);
     expect(find.text('Da Nang Trip'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Per-user Breakdown'),
+      find.text('Per-user breakdown'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('Per-user Breakdown'), findsOneWidget);
+    expect(find.text('Per-user breakdown'), findsOneWidget);
     expect(find.text('Plan Owner'), findsOneWidget);
     expect(find.text('View expenses'), findsOneWidget);
     expect(find.text('Update budget'), findsOneWidget);

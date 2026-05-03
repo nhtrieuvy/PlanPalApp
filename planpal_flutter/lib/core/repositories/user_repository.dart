@@ -4,6 +4,7 @@ import 'package:planpal_flutter/core/auth/auth_session.dart';
 import '../services/apis.dart';
 import '../dtos/user_model.dart';
 import '../services/api_error.dart';
+import '../utils/server_datetime.dart';
 
 class UserRepository {
   final AuthProvider auth;
@@ -70,6 +71,39 @@ class UserRepository {
     }
   }
 
+  Future<UserModel?> setOnlineStatus(bool isOnline) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(
+          Endpoints.setOnlineStatus,
+          data: {'is_online': isOnline},
+        ),
+      );
+
+      if (res.statusCode == 200 && res.data is Map) {
+        final data = Map<String, dynamic>.from(res.data as Map);
+        final currentUser = auth.user;
+        if (currentUser == null) return null;
+
+        final updatedUser = currentUser.copyWith(
+          isOnline: data['is_online'] == true,
+          onlineStatus:
+              data['online_status']?.toString() ??
+              (data['is_online'] == true ? 'online' : 'offline'),
+          lastSeen: parseServerDateTime(data['last_seen']),
+        );
+        auth.setUser(updatedUser);
+        return updatedUser;
+      }
+
+      return _throwApiError(res);
+    } on DioException catch (e) {
+      final res = e.response;
+      if (res != null) return _throwApiError(res);
+      rethrow;
+    }
+  }
+
   // Register remains public (no auth required)
   Future<void> register({
     required String username,
@@ -119,5 +153,30 @@ class UserRepository {
     }
 
     throw Exception('Đăng ký thất bại');
+  }
+
+  Future<void> resendEmailVerification({required String email}) async {
+    final apiClient = ApiClient();
+    final response = await apiClient.dio.post(
+      Endpoints.resendEmailVerification,
+      data: {'email': email},
+    );
+
+    if (response.statusCode == 200) return;
+    _throwApiError(response);
+  }
+
+  Future<void> verifyEmailCode({
+    required String email,
+    required String code,
+  }) async {
+    final apiClient = ApiClient();
+    final response = await apiClient.dio.post(
+      Endpoints.verifyEmail,
+      data: {'email': email.trim(), 'code': code.trim()},
+    );
+
+    if (response.statusCode == 200) return;
+    _throwApiError(response);
   }
 }

@@ -1,10 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../core/dtos/chat_message.dart';
+import '../../../core/localization/app_formatters.dart';
+import '../../../core/localization/app_localizations.dart';
 
 enum MessageStatus { sending, sent, delivered, read, failed }
 
@@ -226,9 +227,10 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildLocationMessage(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
     final title = (message.locationName?.trim().isNotEmpty ?? false)
         ? message.locationName!.trim()
-        : 'Vi tri';
+        : l10n.t('chat.location_default_title');
     final subtitle = message.content.trim().isNotEmpty
         ? message.content.trim()
         : '${message.latitude}, ${message.longitude}';
@@ -276,7 +278,7 @@ class MessageBubble extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Nhan de mo ban do',
+                  l10n.t('chat.tap_to_open_map'),
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     color: isCurrentUser
@@ -294,10 +296,11 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildFileMessage(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
     final fileName =
         (message.attachmentName?.trim().isNotEmpty ?? false)
         ? message.attachmentName!.trim()
-        : 'File';
+        : l10n.t('chat.file_default_name');
     final fileSize = message.attachmentSize != null
         ? _formatFileSize(message.attachmentSize!)
         : '';
@@ -347,7 +350,7 @@ class MessageBubble extends StatelessWidget {
                 ],
                 const SizedBox(height: 4),
                 Text(
-                  'Nhan de mo tep',
+                  l10n.t('chat.tap_to_open_file'),
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     color: isCurrentUser
@@ -387,7 +390,7 @@ class MessageBubble extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            DateFormat('HH:mm').format(message.createdAt),
+            AppFormatters.shortTime(context, message.createdAt),
             style: GoogleFonts.inter(
               fontSize: 11,
               color: colorScheme.onSurfaceVariant.withAlpha(150),

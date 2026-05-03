@@ -17,6 +17,7 @@ from planpals.groups.application.handlers import (
     DeleteGroupHandler,
     PromoteMemberHandler,
     DemoteMemberHandler,
+    SetMemberRoleHandler,
 )
 
 
@@ -117,6 +118,14 @@ def get_promote_member_handler() -> PromoteMemberHandler:
 
 def get_demote_member_handler() -> DemoteMemberHandler:
     return DemoteMemberHandler(
+        membership_repo=_membership_repo(),
+        event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
+    )
+
+
+def get_set_member_role_handler() -> SetMemberRoleHandler:
+    return SetMemberRoleHandler(
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
         audit_service=get_audit_log_service(),

@@ -53,3 +53,12 @@ class RemoveMemberRequest {
 
   Map<String, dynamic> toJson() => {'user_id': userId};
 }
+
+class ChangeMemberRoleRequest {
+  final String userId;
+  final String role;
+
+  ChangeMemberRoleRequest({required this.userId, required this.role});
+
+  Map<String, dynamic> toJson() => {'user_id': userId, 'role': role};
+}

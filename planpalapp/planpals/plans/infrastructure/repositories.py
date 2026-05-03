@@ -208,6 +208,17 @@ class DjangoPlanActivityRepository(PlanActivityRepository):
         except PlanActivity.DoesNotExist:
             return None
 
+    def get_by_id_for_update(self, activity_id: UUID) -> Optional[PlanActivity]:
+        try:
+            return (
+                PlanActivity.objects
+                .select_related('plan', 'plan__group')
+                .select_for_update()
+                .get(id=activity_id)
+            )
+        except PlanActivity.DoesNotExist:
+            return None
+
     def get_activities_for_plan(self, plan_id: UUID) -> Any:
         return (
             PlanActivity.objects

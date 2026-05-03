@@ -28,6 +28,7 @@ from celery import current_app
 from planpals.shared.base_models import BaseModel
 from planpals.shared.cache_infrastructure import DjangoCacheService
 from planpals.auth.domain.entities import FriendshipStatus
+from planpals.shared.presence import is_recently_online, resolve_online_status
 
 
 class UserQuerySet(models.QuerySet['User']):
@@ -179,6 +180,13 @@ class User(AbstractUser, BaseModel):
         blank=True,
         help_text="Firebase Cloud Messaging token"
     )
+
+    email_verified_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Time when the user confirmed ownership of their email address",
+    )
     
     # Custom manager combining Django UserManager with our UserQuerySet
     objects = UserManager()
@@ -205,6 +213,15 @@ class User(AbstractUser, BaseModel):
         if not status:
             self.last_seen = timezone.now()
         self.save(update_fields=['is_online', 'last_seen'])
+
+    @property
+    def is_email_verified(self) -> bool:
+        return self.email_verified_at is not None
+
+    def mark_email_verified(self) -> None:
+        self.email_verified_at = timezone.now()
+        self.is_active = True
+        self.save(update_fields=['email_verified_at', 'is_active', 'updated_at'])
 
    
         
@@ -303,9 +320,11 @@ class User(AbstractUser, BaseModel):
     
     @property
     def online_status(self) -> str:
-        if self.is_online:
-            return 'online'
-        return 'offline'
+        return resolve_online_status(self.is_online, self.last_seen)
+
+    @property
+    def is_recently_online(self) -> bool:
+        return not self.is_online and is_recently_online(self.last_seen)
 
     @property
     def has_avatar(self) -> bool:

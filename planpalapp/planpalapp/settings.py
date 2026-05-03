@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 import cloudinary
 from urllib.parse import quote_plus
 import dj_database_url
+from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -85,6 +86,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -218,6 +220,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
+LANGUAGES = [
+    ('en', _('English')),
+    ('vi', _('Vietnamese')),
+]
+LOCALE_PATHS = [BASE_DIR / 'locale']
 
 # Timezone configuration - Asia/Ho_Chi_Minh (UTC+7)
 TIME_ZONE = 'Asia/Ho_Chi_Minh'
@@ -311,14 +318,27 @@ GOONG_API_KEY = os.getenv('GOONG_API_KEY')
 FIREBASE_SERVICE_ACCOUNT_PATH = os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH', './firebase_service_account.json')
 FCM_PROJECT_ID = os.getenv('FCM_PROJECT_ID', 'alapp-ffa74')
 
-# Email configuration for notifications
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# Email configuration for notifications and account verification
+BACKEND_PUBLIC_URL = os.getenv('BACKEND_PUBLIC_URL', '').rstrip('/')
+EMAIL_VERIFICATION_FRONTEND_URL = os.getenv('EMAIL_VERIFICATION_FRONTEND_URL', '')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
-EMAIL_USE_TLS = True
+EMAIL_USE_TLS = _env_flag('EMAIL_USE_TLS', True)
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND',
+    (
+        'django.core.mail.backends.console.EmailBackend'
+        if DEBUG and not EMAIL_HOST_USER
+        else 'django.core.mail.backends.smtp.EmailBackend'
+    ),
+)
+DEFAULT_FROM_EMAIL = (
+    os.getenv('DEFAULT_FROM_EMAIL')
+    or EMAIL_HOST_USER
+    or 'PlanPal <noreply@planpal.local>'
+)
 
 # Ensure logs directory exists so FileHandler won't fail at import time
 LOGS_DIR = BASE_DIR / 'logs'
@@ -422,13 +442,31 @@ CLIENT_ID = os.getenv('CLIENT_ID')
 # ============================================================================
 # CELERY SETTINGS
 # ============================================================================
-# Redis local trong container khi deploy, localhost khi dev
-CELERY_REDIS_URL = os.getenv('CELERY_REDIS_URL')
-CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL')
-CHANNEL_REDIS_URL = os.getenv('CHANNEL_REDIS_URL') or CELERY_REDIS_URL
-USE_REDIS_CACHE = _env_flag('USE_REDIS_CACHE', default=bool(CACHE_REDIS_URL))
-USE_REDIS_CHANNELS = _env_flag('USE_REDIS_CHANNELS', default=bool(CHANNEL_REDIS_URL))
 IS_TEST_ENV = any(arg in {'test', 'pytest'} for arg in sys.argv)
+DEFAULT_LOCAL_CELERY_REDIS_URL = 'redis://127.0.0.1:6379/0'
+DEFAULT_LOCAL_CACHE_REDIS_URL = 'redis://127.0.0.1:6379/1'
+USE_LOCAL_REDIS_DEFAULTS = _env_flag(
+    'PLANPAL_USE_LOCAL_REDIS_DEFAULTS',
+    default=not DEBUG and not IS_TEST_ENV,
+)
+
+# Redis local trong container khi deploy, localhost khi dev.
+# Tests use in-memory backends so CI/local test runs do not need Redis.
+CELERY_REDIS_URL = os.getenv('CELERY_REDIS_URL') or (
+    DEFAULT_LOCAL_CELERY_REDIS_URL if USE_LOCAL_REDIS_DEFAULTS else None
+)
+CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL') or (
+    DEFAULT_LOCAL_CACHE_REDIS_URL if USE_LOCAL_REDIS_DEFAULTS else None
+)
+CHANNEL_REDIS_URL = os.getenv('CHANNEL_REDIS_URL') or CELERY_REDIS_URL
+USE_REDIS_CACHE = _env_flag(
+    'USE_REDIS_CACHE',
+    default=bool(CACHE_REDIS_URL) and not IS_TEST_ENV,
+)
+USE_REDIS_CHANNELS = _env_flag(
+    'USE_REDIS_CHANNELS',
+    default=bool(CHANNEL_REDIS_URL) and not IS_TEST_ENV,
+)
 
 # ============================================================================
 # DJANGO CACHE (Redis via django-redis)
@@ -476,7 +514,6 @@ CELERY_ACCEPT_CONTENT = ['json']
 
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-DEFAULT_LOCAL_CELERY_REDIS_URL = 'redis://127.0.0.1:6379/0'
 CELERY_BROKER_URL = (
     os.getenv('CELERY_BROKER_URL')
     or CELERY_REDIS_URL

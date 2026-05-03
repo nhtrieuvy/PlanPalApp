@@ -10,11 +10,12 @@ User = get_user_model()
 
 class GroupMembershipSerializer(serializers.ModelSerializer):
     user = UserSummarySerializer(read_only=True)
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
     
     class Meta:
         model = GroupMembership
         fields = [
-            'id', 'user', 'role', 'created_at'
+            'id', 'user', 'role', 'role_display', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
 
@@ -36,6 +37,7 @@ class GroupDetailSerializer(serializers.ModelSerializer):
     user_role = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
+    can_create_plan = serializers.SerializerMethodField()
 
     class Meta:
         model = Group
@@ -44,7 +46,8 @@ class GroupDetailSerializer(serializers.ModelSerializer):
             'avatar', 'avatar_url', 'has_avatar',
             'cover_image', 'cover_image_url', 'has_cover_image',
             'admin', 'memberships', 'member_count', 'plans_count', 'active_plans_count',
-            'is_active', 'is_member', 'user_role', 'can_edit', 'can_delete', 
+            'is_active', 'is_member', 'user_role', 'can_edit',
+            'can_delete', 'can_create_plan',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'admin', 'created_at', 'updated_at']
@@ -100,6 +103,12 @@ class GroupDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.admin == request.user
+        return False
+
+    def get_can_create_plan(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.can_create_plans(request.user)
         return False
     
     def create(self, validated_data):
@@ -202,7 +211,7 @@ class GroupCreateSerializer(serializers.ModelSerializer):
 
 
 class GroupSummarySerializer(serializers.ModelSerializer):
-    member_count = serializers.IntegerField(read_only=True)
+    member_count = serializers.SerializerMethodField()
     avatar_url = serializers.CharField(read_only=True)
     has_avatar = serializers.BooleanField(read_only=True)
     
@@ -216,6 +225,12 @@ class GroupSummarySerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['initials'] = self._get_group_initials(instance)
         return data
+
+    def get_member_count(self, instance):
+        memberships = getattr(instance, '_prefetched_objects_cache', {}).get('memberships')
+        if memberships is not None:
+            return len(memberships)
+        return instance.member_count
     
     def _get_group_initials(self, instance):
         if not instance.name:

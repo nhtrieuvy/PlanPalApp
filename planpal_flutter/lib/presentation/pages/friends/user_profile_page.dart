@@ -1,11 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
-import '../../../core/riverpod/auth_notifier.dart';
-import '../../../core/riverpod/repository_providers.dart';
-import '../../../core/dtos/user_summary.dart';
-import '../../../core/theme/app_colors.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:planpal_flutter/core/dtos/user_summary.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/services/api_error.dart';
+import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class UserProfilePage extends ConsumerStatefulWidget {
   final UserSummary user;
@@ -16,7 +19,9 @@ class UserProfilePage extends ConsumerStatefulWidget {
   ConsumerState<UserProfilePage> createState() => _UserProfilePageState();
 }
 
-class _UserProfilePageState extends ConsumerState<UserProfilePage> {
+class _UserProfilePageState extends ConsumerState<UserProfilePage>
+    with WidgetsBindingObserver {
+  late UserSummary _user;
   String? _friendshipStatus;
   String? _friendshipId;
   bool _loading = false;
@@ -27,93 +32,186 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _user = widget.user;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _checkProfileAccess();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
     _checkProfileAccess();
   }
 
   Future<void> _checkProfileAccess() async {
+    final l10n = context.l10n;
     setState(() => _loading = true);
     try {
-      await ref.read(friendRepositoryProvider).getUserProfile(widget.user.id);
-
+      final profile = await ref
+          .read(friendRepositoryProvider)
+          .getUserProfile(widget.user.id);
+      if (!mounted) return;
+      setState(() {
+        _user = profile;
+      });
       await _loadFriendshipStatus();
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
 
-      bool is403Error = false;
-
-      if (e is DioException) {
-        is403Error = e.response?.statusCode == 403;
-      } else {
-        is403Error =
-            e.toString().contains('403') ||
-            e.toString().toLowerCase().contains('forbidden');
-      }
+      final is403Error = error is DioException
+          ? error.response?.statusCode == 403
+          : error.toString().contains('403') ||
+                error.toString().toLowerCase().contains('forbidden');
 
       if (is403Error) {
         setState(() {
           _profileAccessDenied = true;
-          _accessDeniedMessage = 'Bạn không thể truy cập trang cá nhân này';
+          _accessDeniedMessage = l10n.t('user_profile.access_denied');
           _loading = false;
         });
         return;
       }
 
-      // For other errors, still show profile but log the error
       setState(() => _loading = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi tải thông tin: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.t(
+                'user_profile.load_error',
+                params: {'error': error.toString()},
+              ),
+            ),
+          ),
+        );
       }
     }
   }
 
   Future<void> _loadFriendshipStatus() async {
+    await _syncFriendshipStatus(stopLoading: true);
+  }
+
+  Future<bool> _syncFriendshipStatus({bool stopLoading = false}) async {
     try {
       final details = await ref
           .read(friendRepositoryProvider)
           .getFriendshipDetails(widget.user.id);
-      if (!mounted) return;
+      if (!mounted) return false;
+
       setState(() {
-        if (details != null) {
-          _friendshipStatus = _mapBackendStatusToFrontend(
-            details['status']?.toString() ?? 'none',
-          );
-          _friendshipId = details['friendship_id']?.toString();
-        } else {
-          _friendshipStatus = 'none';
-          _friendshipId = null;
+        _applyFriendshipDetails(details);
+        if (stopLoading) {
+          _loading = false;
         }
-        _loading = false;
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _friendshipStatus = 'none';
-        _friendshipId = null;
-        _loading = false;
-      });
+
+      return true;
+    } catch (_) {
+      if (!mounted) return false;
+
+      if (stopLoading) {
+        setState(() {
+          _loading = false;
+        });
+      }
+
+      // Keep the previous state on transient errors to avoid showing a wrong action.
+      return false;
     }
   }
 
+  void _applyFriendshipDetails(Map<String, dynamic>? details) {
+    if (details == null) {
+      _friendshipStatus = 'none';
+      _friendshipId = null;
+      return;
+    }
+
+    _friendshipStatus = _mapBackendStatusToFrontend(
+      _extractBackendStatus(details),
+    );
+    _friendshipId = _extractFriendshipId(details);
+  }
+
+  String? _extractBackendStatus(Map<String, dynamic> details) {
+    final rawStatus =
+        details['status'] ??
+        details['friendship_status'] ??
+        details['friendshipStatus'];
+    return rawStatus?.toString();
+  }
+
+  String? _extractFriendshipId(Map<String, dynamic> details) {
+    final rawId = details['friendship_id'] ?? details['friendshipId'];
+    return rawId?.toString();
+  }
+
   String _mapBackendStatusToFrontend(String? backendStatus) {
-    switch (backendStatus) {
+    switch (backendStatus?.trim().toLowerCase()) {
+      case 'accepted':
+      case 'friend':
       case 'friends':
         return 'accepted';
+      case 'pending':
+      case 'request_sent':
       case 'pending_sent':
         return 'pending_sent';
+      case 'request_received':
       case 'pending_received':
         return 'pending_received';
       case 'blocked':
       case 'blocked_by_me':
       case 'blocked_by_them':
         return 'blocked';
+      case null:
+      case '':
+      case 'none':
       default:
         return 'none';
     }
   }
 
+  String _extractErrorMessage(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map) {
+        final detail = data['detail'] ?? data['message'] ?? data['error'];
+        if (detail != null) {
+          return detail.toString();
+        }
+      }
+      if (error.message != null && error.message!.trim().isNotEmpty) {
+        return error.message!.trim();
+      }
+    }
+
+    return error.toString();
+  }
+
+  bool _isAlreadyFriendsError(Object error) {
+    final message = _extractErrorMessage(error).toLowerCase();
+    return message.contains('already friends') ||
+        message.contains('da la ban be') ||
+        message.contains('đã là bạn bè');
+  }
+
   Future<void> _sendFriendRequest() async {
+    final l10n = context.l10n;
     setState(() => _actionLoading = true);
     try {
       await ref
@@ -124,23 +222,52 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
         _friendshipStatus = 'pending_sent';
         _actionLoading = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Đã gửi lời mời kết bạn')));
-      }
-    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.t('user_profile.request_sent'))),
+      );
+    } catch (error) {
       if (!mounted) return;
-      setState(() => _actionLoading = false);
-      if (mounted) {
+
+      final alreadyFriends = _isAlreadyFriendsError(error);
+      await _syncFriendshipStatus();
+      if (!mounted) return;
+
+      if (alreadyFriends || _friendshipStatus == 'accepted') {
+        setState(() {
+          _friendshipStatus = 'accepted';
+          _friendshipId = null;
+          _actionLoading = false;
+        });
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        ).showSnackBar(SnackBar(content: Text(l10n.t('user_profile.friends'))));
+        return;
       }
+
+      if (_friendshipStatus == 'pending_sent') {
+        setState(() => _actionLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.t('user_profile.pending_sent'))),
+        );
+        return;
+      }
+
+      setState(() => _actionLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.t(
+              'user_profile.error',
+              params: {'error': _extractErrorMessage(error)},
+            ),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _acceptFriendRequest() async {
+    final l10n = context.l10n;
     if (_friendshipId == null) return;
 
     setState(() => _actionLoading = true);
@@ -149,31 +276,31 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
           .read(friendRepositoryProvider)
           .acceptFriendRequest(_friendshipId!);
       if (!mounted) return;
-
       if (success) {
         setState(() {
           _friendshipStatus = 'accepted';
           _friendshipId = null;
           _actionLoading = false;
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Đã chấp nhận lời mời kết bạn')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.t('user_profile.accept_success'))),
+        );
       }
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
       setState(() => _actionLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.t('user_profile.error', params: {'error': error.toString()}),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _declineFriendRequest() async {
+    final l10n = context.l10n;
     if (_friendshipId == null) return;
 
     setState(() => _actionLoading = true);
@@ -182,47 +309,50 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
           .read(friendRepositoryProvider)
           .rejectFriendRequest(_friendshipId!);
       if (!mounted) return;
-
       if (success) {
         setState(() {
           _friendshipStatus = 'none';
           _friendshipId = null;
           _actionLoading = false;
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Đã từ chối lời mời kết bạn')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.t('user_profile.reject_success'))),
+        );
       }
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
       setState(() => _actionLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.t('user_profile.error', params: {'error': error.toString()}),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _unfriend() async {
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xác nhận'),
+        title: Text(l10n.t('common.confirm')),
         content: Text(
-          'Bạn có chắc muốn hủy kết bạn với ${widget.user.fullName}?',
+          l10n.t(
+            'user_profile.unfriend_confirm',
+            params: {'name': _user.fullName},
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Hủy'),
+            child: Text(l10n.t('common.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Xác nhận'),
+            child: Text(l10n.t('common.confirm')),
           ),
         ],
       ),
@@ -238,39 +368,43 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
         _friendshipStatus = 'none';
         _actionLoading = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Đã hủy kết bạn')));
-      }
-    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.t('user_profile.unfriend_success'))),
+      );
+    } catch (error) {
       if (!mounted) return;
       setState(() => _actionLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.t('user_profile.error', params: {'error': error.toString()}),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _blockUser() async {
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xác nhận chặn'),
+        title: Text(l10n.t('user_profile.block_title')),
         content: Text(
-          'Bạn có chắc muốn chặn ${widget.user.fullName}? Họ sẽ không thể gửi tin nhắn hoặc lời mời kết bạn cho bạn nữa.',
+          l10n.t(
+            'user_profile.block_confirm',
+            params: {'name': _user.fullName},
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Hủy'),
+            child: Text(l10n.t('common.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Chặn'),
+            child: Text(l10n.t('user_profile.block_action')),
           ),
         ],
       ),
@@ -286,36 +420,43 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
         _friendshipStatus = 'blocked';
         _actionLoading = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Đã chặn người dùng')));
-      }
-    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.t('user_profile.block_success'))),
+      );
+    } catch (error) {
       if (!mounted) return;
       setState(() => _actionLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.t('user_profile.error', params: {'error': error.toString()}),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _unblockUser() async {
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Bỏ chặn'),
-        content: Text('Bạn có muốn bỏ chặn ${widget.user.fullName}?'),
+        title: Text(l10n.t('user_profile.unblock_title')),
+        content: Text(
+          l10n.t(
+            'user_profile.unblock_confirm',
+            params: {'name': _user.fullName},
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Hủy'),
+            child: Text(l10n.t('common.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Bỏ chặn'),
+            child: Text(l10n.t('user_profile.unblock_action')),
           ),
         ],
       ),
@@ -328,31 +469,32 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
       await ref.read(friendRepositoryProvider).unblockUser(widget.user.id);
       if (!mounted) return;
       await _loadFriendshipStatus();
-      setState(() => _actionLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Đã bỏ chặn người dùng')));
-      }
-    } catch (e) {
       if (!mounted) return;
       setState(() => _actionLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-      }
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.t('user_profile.unblock_success'))),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _actionLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.t('user_profile.error', params: {'error': error.toString()}),
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.read(authNotifierProvider).user;
-    final isOwnProfile = currentUser?.id == widget.user.id;
+    final isOwnProfile = currentUser?.id == _user.id;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.user.fullName),
+        title: Text(_user.fullName),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: !isOwnProfile && !_profileAccessDenied
@@ -370,24 +512,24 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                   },
                   itemBuilder: (context) => [
                     if (_friendshipStatus != 'blocked')
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'block',
                         child: Row(
                           children: [
-                            Icon(Icons.block, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Chặn người dùng'),
+                            const Icon(Icons.block, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Text(context.l10n.t('user_profile.menu_block')),
                           ],
                         ),
                       ),
                     if (_friendshipStatus == 'blocked')
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'unblock',
                         child: Row(
                           children: [
-                            Icon(Icons.check_circle, color: Colors.green),
-                            SizedBox(width: 8),
-                            Text('Bỏ chặn'),
+                            const Icon(Icons.check_circle, color: Colors.green),
+                            const SizedBox(width: 8),
+                            Text(context.l10n.t('user_profile.menu_unblock')),
                           ],
                         ),
                       ),
@@ -403,16 +545,18 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   }
 
   Widget _buildAccessDeniedView() {
+    final l10n = context.l10n;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.block, size: 80, color: Colors.red),
             const SizedBox(height: 24),
             Text(
-              _accessDeniedMessage ?? 'Không thể truy cập trang cá nhân',
+              _accessDeniedMessage ??
+                  l10n.t('user_profile.access_denied_default'),
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -421,16 +565,16 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Bạn không có quyền xem thông tin của người dùng này.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+            Text(
+              l10n.t('user_profile.access_denied_description'),
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.arrow_back),
-              label: const Text('Quay lại'),
+              label: Text(l10n.t('user_profile.back')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -450,14 +594,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   }
 
   Widget _buildProfileContent() {
-    final theme = Theme.of(context);
     final currentUser = ref.read(authNotifierProvider).user;
-    final isOwnProfile = currentUser?.id == widget.user.id;
+    final isOwnProfile = currentUser?.id == _user.id;
 
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Cover/Header section
           Container(
             width: double.infinity,
             height: 200,
@@ -477,7 +619,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                 _buildAvatar(),
                 const SizedBox(height: 16),
                 Text(
-                  widget.user.fullName,
+                  _user.fullName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -486,11 +628,11 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '@${widget.user.username}',
+                  '@${_user.username}',
                   style: const TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
-                if (widget.user.isOnline)
+                if (_user.isOnline)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -500,9 +642,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                       color: Colors.green,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'Đang online',
-                      style: TextStyle(
+                    child: Text(
+                      context.l10n.t('user_profile.online'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -512,16 +654,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
               ],
             ),
           ),
-
-          // Action button section
           if (!isOwnProfile) ...[
             const SizedBox(height: 24),
             _buildActionButton(),
           ],
-
-          // Profile info section
           const SizedBox(height: 24),
-          _buildProfileInfo(theme),
+          _buildProfileInfo(),
         ],
       ),
     );
@@ -529,8 +667,8 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
 
   Widget _buildAvatar() {
     const size = 80.0;
-    final initials = widget.user.initials;
-    final avatarUrl = widget.user.avatarForDisplay;
+    final initials = _user.initials;
+    final avatarUrl = _user.avatarForDisplay;
 
     if (avatarUrl.isNotEmpty) {
       return ClipOval(
@@ -539,43 +677,17 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
           width: size,
           height: size,
           fit: BoxFit.cover,
-          placeholder: (context, url) => Container(
-            width: size,
-            height: size,
-            color: Colors.white.withValues(alpha: 0.2),
-            child: Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 32,
-                ),
-              ),
-            ),
-          ),
-          errorWidget: (context, url, error) => Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 32,
-                ),
-              ),
-            ),
-          ),
+          placeholder: (context, url) => _buildAvatarFallback(initials, size),
+          errorWidget: (context, url, error) =>
+              _buildAvatarFallback(initials, size),
         ),
       );
     }
 
+    return _buildAvatarFallback(initials, size);
+  }
+
+  Widget _buildAvatarFallback(String initials, double size) {
     return Container(
       width: size,
       height: size,
@@ -597,8 +709,22 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   }
 
   Widget _buildActionButton() {
+    final l10n = context.l10n;
     if (_loading) {
       return const CircularProgressIndicator();
+    }
+
+    if (_friendshipStatus == null) {
+      return OutlinedButton.icon(
+        onPressed: _actionLoading
+            ? null
+            : () async {
+                setState(() => _loading = true);
+                await _loadFriendshipStatus();
+              },
+        icon: const Icon(Icons.refresh),
+        label: Text(l10n.t('common.retry')),
+      );
     }
 
     switch (_friendshipStatus) {
@@ -612,14 +738,14 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                 color: Colors.green,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
+                  const Icon(Icons.check_circle, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
                   Text(
-                    'Bạn bè',
-                    style: TextStyle(
+                    l10n.t('user_profile.friends'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                     ),
@@ -640,7 +766,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                       ),
                     )
                   : const Icon(Icons.person_remove),
-              label: const Text('Hủy kết bạn'),
+              label: Text(l10n.t('user_profile.unfriend')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
@@ -659,7 +785,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
         return ElevatedButton.icon(
           onPressed: null,
           icon: const Icon(Icons.schedule),
-          label: const Text('Đã gửi lời mời'),
+          label: Text(l10n.t('user_profile.pending_sent')),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.orange,
             foregroundColor: Colors.white,
@@ -687,7 +813,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                       ),
                     )
                   : const Icon(Icons.check),
-              label: const Text('Chấp nhận'),
+              label: Text(l10n.t('user_profile.pending_received')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
@@ -713,7 +839,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                       ),
                     )
                   : const Icon(Icons.close),
-              label: const Text('Từ chối'),
+              label: Text(l10n.t('user_profile.pending_decline')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.grey,
                 foregroundColor: Colors.white,
@@ -732,7 +858,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
         return ElevatedButton.icon(
           onPressed: null,
           icon: const Icon(Icons.block),
-          label: const Text('Đã chặn'),
+          label: Text(l10n.t('user_profile.blocked')),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.grey,
             foregroundColor: Colors.white,
@@ -744,7 +870,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
             ),
           ),
         );
-      default:
+      case 'none':
         return ElevatedButton.icon(
           onPressed: _actionLoading ? null : _sendFriendRequest,
           icon: _actionLoading
@@ -757,7 +883,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                   ),
                 )
               : const Icon(Icons.person_add),
-          label: const Text('Kết bạn'),
+          label: Text(l10n.t('user_profile.add_friend')),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
@@ -767,17 +893,31 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
             ),
           ),
         );
+      default:
+        return OutlinedButton.icon(
+          onPressed: _actionLoading
+              ? null
+              : () async {
+                  setState(() => _loading = true);
+                  await _loadFriendshipStatus();
+                },
+          icon: const Icon(Icons.refresh),
+          label: Text(l10n.t('common.retry')),
+        );
     }
   }
 
-  Widget _buildProfileInfo(ThemeData theme) {
+  Widget _buildProfileInfo() {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Thông tin cá nhân',
+            l10n.t('user_profile.personal_info'),
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -794,41 +934,46 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                 children: [
                   _buildInfoRow(
                     Icons.person,
-                    'Tên hiển thị',
-                    widget.user.fullName,
+                    l10n.t('user_profile.display_name'),
+                    _user.fullName,
                   ),
                   const Divider(),
                   _buildInfoRow(
                     Icons.alternate_email,
-                    'Username',
-                    '@${widget.user.username}',
+                    l10n.t('profile.username'),
+                    '@${_user.username}',
                   ),
-                  if (widget.user.email != null) ...[
+                  if (_user.email != null) ...[
                     const Divider(),
-                    _buildInfoRow(Icons.email, 'Email', widget.user.email!),
+                    _buildInfoRow(
+                      Icons.email,
+                      l10n.t('auth.email'),
+                      _user.email!,
+                    ),
                   ],
                   const Divider(),
                   _buildInfoRow(
                     Icons.circle,
-                    'Trạng thái',
-                    widget.user.statusText,
-                    valueColor: widget.user.isOnline
+                    l10n.t('user_profile.status'),
+                    _user.isOnline
+                        ? l10n.t('user_profile.online')
+                        : l10n.t('friends.offline'),
+                    valueColor: _user.isOnline
                         ? Colors.green
                         : Colors.grey,
                   ),
                   const Divider(),
                   _buildInfoRow(
                     Icons.calendar_today,
-                    'Tham gia',
-                    _formatDate(widget.user.dateJoined),
+                    l10n.t('user_profile.joined'),
+                    _formatDate(_user.dateJoined),
                   ),
-                  if (widget.user.lastSeen != null &&
-                      !widget.user.isOnline) ...[
+                  if (_user.lastSeen != null && !_user.isOnline) ...[
                     const Divider(),
                     _buildInfoRow(
                       Icons.access_time,
-                      'Hoạt động cuối',
-                      _formatDate(widget.user.lastSeen!),
+                      l10n.t('user_profile.last_active'),
+                      _formatDate(_user.lastSeen!),
                     ),
                   ],
                 ],
@@ -882,19 +1027,31 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   }
 
   String _formatDate(DateTime date) {
+    final l10n = context.l10n;
     final now = DateTime.now();
     final difference = now.difference(date);
 
     if (difference.inDays > 7) {
-      return '${date.day}/${date.month}/${date.year}';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays} ngày trước';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} giờ trước';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} phút trước';
-    } else {
-      return 'Vừa xong';
+      return AppFormatters.shortDate(context, date);
     }
+    if (difference.inDays > 0) {
+      return l10n.t(
+        'common.days_ago',
+        params: {'count': '${difference.inDays}'},
+      );
+    }
+    if (difference.inHours > 0) {
+      return l10n.t(
+        'common.hours_ago',
+        params: {'count': '${difference.inHours}'},
+      );
+    }
+    if (difference.inMinutes > 0) {
+      return l10n.t(
+        'common.minutes_ago',
+        params: {'count': '${difference.inMinutes}'},
+      );
+    }
+    return l10n.t('common.just_now');
   }
 }

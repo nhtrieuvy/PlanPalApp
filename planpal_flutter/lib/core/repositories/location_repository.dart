@@ -7,6 +7,7 @@ class LocationRepository {
   const LocationRepository(this._authProvider);
 
   static const String _defaultLocationName = 'Vị trí đã chọn';
+  static const Duration _networkTimeout = Duration(seconds: 6);
 
   final AuthProvider _authProvider;
 
@@ -15,20 +16,26 @@ class LocationRepository {
     double longitude,
   ) async {
     try {
-      final Response<dynamic> response = await _authProvider.requestWithAutoRefresh(
-        (client) => client.dio.post(
-          Endpoints.locationReverseGeocode,
-          data: {'latitude': latitude, 'longitude': longitude},
-        ),
-      );
+      final Response<dynamic> response = await _authProvider
+          .requestWithAutoRefresh(
+            (client) => client.dio.post(
+              Endpoints.locationReverseGeocode,
+              data: {'latitude': latitude, 'longitude': longitude},
+            ),
+          )
+          .timeout(_networkTimeout);
 
-      if (response.statusCode != 200 || response.data is! Map<String, dynamic>) {
+      if (response.statusCode != 200 ||
+          response.data is! Map<String, dynamic>) {
         return _fallbackLocation(latitude, longitude);
       }
 
-      final data = Map<String, dynamic>.from(response.data as Map<String, dynamic>);
+      final data = Map<String, dynamic>.from(
+        response.data as Map<String, dynamic>,
+      );
       data['formatted_address'] ??= _formatCoordinates(latitude, longitude);
-      data['location_name'] ??= data['formatted_address'] ?? _defaultLocationName;
+      data['location_name'] ??=
+          data['formatted_address'] ?? _defaultLocationName;
       return data;
     } catch (_) {
       return _fallbackLocation(latitude, longitude);
@@ -37,18 +44,22 @@ class LocationRepository {
 
   Future<List<Map<String, dynamic>>> searchPlaces(String query) async {
     try {
-      final Response<dynamic> response = await _authProvider.requestWithAutoRefresh(
-        (client) => client.dio.get(
-          Endpoints.locationSearch,
-          queryParameters: {'q': query},
-        ),
-      );
+      final Response<dynamic> response = await _authProvider
+          .requestWithAutoRefresh(
+            (client) => client.dio.get(
+              Endpoints.locationSearch,
+              queryParameters: {'q': query},
+            ),
+          )
+          .timeout(_networkTimeout);
 
       if (response.statusCode != 200) {
         return const [];
       }
 
-      return List<Map<String, dynamic>>.from(response.data['results'] ?? const []);
+      return List<Map<String, dynamic>>.from(
+        response.data['results'] ?? const [],
+      );
     } catch (_) {
       return const [];
     }
@@ -58,12 +69,14 @@ class LocationRepository {
     String input,
   ) async {
     try {
-      final Response<dynamic> response = await _authProvider.requestWithAutoRefresh(
-        (client) => client.dio.get(
-          Endpoints.locationAutocomplete,
-          queryParameters: {'input': input},
-        ),
-      );
+      final Response<dynamic> response = await _authProvider
+          .requestWithAutoRefresh(
+            (client) => client.dio.get(
+              Endpoints.locationAutocomplete,
+              queryParameters: {'input': input},
+            ),
+          )
+          .timeout(_networkTimeout);
 
       if (response.statusCode != 200) {
         return const [];
@@ -79,14 +92,17 @@ class LocationRepository {
 
   Future<Map<String, dynamic>?> getPlaceDetails(String placeId) async {
     try {
-      final Response<dynamic> response = await _authProvider.requestWithAutoRefresh(
-        (client) => client.dio.get(
-          Endpoints.locationPlaceDetails,
-          queryParameters: {'place_id': placeId},
-        ),
-      );
+      final Response<dynamic> response = await _authProvider
+          .requestWithAutoRefresh(
+            (client) => client.dio.get(
+              Endpoints.locationPlaceDetails,
+              queryParameters: {'place_id': placeId},
+            ),
+          )
+          .timeout(_networkTimeout);
 
-      if (response.statusCode != 200 || response.data is! Map<String, dynamic>) {
+      if (response.statusCode != 200 ||
+          response.data is! Map<String, dynamic>) {
         return null;
       }
 

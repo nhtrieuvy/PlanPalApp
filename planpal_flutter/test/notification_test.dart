@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +8,7 @@ import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/notifications_provider.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart';
+import 'test_app.dart';
 
 void main() {
   setUpAll(() async {
@@ -63,7 +63,7 @@ void main() {
           authNotifierProvider.overrideWithValue(AuthProvider()),
           notificationRepositoryProvider.overrideWithValue(repository),
         ],
-        child: const MaterialApp(home: NotificationListPage()),
+        child: buildLocalizedTestApp(const NotificationListPage()),
       ),
     );
     await tester.pumpAndSettle();

@@ -3,8 +3,9 @@ import 'package:dio/dio.dart';
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
+  final dynamic data;
 
-  const ApiException(this.message, {this.statusCode});
+  const ApiException(this.message, {this.statusCode, this.data});
 
   @override
   String toString() => message;
@@ -87,5 +88,5 @@ ApiException buildApiException(Response res) {
     message = _fallbackMessageForStatus(res.statusCode);
   }
 
-  return ApiException(message, statusCode: res.statusCode);
+  return ApiException(message, statusCode: res.statusCode, data: data);
 }

@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../core/riverpod/auth_notifier.dart';
 import '../../../core/riverpod/conversation_providers.dart';
 import '../../../core/dtos/conversation.dart';
 import '../../../core/services/error_display_service.dart';
+import '../../../core/services/notification_websocket_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/common/custom_search_bar.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
@@ -21,13 +25,28 @@ class ConversationListPage extends ConsumerStatefulWidget {
 }
 
 class _ConversationListPageState extends ConsumerState<ConversationListPage>
-    with AutomaticKeepAliveClientMixin, RefreshablePage {
+    with
+        AutomaticKeepAliveClientMixin,
+        WidgetsBindingObserver,
+        RefreshablePage {
   final TextEditingController _searchController = TextEditingController();
+  final NotificationWebSocketService _presenceSocket =
+      NotificationWebSocketService();
+  StreamSubscription<NotificationSocketEvent>? _presenceSubscription;
+  Timer? _presenceRefreshTimer;
   String _searchQuery = '';
   bool _showOnlineOnly = false;
 
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _setupPresenceUpdates();
+    _startPresenceRefreshTimer();
+  }
 
   @override
   Future<void> onRefresh() async {
@@ -36,8 +55,62 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _presenceRefreshTimer?.cancel();
+    unawaited(_presenceSubscription?.cancel() ?? Future<void>.value());
+    _presenceSocket.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    _connectPresenceSocket();
+    ref.read(conversationListProvider.notifier).refresh();
+  }
+
+  void _setupPresenceUpdates() {
+    _connectPresenceSocket();
+    _presenceSubscription = _presenceSocket.eventStream.listen(
+      _handlePresenceEvent,
+    );
+  }
+
+  void _startPresenceRefreshTimer() {
+    _presenceRefreshTimer?.cancel();
+    _presenceRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (!mounted) return;
+      unawaited(
+        ref.read(conversationListProvider.notifier).refresh(silent: true),
+      );
+    });
+  }
+
+  void _connectPresenceSocket() {
+    final token = ref.read(authNotifierProvider).token;
+    if (token == null || token.isEmpty) return;
+    unawaited(_presenceSocket.connect(token));
+  }
+
+  void _handlePresenceEvent(NotificationSocketEvent event) {
+    if (!mounted) return;
+    if (event.type != NotificationSocketEventType.userOnline &&
+        event.type != NotificationSocketEventType.userOffline) {
+      return;
+    }
+
+    final userId = event.userId;
+    final isOnline = event.isOnline;
+    if (userId == null || isOnline == null) return;
+
+    ref
+        .read(conversationListProvider.notifier)
+        .updateUserPresence(
+          userId: userId,
+          isOnline: isOnline,
+          lastSeen: event.lastSeen,
+        );
   }
 
   @override

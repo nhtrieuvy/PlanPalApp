@@ -26,7 +26,7 @@ class GroupConsumer(BaseRealtimeConsumer):
         is_member = await self.check_group_membership(self.group_id, self.user.id)
         if not is_member:
             await self.close(code=4003)  # Forbidden
-            return
+            return False
             
         # Join group channel
         group_name = ChannelGroups.group(self.group_id)

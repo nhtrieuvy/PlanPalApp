@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:intl/intl.dart';
 import 'package:getwidget/getwidget.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import '../../../core/dtos/plan_model.dart';
 import '../../../core/dtos/plan_activity.dart';
 import '../../../core/services/error_display_service.dart';
@@ -31,7 +32,6 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
   PlanModel? _detail;
   Object? _error;
   bool _loading = true;
-  final _df = DateFormat('dd/MM/yyyy HH:mm');
 
   @override
   void initState() {
@@ -78,13 +78,68 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
     }
   }
 
+  Future<void> _confirmCancelPlan(PlanModel plan) async {
+    if (!plan.isUpcoming) {
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        context.l10n.t('plan.cancel_unavailable'),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.t('plan.cancel_title')),
+        content: Text(
+          context.l10n.t('plan.cancel_confirm', params: {'title': plan.title}),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.l10n.t('common.cancel')),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.l10n.t('plan.cancel_plan')),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      final updated = await ref
+          .read(planRepositoryProvider)
+          .cancelPlan(plan.id);
+      if (!mounted) return;
+      setState(() {
+        _detail = updated;
+      });
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t('plan.cancelled_success'),
+      );
+      Navigator.of(
+        context,
+      ).pop({'action': 'updated', 'plan': updated.toJson()});
+    } catch (e) {
+      if (!mounted) return;
+      ErrorDisplayService.handleError(context, e, showDialog: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (_loading) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Chi tiết kế hoạch'),
+          title: Text(context.l10n.t('plan.details_title')),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
         ),
@@ -94,12 +149,12 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
     if (_error != null || _detail == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Chi tiết kế hoạch'),
+          title: Text(context.l10n.t('plan.details_title')),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
         ),
         body: AppError(
-          message: _error?.toString() ?? 'Không thể tải chi tiết kế hoạch',
+          message: _error?.toString() ?? context.l10n.t('plan.details_title'),
           onRetry: _load,
           retryLabel: 'Thử lại',
         ),
@@ -188,14 +243,14 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Budget Tracking',
+                                context.l10n.t('plan.budget_card_title'),
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Track spending, balances, and per-user contributions.',
+                                context.l10n.t('plan.budget_card_description'),
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: Colors.grey[700],
                                 ),
@@ -218,7 +273,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                             if (!mounted) return;
                             await _load(refresh: true);
                           },
-                          child: const Text('Open'),
+                          child: Text(context.l10n.t('common.open')),
                         ),
                       ],
                     ),
@@ -228,7 +283,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                   const SizedBox(height: 16),
                   _buildInfoCard(
                     icon: Icons.description,
-                    title: 'Mô tả',
+                    title: context.l10n.t('plan.description'),
                     subtitle: p.description!,
                     color: AppColors.primary,
                     theme: theme,
@@ -262,7 +317,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                               ),
                               const SizedBox(width: 12),
                               Text(
-                                'Thời gian',
+                                context.l10n.t('plan.time'),
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -273,8 +328,11 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                           if (p.startDate != null)
                             _buildDateRow(
                               icon: Icons.play_arrow,
-                              label: 'Bắt đầu',
-                              date: _df.format(p.startDate!),
+                              label: context.l10n.t('plan.start'),
+                              date: AppFormatters.fullDateTime(
+                                context,
+                                p.startDate!,
+                              ),
                               theme: theme,
                             ),
                           if (p.startDate != null && p.endDate != null)
@@ -282,8 +340,11 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                           if (p.endDate != null)
                             _buildDateRow(
                               icon: Icons.stop,
-                              label: 'Kết thúc',
-                              date: _df.format(p.endDate!),
+                              label: context.l10n.t('plan.end'),
+                              date: AppFormatters.fullDateTime(
+                                context,
+                                p.endDate!,
+                              ),
                               theme: theme,
                             ),
                         ],
@@ -293,136 +354,162 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                 ],
                 if (p.activities.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  _buildActivitiesCard(
-                    theme: theme,
-                    activities: p.activities,
-                    df: _df,
-                  ),
+                  _buildActivitiesCard(theme: theme, activities: p.activities),
                 ],
                 const SizedBox(height: 16),
                 AuditLogList(
-                  title: 'Plan Audit Log',
+                  title: context.l10n.t('plan.audit_log_title'),
                   resourceType: 'plan',
                   resourceId: p.id,
                 ),
-                const SizedBox(height: 32),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          // Edit button: open edit form and refresh details on success
-                          final result = await Navigator.of(context)
-                              .push<Map<String, dynamic>>(
-                                MaterialPageRoute(
-                                  builder: (context) => PlanFormPage(
-                                    initial: {
-                                      'id': p.id,
-                                      'title': p.title,
-                                      'description': p.description,
-                                      'start_date': p.startDate
-                                          ?.toIso8601String(),
-                                      'end_date': p.endDate?.toIso8601String(),
-                                      'is_public': p.isPublic,
-                                      'plan_type': p.planType,
-                                      'group_id': p.group?.id,
-                                    },
+                if (p.canEdit && p.isUpcoming) ...[
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmCancelPlan(p),
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: Text(context.l10n.t('plan.cancel_plan')),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.redAccent,
+                        side: const BorderSide(color: Colors.redAccent),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (p.canEdit) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            // Edit button: open edit form and refresh details on success
+                            final result = await Navigator.of(context)
+                                .push<Map<String, dynamic>>(
+                                  MaterialPageRoute(
+                                    builder: (context) => PlanFormPage(
+                                      initial: {
+                                        'id': p.id,
+                                        'title': p.title,
+                                        'description': p.description,
+                                        'start_date': p.startDate
+                                            ?.toIso8601String(),
+                                        'end_date': p.endDate
+                                            ?.toIso8601String(),
+                                        'is_public': p.isPublic,
+                                        'plan_type': p.planType,
+                                        'group_id': p.group?.id,
+                                      },
+                                    ),
                                   ),
-                                ),
+                                );
+                            if (result != null &&
+                                result['action'] == 'updated') {
+                              // reload details from API and return updated result to caller
+                              await _load(refresh: true);
+                              if (!mounted) return;
+                              ErrorDisplayService.showSuccessSnackbar(
+                                context,
+                                context.l10n.t('plan.updated_success'),
                               );
-                          if (result != null && result['action'] == 'updated') {
-                            // reload details from API and return updated result to caller
-                            await _load(refresh: true);
-                            if (!mounted) return;
-                            ErrorDisplayService.showSuccessSnackbar(
-                              context,
-                              'Cập nhật kế hoạch thành công',
-                            );
-                            Navigator.of(context).pop({
-                              'action': 'updated',
-                              'plan': result['plan'],
-                            });
-                            return;
-                          }
-                        },
-                        icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Chỉnh sửa'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: BorderSide(
-                            color: AppColors.primary.withAlpha(75),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (dialogContext) => AlertDialog(
-                              title: const Text('Xoá kế hoạch'),
-                              content: Text(
-                                "Bạn chắc chắn muốn xoá kế hoạch '${p.title}'?",
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(dialogContext, false),
-                                  child: const Text('Huỷ'),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.redAccent,
-                                  ),
-                                  onPressed: () =>
-                                      Navigator.pop(dialogContext, true),
-                                  child: const Text('Xoá'),
-                                ),
-                              ],
+                              Navigator.of(context).pop({
+                                'action': 'updated',
+                                'plan': result['plan'],
+                              });
+                              return;
+                            }
+                          },
+                          icon: const Icon(Icons.edit_outlined),
+                          label: Text(context.l10n.t('plan.edit')),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: BorderSide(
+                              color: AppColors.primary.withAlpha(75),
                             ),
-                          );
-                          if (confirm != true) return;
-                          try {
-                            await ref
-                                .read(planRepositoryProvider)
-                                .deletePlan(p.id);
-                            if (!mounted) return;
-                            Navigator.of(
-                              context,
-                            ).pop({'action': 'delete', 'id': p.id});
-                            ErrorDisplayService.showSuccessSnackbar(
-                              context,
-                              'Đã xoá kế hoạch',
-                            );
-                          } catch (e) {
-                            if (!mounted) return;
-                            ErrorDisplayService.handleError(
-                              context,
-                              e,
-                              showDialog: true,
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Xoá'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.redAccent,
-                          side: const BorderSide(color: Colors.redAccent),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (dialogContext) => AlertDialog(
+                                title: Text(
+                                  context.l10n.t('plan.delete_title'),
+                                ),
+                                content: Text(
+                                  context.l10n.t(
+                                    'plan.delete_confirm',
+                                    params: {'title': p.title},
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, false),
+                                    child: Text(
+                                      context.l10n.t('common.cancel'),
+                                    ),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.redAccent,
+                                    ),
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, true),
+                                    child: Text(context.l10n.t('plan.delete')),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm != true) return;
+                            try {
+                              await ref
+                                  .read(planRepositoryProvider)
+                                  .deletePlan(p.id);
+                              if (!mounted) return;
+                              Navigator.of(
+                                context,
+                              ).pop({'action': 'delete', 'id': p.id});
+                              ErrorDisplayService.showSuccessSnackbar(
+                                context,
+                                context.l10n.t('plan.deleted_success'),
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              ErrorDisplayService.handleError(
+                                context,
+                                e,
+                                showDialog: true,
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.delete_outline),
+                          label: Text(context.l10n.t('plan.delete')),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.redAccent,
+                            side: const BorderSide(color: Colors.redAccent),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 20),
               ],
             ),
@@ -437,7 +524,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
             backgroundColor: AppColors.info,
             foregroundColor: Colors.white,
             heroTag: "schedule",
-            tooltip: 'Xem thời khóa biểu',
+            tooltip: context.l10n.t('plan.schedule_tooltip'),
             child: const Icon(Icons.calendar_view_day),
           ),
           const SizedBox(height: 16),
@@ -446,7 +533,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             heroTag: "add_activity",
-            tooltip: 'Thêm hoạt động',
+            tooltip: context.l10n.t('plan.add_activity_tooltip'),
             child: const Icon(Icons.add),
           ),
         ],
@@ -460,7 +547,8 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
           MaterialPageRoute(
             builder: (context) => ActivityFormPage(
               planId: planId,
-              planTitle: _detail?.title ?? 'Kế hoạch',
+              planTitle:
+                  _detail?.title ?? context.l10n.t('plan.plan_fallback_title'),
             ),
           ),
         )
@@ -477,7 +565,8 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
       MaterialPageRoute(
         builder: (context) => PlanSchedulePage(
           planId: planId,
-          planTitle: _detail?.title ?? 'Thời khóa biểu',
+          planTitle:
+              _detail?.title ?? context.l10n.t('plan.schedule_fallback_title'),
         ),
       ),
     );
@@ -629,8 +718,8 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Người tạo',
+                  Text(
+                    context.l10n.t('plan.creator'),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -689,7 +778,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Tổng quan',
+                  context.l10n.t('plan.overview'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -708,8 +797,8 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                 ),
                 _buildChip(
                   label: planType == 'group'
-                      ? 'Kế hoạch nhóm'
-                      : 'Kế hoạch cá nhân',
+                      ? context.l10n.t('plan.group_plan')
+                      : context.l10n.t('plan.personal_plan'),
                   icon: planType == 'group' ? Icons.group : Icons.person,
                   color: AppColors.secondary,
                 ),
@@ -720,7 +809,9 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                     color: AppColors.secondary,
                   ),
                 _buildChip(
-                  label: isPublic ? 'Công khai' : 'Riêng tư',
+                  label: isPublic
+                      ? context.l10n.t('plan.public')
+                      : context.l10n.t('plan.private'),
                   icon: isPublic ? Icons.public : Icons.lock,
                   color: isPublic ? AppColors.success : Colors.grey,
                 ),
@@ -731,14 +822,21 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                     color: AppColors.info,
                   ),
                 _buildChip(
-                  label: 'Hoạt động: $activitiesCount',
+                  label: context.l10n.t(
+                    'plan.activities_count',
+                    params: {'count': '$activitiesCount'},
+                  ),
                   icon: Icons.list_alt,
                   color: AppColors.primary,
                 ),
                 if (totalEstimatedCost != null)
                   _buildChip(
-                    label:
-                        'Tổng dự kiến: ${_formatCurrency(totalEstimatedCost)}',
+                    label: context.l10n.t(
+                      'plan.total_estimated',
+                      params: {
+                        'amount': _formatCurrency(context, totalEstimatedCost),
+                      },
+                    ),
                     icon: Icons.attach_money,
                     color: AppColors.warning,
                   ),
@@ -786,7 +884,6 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
   Widget _buildActivitiesCard({
     required ThemeData theme,
     required List<PlanActivity> activities,
-    required DateFormat df,
   }) {
     final display = activities.take(5).toList();
     return Card(
@@ -813,7 +910,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Hoạt động',
+                  context.l10n.t('plan.activities'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -822,7 +919,10 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
             ),
             const SizedBox(height: 16),
             if (display.isEmpty)
-              Text('Chưa có hoạt động', style: theme.textTheme.bodyMedium)
+              Text(
+                context.l10n.t('plan.no_activities'),
+                style: theme.textTheme.bodyMedium,
+              )
             else
               ...display.map((a) {
                 final st = a.startTime;
@@ -831,8 +931,11 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                 final type = a.activityType;
                 String timeRange = '';
                 if (st != null) {
-                  timeRange = df.format(st);
-                  if (et != null) timeRange += ' - ${df.format(et)}';
+                  timeRange = AppFormatters.fullDateTime(context, st);
+                  if (et != null) {
+                    timeRange +=
+                        ' - ${AppFormatters.fullDateTime(context, et)}';
+                  }
                 }
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -891,7 +994,10 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                   type: GFButtonType.outline,
                   shape: GFButtonShape.pills,
                   icon: const Icon(Icons.more_horiz, size: 16),
-                  text: 'Xem thêm (${activities.length - display.length})',
+                  text: context.l10n.t(
+                    'plan.view_more',
+                    params: {'count': '${activities.length - display.length}'},
+                  ),
                 ),
               ),
           ],
@@ -900,12 +1006,15 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
     );
   }
 
-  static String _formatCurrency(dynamic value) {
+  static String _formatCurrency(BuildContext context, dynamic value) {
     if (value == null) return '';
     try {
       final num v = (value is num) ? value : num.parse(value.toString());
-      final fmt = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
-      return fmt.format(v);
+      return AppFormatters.currency(
+        context,
+        amount: v.toDouble(),
+        currencyCode: 'VND',
+      );
     } catch (_) {
       return value.toString();
     }

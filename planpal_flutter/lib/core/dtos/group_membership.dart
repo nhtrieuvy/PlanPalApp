@@ -49,8 +49,19 @@ class GroupMembership extends Equatable {
 
   /// Helper getters for UI display
   bool get isAdmin => role == 'admin';
+  bool get isPlanCreator => role == 'plan_creator';
+  bool get canCreatePlan => isAdmin || isPlanCreator;
   bool get isMember => role == 'member';
-  String get roleDisplay => role == 'admin' ? 'Admin' : 'Member';
+  String get roleDisplay {
+    switch (role) {
+      case 'admin':
+        return 'Admin';
+      case 'plan_creator':
+        return 'Plan creator';
+      default:
+        return 'Member';
+    }
+  }
 
   @override
   List<Object?> get props => [id, user, role, joinedAt];

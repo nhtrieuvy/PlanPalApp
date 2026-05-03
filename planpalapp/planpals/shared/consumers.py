@@ -6,8 +6,12 @@ import logging
 from typing import Dict, Any
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from django.core.cache import cache
-from planpals.shared.events import RealtimeEvent, EventType, ChannelGroups
+from planpals.shared.events import RealtimeEvent
+from planpals.shared.presence import (
+    register_connection,
+    sync_presence_transition,
+    unregister_connection,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,9 @@ class BaseRealtimeConsumer(AsyncWebsocketConsumer):
             return
 
         await self.accept()
-        await self.on_connect()
+        should_track = await self.on_connect()
+        if should_track is False:
+            return
         
         await self.track_connection(True)
         
@@ -76,14 +82,25 @@ class BaseRealtimeConsumer(AsyncWebsocketConsumer):
             self.group_names.remove(group_name)
             
     async def track_connection(self, connected: bool):
-        cache_key = f"ws_connected:{self.user.id}"
         try:
-            if connected:
-                cache.set(cache_key, True, timeout=300)  # 5 minutes
-            else:
-                cache.delete(cache_key)
+            transition = await self._update_presence_state(connected)
+            await self._sync_presence_transition(transition)
         except Exception as e:
-            logger.warning("Failed to update websocket connection cache for %s: %s", self.user.id, e)
+            logger.warning("Failed to update websocket presence for %s: %s", self.user.id, e)
+
+    @database_sync_to_async
+    def _update_presence_state(self, connected: bool):
+        if connected:
+            return register_connection(self.user.id, self.channel_name)
+        return unregister_connection(self.user.id, self.channel_name)
+
+    @database_sync_to_async
+    def _sync_presence_transition(self, transition):
+        sync_presence_transition(
+            user_id=self.user.id,
+            username=getattr(self.user, 'username', str(self.user.id)),
+            transition=transition,
+        )
             
     async def on_connect(self):
         """Called after successful connection"""

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -36,8 +37,9 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Expense')),
+      appBar: AppBar(title: Text(l10n.t('budget.form_title'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -54,7 +56,7 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Record a plan expense and update the shared budget in one flow.',
+                  l10n.t('budget.form_description'),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -65,15 +67,15 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Amount',
-                    prefixIcon: Icon(Icons.payments_outlined),
-                    hintText: '250000',
+                  decoration: InputDecoration(
+                    labelText: l10n.t('budget.amount'),
+                    prefixIcon: const Icon(Icons.payments_outlined),
+                    hintText: l10n.t('budget.amount_hint'),
                   ),
                   validator: (value) {
                     final parsed = double.tryParse((value ?? '').trim());
                     if (parsed == null || parsed <= 0) {
-                      return 'Enter a valid amount greater than zero';
+                      return l10n.t('budget.validation_amount_positive');
                     }
                     return null;
                   },
@@ -81,18 +83,18 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _categoryController,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    prefixIcon: Icon(Icons.category_outlined),
-                    hintText: 'Food, Transport, Hotel...',
+                  decoration: InputDecoration(
+                    labelText: l10n.t('budget.category'),
+                    prefixIcon: const Icon(Icons.category_outlined),
+                    hintText: l10n.t('budget.category_hint'),
                   ),
                   validator: (value) {
                     final text = (value ?? '').trim();
                     if (text.isEmpty) {
-                      return 'Category is required';
+                      return l10n.t('budget.validation_category_required');
                     }
                     if (text.length > 100) {
-                      return 'Category is too long';
+                      return l10n.t('budget.validation_category_too_long');
                     }
                     return null;
                   },
@@ -102,11 +104,11 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
                   controller: _descriptionController,
                   minLines: 3,
                   maxLines: 5,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    prefixIcon: Icon(Icons.notes_rounded),
+                  decoration: InputDecoration(
+                    labelText: l10n.t('budget.description'),
+                    prefixIcon: const Icon(Icons.notes_rounded),
                     alignLabelWithHint: true,
-                    hintText: 'Optional note for this expense',
+                    hintText: l10n.t('budget.description_hint'),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -129,7 +131,11 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
                             ),
                           )
                         : const Icon(Icons.add_circle_outline_rounded),
-                    label: Text(_isSubmitting ? 'Saving...' : 'Add expense'),
+                    label: Text(
+                      _isSubmitting
+                          ? l10n.t('budget.saving')
+                          : l10n.t('budget.add_expense'),
+                    ),
                   ),
                 ),
               ],

@@ -1,28 +1,164 @@
+import re
 from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+from urllib.parse import parse_qs, urlparse
 
 from celery.utils.time import rate as celery_rate
+from django.core import mail
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.exceptions import RequestDataTooBig
 from django.urls import reverse
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 
 from planpals.analytics.application.factories import get_analytics_service
 from planpals.audit.domain.entities import AuditAction, AuditResourceType
+from planpals.audit.infrastructure.models import AuditLog
 from planpals.auth.infrastructure.models import Friendship, User
+from planpals.auth.infrastructure.email_verification import EmailVerificationService
+from planpals.auth.infrastructure.repositories import DjangoUserRepository
 from planpals.chat.infrastructure.models import ChatMessage, Conversation
 from planpals.chat.application.services import ConversationService
 from planpals.groups.infrastructure.models import Group, GroupMembership
 from planpals.plans.infrastructure.models import Plan, PlanActivity
+from planpals.plans.application.commands import UpdateActivityCommand
+from planpals.plans.application.handlers import UpdateActivityHandler
+from planpals.plans.infrastructure.repositories import DjangoPlanActivityRepository
 from planpals.chat.presentation.serializers import ChatMessageSerializer, ConversationSerializer
 from planpals.shared.exception_handler import custom_exception_handler
 from planpals.plans.presentation.views import PlanViewSet
+from planpals.shared.domain_exceptions import ActivityVersionConflictException
 from planpals.shared.analytics_tasks import cleanup_invalid_fcm_tokens_task
+from planpals.shared.presence import (
+    register_connection,
+    sync_presence_transition,
+    unregister_connection,
+)
+
+
+@override_settings(
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    DEFAULT_FROM_EMAIL='noreply@planpal.test',
+)
+class AuthEmailVerificationTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+
+    def test_registration_creates_inactive_user_and_sends_verification_email(self):
+        response = self.client.post(
+            '/api/v1/users/',
+            {
+                'username': 'verify_me',
+                'email': 'verify-me@example.com',
+                'password': 'password123',
+                'password_confirm': 'password123',
+                'first_name': 'Verify',
+                'last_name': 'Me',
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data['email_verification_required'])
+        self.assertTrue(response.data['verification_email_sent'])
+
+        user = User.objects.get(username='verify_me')
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.is_email_verified)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertRegex(mail.outbox[0].body, r'\b\d{6}\b')
+        self.assertNotIn('/api/v1/users/verify-email/?', mail.outbox[0].body)
+
+    def test_verify_email_with_six_digit_code_activates_user(self):
+        user = User.objects.create_user(
+            username='pending_code_user',
+            email='pending-code@example.com',
+            password='password123',
+            is_active=False,
+        )
+        EmailVerificationService.send_verification_email(user)
+        code_match = re.search(r'\b(\d{6})\b', mail.outbox[0].body)
+        self.assertIsNotNone(code_match)
+
+        response = self.client.post(
+            '/api/v1/users/verify-email/',
+            {
+                'email': 'pending-code@example.com',
+                'code': code_match.group(1),
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.is_email_verified)
+
+    def test_verify_email_activates_user_and_marks_email_verified(self):
+        user = User.objects.create_user(
+            username='pending_user',
+            email='pending@example.com',
+            password='password123',
+            is_active=False,
+        )
+        verification_url = EmailVerificationService.build_verification_url(user)
+        params = parse_qs(urlparse(verification_url).query)
+
+        response = self.client.get(
+            '/api/v1/users/verify-email/',
+            {
+                'uid': params['uid'][0],
+                'token': params['token'][0],
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.is_email_verified)
+
+    def test_unverified_user_receives_explicit_login_error(self):
+        User.objects.create_user(
+            username='blocked_login',
+            email='blocked-login@example.com',
+            password='password123',
+            is_active=False,
+        )
+
+        response = self.client.post(
+            '/o/token/',
+            {
+                'grant_type': 'password',
+                'username': 'blocked_login',
+                'password': 'password123',
+                'client_id': 'any-client',
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()['error'], 'email_not_verified')
+
+    def test_resend_verification_email_is_generic_and_sends_for_pending_user(self):
+        User.objects.create_user(
+            username='resend_user',
+            email='resend@example.com',
+            password='password123',
+            is_active=False,
+        )
+
+        response = self.client.post(
+            '/api/v1/users/resend-verification-email/',
+            {'email': 'resend@example.com'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 1)
 
 
 class ChatContractTests(TestCase):
@@ -259,6 +395,107 @@ class ChatContractTests(TestCase):
         self.assertEqual(message.attachment_resource_type, 'video')
         self.assertIn('/video/upload/', message.attachment_url)
 
+    def test_attachment_url_handles_auto_upload_prefix_without_duplication(self):
+        conversation = Conversation.objects.create(
+            conversation_type='direct',
+            user_a=self.user_a,
+            user_b=self.user_b,
+        )
+
+        message = ChatMessage(
+            conversation=conversation,
+            sender=self.user_a,
+            message_type='file',
+            attachment='auto/upload/planpal/messages/attachments/sample-audio',
+            attachment_resource_type='video',
+        )
+
+        attachment_url = message.attachment_url
+
+        self.assertIsNotNone(attachment_url)
+        self.assertIn('/video/upload/', attachment_url)
+        self.assertNotIn('/auto/upload/', attachment_url)
+
+    def test_attachment_url_remains_valid_after_reload_from_db(self):
+        conversation = Conversation.objects.create(
+            conversation_type='direct',
+            user_a=self.user_a,
+            user_b=self.user_b,
+        )
+
+        message = ChatMessage.objects.create(
+            conversation=conversation,
+            sender=self.user_a,
+            message_type='file',
+            attachment='planpal/messages/attachments/sample-audio',
+            attachment_resource_type='video',
+        )
+
+        reloaded_message = ChatMessage.objects.get(id=message.id)
+
+        self.assertTrue(str(reloaded_message.attachment).startswith('auto/upload/'))
+        self.assertIsNotNone(reloaded_message.attachment_url)
+        self.assertIn('/video/upload/', reloaded_message.attachment_url)
+        self.assertNotIn('/auto/upload/', reloaded_message.attachment_url)
+
+    def test_conversation_messages_return_newest_first_with_cursor(self):
+        conversation = Conversation.objects.create(
+            conversation_type='direct',
+            user_a=self.user_a,
+            user_b=self.user_b,
+        )
+
+        oldest = ChatMessage.objects.create(
+            conversation=conversation,
+            sender=self.user_a,
+            message_type='text',
+            content='oldest',
+        )
+        middle = ChatMessage.objects.create(
+            conversation=conversation,
+            sender=self.user_b,
+            message_type='text',
+            content='middle',
+        )
+        newest = ChatMessage.objects.create(
+            conversation=conversation,
+            sender=self.user_a,
+            message_type='text',
+            content='newest',
+        )
+
+        base_time = timezone.now()
+        ChatMessage.objects.filter(id=oldest.id).update(
+            created_at=base_time - timedelta(minutes=3)
+        )
+        ChatMessage.objects.filter(id=middle.id).update(
+            created_at=base_time - timedelta(minutes=2)
+        )
+        ChatMessage.objects.filter(id=newest.id).update(
+            created_at=base_time - timedelta(minutes=1)
+        )
+
+        first_page = ConversationService.get_conversation_messages(
+            user=self.user_a,
+            conversation_id=str(conversation.id),
+            limit=2,
+        )
+
+        self.assertEqual([m.id for m in first_page['messages']], [newest.id, middle.id])
+        self.assertTrue(first_page['has_more'])
+        self.assertEqual(first_page['next_cursor'], str(middle.id))
+
+        second_page = ConversationService.get_conversation_messages(
+            user=self.user_a,
+            conversation_id=str(conversation.id),
+            limit=2,
+            before_id=first_page['next_cursor'],
+        )
+
+        self.assertEqual([m.id for m in second_page['messages']], [oldest.id])
+        self.assertFalse(second_page['has_more'])
+        self.assertIsNone(second_page['next_cursor'])
+
 
 class PlanActivitiesByDateContractTests(TestCase):
     def setUp(self):
@@ -316,6 +553,109 @@ class PlanActivitiesByDateContractTests(TestCase):
         self.assertEqual(response.data['date'], target_date)
         self.assertEqual(len(response.data['activities']), 1)
         self.assertEqual(response.data['activities'][0]['title'], 'Morning activity')
+
+
+class ActivityCollaborationTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='collab-owner',
+            password='secret123',
+            email='collab-owner@example.com',
+        )
+        self.client.force_authenticate(user=self.user)
+        now = timezone.now()
+        self.plan = Plan.objects.create(
+            title='Realtime Plan',
+            creator=self.user,
+            plan_type='personal',
+            start_date=now,
+            end_date=now + timedelta(days=2),
+        )
+        self.activity = PlanActivity.objects.create(
+            plan=self.plan,
+            title='Original title',
+            activity_type='other',
+            start_time=now + timedelta(hours=1),
+            end_time=now + timedelta(hours=2),
+        )
+
+    def test_update_activity_handler_increments_version_and_emits_snapshot(self):
+        publisher = Mock()
+        handler = UpdateActivityHandler(
+            activity_repo=DjangoPlanActivityRepository(),
+            event_publisher=publisher,
+        )
+
+        updated = handler.handle(
+            UpdateActivityCommand(
+                activity_id=self.activity.id,
+                user_id=self.user.id,
+                version=1,
+                title='Updated title',
+                updated_by_name='collab-owner',
+            )
+        )
+
+        self.assertEqual(updated.version, 2)
+        event = publisher.publish.call_args.args[0]
+        self.assertEqual(event.version, 2)
+        self.assertEqual(event.updated_fields, ('title',))
+        self.assertEqual(event.activity['title'], 'Updated title')
+
+    def test_update_activity_handler_raises_conflict_with_server_state(self):
+        handler = UpdateActivityHandler(
+            activity_repo=DjangoPlanActivityRepository(),
+            event_publisher=Mock(),
+        )
+
+        handler.handle(
+            UpdateActivityCommand(
+                activity_id=self.activity.id,
+                user_id=self.user.id,
+                version=1,
+                title='First update',
+                updated_by_name='collab-owner',
+            )
+        )
+
+        with self.assertRaises(ActivityVersionConflictException) as exc:
+            handler.handle(
+                UpdateActivityCommand(
+                    activity_id=self.activity.id,
+                    user_id=self.user.id,
+                    version=1,
+                    title='Stale update',
+                    updated_by_name='collab-owner',
+                )
+            )
+
+        self.assertEqual(exc.exception.extra['server_version'], 2)
+        self.assertEqual(exc.exception.extra['server_state']['title'], 'First update')
+        self.assertIn('title', exc.exception.extra['conflicting_fields'])
+
+    def test_activity_update_endpoint_returns_conflict_payload(self):
+        first_response = self.client.patch(
+            f'/api/v1/activities/{self.activity.id}/',
+            {'version': 1, 'title': 'First update'},
+            format='json',
+        )
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(first_response.data['activity']['version'], 2)
+
+        conflict_response = self.client.patch(
+            f'/api/v1/activities/{self.activity.id}/',
+            {'version': 1, 'title': 'Second stale update'},
+            format='json',
+        )
+
+        self.assertEqual(conflict_response.status_code, 409)
+        self.assertEqual(conflict_response.data['error_code'], 'activity_version_conflict')
+        self.assertEqual(conflict_response.data['server_version'], 2)
+        self.assertEqual(
+            conflict_response.data['server_state']['title'],
+            'First update',
+        )
 
 
 class SystemRegressionTests(TestCase):
@@ -408,6 +748,27 @@ class SystemRegressionTests(TestCase):
             ).exists()
         )
 
+    def test_group_list_returns_current_membership_count(self):
+        group = self._create_group_with_owner('List Count Group')
+        GroupMembership.objects.create(
+            group=group,
+            user=self.friend_a,
+            role=GroupMembership.MEMBER,
+        )
+        GroupMembership.objects.create(
+            group=group,
+            user=self.friend_b,
+            role=GroupMembership.PLAN_CREATOR,
+        )
+
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(reverse('group-list'))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        groups = response.data.get('results', response.data)
+        payload = next(item for item in groups if item['id'] == str(group.id))
+        self.assertEqual(payload['member_count'], 3)
+
     def test_group_detail_cache_refreshes_after_join(self):
         group = self._create_group_with_owner('Cache Group')
 
@@ -458,6 +819,296 @@ class SystemRegressionTests(TestCase):
         self.assertEqual(response.data['creator']['id'], str(self.owner.id))
         self.assertEqual(response.data['plan_type'], 'personal')
 
+    def test_can_cancel_upcoming_plan_only(self):
+        now = timezone.now() + timedelta(days=1)
+        plan = Plan.objects.create(
+            title='Upcoming Cancellation Plan',
+            creator=self.owner,
+            start_date=now,
+            end_date=now + timedelta(days=1),
+            status='upcoming',
+        )
+
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(
+            reverse('plan-cancel', kwargs={'pk': str(plan.id)}),
+            {'reason': 'Schedule changed'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'cancelled')
+
+        plan.refresh_from_db()
+        self.assertEqual(plan.status, 'cancelled')
+
+        audit_log = AuditLog.objects.get(
+            action=AuditAction.UPDATE_PLAN.value,
+            resource_type=AuditResourceType.PLAN.value,
+            resource_id=plan.id,
+        )
+        self.assertEqual(audit_log.metadata['changed_fields'], ['status'])
+        self.assertEqual(audit_log.metadata['before']['status'], 'upcoming')
+        self.assertEqual(audit_log.metadata['after']['status'], 'cancelled')
+
+    def test_cannot_cancel_ongoing_plan(self):
+        now = timezone.now()
+        plan = Plan.objects.create(
+            title='Ongoing Cancellation Guard',
+            creator=self.owner,
+            start_date=now - timedelta(hours=1),
+            end_date=now + timedelta(days=1),
+            status='ongoing',
+        )
+
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(
+            reverse('plan-cancel', kwargs={'pk': str(plan.id)}),
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Only upcoming plans can be cancelled', response.data['error'])
+
+        plan.refresh_from_db()
+        self.assertEqual(plan.status, 'ongoing')
+
+    def test_group_plan_create_forces_public_visibility(self):
+        group = self._create_group_with_owner('Always Public Group')
+        now = timezone.now() + timedelta(days=1)
+
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(
+            reverse('plan-list'),
+            {
+                'title': 'Group Plan Must Be Public',
+                'description': 'Visibility should be forced by backend',
+                'plan_type': 'group',
+                'group_id': str(group.id),
+                'is_public': False,
+                'start_date': now.isoformat(),
+                'end_date': (now + timedelta(days=1)).isoformat(),
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.data['is_public'])
+
+        created_plan = Plan.objects.get(id=response.data['id'])
+        self.assertEqual(created_plan.plan_type, 'group')
+        self.assertTrue(created_plan.is_public)
+
+    def test_activity_create_and_update_are_written_to_plan_audit_log(self):
+        now = timezone.now() + timedelta(days=1)
+        plan = Plan.objects.create(
+            title='Audited Activity Plan',
+            creator=self.owner,
+            start_date=now,
+            end_date=now + timedelta(days=1),
+        )
+
+        self.client.force_authenticate(self.owner)
+        create_response = self.client.post(
+            '/api/v1/activities/',
+            {
+                'plan_id': str(plan.id),
+                'title': 'Book hotel',
+                'activity_type': 'resting',
+                'start_time': (now + timedelta(hours=1)).isoformat(),
+                'end_time': (now + timedelta(hours=2)).isoformat(),
+            },
+            format='json',
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        activity_id = create_response.data['id']
+
+        create_log = AuditLog.objects.get(
+            action=AuditAction.CREATE_ACTIVITY.value,
+            resource_type=AuditResourceType.ACTIVITY.value,
+            resource_id=activity_id,
+        )
+        self.assertEqual(create_log.metadata['plan_id'], str(plan.id))
+        self.assertEqual(create_log.metadata['title'], 'Book hotel')
+
+        update_response = self.client.patch(
+            f'/api/v1/activities/{activity_id}/',
+            {
+                'version': create_response.data['version'],
+                'title': 'Book resort',
+            },
+            format='json',
+        )
+
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        update_log = AuditLog.objects.get(
+            action=AuditAction.UPDATE_ACTIVITY.value,
+            resource_type=AuditResourceType.ACTIVITY.value,
+            resource_id=activity_id,
+        )
+        self.assertEqual(update_log.metadata['plan_id'], str(plan.id))
+        self.assertEqual(update_log.metadata['updated_fields'], ['title'])
+        self.assertEqual(update_log.metadata['before']['title'], 'Book hotel')
+        self.assertEqual(update_log.metadata['after']['title'], 'Book resort')
+
+        audit_response = self.client.get(
+            f'/api/v1/audit-logs/resource/plan/{plan.id}/',
+            format='json',
+        )
+
+        self.assertEqual(audit_response.status_code, status.HTTP_200_OK)
+        actions = [item['action'] for item in audit_response.data['results']]
+        self.assertIn(AuditAction.CREATE_ACTIVITY.value, actions)
+        self.assertIn(AuditAction.UPDATE_ACTIVITY.value, actions)
+
+    def test_activity_completion_toggle_is_written_to_plan_audit_log(self):
+        now = timezone.now() + timedelta(days=1)
+        plan = Plan.objects.create(
+            title='Audited Toggle Plan',
+            creator=self.owner,
+            start_date=now,
+            end_date=now + timedelta(days=1),
+        )
+        activity = PlanActivity.objects.create(
+            plan=plan,
+            title='Confirm booking',
+            activity_type='other',
+            start_time=now + timedelta(hours=1),
+            end_time=now + timedelta(hours=2),
+        )
+
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(
+            f'/api/v1/plans/{plan.id}/activities/{activity.id}/complete/',
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        update_log = AuditLog.objects.get(
+            action=AuditAction.UPDATE_ACTIVITY.value,
+            resource_type=AuditResourceType.ACTIVITY.value,
+            resource_id=activity.id,
+        )
+        self.assertEqual(update_log.metadata['plan_id'], str(plan.id))
+        self.assertEqual(update_log.metadata['updated_fields'], ['is_completed'])
+        self.assertEqual(update_log.metadata['before']['is_completed'], False)
+        self.assertEqual(update_log.metadata['after']['is_completed'], True)
+
+    def test_admin_can_grant_plan_creator_and_member_can_create_group_plan(self):
+        group = self._create_group_with_owner('Plan Creator Group')
+        GroupMembership.objects.create(
+            group=group,
+            user=self.friend_a,
+            role=GroupMembership.MEMBER,
+        )
+
+        self.client.force_authenticate(self.friend_a)
+        forbidden_response = self.client.post(
+            reverse('plan-list'),
+            {
+                'title': 'Blocked Group Plan',
+                'description': 'Member cannot create yet',
+                'plan_type': 'group',
+                'group_id': str(group.id),
+                'start_date': (timezone.now() + timedelta(days=1)).isoformat(),
+                'end_date': (timezone.now() + timedelta(days=2)).isoformat(),
+            },
+            format='json',
+        )
+        self.assertEqual(forbidden_response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(self.owner)
+        role_response = self.client.post(
+            reverse('group-change-role', kwargs={'pk': group.id}),
+            {'user_id': str(self.friend_a.id), 'role': GroupMembership.PLAN_CREATOR},
+            format='json',
+        )
+        self.assertEqual(role_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(role_response.data['role'], GroupMembership.PLAN_CREATOR)
+
+        membership = GroupMembership.objects.get(group=group, user=self.friend_a)
+        self.assertEqual(membership.role, GroupMembership.PLAN_CREATOR)
+
+        self.client.force_authenticate(self.friend_a)
+        detail_response = self.client.get(
+            reverse('group-detail', kwargs={'pk': group.id}),
+            format='json',
+        )
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail_response.data['user_role'], GroupMembership.PLAN_CREATOR)
+        self.assertTrue(detail_response.data['can_create_plan'])
+        membership_roles = {
+            item['user']['id']: item['role']
+            for item in detail_response.data['memberships']
+        }
+        self.assertEqual(
+            membership_roles[str(self.friend_a.id)],
+            GroupMembership.PLAN_CREATOR,
+        )
+
+        create_response = self.client.post(
+            reverse('plan-list'),
+            {
+                'title': 'Allowed Group Plan',
+                'description': 'Plan creator can create',
+                'plan_type': 'group',
+                'group_id': str(group.id),
+                'start_date': (timezone.now() + timedelta(days=1)).isoformat(),
+                'end_date': (timezone.now() + timedelta(days=2)).isoformat(),
+            },
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(create_response.data['creator']['id'], str(self.friend_a.id))
+        self.assertTrue(create_response.data['is_public'])
+
+    def test_plan_creator_cannot_manage_group_roles(self):
+        group = self._create_group_with_owner('Role Guard Group')
+        GroupMembership.objects.create(
+            group=group,
+            user=self.friend_a,
+            role=GroupMembership.PLAN_CREATOR,
+        )
+        GroupMembership.objects.create(
+            group=group,
+            user=self.friend_b,
+            role=GroupMembership.MEMBER,
+        )
+
+        self.client.force_authenticate(self.friend_a)
+        response = self.client.post(
+            reverse('group-change-role', kwargs={'pk': group.id}),
+            {'user_id': str(self.friend_b.id), 'role': GroupMembership.PLAN_CREATOR},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_group_plan_update_cannot_be_made_private(self):
+        group = self._create_group_with_owner('Public Group Update Guard')
+        plan = Plan.objects.create(
+            title='Existing Group Plan',
+            creator=self.owner,
+            group=group,
+            start_date=timezone.now() + timedelta(days=1),
+            end_date=timezone.now() + timedelta(days=2),
+            is_public=True,
+        )
+
+        self.client.force_authenticate(self.owner)
+        response = self.client.patch(
+            reverse('plan-detail', kwargs={'pk': str(plan.id)}),
+            {'is_public': False},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['is_public'])
+
+        plan.refresh_from_db()
+        self.assertTrue(plan.is_public)
+
     def test_analytics_summary_cache_refreshes_after_aggregate(self):
         plan = Plan.objects.create(
             title='Analytics Cache Plan',
@@ -494,6 +1145,165 @@ class SystemRegressionTests(TestCase):
             self.assertNotIn('/d', rate_limit)
             self.assertGreater(celery_rate(rate_limit), 0)
 
+    def test_cleanup_invalid_fcm_tokens_task_clears_stale_tokens_with_empty_string(self):
+        stale_user = User.objects.create_user(
+            username='stale-token-user',
+            password='password123',
+            email='stale-token-user@example.com',
+        )
+        stale_user.fcm_token = 'stale-token-1234567890'
+        stale_user.last_login = timezone.now() - timedelta(days=90)
+        stale_user.save(update_fields=['fcm_token', 'last_login'])
+
+        result = cleanup_invalid_fcm_tokens_task.run()
+
+        stale_user.refresh_from_db()
+        self.assertEqual(result['status'], 'completed')
+        self.assertEqual(result['cleared_tokens'], 1)
+        self.assertEqual(stale_user.fcm_token, '')
+
+    def test_user_presence_stays_online_until_last_socket_disconnect(self):
+        online_transition = register_connection(self.friend_a.id, 'socket-a')
+        sync_presence_transition(
+            self.friend_a.id,
+            self.friend_a.username,
+            online_transition,
+        )
+        second_online_transition = register_connection(self.friend_a.id, 'socket-b')
+        sync_presence_transition(
+            self.friend_a.id,
+            self.friend_a.username,
+            second_online_transition,
+        )
+
+        self.friend_a.refresh_from_db()
+        self.assertTrue(self.friend_a.is_online)
+        self.assertEqual(self.friend_a.online_status, 'online')
+
+        first_disconnect = unregister_connection(self.friend_a.id, 'socket-a')
+        sync_presence_transition(
+            self.friend_a.id,
+            self.friend_a.username,
+            first_disconnect,
+        )
+
+        self.friend_a.refresh_from_db()
+        self.assertTrue(self.friend_a.is_online)
+        self.assertEqual(self.friend_a.online_status, 'online')
+
+        final_disconnect = unregister_connection(self.friend_a.id, 'socket-b')
+        sync_presence_transition(
+            self.friend_a.id,
+            self.friend_a.username,
+            final_disconnect,
+        )
+
+        self.friend_a.refresh_from_db()
+        self.assertFalse(self.friend_a.is_online)
+        self.assertEqual(self.friend_a.online_status, 'recently_online')
+        self.assertTrue(self.friend_a.is_recently_online)
+
+    def test_user_presence_reconnect_restores_online_after_logout_set_offline(self):
+        first_connection = register_connection(self.friend_a.id, 'socket-a')
+        sync_presence_transition(
+            self.friend_a.id,
+            self.friend_a.username,
+            first_connection,
+        )
+        self.friend_a.refresh_from_db()
+        self.assertTrue(self.friend_a.is_online)
+
+        DjangoUserRepository().set_online_status(self.friend_a.id, False)
+        self.friend_a.refresh_from_db()
+        self.assertFalse(self.friend_a.is_online)
+
+        reconnect = register_connection(self.friend_a.id, 'socket-b')
+        self.assertEqual(reconnect.active_connections, 2)
+        self.assertFalse(reconnect.became_online)
+
+        sync_presence_transition(
+            self.friend_a.id,
+            self.friend_a.username,
+            reconnect,
+        )
+
+        self.friend_a.refresh_from_db()
+        self.assertTrue(self.friend_a.is_online)
+        self.assertEqual(self.friend_a.online_status, 'online')
+
+    def test_user_presence_events_publish_to_friends(self):
+        from planpals.shared.realtime_publisher import publish_user_online
+
+        with patch('planpals.shared.realtime_publisher.event_publisher.publish_event') as publish:
+            publish_user_online(str(self.owner.id), self.owner.username)
+
+        channel_groups = set(publish.call_args.kwargs['channel_groups'])
+
+        self.assertIn(f'user_{self.owner.id}', channel_groups)
+        self.assertIn(f'user_{self.friend_a.id}', channel_groups)
+        self.assertIn(f'user_{self.friend_b.id}', channel_groups)
+        self.assertNotIn(f'user_{self.outsider.id}', channel_groups)
+
+    def test_set_online_status_endpoint_marks_user_online_for_login_presence(self):
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.post(
+            '/api/v1/users/set_online_status/',
+            {'is_online': True},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.owner.refresh_from_db()
+        self.assertTrue(self.owner.is_online)
+        self.assertTrue(response.data['is_online'])
+        self.assertEqual(response.data['online_status'], 'online')
+
+    def test_set_online_status_endpoint_requires_boolean_value(self):
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.post(
+            '/api/v1/users/set_online_status/',
+            {},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_set_online_status_handler_publishes_fresh_last_seen_on_offline(self):
+        from planpals.auth.application.commands import SetOnlineStatusCommand
+        from planpals.auth.application.handlers import SetOnlineStatusHandler
+
+        User.objects.filter(id=self.owner.id).update(is_online=True)
+        publisher = Mock()
+        handler = SetOnlineStatusHandler(DjangoUserRepository(), publisher)
+
+        handler.handle(
+            SetOnlineStatusCommand(user_id=self.owner.id, is_online=False)
+        )
+
+        event = publisher.publish.call_args.args[0]
+        self.assertIsNotNone(event.last_seen)
+
+    def test_profile_update_does_not_mutate_last_seen(self):
+        original_last_seen = timezone.now() - timedelta(days=1)
+        User.objects.filter(id=self.friend_a.id).update(
+            is_online=False,
+            last_seen=original_last_seen,
+        )
+
+        updated_user, success = DjangoUserRepository().update_profile(
+            self.friend_a.id,
+            {'first_name': 'Updated'},
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(updated_user.first_name, 'Updated')
+
+        self.friend_a.refresh_from_db()
+        self.assertEqual(self.friend_a.last_seen, original_last_seen)
+        self.assertEqual(self.friend_a.online_status, 'offline')
+
     def test_request_data_too_big_is_translated_to_413_response(self):
         response = custom_exception_handler(RequestDataTooBig('too large'), {})
 
@@ -520,4 +1330,3 @@ class SystemRegressionTests(TestCase):
             role=GroupMembership.ADMIN,
         )
         return group
-

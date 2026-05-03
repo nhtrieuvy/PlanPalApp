@@ -1,19 +1,22 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
-import 'package:planpal_flutter/core/repositories/group_repository.dart';
-import 'package:planpal_flutter/core/repositories/friend_repository.dart';
-import 'package:planpal_flutter/core/theme/app_colors.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import '../../../core/dtos/group_model.dart';
-import '../../../core/dtos/user_summary.dart';
-import '../../../core/dtos/group_requests.dart';
-import '../../../core/services/error_display_service.dart';
+import 'package:planpal_flutter/core/dtos/group_model.dart';
+import 'package:planpal_flutter/core/dtos/group_requests.dart';
+import 'package:planpal_flutter/core/dtos/user_summary.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/repositories/friend_repository.dart';
+import 'package:planpal_flutter/core/repositories/group_repository.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/services/error_display_service.dart';
+import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class GroupFormPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initial;
+
   const GroupFormPage({super.key, this.initial});
 
   @override
@@ -27,13 +30,12 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
   bool _submitting = false;
   File? _avatarFile;
   File? _coverFile;
-  GroupRepository get _repo => ref.read(groupRepositoryProvider);
-  FriendRepository get _friendRepo => ref.read(friendRepositoryProvider);
-
-  // Member selection for new groups
   List<UserSummary> _availableFriends = [];
   final Set<UserSummary> _selectedMembers = {};
   bool _loadingFriends = false;
+
+  GroupRepository get _repo => ref.read(groupRepositoryProvider);
+  FriendRepository get _friendRepo => ref.read(friendRepositoryProvider);
 
   @override
   void initState() {
@@ -45,25 +47,8 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
       text: widget.initial?['description']?.toString() ?? '',
     );
 
-    // Load friends if creating new group
     if (widget.initial == null) {
       _loadFriends();
-    }
-  }
-
-  Future<void> _loadFriends() async {
-    setState(() => _loadingFriends = true);
-    try {
-      final friends = await _friendRepo.getFriends();
-      setState(() {
-        _availableFriends = friends;
-        _loadingFriends = false;
-      });
-    } catch (e) {
-      setState(() => _loadingFriends = false);
-      if (mounted) {
-        ErrorDisplayService.handleError(context, e);
-      }
     }
   }
 
@@ -74,14 +59,30 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
     super.dispose();
   }
 
+  Future<void> _loadFriends() async {
+    setState(() => _loadingFriends = true);
+    try {
+      final friends = await _friendRepo.getFriends();
+      setState(() {
+        _availableFriends = friends;
+        _loadingFriends = false;
+      });
+    } catch (error) {
+      setState(() => _loadingFriends = false);
+      if (mounted) {
+        ErrorDisplayService.handleError(context, error);
+      }
+    }
+  }
+
   Future<void> _submit() async {
+    final l10n = context.l10n;
     if (!_formKey.currentState!.validate()) return;
 
-    // Check minimum members for new group
     if (widget.initial == null && _selectedMembers.length < 2) {
       ErrorDisplayService.showWarningSnackbar(
         context,
-        'Cần ít nhất 2 thành viên để tạo nhóm',
+        l10n.t('group_form.members_requirement'),
       );
       return;
     }
@@ -90,11 +91,10 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
     try {
       GroupModel result;
       if (widget.initial == null) {
-        // Create new group using DTO
         final request = CreateGroupRequest(
           name: _nameCtrl.text.trim(),
           description: _descCtrl.text.trim(),
-          initialMembers: _selectedMembers.map((m) => m.id).toList(),
+          initialMembers: _selectedMembers.map((member) => member.id).toList(),
         );
         result = await _repo.createGroup(
           request,
@@ -102,19 +102,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
           coverImage: _coverFile,
         );
         if (!mounted) return;
-
-        // Evict any cached images for the returned URLs to avoid stale images
-        try {
-          final avatarUrl = result.avatarUrl;
-          final coverUrl = result.coverImageUrl;
-          if (avatarUrl.isNotEmpty) {
-            CachedNetworkImage.evictFromCache(avatarUrl);
-          }
-          if (coverUrl.isNotEmpty) {
-            CachedNetworkImage.evictFromCache(coverUrl);
-          }
-        } catch (_) {}
-
+        _evictGroupImages(result);
         Navigator.of(context).pop({
           'action': 'created',
           'group': {
@@ -127,32 +115,18 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
           },
         });
       } else {
-        // Update existing group using DTO
-        final id = widget.initial!['id']; // id là String
-        final updateRequest = UpdateGroupRequest(
+        final request = UpdateGroupRequest(
           name: _nameCtrl.text.trim(),
           description: _descCtrl.text.trim(),
         );
         result = await _repo.updateGroup(
-          id,
-          updateRequest,
+          widget.initial!['id'] as String,
+          request,
           avatar: _avatarFile,
           coverImage: _coverFile,
         );
         if (!mounted) return;
-
-        // Evict cache for changed image URLs so UI shows updates immediately
-        try {
-          final newAvatar = result.avatarUrl;
-          final newCover = result.coverImageUrl;
-          if (newAvatar.isNotEmpty) {
-            CachedNetworkImage.evictFromCache(newAvatar);
-          }
-          if (newCover.isNotEmpty) {
-            CachedNetworkImage.evictFromCache(newCover);
-          }
-        } catch (_) {}
-
+        _evictGroupImages(result);
         Navigator.of(context).pop({
           'action': 'updated',
           'group': {
@@ -165,9 +139,9 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
           },
         });
       }
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
-      ErrorDisplayService.handleError(context, e, showDialog: true);
+      ErrorDisplayService.handleError(context, error, showDialog: true);
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
@@ -175,224 +149,91 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
     }
   }
 
+  void _evictGroupImages(GroupModel group) {
+    try {
+      if (group.avatarUrl.isNotEmpty) {
+        CachedNetworkImage.evictFromCache(group.avatarUrl);
+      }
+      if (group.coverImageUrl.isNotEmpty) {
+        CachedNetworkImage.evictFromCache(group.coverImageUrl);
+      }
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final isEdit = widget.initial != null;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEdit ? 'Sửa nhóm' : 'Tạo nhóm'),
+        title: Text(
+          isEdit
+              ? l10n.t('group_form.title_edit')
+              : l10n.t('group_form.title_create'),
+        ),
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
-              // Avatar picker
-              const Text(
-                'Ảnh đại diện nhóm',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              Text(
+                l10n.t('group_form.avatar_title'),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              Center(
-                child: GestureDetector(
-                  onTap: () async {
-                    final picker = ImagePicker();
-                    final XFile? picked = await picker.pickImage(
-                      source: ImageSource.gallery,
-                      maxWidth: 300,
-                      maxHeight: 300,
-                      imageQuality: 85,
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        _avatarFile = File(picked.path);
-                      });
-                    }
-                  },
-                  child: CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.grey[200],
-                    child: _avatarFile != null
-                        ? ClipOval(
-                            child: Image.file(
-                              _avatarFile!,
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : (isEdit && widget.initial != null)
-                        ? (() {
-                            final url =
-                                (widget.initial!['avatar_url'] ??
-                                        widget.initial!['avatar_thumb'])
-                                    ?.toString();
-                            if (url != null && url.isNotEmpty) {
-                              return ClipOval(
-                                child: CachedNetworkImage(
-                                  imageUrl: url,
-                                  width: 80,
-                                  height: 80,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, u) => const Icon(
-                                    Icons.group,
-                                    size: 40,
-                                    color: Colors.grey,
-                                  ),
-                                  errorWidget: (context, u, error) =>
-                                      const Icon(
-                                        Icons.group,
-                                        size: 40,
-                                        color: Colors.grey,
-                                      ),
-                                ),
-                              );
-                            }
-                            return const Icon(
-                              Icons.group,
-                              size: 40,
-                              color: Colors.grey,
-                            );
-                          })()
-                        : const Icon(Icons.group, size: 40, color: Colors.grey),
-                  ),
-                ),
-              ),
+              Center(child: _buildAvatarPicker(isEdit)),
               const SizedBox(height: 16),
-
-              // Cover image picker - only show when editing existing group
               if (isEdit) ...[
-                const Text(
-                  'Ảnh bìa nhóm (tùy chọn)',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                Text(
+                  l10n.t('group_form.cover_title'),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () async {
-                    final picker = ImagePicker();
-                    final XFile? picked = await picker.pickImage(
-                      source: ImageSource.gallery,
-                      maxWidth: 1200,
-                      maxHeight: 400,
-                      imageQuality: 85,
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        _coverFile = File(picked.path);
-                      });
-                    }
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: _coverFile != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.file(_coverFile!, fit: BoxFit.cover),
-                          )
-                        : (widget.initial?['cover_image_url'] != null &&
-                              widget.initial!['cover_image_url']
-                                  .toString()
-                                  .isNotEmpty)
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: CachedNetworkImage(
-                              imageUrl: widget.initial!['cover_image_url'],
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.landscape,
-                                    size: 40,
-                                    color: Colors.grey,
-                                  ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    'Đang tải ảnh bìa...',
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                ],
-                              ),
-                              errorWidget: (context, url, error) =>
-                                  const Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.landscape,
-                                        size: 40,
-                                        color: Colors.grey,
-                                      ),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        'Chọn ảnh bìa',
-                                        style: TextStyle(color: Colors.grey),
-                                      ),
-                                    ],
-                                  ),
-                            ),
-                          )
-                        : const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.landscape,
-                                size: 40,
-                                color: Colors.grey,
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Chọn ảnh bìa',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
+                _buildCoverPicker(),
                 const SizedBox(height: 16),
               ],
-
               TextFormField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Tên nhóm',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.t('group_form.name_label'),
+                  border: const OutlineInputBorder(),
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Vui lòng nhập tên nhóm'
+                validator: (value) => (value == null || value.trim().isEmpty)
+                    ? l10n.t('group_form.name_required')
                     : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _descCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.t('group_form.description_label'),
+                  border: const OutlineInputBorder(),
                 ),
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
-
-              // Member selection for new groups
-              if (widget.initial == null) ...[
+              if (!isEdit) ...[
                 _buildMemberSelection(),
                 const SizedBox(height: 16),
               ],
-
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _submitting ? null : _submit,
                   icon: const Icon(Icons.save),
-                  label: Text(isEdit ? 'Lưu thay đổi' : 'Tạo'),
+                  label: Text(
+                    isEdit
+                        ? l10n.t('plan_form.save_changes')
+                        : l10n.t('group_form.title_create'),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -406,15 +247,163 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
     );
   }
 
+  Widget _buildAvatarPicker(bool isEdit) {
+    return GestureDetector(
+      onTap: () async {
+        final picked = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 300,
+          maxHeight: 300,
+          imageQuality: 85,
+        );
+        if (picked != null) {
+          setState(() {
+            _avatarFile = File(picked.path);
+          });
+        }
+      },
+      child: CircleAvatar(
+        radius: 40,
+        backgroundColor: Colors.grey[200],
+        child: _avatarFile != null
+            ? ClipOval(
+                child: Image.file(
+                  _avatarFile!,
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                ),
+              )
+            : (isEdit && widget.initial != null)
+                  ? (() {
+                      final url =
+                          (widget.initial!['avatar_url'] ??
+                                  widget.initial!['avatar_thumb'])
+                              ?.toString();
+                      if (url != null && url.isNotEmpty) {
+                        return ClipOval(
+                          child: CachedNetworkImage(
+                            imageUrl: url,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const Icon(
+                              Icons.group,
+                              size: 40,
+                              color: Colors.grey,
+                            ),
+                            errorWidget: (context, url, error) => const Icon(
+                              Icons.group,
+                              size: 40,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        );
+                      }
+                      return const Icon(
+                        Icons.group,
+                        size: 40,
+                        color: Colors.grey,
+                      );
+                    })()
+                  : const Icon(Icons.group, size: 40, color: Colors.grey),
+      ),
+    );
+  }
+
+  Widget _buildCoverPicker() {
+    final l10n = context.l10n;
+    return GestureDetector(
+      onTap: () async {
+        final picked = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1200,
+          maxHeight: 400,
+          imageQuality: 85,
+        );
+        if (picked != null) {
+          setState(() {
+            _coverFile = File(picked.path);
+          });
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: _coverFile != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(_coverFile!, fit: BoxFit.cover),
+              )
+            : (widget.initial?['cover_image_url'] != null &&
+                    widget.initial!['cover_image_url'].toString().isNotEmpty)
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: CachedNetworkImage(
+                      imageUrl: widget.initial!['cover_image_url'],
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.landscape,
+                            size: 40,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            l10n.t('group_form.cover_loading'),
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                      errorWidget: (context, url, error) => Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.landscape,
+                            size: 40,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            l10n.t('group_form.cover_pick'),
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.landscape, size: 40, color: Colors.grey),
+                      const SizedBox(height: 8),
+                      Text(
+                        l10n.t('group_form.cover_pick'),
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+      ),
+    );
+  }
+
   Widget _buildMemberSelection() {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            const Text(
-              'Thành viên nhóm',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            Text(
+              l10n.t('group_form.members_title'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(width: 8),
             Container(
@@ -445,11 +434,10 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Cần ít nhất 2 thành viên để tạo nhóm',
+          l10n.t('group_form.members_requirement'),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
         const SizedBox(height: 12),
-
         if (_loadingFriends)
           const Center(child: CircularProgressIndicator())
         else if (_availableFriends.isEmpty)
@@ -460,9 +448,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.grey[300]!),
             ),
-            child: const Center(
-              child: Text('Không có bạn bè nào để thêm vào nhóm'),
-            ),
+            child: Center(child: Text(l10n.t('group_form.no_friends'))),
           )
         else
           Container(
@@ -477,9 +463,8 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
               itemBuilder: (context, index) {
                 final friend = _availableFriends[index];
                 final isSelected = _selectedMembers.any(
-                  (m) => m.id == friend.id,
+                  (member) => member.id == friend.id,
                 );
-
                 return CheckboxListTile(
                   value: isSelected,
                   onChanged: (checked) {
@@ -487,7 +472,9 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
                       if (checked == true) {
                         _selectedMembers.add(friend);
                       } else {
-                        _selectedMembers.removeWhere((m) => m.id == friend.id);
+                        _selectedMembers.removeWhere(
+                          (member) => member.id == friend.id,
+                        );
                       }
                     });
                   },

@@ -1,15 +1,21 @@
+import 'dart:async';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../../core/riverpod/repository_providers.dart';
-import '../../../core/repositories/friend_repository.dart';
-import '../../../core/dtos/user_summary.dart';
-import '../../../core/dtos/friendship.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/services/error_display_service.dart';
+import 'package:planpal_flutter/core/dtos/friendship.dart';
+import 'package:planpal_flutter/core/dtos/user_summary.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/repositories/friend_repository.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/services/error_display_service.dart';
+import 'package:planpal_flutter/core/services/notification_websocket_service.dart';
+import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/presentation/pages/friends/user_profile_page.dart';
+
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../shared/ui_states/ui_states.dart';
-import 'user_profile_page.dart';
 
 class FriendsPage extends ConsumerStatefulWidget {
   const FriendsPage({super.key});
@@ -19,8 +25,15 @@ class FriendsPage extends ConsumerStatefulWidget {
 }
 
 class _FriendsPageState extends ConsumerState<FriendsPage>
-    with SingleTickerProviderStateMixin, RefreshablePage<FriendsPage> {
+    with
+        SingleTickerProviderStateMixin,
+        WidgetsBindingObserver,
+        RefreshablePage<FriendsPage> {
   late final TabController _tabController;
+  final NotificationWebSocketService _presenceSocket =
+      NotificationWebSocketService();
+  StreamSubscription<NotificationSocketEvent>? _presenceSubscription;
+  Timer? _presenceRefreshTimer;
 
   bool _loadingFriends = false;
   bool _loadingRequests = false;
@@ -34,14 +47,75 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
+    _setupPresenceUpdates();
+    _startPresenceRefreshTimer();
     _loadData();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _presenceRefreshTimer?.cancel();
+    unawaited(_presenceSubscription?.cancel() ?? Future<void>.value());
+    _presenceSocket.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    _connectPresenceSocket();
+    _loadData();
+  }
+
+  void _setupPresenceUpdates() {
+    _connectPresenceSocket();
+    _presenceSubscription = _presenceSocket.eventStream.listen(
+      _handlePresenceEvent,
+    );
+  }
+
+  void _startPresenceRefreshTimer() {
+    _presenceRefreshTimer?.cancel();
+    _presenceRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (!mounted) return;
+      unawaited(_loadFriends(silent: true));
+    });
+  }
+
+  void _connectPresenceSocket() {
+    final token = ref.read(authNotifierProvider).token;
+    if (token == null || token.isEmpty) return;
+    unawaited(_presenceSocket.connect(token));
+  }
+
+  void _handlePresenceEvent(NotificationSocketEvent event) {
+    if (!mounted) return;
+    if (event.type != NotificationSocketEventType.userOnline &&
+        event.type != NotificationSocketEventType.userOffline) {
+      return;
+    }
+
+    final userId = event.userId;
+    final isOnline = event.isOnline;
+    if (userId == null || isOnline == null) return;
+
+    setState(() {
+      _friends = [
+        for (final friend in _friends)
+          if (friend.id == userId)
+            friend.copyWith(
+              isOnline: isOnline,
+              onlineStatus: isOnline ? 'online' : 'offline',
+              lastSeen: event.lastSeen,
+            )
+          else
+            friend,
+      ];
+    });
   }
 
   @override
@@ -53,24 +127,27 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
     await Future.wait([_loadFriends(), _loadFriendRequests()]);
   }
 
-  Future<void> _loadFriends() async {
-    setState(() {
-      _loadingFriends = true;
-      _friendsError = null;
-    });
+  Future<void> _loadFriends({bool silent = false}) async {
+    if (silent && _loadingFriends) return;
+    if (!silent) {
+      setState(() {
+        _loadingFriends = true;
+        _friendsError = null;
+      });
+    }
     try {
       final friends = await _friendRepo.getFriends();
       if (!mounted) return;
       setState(() {
         _friends = friends;
         _loadingFriends = false;
-        _friendsError = null;
       });
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
+      if (silent) return;
       setState(() {
         _loadingFriends = false;
-        _friendsError = e.toString();
+        _friendsError = error.toString();
       });
     }
   }
@@ -84,16 +161,14 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       final requests = await _friendRepo.getPendingRequests();
       if (!mounted) return;
       setState(() {
-        // Convert from pending friendships to friend request detail objects
         _friendRequests = requests.toList();
         _loadingRequests = false;
-        _requestsError = null;
       });
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _loadingRequests = false;
-        _requestsError = e.toString();
+        _requestsError = error.toString();
       });
     }
   }
@@ -102,22 +177,19 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
     try {
       final success = await _friendRepo.acceptFriendRequest(request.id);
       if (!mounted) return;
-
       if (success) {
         setState(() {
-          _friendRequests.removeWhere((r) => r.id == request.id);
-          _friends.add(
-            request.friend,
-          ); // friend field represents the other user (initiator in this case)
+          _friendRequests.removeWhere((item) => item.id == request.id);
+          _friends.add(request.friend);
         });
         ErrorDisplayService.showSuccessSnackbar(
           context,
-          'Đã chấp nhận lời mời kết bạn',
+          context.l10n.t('friends.accept_success'),
         );
       }
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
-      ErrorDisplayService.handleError(context, e);
+      ErrorDisplayService.handleError(context, error);
     }
   }
 
@@ -125,34 +197,36 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
     try {
       final success = await _friendRepo.rejectFriendRequest(request.id);
       if (!mounted) return;
-
       if (success) {
         setState(() {
-          _friendRequests.removeWhere((r) => r.id == request.id);
+          _friendRequests.removeWhere((item) => item.id == request.id);
         });
         ErrorDisplayService.showSuccessSnackbar(
           context,
-          'Đã từ chối lời mời kết bạn',
+          context.l10n.t('friends.reject_success'),
         );
       }
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
-      ErrorDisplayService.handleError(context, e);
+      ErrorDisplayService.handleError(context, error);
     }
   }
 
-  void _onUserTap(UserSummary user) {
-    Navigator.push(
+  Future<void> _onUserTap(UserSummary user) async {
+    await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => UserProfilePage(user: user)),
+      MaterialPageRoute(builder: (_) => UserProfilePage(user: user)),
     );
+    if (!mounted) return;
+    await _loadFriends();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bạn bè'),
+        title: Text(l10n.t('friends.title')),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         bottom: TabBar(
@@ -161,12 +235,17 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: [
-            Tab(text: 'Bạn bè (${_friends.length})'),
+            Tab(
+              text: l10n.t(
+                'friends.tab_friends',
+                params: {'count': '${_friends.length}'},
+              ),
+            ),
             Tab(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Lời mời'),
+                  Text(l10n.t('friends.tab_requests')),
                   if (_friendRequests.isNotEmpty) ...[
                     const SizedBox(width: 8),
                     Container(
@@ -202,23 +281,24 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
   }
 
   Widget _buildFriendsList() {
+    final l10n = context.l10n;
     if (_loadingFriends) {
       return const AppSkeleton.list();
     }
 
     if (_friendsError != null) {
       return AppError(
-        message: 'Không thể tải danh sách bạn bè',
+        message: l10n.t('friends.load_friends_error'),
         onRetry: _loadFriends,
-        retryLabel: 'Thử lại',
+        retryLabel: l10n.t('common.retry'),
       );
     }
 
     if (_friends.isEmpty) {
-      return const AppEmpty(
+      return AppEmpty(
         icon: Icons.people_outline,
-        title: 'Chưa có bạn bè',
-        description: 'Hãy tìm kiếm và kết bạn với những người bạn biết',
+        title: l10n.t('friends.empty_title'),
+        description: l10n.t('friends.empty_description'),
       );
     }
 
@@ -227,32 +307,30 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _friends.length,
-        itemBuilder: (context, index) {
-          final friend = _friends[index];
-          return _buildFriendTile(friend);
-        },
+        itemBuilder: (context, index) => _buildFriendTile(_friends[index]),
       ),
     );
   }
 
   Widget _buildRequestsList() {
+    final l10n = context.l10n;
     if (_loadingRequests) {
       return const AppSkeleton.list(itemCount: 4);
     }
 
     if (_requestsError != null) {
       return AppError(
-        message: 'Không thể tải lời mời kết bạn',
+        message: l10n.t('friends.load_requests_error'),
         onRetry: _loadFriendRequests,
-        retryLabel: 'Thử lại',
+        retryLabel: l10n.t('common.retry'),
       );
     }
 
     if (_friendRequests.isEmpty) {
-      return const AppEmpty(
+      return AppEmpty(
         icon: Icons.inbox_outlined,
-        title: 'Không có lời mời nào',
-        description: 'Các lời mời kết bạn sẽ xuất hiện ở đây',
+        title: l10n.t('friends.empty_requests_title'),
+        description: l10n.t('friends.empty_requests_description'),
       );
     }
 
@@ -261,15 +339,14 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _friendRequests.length,
-        itemBuilder: (context, index) {
-          final request = _friendRequests[index];
-          return _buildRequestTile(request);
-        },
+        itemBuilder: (context, index) =>
+            _buildRequestTile(_friendRequests[index]),
       ),
     );
   }
 
   Widget _buildFriendTile(UserSummary friend) {
+    final l10n = context.l10n;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -298,7 +375,9 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  friend.isOnline ? 'Đang online' : 'Offline',
+                  friend.isOnline
+                      ? l10n.t('friends.online')
+                      : l10n.t('friends.offline'),
                   style: TextStyle(
                     color: friend.isOnline ? Colors.green : Colors.grey,
                     fontSize: 12,
@@ -320,6 +399,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
   }
 
   Widget _buildRequestTile(Friendship request) {
+    final l10n = context.l10n;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -330,9 +410,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
           children: [
             Row(
               children: [
-                _buildAvatar(
-                  request.friend,
-                ), // friend field represents the initiator in friend requests
+                _buildAvatar(request.friend),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -351,7 +429,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Đã gửi lời mời kết bạn',
+                        l10n.t('friends.request_sent'),
                         style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                     ],
@@ -372,7 +450,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text('Từ chối'),
+                    child: Text(l10n.t('friends.decline')),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -386,7 +464,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text('Chấp nhận'),
+                    child: Text(l10n.t('friends.accept')),
                   ),
                 ),
               ],
@@ -408,43 +486,17 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
           width: size,
           height: size,
           fit: BoxFit.cover,
-          placeholder: (context, url) => Container(
-            width: size,
-            height: size,
-            color: AppColors.primary.withValues(alpha: 0.1),
-            child: Center(
-              child: Text(
-                initials,
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ),
-          errorWidget: (context, url, error) => Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                initials,
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ),
+          placeholder: (context, url) => _buildAvatarFallback(initials, size),
+          errorWidget: (context, url, error) =>
+              _buildAvatarFallback(initials, size),
         ),
       );
     }
 
+    return _buildAvatarFallback(initials, size);
+  }
+
+  Widget _buildAvatarFallback(String initials, double size) {
     return Container(
       width: size,
       height: size,

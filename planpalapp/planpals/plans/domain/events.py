@@ -64,10 +64,12 @@ class ActivityCreated(DomainEvent):
     activity_id: str
     title: str
     activity_type: str
+    version: int = 1
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     location_name: Optional[str] = None
     estimated_cost: Optional[float] = None
+    activity: Optional[Dict[str, Any]] = None
 
 
 @dataclass(frozen=True)
@@ -77,6 +79,11 @@ class ActivityUpdated(DomainEvent):
     title: str
     is_completed: bool
     last_updated: str
+    version: int
+    updated_fields: tuple[str, ...] = field(default_factory=tuple)
+    updated_by: Optional[str] = None
+    updated_by_name: Optional[str] = None
+    activity: Optional[Dict[str, Any]] = None
 
 
 @dataclass(frozen=True)
@@ -85,6 +92,9 @@ class ActivityCompleted(DomainEvent):
     activity_id: str
     title: str
     completed_by: Optional[str] = None
+    version: Optional[int] = None
+    completed_by_name: Optional[str] = None
+    activity: Optional[Dict[str, Any]] = None
 
 
 @dataclass(frozen=True)

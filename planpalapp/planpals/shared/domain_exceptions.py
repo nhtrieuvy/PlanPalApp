@@ -24,9 +24,15 @@ class DomainException(Exception):
     default_code: str = 'error'
     default_detail: str = 'Đã xảy ra lỗi.'
 
-    def __init__(self, detail: str | None = None, code: str | None = None):
+    def __init__(
+        self,
+        detail: str | None = None,
+        code: str | None = None,
+        extra: dict | None = None,
+    ):
         self.detail = detail or self.default_detail
         self.code = code or self.default_code
+        self.extra = extra or {}
         super().__init__(self.detail)
 
 
@@ -131,6 +137,21 @@ class InvalidTimeRangeException(ValidationException):
 class InvalidStatusTransitionException(ValidationException):
     default_code = 'invalid_status_transition'
     default_detail = 'Không thể chuyển trạng thái.'
+
+
+class ActivityVersionRequiredException(ValidationException):
+    default_detail = 'Thiếu version của hoạt động để kiểm tra xung đột.'
+    default_code = 'activity_version_required'
+
+
+class CannotModifyActivityException(PermissionException):
+    default_detail = 'Bạn không có quyền chỉnh sửa hoạt động này.'
+    default_code = 'cannot_modify_activity'
+
+
+class ActivityVersionConflictException(ConflictException):
+    default_detail = 'Hoạt động đã được cập nhật bởi người khác. Hãy tải lại dữ liệu trước khi lưu.'
+    default_code = 'activity_version_conflict'
 
 
 # ---------------------------------------------------------------------------

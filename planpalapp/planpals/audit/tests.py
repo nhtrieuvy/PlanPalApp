@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.test import TestCase
 from django.urls import reverse
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -162,3 +163,19 @@ class AuditLogTests(TestCase):
         self.client.force_authenticate(self.outsider)
         outsider_response = self.client.get(resource_url)
         self.assertEqual(outsider_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_audit_log_is_append_only(self):
+        log = self.audit_service.log_action(
+            user=self.owner,
+            action=AuditAction.CREATE_PLAN.value,
+            resource_type=AuditResourceType.PLAN.value,
+            resource_id=self.plan.id,
+            metadata={'title': self.plan.title},
+        )
+
+        log.metadata = {'title': 'tampered'}
+        with self.assertRaises(ValidationError):
+            log.save()
+
+        with self.assertRaises(ValidationError):
+            log.delete()

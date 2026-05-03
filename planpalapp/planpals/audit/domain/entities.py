@@ -15,6 +15,8 @@ class AuditAction(str, Enum):
     UPDATE_PLAN = 'UPDATE_PLAN'
     DELETE_PLAN = 'DELETE_PLAN'
     COMPLETE_PLAN = 'COMPLETE_PLAN'
+    CREATE_ACTIVITY = 'CREATE_ACTIVITY'
+    UPDATE_ACTIVITY = 'UPDATE_ACTIVITY'
     UPDATE_BUDGET = 'UPDATE_BUDGET'
     CREATE_EXPENSE = 'CREATE_EXPENSE'
     JOIN_GROUP = 'JOIN_GROUP'
@@ -34,6 +36,7 @@ class AuditAction(str, Enum):
 
 class AuditResourceType(str, Enum):
     PLAN = 'plan'
+    ACTIVITY = 'activity'
     GROUP = 'group'
     MEMBERSHIP = 'membership'
     NOTIFICATION = 'notification'

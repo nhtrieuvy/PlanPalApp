@@ -21,12 +21,14 @@ class ConversationListNotifier extends AsyncNotifier<List<Conversation>> {
     return response.conversations;
   }
 
-  Future<void> refresh() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+  Future<void> refresh({bool silent = false}) async {
+    if (!silent) state = const AsyncLoading();
+    final nextState = await AsyncValue.guard(() async {
       final response = await _repo.getConversations();
       return response.conversations;
     });
+    if (silent && nextState.hasError && state.valueOrNull != null) return;
+    state = nextState;
   }
 
   void markConversationRead(String conversationId) {
@@ -40,6 +42,57 @@ class ConversationListNotifier extends AsyncNotifier<List<Conversation>> {
         else
           conversation,
     ]);
+  }
+
+  void updateUserPresence({
+    required String userId,
+    required bool isOnline,
+    DateTime? lastSeen,
+  }) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+
+    var changed = false;
+    final updatedConversations = [
+      for (final conversation in current)
+        if (conversation.isDirect &&
+            conversation.otherParticipant?.id == userId)
+          _copyConversationWithPresence(
+            conversation,
+            isOnline: isOnline,
+            lastSeen: lastSeen,
+            onChanged: () => changed = true,
+          )
+        else
+          conversation,
+    ];
+
+    if (changed) {
+      state = AsyncData(updatedConversations);
+    }
+  }
+
+  Conversation _copyConversationWithPresence(
+    Conversation conversation, {
+    required bool isOnline,
+    DateTime? lastSeen,
+    required void Function() onChanged,
+  }) {
+    final participant = conversation.otherParticipant;
+    if (participant == null) return conversation;
+    if (participant.isOnline == isOnline &&
+        (lastSeen == null || participant.lastSeen == lastSeen)) {
+      return conversation;
+    }
+
+    onChanged();
+    return conversation.copyWith(
+      otherParticipant: participant.copyWith(
+        isOnline: isOnline,
+        onlineStatus: isOnline ? 'online' : 'offline',
+        lastSeen: lastSeen,
+      ),
+    );
   }
 }
 
@@ -138,11 +191,30 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
 
   /// Add a message at the top (newest first)
   void addMessage(ChatMessage message) {
+    addOrUpdateMessage(message);
+  }
+
+  /// Upsert a message at the top (newest first) and avoid duplicates.
+  void addOrUpdateMessage(ChatMessage message, {bool markAsRead = false}) {
     final current = state.valueOrNull;
     if (current == null) return;
-    state = AsyncData(
-      current.copyWith(messages: [message, ...current.messages]),
+
+    final existingIndex = current.messages.indexWhere(
+      (m) => m.id == message.id,
     );
+    final nextMessages = [...current.messages];
+
+    if (existingIndex >= 0) {
+      nextMessages.removeAt(existingIndex);
+    }
+
+    nextMessages.insert(0, message);
+
+    state = AsyncData(current.copyWith(messages: nextMessages));
+
+    if (markAsRead) {
+      _scheduleMarkMessagesAsRead([message]);
+    }
   }
 
   Future<void> refresh() async {
@@ -165,7 +237,7 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
         _conversationId,
         content.trim(),
       );
-      addMessage(message);
+      addOrUpdateMessage(message);
       ref.invalidate(conversationListProvider);
       return true;
     } catch (_) {
@@ -176,7 +248,7 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
   Future<bool> sendImageFile(File imageFile) async {
     try {
       final message = await _repo.sendImageFile(_conversationId, imageFile);
-      addMessage(message);
+      addOrUpdateMessage(message);
       ref.invalidate(conversationListProvider);
       return true;
     } catch (_) {
@@ -187,7 +259,7 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
   Future<bool> sendFileAttachment(File file) async {
     try {
       final message = await _repo.sendFileAttachment(_conversationId, file);
-      addMessage(message);
+      addOrUpdateMessage(message);
       ref.invalidate(conversationListProvider);
       return true;
     } catch (_) {
@@ -207,7 +279,7 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
         lng,
         locationName,
       );
-      addMessage(message);
+      addOrUpdateMessage(message);
       ref.invalidate(conversationListProvider);
       return true;
     } catch (_) {

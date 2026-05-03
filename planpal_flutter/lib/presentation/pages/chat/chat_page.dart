@@ -11,7 +11,9 @@ import '../../../core/dtos/chat_message.dart';
 import '../../../core/dtos/conversation.dart';
 import '../../../core/riverpod/auth_notifier.dart';
 import '../../../core/riverpod/conversation_providers.dart';
+import '../../../core/riverpod/repository_providers.dart';
 import '../../../core/services/chat_websocket_service.dart' as ws;
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/ui_states/ui_states.dart';
 import '../../widgets/chat/message_bubble.dart';
@@ -33,19 +35,24 @@ class _ChatPageState extends ConsumerState<ChatPage>
   final ScrollController _scrollController = ScrollController();
 
   late ws.ChatWebSocketService _webSocketService;
+  late Conversation _conversation;
   StreamSubscription<ws.WebSocketEvent>? _eventSubscription;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _conversation = widget.conversation;
     _initializeChat();
     _setupScrollListener();
   }
 
   @override
   Future<void> onRefresh() async {
-    await ref.read(messagesProvider(widget.conversation.id).notifier).refresh();
+    await Future.wait([
+      ref.read(messagesProvider(widget.conversation.id).notifier).refresh(),
+      _refreshConversationDetails(),
+    ]);
   }
 
   @override
@@ -61,6 +68,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _connectWebSocket();
+      unawaited(_refreshConversationDetails());
     } else if (state == AppLifecycleState.paused) {
       _webSocketService.disconnect();
     }
@@ -72,6 +80,21 @@ class _ChatPageState extends ConsumerState<ChatPage>
     );
     _connectWebSocket();
     _setupWebSocketListeners();
+    unawaited(_refreshConversationDetails());
+  }
+
+  Future<void> _refreshConversationDetails() async {
+    try {
+      final latestConversation = await ref
+          .read(conversationRepositoryProvider)
+          .getConversation(widget.conversation.id);
+      if (!mounted) return;
+      setState(() {
+        _conversation = latestConversation;
+      });
+    } catch (_) {
+      // Keep the existing snapshot if refresh fails.
+    }
   }
 
   void _connectWebSocket() {
@@ -117,16 +140,57 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
   void _handleNewMessage(Map<String, dynamic> data) {
     final currentUserId = ref.read(authNotifierProvider).user?.id;
-    final senderId = data['sender'] is Map<String, dynamic>
-        ? (data['sender'] as Map<String, dynamic>)['id'] as String?
-        : null;
+    final senderId = _extractSenderId(data);
 
     if (senderId != null && senderId == currentUserId) {
       return;
     }
 
-    ref.read(messagesProvider(widget.conversation.id).notifier).refresh();
+    final shouldAutoScroll = _isNearBottom();
+    final messagesNotifier = ref.read(
+      messagesProvider(widget.conversation.id).notifier,
+    );
+
+    try {
+      final incomingMessage = ChatMessage.fromJson(data);
+      final conversationId = incomingMessage.conversationId;
+
+      if (conversationId != null && conversationId != widget.conversation.id) {
+        return;
+      }
+
+      messagesNotifier.addOrUpdateMessage(incomingMessage, markAsRead: true);
+
+      if (shouldAutoScroll) {
+        _scrollToBottom();
+      }
+    } catch (error) {
+      debugPrint(
+        'Failed to parse incoming chat message, fallback refresh: $error',
+      );
+      unawaited(messagesNotifier.refresh());
+    }
+
     ref.invalidate(conversationListProvider);
+  }
+
+  String? _extractSenderId(Map<String, dynamic> data) {
+    final sender = data['sender'];
+    if (sender is Map<String, dynamic>) {
+      final senderId = sender['id'];
+      return senderId?.toString();
+    }
+
+    final senderId = data['sender_id'];
+    return senderId?.toString();
+  }
+
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) {
+      return true;
+    }
+
+    return _scrollController.position.pixels <= 80;
   }
 
   void _handleTypingStart(Map<String, dynamic> data) {
@@ -176,36 +240,42 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _sendMessage(String content) async {
     if (content.trim().isEmpty) return;
 
+    final failureMessage = context.l10n.t('chat.send_message_failed');
     final success = await ref
         .read(messagesProvider(widget.conversation.id).notifier)
         .sendTextMessage(content.trim());
+    if (!mounted) return;
 
     if (success) {
       _scrollToBottom();
     } else {
-      _showSnackBar('Khong the gui tin nhan. Vui long thu lai.');
+      _showSnackBar(failureMessage);
     }
   }
 
   Future<void> _sendImage(File imageFile) async {
+    final failureMessage = context.l10n.t('chat.send_image_failed');
     try {
       final success = await ref
           .read(messagesProvider(widget.conversation.id).notifier)
           .sendImageFile(imageFile);
+      if (!mounted) return;
 
       if (success) {
         _scrollToBottom();
       } else {
-        _showSnackBar('Khong the gui anh. Vui long thu lai.');
+        _showSnackBar(failureMessage);
       }
-    } catch (e) {
-      _showSnackBar('Loi gui anh: $e');
+    } catch (_) {
+      _showSnackBar(failureMessage);
     }
   }
 
@@ -214,34 +284,38 @@ class _ChatPageState extends ConsumerState<ChatPage>
     double lng,
     String? locationName,
   ) async {
+    final failureMessage = context.l10n.t('chat.share_location_failed');
     try {
       final success = await ref
           .read(messagesProvider(widget.conversation.id).notifier)
           .sendLocationMessage(lat, lng, locationName ?? 'Vi tri duoc chia se');
+      if (!mounted) return;
 
       if (success) {
         _scrollToBottom();
       } else {
-        _showSnackBar('Khong the chia se vi tri. Vui long thu lai.');
+        _showSnackBar(failureMessage);
       }
-    } catch (e) {
-      _showSnackBar('Loi chia se vi tri: $e');
+    } catch (_) {
+      _showSnackBar(failureMessage);
     }
   }
 
   Future<void> _sendFile(File file, String _) async {
+    final failureMessage = context.l10n.t('chat.send_file_failed');
     try {
       final success = await ref
           .read(messagesProvider(widget.conversation.id).notifier)
           .sendFileAttachment(file);
+      if (!mounted) return;
 
       if (success) {
         _scrollToBottom();
       } else {
-        _showSnackBar('Khong the gui file. Vui long thu lai.');
+        _showSnackBar(failureMessage);
       }
-    } catch (e) {
-      _showSnackBar('Loi gui file: $e');
+    } catch (_) {
+      _showSnackBar(failureMessage);
     }
   }
 
@@ -288,10 +362,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
       return;
     }
 
-    final launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
     if (!launched) {
       _showSnackBar(failureMessage);
@@ -409,7 +480,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.conversation.displayName,
+                  _conversation.displayName,
                   style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -425,7 +496,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
         ],
       ),
       actions: [
-        if (widget.conversation.isDirect)
+        if (_conversation.isDirect)
           IconButton(
             onPressed: _showUserProfile,
             icon: Icon(
@@ -456,10 +527,10 @@ class _ChatPageState extends ConsumerState<ChatPage>
           end: Alignment.bottomRight,
         ),
       ),
-      child: widget.conversation.avatarUrl.isNotEmpty
+      child: _conversation.avatarUrl.isNotEmpty
           ? ClipOval(
               child: Image.network(
-                widget.conversation.avatarUrl,
+                _conversation.avatarUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return _buildAvatarPlaceholder();
@@ -471,10 +542,10 @@ class _ChatPageState extends ConsumerState<ChatPage>
   }
 
   Widget _buildAvatarPlaceholder() {
-    final displayName = widget.conversation.displayName;
+    final displayName = _conversation.displayName;
     final avatarText = displayName.isNotEmpty
         ? displayName.substring(0, 1).toUpperCase()
-        : (widget.conversation.isGroup ? 'G' : 'U');
+        : (_conversation.isGroup ? 'G' : 'U');
 
     return Center(
       child: Text(
@@ -489,19 +560,19 @@ class _ChatPageState extends ConsumerState<ChatPage>
   }
 
   Widget _buildSubtitle(ThemeData theme) {
-    if (widget.conversation.isDirect) {
+    if (_conversation.isDirect) {
       return Text(
-        widget.conversation.isOtherUserOnline ? 'Online' : 'Offline',
+        _conversation.isOtherUserOnline ? 'Online' : 'Offline',
         style: GoogleFonts.inter(
           fontSize: 12,
-          color: widget.conversation.isOtherUserOnline
+          color: _conversation.isOtherUserOnline
               ? AppColors.success
               : theme.colorScheme.onSurface.withAlpha(150),
         ),
       );
     }
 
-    final memberCount = widget.conversation.participants.length;
+    final memberCount = _conversation.participants.length;
     return Text(
       '$memberCount members',
       style: GoogleFonts.inter(
@@ -531,8 +602,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
         ? theme.colorScheme.onErrorContainer
         : theme.colorScheme.onTertiaryContainer;
     final message = isFailed
-        ? 'Mat ket noi realtime. Dang thu lai...'
-        : 'Dang ket noi realtime...';
+        ? context.l10n.t('chat.realtime_retrying')
+        : context.l10n.t('chat.realtime_connecting');
 
     return Container(
       width: double.infinity,
@@ -562,18 +633,18 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
     return messagesAsync.when(
       loading: () => const AppSkeleton.chat(itemCount: 10),
-      error: (error, _) => AppError(
-        message: 'Error loading messages: $error',
+      error: (_, _) => AppError(
+        message: context.l10n.t('chat.loading_messages_failed'),
         onRetry: () => ref.refresh(messagesProvider(widget.conversation.id)),
       ),
       data: (msgState) {
         final messages = msgState.messages;
 
         if (messages.isEmpty) {
-          return const AppEmpty(
+          return AppEmpty(
             icon: Icons.chat_bubble_outline,
-            title: 'No messages yet',
-            description: 'Start the conversation!',
+            title: context.l10n.t('chat.empty_title'),
+            description: context.l10n.t('chat.empty_description'),
           );
         }
 
@@ -623,10 +694,10 @@ class _ChatPageState extends ConsumerState<ChatPage>
   }
 
   void _showUserProfile() {
-    _showSnackBar('User profile not implemented yet');
+    _showSnackBar(context.l10n.t('chat.feature_unavailable'));
   }
 
   void _showConversationOptions() {
-    _showSnackBar('Conversation options not implemented yet');
+    _showSnackBar(context.l10n.t('chat.feature_unavailable'));
   }
 }

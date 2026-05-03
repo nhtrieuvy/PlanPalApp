@@ -29,7 +29,7 @@ class PlanConsumer(BaseRealtimeConsumer):
         plan_access = await self.check_plan_access(self.plan_id, self.user.id)
         if not plan_access:
             await self.close(code=4003)  # Forbidden
-            return
+            return False
 
         # Join plan group
         group_name = ChannelGroups.plan(self.plan_id)

@@ -2,6 +2,8 @@ import datetime
 import logging
 from typing import Dict, List, Tuple, Any
 
+from django.db import transaction
+
 from planpals.shared.base_service import BaseService
 
 # Commands & factories — thin delegation layer
@@ -72,19 +74,14 @@ class ConversationService(BaseService):
             'location_name': location_name,
         }
         
-        message = message_repo.create_message(conversation, sender, data)
-        conversation_repo.update_last_message_time(conversation.id)
-        
-        # Publish via infrastructure publishers
-        try:
-            chat_factories.get_realtime_publisher().send_message(message)
-        except Exception as e:
-            cls.log_error("Error sending realtime message", e)
-        
-        try:
-            chat_factories.get_push_publisher().send_notification(message)
-        except Exception as e:
-            cls.log_error("Error sending push notification", e)
+        with transaction.atomic():
+            message = message_repo.create_message(conversation, sender, data)
+            conversation_repo.update_last_message_time(conversation.id)
+            transaction.on_commit(
+                lambda created_message=message: cls._publish_message_side_effects(
+                    created_message
+                )
+            )
         
         cls.log_operation("message_created", {
             'conversation_id': str(conversation.id),
@@ -94,6 +91,19 @@ class ConversationService(BaseService):
         })
         
         return message
+
+    @classmethod
+    def _publish_message_side_effects(cls, message) -> None:
+        # Realtime and push are side effects; run them only after DB commit.
+        try:
+            chat_factories.get_realtime_publisher().send_message(message)
+        except Exception as e:
+            cls.log_error("Error sending realtime message", e)
+
+        try:
+            chat_factories.get_push_publisher().send_notification(message)
+        except Exception as e:
+            cls.log_error("Error sending push notification", e)
     
     @classmethod
     def get_user_conversations(cls, user):

@@ -9,6 +9,7 @@ import 'package:planpal_flutter/core/repositories/audit_log_repository.dart';
 import 'package:planpal_flutter/core/riverpod/audit_logs_provider.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/presentation/widgets/audit/audit_log_list.dart';
+import 'test_app.dart';
 
 void main() {
   setUpAll(() async {
@@ -73,8 +74,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [auditLogRepositoryProvider.overrideWithValue(repository)],
-        child: const MaterialApp(
-          home: Scaffold(
+        child: buildLocalizedTestApp(
+          const Scaffold(
             body: AuditLogList(
               title: 'Plan Audit Log',
               resourceType: 'plan',

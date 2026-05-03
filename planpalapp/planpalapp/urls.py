@@ -21,6 +21,8 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
 
+from planpals.auth.presentation.views import EmailAwareTokenView
+
 schema_view = get_schema_view(
     openapi.Info(
         title="PlanPal API",
@@ -38,6 +40,7 @@ urlpatterns = [
     path('api/v1/', include('planpals.urls')),
     path('', include('planpals.urls')),
     path('admin/', admin.site.urls),
+    path('o/token/', EmailAwareTokenView.as_view(), name='oauth2_token'),
     path('o/', include('oauth2_provider.urls',
                        namespace='oauth2_provider')),
     

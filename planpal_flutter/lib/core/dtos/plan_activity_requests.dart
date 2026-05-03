@@ -68,28 +68,43 @@ class CreatePlanActivityRequest {
 }
 
 class UpdatePlanActivityRequest {
+  final int version;
+  final bool force;
   final String? title;
   final String? description;
   final String? activityType;
   final DateTime? startTime;
   final DateTime? endTime;
+  final String? locationName;
+  final String? locationAddress;
   final double? latitude;
   final double? longitude;
+  final String? goongPlaceId;
+  final double? estimatedCost;
   final String? notes;
 
   UpdatePlanActivityRequest({
+    required this.version,
+    this.force = false,
     this.title,
     this.description,
     this.activityType,
     this.startTime,
     this.endTime,
+    this.locationName,
+    this.locationAddress,
     this.latitude,
     this.longitude,
+    this.goongPlaceId,
+    this.estimatedCost,
     this.notes,
   });
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {};
+    final Map<String, dynamic> data = {
+      'version': version,
+      if (force) 'force': true,
+    };
 
     if (title != null) {
       data['title'] = title;
@@ -108,11 +123,23 @@ class UpdatePlanActivityRequest {
       // Convert local time to UTC for backend storage
       data['end_time'] = endTime!.toUtc().toIso8601String();
     }
+    if (locationName != null) {
+      data['location_name'] = locationName;
+    }
+    if (locationAddress != null) {
+      data['location_address'] = locationAddress;
+    }
     if (latitude != null) {
       data['latitude'] = double.parse(latitude!.toStringAsFixed(6));
     }
     if (longitude != null) {
       data['longitude'] = double.parse(longitude!.toStringAsFixed(6));
+    }
+    if (goongPlaceId != null) {
+      data['goong_place_id'] = goongPlaceId;
+    }
+    if (estimatedCost != null) {
+      data['estimated_cost'] = estimatedCost;
     }
     if (notes != null) {
       data['notes'] = notes;

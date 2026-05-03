@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:planpal_flutter/core/dtos/audit_log_model.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/audit_logs_provider.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -30,7 +31,6 @@ class AuditLogList extends ConsumerStatefulWidget {
 
 class _AuditLogListState extends ConsumerState<AuditLogList> {
   final ScrollController _scrollController = ScrollController();
-  final DateFormat _timestampFormat = DateFormat('dd/MM/yyyy HH:mm');
 
   String _selectedAction = '';
   String _selectedUserId = '';
@@ -132,7 +132,7 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
                 IconButton(
                   onPressed: _refresh,
                   icon: const Icon(Icons.refresh),
-                  tooltip: 'Refresh audit logs',
+                  tooltip: context.l10n.t('audit.refresh'),
                 ),
               ],
             ),
@@ -164,13 +164,16 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
           child: DropdownButtonFormField<String>(
             initialValue: _selectedAction,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Action',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.l10n.t('audit.action'),
+              border: const OutlineInputBorder(),
               isDense: true,
             ),
             items: [
-              const DropdownMenuItem(value: '', child: Text('All actions')),
+              DropdownMenuItem(
+                value: '',
+                child: Text(context.l10n.t('audit.all_actions')),
+              ),
               ...AuditLogModel.actionOptions.map(
                 (option) => DropdownMenuItem(
                   value: option.value,
@@ -190,13 +193,16 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
           child: DropdownButtonFormField<String>(
             initialValue: _selectedUserId,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'User',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.l10n.t('audit.user'),
+              border: const OutlineInputBorder(),
               isDense: true,
             ),
             items: [
-              const DropdownMenuItem(value: '', child: Text('All users')),
+              DropdownMenuItem(
+                value: '',
+                child: Text(context.l10n.t('audit.all_users')),
+              ),
               ...actorOptions.entries.map(
                 (entry) => DropdownMenuItem(
                   value: entry.key,
@@ -216,8 +222,8 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
           icon: const Icon(Icons.date_range_outlined),
           label: Text(
             _dateFrom == null
-                ? 'From date'
-                : DateFormat('dd/MM/yyyy').format(_dateFrom!),
+                ? context.l10n.t('common.from_date')
+                : AppFormatters.shortDate(context, _dateFrom!),
           ),
         ),
         OutlinedButton.icon(
@@ -225,8 +231,8 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
           icon: const Icon(Icons.event_available_outlined),
           label: Text(
             _dateTo == null
-                ? 'To date'
-                : DateFormat('dd/MM/yyyy').format(_dateTo!),
+                ? context.l10n.t('common.to_date')
+                : AppFormatters.shortDate(context, _dateTo!),
           ),
         ),
         TextButton(
@@ -238,7 +244,7 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
               _dateTo = null;
             });
           },
-          child: const Text('Clear filters'),
+          child: Text(context.l10n.t('common.clear_filters')),
         ),
       ],
     );
@@ -246,8 +252,8 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
 
   Widget _buildListState(BuildContext context, AuditLogFeedState state) {
     if (state.items.isEmpty) {
-      return const Center(
-        child: Text('No audit activity matches the current filters.'),
+      return Center(
+        child: Text(context.l10n.t('audit.empty')),
       );
     }
 
@@ -268,18 +274,20 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
             child: TextButton.icon(
               onPressed: _loadMore,
               icon: const Icon(Icons.expand_more),
-              label: const Text('Load more'),
+              label: Text(context.l10n.t('audit.load_more')),
             ),
           );
         }
 
         final log = state.items[index];
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
         return Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: colorScheme.outlineVariant),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,8 +300,9 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
                   Expanded(
                     child: Text(
                       log.metadataSummary,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -302,14 +311,16 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
               const SizedBox(height: 8),
               Text(
                 log.actorDisplayName,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
-                _timestampFormat.format(log.createdAt),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                AppFormatters.fullDateTime(context, log.createdAt),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -357,16 +368,17 @@ class _ActionBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(25),
+        color: colorScheme.primary.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: AppColors.primary,
+        style: TextStyle(
+          color: colorScheme.primary,
           fontWeight: FontWeight.w700,
           fontSize: 12,
         ),
@@ -392,7 +404,10 @@ class _AuditErrorState extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+          ElevatedButton(
+            onPressed: onRetry,
+            child: Text(context.l10n.t('common.retry')),
+          ),
         ],
       ),
     );

@@ -133,6 +133,33 @@ class PlanRepository {
     }
   }
 
+  Future<PlanModel> cancelPlan(String planId, {String? reason}) async {
+    try {
+      final trimmedReason = reason?.trim();
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.post(
+          Endpoints.planCancel(planId),
+          data: {
+            if (trimmedReason != null && trimmedReason.isNotEmpty)
+              'reason': trimmedReason,
+          },
+        ),
+      );
+
+      if (res.statusCode == 200 && res.data is Map) {
+        final detail = PlanModel.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+        _detailCache[planId] = detail;
+        return detail;
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
   // Plan activities operations
   Future<List<dynamic>> getPlanActivitiesByDate(
     String planId,

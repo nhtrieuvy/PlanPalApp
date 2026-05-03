@@ -15,6 +15,13 @@ logger = logging.getLogger(__name__)
 
 class NotificationService(BaseService):
     """Firebase Cloud Messaging service using Admin SDK"""
+
+    _FCM_RESERVED_DATA_KEYS = {
+        'collapse_key',
+        'from',
+        'message_type',
+    }
+    _FCM_RESERVED_KEY_PREFIXES = ('google.',)
     
     def __init__(self):
         super().__init__()
@@ -88,6 +95,7 @@ class NotificationService(BaseService):
         
         success_count = 0
         total_count = len(fcm_tokens)
+        payload_data = self._build_fcm_data_payload(data)
         
         # Process tokens in batches
         for i in range(0, len(fcm_tokens), self.batch_size):
@@ -95,11 +103,11 @@ class NotificationService(BaseService):
             
             try:
                 if len(batch_tokens) > 1:
-                    # Use multicast for multiple tokens
+                    # Use per-token HTTP v1 fan-out to avoid deprecated /batch endpoint.
                     message = messaging.MulticastMessage(
                         tokens=batch_tokens,
                         notification=messaging.Notification(title=title, body=body),
-                        data={k: str(v) for k, v in (data or {}).items()},
+                        data=payload_data,
                         android=messaging.AndroidConfig(
                             priority='high',
                             ttl=3600,
@@ -115,7 +123,7 @@ class NotificationService(BaseService):
                             )
                         ),
                     )
-                    response = messaging.send_multicast(message)
+                    response = messaging.send_each_for_multicast(message)
                     batch_success = response.success_count
                     success_count += batch_success
                     
@@ -128,7 +136,7 @@ class NotificationService(BaseService):
                     message = messaging.Message(
                         token=batch_tokens[0],
                         notification=messaging.Notification(title=title, body=body),
-                        data={k: str(v) for k, v in (data or {}).items()},
+                        data=payload_data,
                         android=messaging.AndroidConfig(
                             priority='high',
                             ttl=3600,
@@ -155,6 +163,40 @@ class NotificationService(BaseService):
         
         logger.info(f"FCM batch send completed: {success_count}/{total_count} successful")
         return success_count, total_count
+
+    def _build_fcm_data_payload(self, data: Optional[Dict[str, Any]]) -> Dict[str, str]:
+        payload: Dict[str, str] = {}
+
+        for raw_key, raw_value in (data or {}).items():
+            normalized_key = self._normalize_fcm_data_key(str(raw_key))
+            if not normalized_key:
+                continue
+
+            candidate_key = normalized_key
+            suffix = 1
+            while candidate_key in payload:
+                suffix += 1
+                candidate_key = f"{normalized_key}_{suffix}"
+
+            payload[candidate_key] = '' if raw_value is None else str(raw_value)
+
+        return payload
+
+    def _normalize_fcm_data_key(self, key: str) -> str:
+        normalized_key = key.strip()
+        if not normalized_key:
+            return ''
+
+        lowered_key = normalized_key.lower()
+        is_reserved_key = lowered_key in self._FCM_RESERVED_DATA_KEYS
+        has_reserved_prefix = any(
+            lowered_key.startswith(prefix)
+            for prefix in self._FCM_RESERVED_KEY_PREFIXES
+        )
+
+        if is_reserved_key or has_reserved_prefix:
+            return f"app_{lowered_key.replace('.', '_')}"
+        return normalized_key
     
     def _handle_failed_responses(self, tokens: List[str], responses: List):
         """Handle failed responses from multicast"""
@@ -165,7 +207,16 @@ class NotificationService(BaseService):
     
     def _handle_failed_token(self, token: str, error: str):
         """Handle individual failed token"""
-        if error in ['UNREGISTERED', 'INVALID_ARGUMENT']:
+        normalized_error = (error or '').upper()
+        invalid_token_markers = (
+            'UNREGISTERED',
+            'INVALID_ARGUMENT',
+            'NOT_FOUND',
+            'REGISTRATION-TOKEN-NOT-REGISTERED',
+            'INVALID REGISTRATION TOKEN',
+        )
+
+        if any(marker in normalized_error for marker in invalid_token_markers):
             # Token is invalid, should be removed from database
             logger.info(f"Invalid FCM token detected: {token[:10]}... (error: {error})")
             self._cleanup_invalid_token(token)
@@ -178,7 +229,8 @@ class NotificationService(BaseService):
             from planpals.notifications.infrastructure.models import UserDeviceToken
             from ..models import User
             UserDeviceToken.objects.filter(token=token).update(is_active=False)
-            User.objects.filter(fcm_token=token).update(fcm_token=None)
+            # User.fcm_token is a non-nullable CharField, so clear with empty string.
+            User.objects.filter(fcm_token=token).update(fcm_token='')
             logger.info(f"Cleaned up invalid FCM token: {token[:10]}...")
         except Exception as e:
             logger.error(f"Failed to cleanup invalid token: {e}")

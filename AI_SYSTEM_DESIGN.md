@@ -369,6 +369,8 @@ System event map:
 | `PlanCreated` | valid plan create | insert `Plan`, initialize `Budget` | write audit log, schedule notifications, schedule plan tasks |
 | `PlanUpdated` | valid plan update | update `Plan` | write audit log, invalidate plan cache, notify participants |
 | `PlanCompleted` | plan completion flow | `Plan.status = completed` | write `COMPLETE_PLAN` audit log, analytics picks it up later |
+| `ActivityCreated` | valid activity create | insert `PlanActivity` | write `CREATE_ACTIVITY` audit log scoped to the parent plan, broadcast realtime update |
+| `ActivityUpdated` | valid activity update | update `PlanActivity`, increment version | write `UPDATE_ACTIVITY` audit log with changed fields, broadcast realtime update |
 | `GroupJoined` | join group | insert `GroupMembership` | write audit log, notify admins |
 | `GroupLeft` | leave group | delete membership | write audit log, notify admins |
 | `RoleChanged` | admin changes member role | update membership role | write audit log, notify affected user |
@@ -538,7 +540,9 @@ Pagination styles:
 |---|---|---|---|
 | `POST /o/token/` | OAuth2 password grant fields | access + refresh token payload | login |
 | `POST /api/v1/auth/logout/` | bearer token | `{message}` | logout |
-| `POST /api/v1/users/` | username, email, password, password_confirm, profile fields | created user | registration |
+| `POST /api/v1/users/` | username, email, password, password_confirm, profile fields | created inactive user + email verification status | registration sends verification email |
+| `GET/POST /api/v1/users/verify-email/` | `uid`, `token` | `{message, email_verified}` | activates account after email ownership proof |
+| `POST /api/v1/users/resend-verification-email/` | `email` | generic resend ack | public, avoids account enumeration |
 | `GET /api/v1/users/` | optional filters | paginated user list | list/search support via separate route |
 | `GET /api/v1/users/profile/` | none | full current user profile | includes `is_staff` |
 | `PUT/PATCH /api/v1/users/update_profile/` | profile fields | updated user profile | current user only |
@@ -751,7 +755,8 @@ Action to role map:
 
 | Action | Required role |
 |---|---|
-| register | anonymous |
+| register | anonymous; account remains inactive until email verification |
+| verify email | valid verification token |
 | login/logout | authenticated session lifecycle |
 | send friend request | authenticated user |
 | accept friend request | request receiver |
@@ -1114,6 +1119,7 @@ Known failure classes and intended behavior:
 | Celery unavailable | worker down or Redis unavailable | core writes still succeed, async side effects delayed |
 | push unavailable | FCM credentials invalid or token bad | in-app notifications still work; token cleanup task removes invalid tokens |
 | permission error | unauthorized user hits restricted endpoint | return `403`, UI should show error / hide feature |
+| unverified email login | user registered but has not confirmed email ownership | `/o/token/` returns `email_not_verified`; user must verify or resend email |
 | large data volume | long feeds or many notifications | pagination + indexes + dedupe |
 | invalid input | serializer validation failure | structured `400` response |
 | analytics no data | fresh environment | dashboard returns zeros/empty series rather than computing raw history live |
@@ -1157,8 +1163,9 @@ These invariants must never be violated.
 
 - Audit log is append-only behavioral history.
 - Notification rows belong to exactly one user.
+- Newly registered users must not receive OAuth tokens until `email_verified_at` is set.
 - `NOTIFICATION_OPENED` must only be emitted from actual read operations.
-- Plan-scoped audit feeds must include budget/expense history logically tied to the plan.
+- Plan-scoped audit feeds must include activity/budget/expense history logically tied to the plan.
 
 ### 17.5 Analytics
 
@@ -1243,6 +1250,8 @@ Rules for safe modifications:
   ],
   "core_actions": [
     "register",
+    "verify_email",
+    "resend_email_verification",
     "login",
     "send_friend_request",
     "accept_friend_request",
@@ -1265,6 +1274,8 @@ Rules for safe modifications:
     "UPDATE_PLAN",
     "DELETE_PLAN",
     "COMPLETE_PLAN",
+    "CREATE_ACTIVITY",
+    "UPDATE_ACTIVITY",
     "UPDATE_BUDGET",
     "CREATE_EXPENSE",
     "JOIN_GROUP",
@@ -1354,10 +1365,38 @@ Rules for safe modifications:
     "Expense amount is always > 0",
     "Group must always have an admin",
     "Analytics reads DailyMetric instead of raw AuditLog at request time",
-    "Plan-scoped audit feed includes related budget and expense history",
+    "Plan-scoped audit feed includes related activity, budget, and expense history",
     "Analytics is staff-only",
     "Message fetch does not implicitly mark messages as read"
   ]
+}
+```
+
+---
+
+## 19.5 Operational Hardening Addendum
+
+These runtime rules must be preserved when changing production behavior:
+
+- Audit logs are append-only at ORM level. Normal code may create audit records, but must not update or delete them.
+- Chat message creation updates the message row and conversation timestamp inside one transaction. Realtime and push side effects run only after commit.
+- Celery workers must consume `high_priority`, `default`, `plan_status`, and `low_priority`. Celery Beat must run as a singleton scheduler for analytics aggregation, cleanup, and plan reminders.
+- Production Redis should back Celery, cache, and Channels. Tests intentionally use in-memory backends to avoid external service coupling.
+- Flutter WebSocket clients use bounded exponential reconnect with jitter. UI should tolerate temporary realtime loss and continue through polling or manual refresh.
+- Mobile auth tokens are stored in `flutter_secure_storage`. Debug logs must not include access tokens, refresh tokens, passwords, or raw auth response bodies.
+- User-facing mobile errors should be localized and friendly. Raw exception strings should stay in logs only.
+
+```json
+{
+  "runtime_hardening": {
+    "audit_log": "append_only",
+    "chat_side_effects": "transaction_on_commit",
+    "celery_worker_queues": ["high_priority", "default", "plan_status", "low_priority"],
+    "celery_beat": "singleton_required",
+    "realtime_reconnect": "exponential_backoff_with_jitter",
+    "mobile_token_storage": "flutter_secure_storage",
+    "client_error_policy": "friendly_localized_messages"
+  }
 }
 ```
 

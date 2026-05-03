@@ -75,3 +75,11 @@ class DemoteMemberCommand(BaseCommand):
     group_id: UUID
     user_id: UUID
     target_user_id: UUID
+
+
+@dataclass(frozen=True)
+class SetMemberRoleCommand(BaseCommand):
+    group_id: UUID
+    user_id: UUID
+    target_user_id: UUID
+    role: str

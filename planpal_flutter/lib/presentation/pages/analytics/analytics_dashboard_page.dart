@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/analytics_model.dart';
-import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/analytics_providers.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/presentation/widgets/analytics/analytics_kpi_card.dart';
@@ -31,16 +33,17 @@ class _AnalyticsDashboardPageState
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authNotifierProvider);
-    final currentUser = auth.user;
+    final l10n = context.l10n;
+    final currentUser = ref.watch(authNotifierProvider).user;
+
     if (currentUser == null || !currentUser.isStaff) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Analytics Dashboard')),
-        body: const Center(
+        appBar: AppBar(title: Text(l10n.t('analytics.title'))),
+        body: Center(
           child: AppEmpty(
             icon: Icons.lock_outline,
-            title: 'Analytics unavailable',
-            description: 'This dashboard is only available to staff accounts.',
+            title: l10n.t('analytics.unavailable_title'),
+            description: l10n.t('analytics.unavailable_description'),
           ),
         ),
       );
@@ -53,16 +56,14 @@ class _AnalyticsDashboardPageState
     final topEntitiesAsync = ref.watch(analyticsTopEntitiesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Analytics Dashboard')),
+      appBar: AppBar(title: Text(l10n.t('analytics.title'))),
       body: RefreshablePageWrapper(
         onRefresh: _refresh,
         child: summaryAsync.when(
           loading: () => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
-            children: const [
-              AppSkeleton.list(itemCount: 5),
-            ],
+            children: const [AppSkeleton.list(itemCount: 5)],
           ),
           error: (error, _) => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -71,7 +72,7 @@ class _AnalyticsDashboardPageState
               AppError(
                 message: ErrorDisplayService.getUserFriendlyMessage(error),
                 onRetry: _refresh,
-                retryLabel: 'Retry',
+                retryLabel: l10n.t('common.retry'),
               ),
             ],
           ),
@@ -79,17 +80,17 @@ class _AnalyticsDashboardPageState
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             children: [
-              _buildHero(summary),
+              _buildHero(context, summary),
               const SizedBox(height: 20),
-              _buildRangeSelector(range),
+              _buildRangeSelector(context, range),
               const SizedBox(height: 20),
-              _buildKpiGrid(summary),
+              _buildKpiGrid(context, summary),
               const SizedBox(height: 20),
-              _buildTrendSection(selectedMetric, timeSeriesAsync),
+              _buildTrendSection(context, selectedMetric, timeSeriesAsync),
               const SizedBox(height: 20),
-              _buildTotalsCard(summary),
+              _buildTotalsCard(context, summary),
               const SizedBox(height: 20),
-              _buildTopEntitiesSection(topEntitiesAsync),
+              _buildTopEntitiesSection(context, topEntitiesAsync),
               const SizedBox(height: 32),
             ],
           ),
@@ -98,7 +99,8 @@ class _AnalyticsDashboardPageState
     );
   }
 
-  Widget _buildHero(AnalyticsSummary summary) {
+  Widget _buildHero(BuildContext context, AnalyticsSummary summary) {
+    final l10n = context.l10n;
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -116,9 +118,9 @@ class _AnalyticsDashboardPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Product Pulse',
-            style: TextStyle(
+          Text(
+            l10n.t('analytics.hero_eyebrow'),
+            style: const TextStyle(
               color: Colors.white70,
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -126,9 +128,9 @@ class _AnalyticsDashboardPageState
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Usage and engagement trends',
-            style: TextStyle(
+          Text(
+            l10n.t('analytics.hero_title'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 26,
               fontWeight: FontWeight.w700,
@@ -136,18 +138,24 @@ class _AnalyticsDashboardPageState
           ),
           const SizedBox(height: 10),
           Text(
-            'Latest aggregated day: ${summary.currentDate.month}/${summary.currentDate.day}/${summary.currentDate.year}',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
+            l10n.t(
+              'analytics.latest_aggregated_day',
+              params: {
+                'date': AppFormatters.shortDate(context, summary.currentDate),
+              },
             ),
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRangeSelector(AnalyticsRangeOption selectedRange) {
+  Widget _buildRangeSelector(
+    BuildContext context,
+    AnalyticsRangeOption selectedRange,
+  ) {
+    final l10n = context.l10n;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -156,9 +164,10 @@ class _AnalyticsDashboardPageState
           return Padding(
             padding: const EdgeInsets.only(right: 10),
             child: ChoiceChip(
-              label: Text(range.label),
+              label: Text(l10n.analyticsRangeLabel(range.apiValue)),
               selected: isSelected,
-              onSelected: (_) => ref.read(analyticsRangeProvider.notifier).state = range,
+              onSelected: (_) =>
+                  ref.read(analyticsRangeProvider.notifier).state = range,
             ),
           );
         }).toList(),
@@ -166,53 +175,76 @@ class _AnalyticsDashboardPageState
     );
   }
 
-  Widget _buildKpiGrid(AnalyticsSummary summary) {
+  Widget _buildKpiGrid(BuildContext context, AnalyticsSummary summary) {
+    final l10n = context.l10n;
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 14,
       mainAxisSpacing: 14,
-      childAspectRatio: 1.0,
+      childAspectRatio: 1,
       children: [
-        AnalyticsKpiCard(metric: summary.dau, accentColor: AppColors.info),
-        AnalyticsKpiCard(metric: summary.mau, accentColor: AppColors.secondary),
+        AnalyticsKpiCard(
+          metric: summary.dau,
+          accentColor: AppColors.info,
+          label: l10n.analyticsMetricLabel(AnalyticsMetricKey.dau.apiValue),
+        ),
+        AnalyticsKpiCard(
+          metric: summary.mau,
+          accentColor: AppColors.secondary,
+          label: l10n.analyticsMetricLabel(AnalyticsMetricKey.mau.apiValue),
+        ),
         AnalyticsKpiCard(
           metric: summary.planCreationRate,
           accentColor: AppColors.success,
           percentage: true,
+          label: l10n.analyticsMetricLabel(
+            AnalyticsMetricKey.planCreationRate.apiValue,
+          ),
         ),
         AnalyticsKpiCard(
           metric: summary.planCompletionRate,
           accentColor: AppColors.warning,
           percentage: true,
+          label: l10n.analyticsMetricLabel(
+            AnalyticsMetricKey.planCompletionRate.apiValue,
+          ),
         ),
         AnalyticsKpiCard(
           metric: summary.groupJoinRate,
           accentColor: AppColors.primary,
           percentage: true,
+          label: l10n.analyticsMetricLabel(
+            AnalyticsMetricKey.groupJoinRate.apiValue,
+          ),
         ),
         AnalyticsKpiCard(
           metric: summary.notificationOpenRate,
           accentColor: AppColors.error,
           percentage: true,
+          label: l10n.analyticsMetricLabel(
+            AnalyticsMetricKey.notificationOpenRate.apiValue,
+          ),
         ),
       ],
     );
   }
 
   Widget _buildTrendSection(
+    BuildContext context,
     AnalyticsMetricKey selectedMetric,
     AsyncValue<AnalyticsTimeSeries> timeSeriesAsync,
   ) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Trend View',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          l10n.t('analytics.trend_view'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         SingleChildScrollView(
@@ -222,10 +254,11 @@ class _AnalyticsDashboardPageState
               return Padding(
                 padding: const EdgeInsets.only(right: 10),
                 child: ChoiceChip(
-                  label: Text(metric.label),
+                  label: Text(l10n.analyticsMetricLabel(metric.apiValue)),
                   selected: selectedMetric == metric,
-                  onSelected: (_) =>
-                      ref.read(analyticsChartMetricProvider.notifier).state = metric,
+                  onSelected: (_) => ref
+                      .read(analyticsChartMetricProvider.notifier)
+                      .state = metric,
                 ),
               );
             }).toList(),
@@ -240,18 +273,18 @@ class _AnalyticsDashboardPageState
           error: (error, _) => AppError(
             message: ErrorDisplayService.getUserFriendlyMessage(error),
             onRetry: () => ref.read(analyticsTimeSeriesProvider.notifier).refresh(),
-            retryLabel: 'Retry',
+            retryLabel: l10n.t('common.retry'),
           ),
           data: (series) {
             if (series.points.isEmpty) {
-              return const AppEmpty(
+              return AppEmpty(
                 icon: Icons.show_chart,
-                title: 'No analytics data',
-                description: 'No trend data is available for this metric yet.',
+                title: l10n.t('analytics.no_data_title'),
+                description: l10n.t('analytics.no_data_description'),
               );
             }
             return AnalyticsTimeSeriesChart(
-              title: selectedMetric.label,
+              title: l10n.analyticsMetricLabel(selectedMetric.apiValue),
               series: series,
               color: _metricColor(selectedMetric),
               percentage: selectedMetric.isPercentage,
@@ -262,13 +295,23 @@ class _AnalyticsDashboardPageState
     );
   }
 
-  Widget _buildTotalsCard(AnalyticsSummary summary) {
+  Widget _buildTotalsCard(BuildContext context, AnalyticsSummary summary) {
+    final l10n = context.l10n;
     final rows = [
-      ('Plans created', '${summary.totals.plansCreated}'),
-      ('Plans completed', '${summary.totals.plansCompleted}'),
-      ('Group joins', '${summary.totals.groupJoins}'),
-      ('Notifications sent', '${summary.totals.notificationsSent}'),
-      ('Notifications opened', '${summary.totals.notificationsOpened}'),
+      (l10n.t('analytics.total_plans_created'), '${summary.totals.plansCreated}'),
+      (
+        l10n.t('analytics.total_plans_completed'),
+        '${summary.totals.plansCompleted}',
+      ),
+      (l10n.t('analytics.total_group_joins'), '${summary.totals.groupJoins}'),
+      (
+        l10n.t('analytics.total_notifications_sent'),
+        '${summary.totals.notificationsSent}',
+      ),
+      (
+        l10n.t('analytics.total_notifications_opened'),
+        '${summary.totals.notificationsOpened}',
+      ),
     ];
 
     return Container(
@@ -281,10 +324,10 @@ class _AnalyticsDashboardPageState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Range Totals',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            l10n.t('analytics.range_totals'),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 14),
           for (var index = 0; index < rows.length; index += 1)
@@ -296,15 +339,15 @@ class _AnalyticsDashboardPageState
                     child: Text(
                       rows[index].$1,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                   Text(
                     rows[index].$2,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -314,7 +357,11 @@ class _AnalyticsDashboardPageState
     );
   }
 
-  Widget _buildTopEntitiesSection(AsyncValue<AnalyticsTopEntities> topEntitiesAsync) {
+  Widget _buildTopEntitiesSection(
+    BuildContext context,
+    AsyncValue<AnalyticsTopEntities> topEntitiesAsync,
+  ) {
+    final l10n = context.l10n;
     return topEntitiesAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: 40),
@@ -323,26 +370,26 @@ class _AnalyticsDashboardPageState
       error: (error, _) => AppError(
         message: ErrorDisplayService.getUserFriendlyMessage(error),
         onRetry: () => ref.read(analyticsTopEntitiesProvider.notifier).refresh(),
-        retryLabel: 'Retry',
+        retryLabel: l10n.t('common.retry'),
       ),
       data: (snapshot) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Top Entities',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            l10n.t('analytics.top_entities'),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 14),
           AnalyticsTopEntitiesCard(
-            title: 'Top Plans',
+            title: l10n.t('analytics.top_plans'),
             entities: snapshot.plans,
             accentColor: AppColors.primary,
           ),
           const SizedBox(height: 16),
           AnalyticsTopEntitiesCard(
-            title: 'Top Groups',
+            title: l10n.t('analytics.top_groups'),
             entities: snapshot.groups,
             accentColor: AppColors.secondary,
           ),

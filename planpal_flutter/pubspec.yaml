@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # UI & Theming
   cupertino_icons: ^1.0.8
@@ -57,7 +59,7 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   
   # Utils
-  intl: ^0.18.1
+  intl: ^0.20.2
   
   # Icons
   flutter_feather_icons: ^2.0.0+1

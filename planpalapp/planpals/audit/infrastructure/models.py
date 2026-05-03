@@ -4,6 +4,7 @@ Audit infrastructure ORM models.
 from uuid import uuid4
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from planpals.audit.domain.entities import AuditAction
@@ -58,3 +59,11 @@ class AuditLog(models.Model):
 
     def __str__(self) -> str:
         return f'{self.action} on {self.resource_type}:{self.resource_id}'
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            raise ValidationError('Audit logs are append-only and cannot be modified.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Audit logs are append-only and cannot be deleted.')

@@ -16,7 +16,7 @@ from planpals.groups.domain.events import GroupMemberAdded, GroupMemberRemoved, 
 from planpals.groups.application.commands import (
     CreateGroupCommand, UpdateGroupCommand, AddMemberCommand, RemoveMemberCommand,
     JoinGroupCommand, LeaveGroupCommand, DeleteGroupCommand,
-    PromoteMemberCommand, DemoteMemberCommand,
+    PromoteMemberCommand, DemoteMemberCommand, SetMemberRoleCommand,
 )
 from planpals.shared.domain_exceptions import (
     GroupNotFoundException, NotGroupAdminException, NotGroupMemberException,
@@ -406,6 +406,75 @@ class DemoteMemberHandler(BaseCommandHandler[DemoteMemberCommand, bool]):
                     'target_user_id': command.target_user_id,
                     'previous_role': previous_role,
                     'new_role': 'member',
+                },
+            )
+
+        return True
+
+
+class SetMemberRoleHandler(BaseCommandHandler[SetMemberRoleCommand, bool]):
+    """Use case: group admin assigns a member role.
+
+    Supported roles:
+    - admin: full group administration
+    - plan_creator: can create group plans, without member-management powers
+    - member: regular group member
+    """
+
+    ALLOWED_ROLES = {'admin', 'plan_creator', 'member'}
+
+    def __init__(
+        self,
+        membership_repo: GroupMembershipRepository,
+        event_publisher: DomainEventPublisher,
+        audit_service=None,
+    ):
+        self.membership_repo = membership_repo
+        self.event_publisher = event_publisher
+        self.audit_service = audit_service
+
+    @transaction.atomic
+    def handle(self, command: SetMemberRoleCommand) -> bool:
+        role = (command.role or '').strip().lower()
+        if role not in self.ALLOWED_ROLES:
+            raise ValueError("role must be one of: admin, plan_creator, member")
+
+        if not self.membership_repo.is_admin(command.group_id, command.user_id):
+            raise NotGroupAdminException()
+
+        if not self.membership_repo.is_member(command.group_id, command.target_user_id):
+            raise NotGroupMemberException()
+
+        previous_role = self.membership_repo.get_role(
+            command.group_id,
+            command.target_user_id,
+        )
+        if previous_role == role:
+            return True
+
+        admin_count = self.membership_repo.get_admin_count(command.group_id)
+        if previous_role == 'admin' and role != 'admin' and admin_count <= 1:
+            raise LastAdminException()
+
+        self.membership_repo.set_role(command.group_id, command.target_user_id, role)
+
+        self.event_publisher.publish(GroupRoleChanged(
+            group_id=str(command.group_id),
+            user_id=str(command.target_user_id),
+            username='',
+            new_role=role,
+        ))
+
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.CHANGE_ROLE.value,
+                resource_type=AuditResourceType.GROUP.value,
+                resource_id=command.group_id,
+                metadata={
+                    'target_user_id': command.target_user_id,
+                    'previous_role': previous_role,
+                    'new_role': role,
                 },
             )
 

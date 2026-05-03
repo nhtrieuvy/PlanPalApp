@@ -31,6 +31,7 @@ class PlanService(BaseService):
                    start_date=None, end_date=None,
                    is_public: bool = False):
         """Delegate to CreatePlanHandler, then schedule Celery tasks."""
+        normalized_is_public = True if (plan_type == 'group' or group is not None) else is_public
         cmd = CreatePlanCommand(
             creator_id=creator.id,
             title=title,
@@ -39,7 +40,7 @@ class PlanService(BaseService):
             group_id=group.id if group else None,
             start_date=start_date,
             end_date=end_date,
-            is_public=is_public,
+            is_public=normalized_is_public,
         )
         handler = plan_factories.get_create_plan_handler()
         plan = handler.handle(cmd)
@@ -59,16 +60,20 @@ class PlanService(BaseService):
     @classmethod
     def update_plan(cls, plan, data: Dict[str, Any], user=None):
         """Delegate to UpdatePlanHandler, then reschedule Celery tasks."""
+        sanitized_data = dict(data)
+        if plan.is_group_plan() and 'is_public' in sanitized_data:
+            sanitized_data['is_public'] = True
+
         # Determine whether schedule-affecting fields are changing
         old_start = getattr(plan, 'start_date', None)
         old_end = getattr(plan, 'end_date', None)
-        new_start = data.get('start_date', old_start)
-        new_end = data.get('end_date', old_end)
+        new_start = sanitized_data.get('start_date', old_start)
+        new_end = sanitized_data.get('end_date', old_end)
 
         cmd = UpdatePlanCommand(
             plan_id=plan.id,
             user_id=user.id if user else plan.creator_id,
-            **{k: v for k, v in data.items() if k in (
+            **{k: v for k, v in sanitized_data.items() if k in (
                 'title', 'description', 'start_date', 'end_date',
                 'is_public',
             )}
@@ -78,8 +83,8 @@ class PlanService(BaseService):
 
         # Infrastructure concern: reschedule Celery tasks if dates changed
         task_scheduler = plan_factories.get_task_scheduler()
-        if (('start_date' in data and new_start != old_start) or
-                ('end_date' in data and new_end != old_end)):
+        if (('start_date' in sanitized_data and new_start != old_start) or
+                ('end_date' in sanitized_data and new_end != old_end)):
             try:
                 task_scheduler.revoke_scheduled_tasks(plan)
             except Exception as e:
@@ -92,7 +97,7 @@ class PlanService(BaseService):
         cls.log_operation("plan_updated", {
             'plan_id': str(plan.id),
             'updated_by': str(user.id) if user else None,
-            'updated_fields': list(data.keys())
+            'updated_fields': list(sanitized_data.keys())
         })
 
         cls._invalidate_plan_cache(plan.id)
@@ -316,16 +321,27 @@ class PlanService(BaseService):
     @classmethod
     def cancel_trip(cls, plan, user=None, reason: str = None, force: bool = False):
         now = datetime.datetime.now(datetime.timezone.utc)
+        old_status = plan.status
 
         if user and not cls.can_edit_plan(plan, user):
             raise ValueError("Permission denied to cancel this plan")
-        
-        if plan.status in ['cancelled', 'completed'] and not force:
-            raise ValueError(f"Cannot cancel plan that is already {plan.status}")
+
+        if old_status != 'upcoming' and not force:
+            raise ValueError("Only upcoming plans can be cancelled")
         
         plan_repo = plan_factories.get_plan_repo()
-        plan_repo.update_fields(plan.id, status='cancelled')
-        plan = plan_repo.refresh(plan)
+        if force:
+            plan_repo.update_fields(plan.id, status='cancelled')
+            plan = plan_repo.refresh(plan)
+        else:
+            success, updated_plan = plan_repo.update_status_atomic(
+                plan.id,
+                'upcoming',
+                'cancelled',
+            )
+            if not success:
+                raise ValueError("Plan status was changed by another operation")
+            plan = updated_plan or plan_repo.refresh(plan)
         
         # Revoke any scheduled tasks
         try:
@@ -340,6 +356,54 @@ class PlanService(BaseService):
             'forced': force,
             'timestamp': now.isoformat()
         })
+
+        try:
+            from planpals.audit.application.factories import get_audit_log_service
+            from planpals.audit.domain.entities import AuditAction, AuditResourceType
+
+            get_audit_log_service().log_action(
+                user=user,
+                action=AuditAction.UPDATE_PLAN.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan.id,
+                metadata={
+                    'title': plan.title,
+                    'group_id': plan.group_id,
+                    'changed_fields': ['status'],
+                    'before': {'status': old_status},
+                    'after': {'status': plan.status},
+                    'reason': reason,
+                    'forced': force,
+                    'cancelled_at': now,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Failed to write cancellation audit log for plan {plan.id}: {e}")
+
+        try:
+            publisher = plan_factories.get_realtime_publisher()
+            event = RealtimeEvent(
+                event_type=EventType.PLAN_STATUS_CHANGED,
+                plan_id=str(plan.id),
+                user_id=str(user.id) if user else None,
+                group_id=str(plan.group_id) if plan.group_id else None,
+                timestamp=now.isoformat(),
+                data={
+                    'plan_id': str(plan.id),
+                    'title': plan.title,
+                    'old_status': old_status,
+                    'new_status': 'cancelled',
+                    'cancelled_by': str(user.id) if user else 'system',
+                    'cancelled_by_name': user.get_full_name() or user.username if user else 'System',
+                    'reason': reason,
+                    'timestamp': now.isoformat(),
+                    'forced': force,
+                    'initiator_id': str(user.id) if user else None,
+                },
+            )
+            publisher.publish_event(event, send_push=True)
+        except Exception as e:
+            logger.warning(f"Failed to publish cancel event for plan {plan.id}: {e}")
         
         cls._invalidate_plan_cache(plan.id)
         return plan
@@ -535,23 +599,21 @@ class PlanService(BaseService):
             return 'completed'
     
     @classmethod
-    def update_activity(cls, plan, activity_id: str, user, data: Dict[str, Any]) -> Tuple[bool, str, Optional[Any]]:
+    def update_activity(cls, plan, activity_id: str, user, data: Dict[str, Any]):
         """Delegate to UpdateActivityHandler."""
         from uuid import UUID as _UUID
         cmd = UpdateActivityCommand(
             activity_id=activity_id if isinstance(activity_id, _UUID) else _UUID(str(activity_id)),
             user_id=user.id,
+            updated_by_name=getattr(user, 'get_full_name', lambda: '')() or getattr(user, 'username', None),
             **{k: v for k, v in data.items() if k in (
                 'title', 'description', 'activity_type', 'start_time', 'end_time',
                 'location_name', 'location_address', 'latitude', 'longitude',
-                'estimated_cost', 'notes',
+                'goong_place_id', 'estimated_cost', 'notes', 'version', 'force',
             )}
         )
         handler = plan_factories.get_update_activity_handler()
-        try:
-            activity = handler.handle(cmd)
-        except Exception as e:
-            return False, str(e), None
+        activity = handler.handle(cmd)
 
         cls.log_operation("activity_updated", {
             'plan_id': plan.id,
@@ -560,7 +622,7 @@ class PlanService(BaseService):
         })
 
         cls._invalidate_plan_cache(plan.id)
-        return True, "Activity updated successfully", activity
+        return activity
     
     @classmethod
     def remove_activity(cls, plan, activity_id: str, user) -> Tuple[bool, str]:

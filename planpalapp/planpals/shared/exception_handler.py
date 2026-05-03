@@ -142,11 +142,13 @@ def custom_exception_handler(exc, context):
         message = str(exc.detail)
         status_code = exc.status_hint
         error_code = exc.code
+        extra_fields = getattr(exc, 'extra', None) or None
         return Response(
             _build_error_response(
                 message=message,
                 status_code=status_code,
                 error_code=error_code,
+                extra_fields=extra_fields,
             ),
             status=status_code,
         )

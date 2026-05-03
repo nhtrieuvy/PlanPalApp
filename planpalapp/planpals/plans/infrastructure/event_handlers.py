@@ -68,10 +68,12 @@ def _handle_activity_created(event: ActivityCreated):
         activity_id=event.activity_id,
         title=event.title,
         activity_type=event.activity_type,
+        version=event.version,
         start_time=event.start_time,
         end_time=event.end_time,
         location_name=event.location_name,
         estimated_cost=event.estimated_cost,
+        activity=event.activity,
     )
 
 
@@ -83,6 +85,11 @@ def _handle_activity_updated(event: ActivityUpdated):
         title=event.title,
         is_completed=event.is_completed,
         last_updated=event.last_updated,
+        version=event.version,
+        updated_fields=list(event.updated_fields),
+        updated_by=event.updated_by,
+        updated_by_name=event.updated_by_name,
+        activity=event.activity,
     )
 
 
@@ -93,6 +100,9 @@ def _handle_activity_completed(event: ActivityCompleted):
         activity_id=event.activity_id,
         title=event.title,
         completed_by=event.completed_by,
+        version=event.version,
+        completed_by_name=event.completed_by_name,
+        activity=event.activity,
     )
 
 

@@ -10,6 +10,7 @@ import 'package:planpal_flutter/core/riverpod/analytics_providers.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/presentation/pages/analytics/analytics_dashboard_page.dart';
+import 'test_app.dart';
 
 void main() {
   setUpAll(() async {
@@ -147,7 +148,7 @@ void main() {
           authNotifierProvider.overrideWithValue(buildStaffAuthProvider()),
           analyticsRepositoryProvider.overrideWithValue(repository),
         ],
-        child: const MaterialApp(home: AnalyticsDashboardPage()),
+        child: buildLocalizedTestApp(const AnalyticsDashboardPage()),
       ),
     );
     await tester.pumpAndSettle();

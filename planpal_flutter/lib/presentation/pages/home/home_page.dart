@@ -1,21 +1,23 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:getwidget/getwidget.dart';
-import '../../../core/riverpod/providers.dart';
-import 'package:planpal_flutter/core/dtos/plan_summary.dart';
 import 'package:planpal_flutter/core/dtos/group_summary.dart';
+import 'package:planpal_flutter/core/dtos/plan_summary.dart';
+import 'package:planpal_flutter/core/localization/app_locale.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/riverpod/providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/presentation/pages/chat/conversation_list_page.dart';
+import 'package:planpal_flutter/presentation/pages/friends/friend_search_page.dart';
+import 'package:planpal_flutter/presentation/pages/location/current_location_map_page.dart';
+import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
-import 'package:planpal_flutter/presentation/pages/friends/friend_search_page.dart';
-import 'package:planpal_flutter/presentation/pages/chat/conversation_list_page.dart';
-import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart';
-import '../../widgets/common/refreshable_page_wrapper.dart';
-import '../../../shared/ui_states/ui_states.dart';
+import 'package:planpal_flutter/presentation/widgets/common/refreshable_page_wrapper.dart';
+import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
 
-/// Main home page with drawer navigation and content sections
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -36,7 +38,6 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     with RefreshablePage {
   @override
   Future<void> onRefresh() async {
-    // Invalidate Riverpod providers to trigger re-fetch
     ref.invalidate(plansNotifierProvider);
     ref.invalidate(groupsNotifierProvider);
     ref.invalidate(conversationListProvider);
@@ -56,7 +57,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
         final summary = PlanSummary.fromJson(map);
         ref.read(plansNotifierProvider.notifier).addPlan(summary);
       } catch (_) {
-        // ignore malformed return
+        // Ignore malformed return payload.
       }
     }
   }
@@ -65,8 +66,8 @@ class _HomeContentState extends ConsumerState<_HomeContent>
   Widget build(BuildContext context) {
     final plansAsync = ref.watch(plansNotifierProvider);
     final groupsAsync = ref.watch(groupsNotifierProvider);
+    final l10n = context.l10n;
 
-    // Derive loading/error/data states from the two async values
     final isLoading = plansAsync.isLoading || groupsAsync.isLoading;
     final error = plansAsync.error ?? groupsAsync.error;
     final recentPlans = (plansAsync.valueOrNull?.items ?? []).take(5).toList();
@@ -81,17 +82,17 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             _buildSliverAppBar(context),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(16),
                 child: isLoading && recentPlans.isEmpty && activeGroups.isEmpty
                     ? const Padding(
-                        padding: EdgeInsets.only(top: 24.0, bottom: 80),
+                        padding: EdgeInsets.only(top: 24, bottom: 80),
                         child: AppSkeleton.list(itemCount: 4),
                       )
                     : error != null && recentPlans.isEmpty
                     ? AppError(
-                        message: 'Lỗi: $error',
+                        message: 'Error: $error',
                         onRetry: () async => onRefresh(),
-                        retryLabel: 'Thử lại',
+                        retryLabel: l10n.t('common.retry'),
                       )
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,17 +115,16 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     );
   }
 
-  // Drawer components
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildDrawerHeader(),
+            _buildDrawerHeader(context),
             _buildDrawerMenuItems(context),
             const Spacer(),
-            _buildDrawerFooter(),
+            _buildDrawerFooter(context),
           ],
         ),
       ),
@@ -133,7 +133,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
 
   Widget _buildSliverAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 200.0,
+      expandedHeight: 200,
       floating: false,
       pinned: true,
       leading: Builder(
@@ -178,9 +178,9 @@ class _HomeContentState extends ConsumerState<_HomeContent>
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        title: const Text(
-          'PlanPal',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+        title: Text(
+          context.l10n.t('common.app_name'),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
         ),
         background: Container(
           decoration: const BoxDecoration(
@@ -223,8 +223,9 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     );
   }
 
-  Widget _buildDrawerHeader() {
+  Widget _buildDrawerHeader(BuildContext context) {
     final user = ref.read(authNotifierProvider).user;
+    final l10n = context.l10n;
     return DrawerHeader(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -236,7 +237,6 @@ class _HomeContentState extends ConsumerState<_HomeContent>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Avatar: use CachedNetworkImage to show placeholder / error states
           Container(
             width: 64,
             height: 64,
@@ -292,7 +292,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
           ),
           const SizedBox(height: 12),
           Text(
-            user?.fullName ?? 'Chưa đăng nhập',
+            user?.fullName ?? l10n.t('common.not_logged_in'),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -309,8 +309,8 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     );
   }
 
-  /// Builds drawer menu items with navigation options
   Widget _buildDrawerMenuItems(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       children: [
         Consumer(
@@ -323,7 +323,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                 count: unreadCount,
                 badgeColor: AppColors.primary,
               ),
-              title: const Text('Notifications'),
+              title: Text(l10n.t('home.notifications')),
               onTap: () async {
                 Navigator.of(context).pop();
                 await Navigator.of(context).push(
@@ -337,7 +337,6 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             );
           },
         ),
-        // Chat functionality with unread count badge
         Consumer(
           builder: (context, ref, child) {
             final unreadCount = ref.watch(totalUnreadCountProvider);
@@ -347,7 +346,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                 child: const Icon(Icons.chat_bubble),
                 count: unreadCount,
               ),
-              title: const Text('Cuộc hội thoại'),
+              title: Text(l10n.t('home.conversations')),
               onTap: () async {
                 Navigator.of(context).pop();
                 await Navigator.of(context).push(
@@ -355,26 +354,23 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     builder: (context) => const ConversationListPage(),
                   ),
                 );
-                // Refresh conversations to update unread count badge when returning
                 if (!mounted) return;
                 ref.invalidate(conversationListProvider);
               },
             );
           },
         ),
-        // Groups
         ListTile(
           leading: const Icon(Icons.groups),
-          title: const Text('Nhóm'),
+          title: Text(l10n.t('home.groups')),
           onTap: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushNamed('/group');
           },
         ),
-        // Plans
         ListTile(
           leading: const Icon(Icons.event_note),
-          title: const Text('Kế hoạch'),
+          title: Text(l10n.t('home.plans')),
           onTap: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushNamed('/plan');
@@ -383,16 +379,23 @@ class _HomeContentState extends ConsumerState<_HomeContent>
         if ((ref.read(authNotifierProvider).user?.isStaff ?? false))
           ListTile(
             leading: const Icon(Icons.insights),
-            title: const Text('Analytics'),
+            title: Text(l10n.t('home.analytics')),
             onTap: () {
               Navigator.of(context).pop();
               Navigator.of(context).pushNamed('/analytics');
             },
           ),
-        // Profile
+        ListTile(
+          leading: const Icon(Icons.language_rounded),
+          title: Text(l10n.t('common.language')),
+          subtitle: Text(
+            l10n.languageName(ref.watch(currentAppLanguageProvider).code),
+          ),
+          onTap: () => _showLanguageSheet(context),
+        ),
         ListTile(
           leading: const Icon(Icons.person),
-          title: const Text('Cá nhân'),
+          title: Text(l10n.t('home.profile')),
           onTap: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushNamed('/profile');
@@ -402,31 +405,31 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     );
   }
 
-  Widget _buildDrawerFooter() {
+  Widget _buildDrawerFooter(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16),
       child: Text(
-        '© 2025 PlanPal',
-        style: TextStyle(color: Colors.grey, fontSize: 12),
+        context.l10n.t('home.copyright'),
+        style: const TextStyle(color: Colors.grey, fontSize: 12),
         textAlign: TextAlign.center,
       ),
     );
   }
 
-  // Content sections using loaded data
   Widget _buildGreetingSection(BuildContext context) {
     final hour = DateTime.now().hour;
-    String greeting;
-    IconData greetingIcon;
+    final l10n = context.l10n;
+    late final String greeting;
+    late final IconData greetingIcon;
 
     if (hour < 12) {
-      greeting = 'Chào buổi sáng!';
+      greeting = l10n.t('home.greeting_morning');
       greetingIcon = Icons.wb_sunny;
     } else if (hour < 17) {
-      greeting = 'Chào buổi chiều!';
+      greeting = l10n.t('home.greeting_afternoon');
       greetingIcon = Icons.wb_sunny_outlined;
     } else {
-      greeting = 'Chào buổi tối!';
+      greeting = l10n.t('home.greeting_evening');
       greetingIcon = Icons.nights_stay;
     }
 
@@ -452,7 +455,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
           ),
           const SizedBox(height: 8),
           Text(
-            'Sẵn sàng cho chuyến phiêu lưu tiếp theo chưa?',
+            l10n.t('home.ready_for_trip'),
             style: Theme.of(
               context,
             ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
@@ -463,11 +466,12 @@ class _HomeContentState extends ConsumerState<_HomeContent>
   }
 
   Widget _buildQuickActions(BuildContext context) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Hành động nhanh',
+          l10n.t('home.quick_actions'),
           style: Theme.of(
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -478,35 +482,10 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             Expanded(
               child: GestureDetector(
                 onTap: _handleQuickCreatePlan,
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    children: const [
-                      Icon(
-                        Icons.add_location_alt,
-                        color: AppColors.primary,
-                        size: 32,
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Tạo kế hoạch',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                child: _buildQuickActionCard(
+                  color: AppColors.primary,
+                  icon: Icons.add_location_alt,
+                  label: l10n.t('home.create_plan'),
                 ),
               ),
             ),
@@ -514,35 +493,10 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             Expanded(
               child: GestureDetector(
                 onTap: () => Navigator.of(context).pushNamed('/group'),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.secondary.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    children: const [
-                      Icon(
-                        Icons.group_add,
-                        color: AppColors.secondary,
-                        size: 32,
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Tham gia nhóm',
-                        style: TextStyle(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                child: _buildQuickActionCard(
+                  color: AppColors.secondary,
+                  icon: Icons.group_add,
+                  label: l10n.t('home.join_group'),
                 ),
               ),
             ),
@@ -560,67 +514,27 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     ),
                   );
                 },
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.success.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    children: const [
-                      Icon(
-                        Icons.person_search,
-                        color: AppColors.success,
-                        size: 32,
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Tìm bạn bè',
-                        style: TextStyle(
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                child: _buildQuickActionCard(
+                  color: AppColors.success,
+                  icon: Icons.person_search,
+                  label: l10n.t('home.find_friends'),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: GestureDetector(
-                onTap: () {},
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.warning.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.warning.withValues(alpha: 0.3),
-                      width: 1,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const CurrentLocationMapPage(),
                     ),
-                  ),
-                  child: Column(
-                    children: const [
-                      Icon(Icons.map, color: AppColors.warning, size: 32),
-                      SizedBox(height: 8),
-                      Text(
-                        'Bản đồ',
-                        style: TextStyle(
-                          color: AppColors.warning,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                  );
+                },
+                child: _buildQuickActionCard(
+                  color: AppColors.warning,
+                  icon: Icons.map,
+                  label: l10n.t('home.map'),
                 ),
               ),
             ),
@@ -630,10 +544,41 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     );
   }
 
+  Widget _buildQuickActionCard({
+    required Color color,
+    required IconData icon,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 32),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRecentPlans(
     BuildContext context,
     List<PlanSummary> recentPlans,
   ) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -641,14 +586,14 @@ class _HomeContentState extends ConsumerState<_HomeContent>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Kế hoạch gần đây',
+              l10n.t('home.recent_plans'),
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pushNamed('/plan'),
-              child: const Text('Xem tất cả'),
+              child: Text(l10n.t('common.view_all')),
             ),
           ],
         ),
@@ -656,9 +601,9 @@ class _HomeContentState extends ConsumerState<_HomeContent>
         if (recentPlans.isEmpty)
           AppEmpty(
             icon: Icons.event_busy,
-            title: 'Chưa có kế hoạch',
-            description: 'Tạo kế hoạch đầu tiên cho hành trình của bạn',
-            actionLabel: 'Tạo kế hoạch',
+            title: l10n.t('home.no_plans_title'),
+            description: l10n.t('home.no_plans_description'),
+            actionLabel: l10n.t('home.create_plan'),
             onAction: _handleQuickCreatePlan,
           )
         else
@@ -668,13 +613,10 @@ class _HomeContentState extends ConsumerState<_HomeContent>
               scrollDirection: Axis.horizontal,
               itemCount: recentPlans.length,
               itemBuilder: (context, index) {
-                final p = recentPlans[index];
+                final plan = recentPlans[index];
                 return GestureDetector(
                   onTap: () async {
-                    final id = p.id;
-                    // debug: log id before navigation
-                    // ignore: avoid_print
-                    print('Home recentPlans: navigating to plan id=$id');
+                    final id = plan.id;
                     if (id.isEmpty) return;
 
                     final result = await Navigator.of(context)
@@ -686,12 +628,10 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     if (!mounted) return;
 
                     if (result != null) {
-                      // If the details page reported a delete, remove it from shared state
                       if (result['action'] == 'delete' && result['id'] == id) {
                         ref.read(plansNotifierProvider.notifier).removePlan(id);
                       }
 
-                      // If the plan was updated, update shared state
                       if ((result['action'] == 'updated' ||
                               result['action'] == 'edit') &&
                           result['plan'] is Map) {
@@ -703,7 +643,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                               .read(plansNotifierProvider.notifier)
                               .updatePlan(updated);
                         } catch (_) {
-                          // ignore malformed return
+                          // Ignore malformed return payload.
                         }
                       }
                     }
@@ -711,7 +651,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                   child: _buildPlanCardItem(
                     context,
                     index,
-                    p,
+                    plan,
                     totalCount: recentPlans.length,
                   ),
                 );
@@ -726,6 +666,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     BuildContext context,
     List<GroupSummary> activeGroups,
   ) {
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -733,23 +674,23 @@ class _HomeContentState extends ConsumerState<_HomeContent>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Nhóm hoạt động',
+              l10n.t('home.active_groups'),
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pushNamed('/group'),
-              child: const Text('Xem tất cả'),
+              child: Text(l10n.t('common.view_all')),
             ),
           ],
         ),
         const SizedBox(height: 16),
         if (activeGroups.isEmpty)
-          const AppEmpty(
+          AppEmpty(
             icon: Icons.groups_outlined,
-            title: 'Chưa có nhóm',
-            description: 'Tham gia hoặc tạo nhóm để phối hợp kế hoạch',
+            title: l10n.t('home.no_groups_title'),
+            description: l10n.t('home.no_groups_description'),
           )
         else
           ListView.builder(
@@ -757,10 +698,10 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             physics: const NeverScrollableScrollPhysics(),
             itemCount: activeGroups.length,
             itemBuilder: (context, index) {
-              final g = activeGroups[index];
+              final group = activeGroups[index];
               return GestureDetector(
                 onTap: () {
-                  final id = g.id;
+                  final id = group.id;
                   if (id.isNotEmpty) {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -769,7 +710,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     );
                   }
                 },
-                child: _buildGroupCardItem(context, index, g),
+                child: _buildGroupCardItem(context, index, group),
               );
             },
           ),
@@ -780,12 +721,14 @@ class _HomeContentState extends ConsumerState<_HomeContent>
   Widget _buildPlanCardItem(
     BuildContext context,
     int index,
-    PlanSummary p, {
-    int totalCount = 0,
+    PlanSummary plan, {
+    required int totalCount,
   }) {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
-    final name = p.title.isNotEmpty ? p.title : 'Kế hoạch';
+    final name = plan.title.isNotEmpty
+        ? plan.title
+        : context.l10n.t('home.plans');
 
     return Container(
       width: 280,
@@ -822,9 +765,9 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                           fontSize: 16,
                         ),
                       ),
-                      if (p.startDate != null || p.endDate != null)
+                      if (plan.startDate != null || plan.endDate != null)
                         Text(
-                          p.dateRange,
+                          plan.dateRange,
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,
@@ -836,9 +779,12 @@ class _HomeContentState extends ConsumerState<_HomeContent>
               ],
             ),
             const SizedBox(height: 12),
-            if (p.groupName != null && p.groupName!.isNotEmpty)
+            if (plan.groupName != null && plan.groupName!.isNotEmpty)
               Text(
-                'Nhóm: ${p.groupName}',
+                context.l10n.t(
+                  'home.group_prefix',
+                  params: {'group': plan.groupName!},
+                ),
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -849,7 +795,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                 Icon(Icons.event_note, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Text(
-                  p.activitiesCountText,
+                  plan.activitiesCountText,
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
                 const Spacer(),
@@ -859,19 +805,19 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: p.isUpcoming
+                    color: plan.isUpcoming
                         ? AppColors.warning.withValues(alpha: 0.1)
-                        : p.isOngoing
+                        : plan.isOngoing
                         ? AppColors.success.withValues(alpha: 0.1)
                         : AppColors.info.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    p.statusDisplay,
+                    plan.statusDisplay,
                     style: TextStyle(
-                      color: p.isUpcoming
+                      color: plan.isUpcoming
                           ? AppColors.warning
-                          : p.isOngoing
+                          : plan.isOngoing
                           ? AppColors.success
                           : AppColors.info,
                       fontSize: 10,
@@ -887,10 +833,16 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     );
   }
 
-  Widget _buildGroupCardItem(BuildContext context, int index, GroupSummary g) {
+  Widget _buildGroupCardItem(
+    BuildContext context,
+    int index,
+    GroupSummary group,
+  ) {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
-    final name = g.name.isNotEmpty ? g.name : 'Nhóm';
+    final name = group.name.isNotEmpty
+        ? group.name
+        : context.l10n.t('home.groups');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -908,11 +860,11 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                 color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: g.avatarForDisplay.isNotEmpty
+              child: group.avatarForDisplay.isNotEmpty
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: CachedNetworkImage(
-                        imageUrl: g.avatarForDisplay,
+                        imageUrl: group.avatarForDisplay,
                         fit: BoxFit.cover,
                         placeholder: (context, url) =>
                             Icon(Icons.group, color: color, size: 24),
@@ -922,7 +874,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     )
                   : Center(
                       child: Text(
-                        g.initials,
+                        group.initials,
                         style: TextStyle(
                           color: color,
                           fontWeight: FontWeight.bold,
@@ -947,27 +899,19 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    g.memberCountText,
+                    group.memberCountText,
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
               ),
             ),
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: AppColors.success,
-                shape: BoxShape.circle,
-              ),
-            ),
+            const _ActiveDot(),
           ],
         ),
       ),
     );
   }
 
-  /// Helper method to create notification badge for icon with animation
   Widget _buildNotificationBadge({
     required Widget child,
     required int count,
@@ -981,7 +925,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             right: 0,
             top: 0,
             child: AnimatedScale(
-              scale: 1.0,
+              scale: 1,
               duration: const Duration(milliseconds: 200),
               child: Container(
                 padding: const EdgeInsets.all(2),
@@ -1010,6 +954,105 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             ),
           ),
       ],
+    );
+  }
+
+  Future<void> _showLanguageSheet(BuildContext context) async {
+    final l10n = context.l10n;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final currentLanguage = ref.watch(currentAppLanguageProvider);
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: Text(
+                      l10n.t('home.language_sheet_title'),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  _LanguageTile(
+                    label: l10n.t('common.language_vietnamese'),
+                    selected: currentLanguage == AppLanguage.vietnamese,
+                    onTap: () async {
+                      await ref
+                          .read(localeNotifierProvider.notifier)
+                          .setLanguage(AppLanguage.vietnamese);
+                      if (!sheetContext.mounted) return;
+                      Navigator.of(sheetContext).pop();
+                    },
+                  ),
+                  _LanguageTile(
+                    label: l10n.t('common.language_english'),
+                    selected: currentLanguage == AppLanguage.english,
+                    onTap: () async {
+                      await ref
+                          .read(localeNotifierProvider.notifier)
+                          .setLanguage(AppLanguage.english);
+                      if (!sheetContext.mounted) return;
+                      Navigator.of(sheetContext).pop();
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ActiveDot extends StatelessWidget {
+  const _ActiveDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: const BoxDecoration(
+        color: AppColors.success,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+class _LanguageTile extends StatelessWidget {
+  const _LanguageTile({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        ),
+      ),
+      trailing: AnimatedOpacity(
+        opacity: selected ? 1 : 0,
+        duration: const Duration(milliseconds: 160),
+        child: const Icon(Icons.check_rounded, color: AppColors.primary),
+      ),
     );
   }
 }

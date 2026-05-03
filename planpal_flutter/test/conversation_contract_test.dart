@@ -6,6 +6,7 @@ import 'package:planpal_flutter/core/dtos/conversation.dart';
 import 'package:planpal_flutter/core/dtos/user_summary.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/presentation/widgets/chat/message_bubble.dart';
+import 'test_app.dart';
 
 void main() {
   final sender = UserSummary(
@@ -92,8 +93,8 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
+      buildLocalizedTestApp(
+        Scaffold(
           body: MessageBubble(
             message: message,
             isCurrentUser: false,
@@ -104,7 +105,7 @@ void main() {
 
     expect(find.text('proposal.pdf'), findsOneWidget);
     expect(find.text('4.0 KB'), findsOneWidget);
-    expect(find.text('Nhan de mo tep'), findsOneWidget);
+    expect(find.text('Tap to open file'), findsOneWidget);
   });
 
   testWidgets('MessageBubble renders location call-to-action clearly', (
@@ -127,8 +128,8 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
+      buildLocalizedTestApp(
+        Scaffold(
           body: MessageBubble(
             message: message,
             isCurrentUser: true,
@@ -139,6 +140,6 @@ void main() {
 
     expect(find.text('Da Nang'), findsOneWidget);
     expect(find.text('Da Nang, Viet Nam'), findsOneWidget);
-    expect(find.text('Nhan de mo ban do'), findsOneWidget);
+    expect(find.text('Tap to open map'), findsOneWidget);
   });
 }

@@ -184,7 +184,8 @@ PlanPalApp/
 ├── Dockerfile           # Container cho cả Redis + Backend + Worker
 └── fly.toml            # Fly.io config (1 máy duy nhất)
 ```
-
+python -m celery -A planpalapp worker -l info --pool=solo -Q high_priority,default,plan_status,low_priority
+python -m celery -A planpalapp beat -l info
 ---
 
 ## 👤 Author

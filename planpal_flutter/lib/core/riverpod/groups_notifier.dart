@@ -18,6 +18,16 @@ class GroupsNotifier extends AsyncNotifier<List<GroupSummary>> {
     state = await AsyncValue.guard(() => _repo.getGroups());
   }
 
+  Future<void> refreshSilently() async {
+    final previous = state.valueOrNull;
+    final result = await AsyncValue.guard(() => _repo.getGroups());
+    if (result.hasError && previous != null) {
+      state = AsyncData(previous);
+      return;
+    }
+    state = result;
+  }
+
   void addGroup(GroupSummary group) {
     final current = state.valueOrNull;
     if (current == null) return;
