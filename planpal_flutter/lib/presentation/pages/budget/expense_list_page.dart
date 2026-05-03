@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/presentation/pages/budget/add_expense_form.dart';
@@ -47,30 +48,34 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final expensesAsync = ref.watch(expensesProvider(_query));
     final budgetAsync = ref.watch(budgetProvider(widget.planId));
     final currency = budgetAsync.valueOrNull?.currency ?? 'VND';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plan Expenses'),
+        title: Text(l10n.t('budget.expenses_title')),
         actions: [
           PopupMenuButton<String>(
             onSelected: _applySort,
-            itemBuilder: (context) => const [
+            itemBuilder: (context) => [
               PopupMenuItem(
                 value: 'created_at:desc',
-                child: Text('Newest first'),
+                child: Text(l10n.t('common.newest_first')),
               ),
               PopupMenuItem(
                 value: 'created_at:asc',
-                child: Text('Oldest first'),
+                child: Text(l10n.t('common.oldest_first')),
               ),
               PopupMenuItem(
                 value: 'amount:desc',
-                child: Text('Highest amount'),
+                child: Text(l10n.t('common.highest_amount')),
               ),
-              PopupMenuItem(value: 'amount:asc', child: Text('Lowest amount')),
+              PopupMenuItem(
+                value: 'amount:asc',
+                child: Text(l10n.t('common.lowest_amount')),
+              ),
             ],
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
@@ -82,7 +87,7 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAddExpense,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add expense'),
+        label: Text(l10n.t('budget.add_expense')),
       ),
       body: Column(
         children: [
@@ -95,7 +100,7 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
                 error: (error, _) => AppError(
                   message: ErrorDisplayService.getUserFriendlyMessage(error),
                   onRetry: _refresh,
-                  retryLabel: 'Retry',
+                  retryLabel: l10n.t('common.retry'),
                 ),
                 data: (data) => _buildContent(context, data, currency),
               ),
@@ -115,7 +120,7 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
             child: TextField(
               controller: _categoryController,
               decoration: InputDecoration(
-                hintText: 'Filter by category',
+                hintText: context.l10n.t('budget.filter_by_category'),
                 prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: _categoryController.text.trim().isNotEmpty
                     ? IconButton(
@@ -134,7 +139,7 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
           const SizedBox(width: 12),
           FilledButton(
             onPressed: _applyCategoryFilter,
-            child: const Text('Apply'),
+            child: Text(context.l10n.t('common.apply')),
           ),
         ],
       ),
@@ -150,12 +155,12 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
       return ListView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 120),
+        children: [
+          const SizedBox(height: 120),
           AppEmpty(
             icon: Icons.receipt_long_rounded,
-            title: 'No expenses yet',
-            description: 'New plan expenses will appear here.',
+            title: context.l10n.t('budget.expenses_empty_title'),
+            description: context.l10n.t('budget.expenses_empty_description'),
           ),
         ],
       );

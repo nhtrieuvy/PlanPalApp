@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/repositories/location_repository.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -27,7 +27,6 @@ class LocationPickerPage extends ConsumerStatefulWidget {
 
 class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
   static const LatLng _defaultPosition = LatLng(10.762622, 106.660172);
-  static const String _defaultLocationName = 'Vị trí đã chọn';
 
   late final LocationRepository _locationRepository;
   final TextEditingController _searchController = TextEditingController();
@@ -74,12 +73,14 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     return _defaultPosition;
   }
 
+  String _defaultLocationName(BuildContext context) {
+    return context.l10n.t('location_picker.selected_name');
+  }
+
   Future<void> _initializeLocation() async {
     _setMarkerOnly();
     await _resolveSelectedAddress();
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     setState(() {
       _isInitializing = false;
     });
@@ -94,10 +95,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
   }
 
   Future<void> _resolveSelectedAddress() async {
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     setState(() {
       _isResolvingLocation = true;
     });
@@ -107,10 +105,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       _selectedPosition.longitude,
     );
 
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     setState(() {
       _selectedAddress =
           result?['formatted_address']?.toString() ??
@@ -118,7 +113,9 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       _locationName =
           result?['location_name']?.toString().trim().isNotEmpty == true
           ? result!['location_name'].toString()
-          : (_selectedAddress.isNotEmpty ? _selectedAddress : _defaultLocationName);
+          : (_selectedAddress.isNotEmpty
+                ? _selectedAddress
+                : _defaultLocationName(context));
       _isResolvingLocation = false;
     });
 
@@ -126,9 +123,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
   }
 
   void _setMarkerOnly() {
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -139,7 +134,9 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       draggable: true,
       onDragEnd: _handleMapSelection,
       infoWindow: InfoWindow(
-        title: _locationName.isNotEmpty ? _locationName : _defaultLocationName,
+        title: _locationName.isNotEmpty
+            ? _locationName
+            : _defaultLocationName(context),
         snippet: _selectedAddress,
       ),
     ),
@@ -148,7 +145,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
   Future<void> _handleMapSelection(LatLng position) async {
     setState(() {
       _selectedPosition = position;
-      _locationName = _defaultLocationName;
+      _locationName = _defaultLocationName(context);
       _selectedAddress = _formatCoordinates(position);
       _showSuggestions = false;
       _suggestions = const [];
@@ -159,9 +156,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
 
   Future<void> _animateTo(LatLng position, {double? zoom}) async {
     final controller = _mapController;
-    if (controller == null) {
-      return;
-    }
+    if (controller == null) return;
 
     await controller.animateCamera(
       zoom == null
@@ -211,7 +206,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     final description =
         suggestion['description']?.toString().trim().isNotEmpty == true
         ? suggestion['description'].toString()
-        : _defaultLocationName;
+        : _defaultLocationName(context);
 
     setState(() {
       _showSuggestions = false;
@@ -239,9 +234,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     });
 
     final details = await _locationRepository.getPlaceDetails(placeId);
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     final latitude = (details?['latitude'] as num?)?.toDouble();
     final longitude = (details?['longitude'] as num?)?.toDouble();
@@ -265,18 +258,17 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     _setMarkerOnly();
     await _animateTo(_selectedPosition, zoom: 16);
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     setState(() {
       _isResolvingLocation = false;
     });
   }
 
   Future<void> _goToCurrentLocation() async {
+    final l10n = context.l10n;
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      _showSnackBar('Dịch vụ vị trí đang tắt.');
+      _showSnackBar(l10n.t('location_picker.location_service_disabled'));
       return;
     }
 
@@ -287,7 +279,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
 
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
-      _showSnackBar('Ứng dụng chưa có quyền truy cập vị trí.');
+      _showSnackBar(l10n.t('location_picker.permission_denied'));
       return;
     }
 
@@ -297,17 +289,13 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       );
       await _handleMapSelection(LatLng(position.latitude, position.longitude));
     } catch (_) {
-      _showSnackBar('Không thể lấy vị trí hiện tại.');
+      _showSnackBar(l10n.t('location_picker.current_location_error'));
     }
   }
 
   void _showSnackBar(String message) {
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _confirmSelection() {
@@ -320,7 +308,9 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     Navigator.of(context).pop({
       'latitude': normalizedLatitude,
       'longitude': normalizedLongitude,
-      'location_name': _locationName.isNotEmpty ? _locationName : _defaultLocationName,
+      'location_name': _locationName.isNotEmpty
+          ? _locationName
+          : _defaultLocationName(context),
       'location_address': _selectedAddress.isNotEmpty
           ? _selectedAddress
           : _formatCoordinates(_selectedPosition),
@@ -341,15 +331,15 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Chọn vị trí'),
+          title: Text(context.l10n.t('location_picker.title')),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           actions: [
             TextButton(
               onPressed: _confirmSelection,
-              child: const Text(
-                'Xác nhận',
-                style: TextStyle(
+              child: Text(
+                context.l10n.t('location_picker.confirm'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
@@ -436,7 +426,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
               focusNode: _searchFocusNode,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
-                hintText: 'Tìm kiếm địa điểm...',
+                hintText: context.l10n.t('location_picker.search_hint'),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _isSearching
                     ? const Padding(
@@ -528,7 +518,9 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
   }
 
   Widget _buildBottomSheet(ThemeData theme) {
-    final displayTitle = _locationName.isNotEmpty ? _locationName : _defaultLocationName;
+    final displayTitle = _locationName.isNotEmpty
+        ? _locationName
+        : _defaultLocationName(context);
     final displayAddress = _selectedAddress.isNotEmpty
         ? _selectedAddress
         : _formatCoordinates(_selectedPosition);
@@ -590,7 +582,10 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Tọa độ: ${_formatCoordinates(_selectedPosition)}',
+              context.l10n.t(
+                'location_picker.coordinates',
+                params: {'value': _formatCoordinates(_selectedPosition)},
+              ),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -608,9 +603,12 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
-                  'Chọn vị trí này',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                child: Text(
+                  context.l10n.t('location_picker.select_this_location'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ),

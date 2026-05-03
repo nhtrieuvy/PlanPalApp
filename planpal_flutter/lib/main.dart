@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:planpal_flutter/core/localization/app_locale.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/presentation/pages/plans/plans_list_page.dart';
 import 'package:planpal_flutter/presentation/pages/analytics/analytics_dashboard_page.dart';
 import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart';
@@ -46,13 +49,30 @@ class PlanPalApp extends ConsumerStatefulWidget {
   ConsumerState<PlanPalApp> createState() => _PlanPalAppState();
 }
 
-class _PlanPalAppState extends ConsumerState<PlanPalApp> {
+class _PlanPalAppState extends ConsumerState<PlanPalApp>
+    with WidgetsBindingObserver {
   late final Future<void> _bootstrapFuture;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _bootstrapFuture = _bootstrap();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final authProvider = ref.read(authNotifierProvider);
+    if (authProvider.isLoggedIn) {
+      unawaited(authProvider.markOnline());
+    }
   }
 
   Future<void> _bootstrap() async {
@@ -67,6 +87,7 @@ class _PlanPalAppState extends ConsumerState<PlanPalApp> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeNotifierProvider);
+    final locale = ref.watch(localeNotifierProvider);
 
     return FutureBuilder<void>(
       future: _bootstrapFuture,
@@ -76,11 +97,19 @@ class _PlanPalAppState extends ConsumerState<PlanPalApp> {
             snapshot.connectionState != ConnectionState.done;
 
         return MaterialApp(
-          title: 'PlanPal',
+          onGenerateTitle: (context) => context.l10n.t('common.app_name'),
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
+          locale: locale,
+          supportedLocales: AppLocaleStore.supportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           home: isBootstrapping
               ? const _StartupPage()
               : (authProvider.isLoggedIn
@@ -108,15 +137,16 @@ class _StartupPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.surface,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'PlanPal',
+              l10n.t('common.app_name'),
               style: TextStyle(
                 color: colorScheme.primary,
                 fontSize: 28,
@@ -126,9 +156,9 @@ class _StartupPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Dang khoi tao phien lam viec...',
+              l10n.t('common.loading_session'),
               style: TextStyle(
-                color: Colors.black.withValues(alpha: 0.72),
+                color: colorScheme.onSurface.withValues(alpha: 0.72),
                 fontSize: 14,
               ),
             ),

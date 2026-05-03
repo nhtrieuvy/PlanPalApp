@@ -17,7 +17,7 @@ from planpals.plans.infrastructure.models import Plan, PlanActivity
 from planpals.plans.presentation.serializers import (
     PlanDetailSerializer, PlanCreateSerializer, PlanSummarySerializer,
     PlanActivitySerializer, PlanActivitySummarySerializer,
-    PlanActivityCreateSerializer
+    PlanActivityCreateSerializer, PlanActivityUpdateSerializer,
 )
 from planpals.plans.presentation.permissions import (
     PlanPermission, PlanActivityPermission,
@@ -26,6 +26,7 @@ from planpals.plans.presentation.permissions import (
 from planpals.plans.application.services import PlanService
 from planpals.auth.presentation.serializers import UserSerializer
 from planpals.shared.paginators import StandardResultsPagination, ActivityCursorPagination
+from planpals.shared.domain_exceptions import ActivityNotFoundException
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -56,7 +57,8 @@ class PlanViewSet(viewsets.ModelViewSet):
         # Only prefetch activities + group members for detail views.
         # List endpoints use PlanSummarySerializer which never touches activities.
         if self.action in ('retrieve', 'activities_by_date', 'schedule',
-                           'summary', 'collaborators', 'update', 'partial_update'):
+                           'summary', 'collaborators', 'update',
+                           'partial_update', 'cancel'):
             base_qs = base_qs.prefetch_related(
                 'group__members',
                 'activities',
@@ -194,6 +196,27 @@ class PlanViewSet(viewsets.ModelViewSet):
         
         schedule_data = PlanService.get_plan_schedule(plan, request.user)
         return Response(schedule_data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanModifyPlan])
+    def cancel(self, request, pk=None):
+        """Cancel an upcoming plan without deleting historical data."""
+        plan = self.get_object()
+        reason = request.data.get('reason') if hasattr(request.data, 'get') else None
+
+        try:
+            cancelled_plan = PlanService.cancel_trip(
+                plan,
+                user=request.user,
+                reason=reason,
+            )
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = PlanDetailSerializer(
+            cancelled_plan,
+            context={'request': request},
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanModifyPlan])
     def create_activity(self, request, pk=None):
@@ -213,30 +236,43 @@ class PlanViewSet(viewsets.ModelViewSet):
             permission_classes=[IsAuthenticated, CanModifyPlan])
     def update_activity(self, request, pk=None, activity_id=None):
         plan = self.get_object()
-        
-        success, message, activity = PlanService.update_activity(plan, activity_id, request.user, request.data)
-        
-        if not success:
-            status_code = status.HTTP_403_FORBIDDEN if "permission" in message else status.HTTP_404_NOT_FOUND
-            return Response({'error': message}, status=status_code)
-        
+
+        try:
+            activity = plan.activities.get(id=activity_id)
+        except PlanActivity.DoesNotExist as exc:
+            raise ActivityNotFoundException() from exc
+
+        serializer = PlanActivityUpdateSerializer(
+            data=request.data,
+            context={'request': request, 'activity': activity},
+            partial=request.method.lower() == 'patch',
+        )
+        serializer.is_valid(raise_exception=True)
+
+        updated_activity = PlanService.update_activity(
+            plan,
+            activity_id,
+            request.user,
+            serializer.validated_data,
+        )
         return Response({
-            'message': message,
-            'activity': PlanActivitySerializer(activity).data
+            'message': 'Activity updated successfully',
+            'activity': PlanActivitySerializer(
+                updated_activity,
+                context={'request': request},
+            ).data,
+            'meta': {
+                'version': updated_activity.version,
+                'updated_at': updated_activity.updated_at.isoformat(),
+            },
         })
     
     @action(detail=True, methods=['delete'], url_path='activities/(?P<activity_id>[^/.]+)',
             permission_classes=[IsAuthenticated, CanModifyPlan])
     def remove_activity(self, request, pk=None, activity_id=None):
         plan = self.get_object()
-        
-        success, message = PlanService.remove_activity(plan, activity_id, request.user)
-        
-        if not success:
-            status_code = status.HTTP_403_FORBIDDEN if "permission" in message else status.HTTP_404_NOT_FOUND
-            return Response({'error': message}, status=status_code)
-        
-        return Response({'message': message})
+        PlanService.remove_activity(plan, activity_id, request.user)
+        return Response({'message': 'Activity removed from plan'})
     
     @action(detail=True, methods=['post'], url_path='activities/(?P<activity_id>[^/.]+)/complete',
             permission_classes=[IsAuthenticated, CanModifyPlan])
@@ -305,6 +341,8 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
     def get_serializer_class(self):
         if self.action == 'create':
             return PlanActivityCreateSerializer
+        if self.action in {'update', 'partial_update'}:
+            return PlanActivityUpdateSerializer
         return PlanActivitySerializer
     
     def get_queryset(self):
@@ -314,7 +352,19 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
         ).select_related('plan', 'plan__group', 'plan__creator').distinct()
     
     def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        plan = serializer.validated_data['plan']
+        activity = PlanService.add_activity_to_plan(
+            plan,
+            request.user,
+            serializer.validated_data,
+        )
+        response_serializer = PlanActivitySerializer(
+            activity,
+            context={'request': request},
+        )
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
     
     def retrieve(self, request, *args, **kwargs):
         """
@@ -322,6 +372,64 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
         This is called when user opens activity detail dialog
         """
         return super().retrieve(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        activity = self.get_object()
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'request': request, 'activity': activity},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated_activity = PlanService.update_activity(
+            activity.plan,
+            str(activity.id),
+            request.user,
+            serializer.validated_data,
+        )
+        response_serializer = PlanActivitySerializer(
+            updated_activity,
+            context={'request': request},
+        )
+        return Response({
+            'message': 'Activity updated successfully',
+            'activity': response_serializer.data,
+            'meta': {
+                'version': updated_activity.version,
+                'updated_at': updated_activity.updated_at.isoformat(),
+            },
+        })
+
+    def partial_update(self, request, *args, **kwargs):
+        activity = self.get_object()
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'request': request, 'activity': activity},
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        updated_activity = PlanService.update_activity(
+            activity.plan,
+            str(activity.id),
+            request.user,
+            serializer.validated_data,
+        )
+        response_serializer = PlanActivitySerializer(
+            updated_activity,
+            context={'request': request},
+        )
+        return Response({
+            'message': 'Activity updated successfully',
+            'activity': response_serializer.data,
+            'meta': {
+                'version': updated_activity.version,
+                'updated_at': updated_activity.updated_at.isoformat(),
+            },
+        })
+
+    def destroy(self, request, *args, **kwargs):
+        activity = self.get_object()
+        PlanService.remove_activity(activity.plan, str(activity.id), request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
     
     #API lấy hoạt động theo kế hoạch - OPTIMIZED

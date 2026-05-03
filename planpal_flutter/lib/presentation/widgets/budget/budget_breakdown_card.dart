@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class BudgetBreakdownCard extends StatelessWidget {
@@ -26,7 +27,7 @@ class BudgetBreakdownCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Per-user Breakdown',
+            context.l10n.t('budget.breakdown_title'),
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -34,7 +35,7 @@ class BudgetBreakdownCard extends StatelessWidget {
           const SizedBox(height: 16),
           if (items.isEmpty)
             Text(
-              'No expense data yet.',
+              context.l10n.t('budget.breakdown_empty'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -75,7 +76,11 @@ class BudgetBreakdownCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      _formatCurrency(item.amount, currency),
+                      AppFormatters.currency(
+                        context,
+                        amount: item.amount,
+                        currencyCode: currency,
+                      ),
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -87,16 +92,6 @@ class BudgetBreakdownCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _formatCurrency(double amount, String currency) {
-    final symbol = currency.toUpperCase() == 'VND'
-        ? '₫'
-        : currency.toUpperCase();
-    return NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: symbol,
-    ).format(amount);
   }
 
   static String _initials(String fullName, String username) {

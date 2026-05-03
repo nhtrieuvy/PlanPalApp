@@ -38,6 +38,10 @@ class AuditLogModel extends Equatable {
     AuditActionOption(value: 'UPDATE_PLAN', label: 'Update Plan'),
     AuditActionOption(value: 'DELETE_PLAN', label: 'Delete Plan'),
     AuditActionOption(value: 'COMPLETE_PLAN', label: 'Complete Plan'),
+    AuditActionOption(value: 'CREATE_ACTIVITY', label: 'Create Activity'),
+    AuditActionOption(value: 'UPDATE_ACTIVITY', label: 'Update Activity'),
+    AuditActionOption(value: 'UPDATE_BUDGET', label: 'Update Budget'),
+    AuditActionOption(value: 'CREATE_EXPENSE', label: 'Create Expense'),
     AuditActionOption(value: 'JOIN_GROUP', label: 'Join Group'),
     AuditActionOption(value: 'LEAVE_GROUP', label: 'Leave Group'),
     AuditActionOption(value: 'CHANGE_ROLE', label: 'Change Role'),
@@ -100,6 +104,19 @@ class AuditLogModel extends Equatable {
         return title.isNotEmpty ? 'Deleted "$title"' : 'Deleted a plan';
       case 'COMPLETE_PLAN':
         return title.isNotEmpty ? 'Completed "$title"' : 'Completed a plan';
+      case 'CREATE_ACTIVITY':
+        return title.isNotEmpty
+            ? 'Created activity "$title"'
+            : 'Created an activity';
+      case 'UPDATE_ACTIVITY':
+        if (updatedFields is List && updatedFields.isNotEmpty) {
+          return title.isNotEmpty
+              ? 'Updated activity "$title": ${updatedFields.join(', ')}'
+              : 'Updated activity fields: ${updatedFields.join(', ')}';
+        }
+        return title.isNotEmpty
+            ? 'Updated activity "$title"'
+            : 'Updated an activity';
       case 'JOIN_GROUP':
         return groupName.isNotEmpty ? 'Joined "$groupName"' : 'Joined a group';
       case 'LEAVE_GROUP':

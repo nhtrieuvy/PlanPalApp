@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/notification_model.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/notifications_provider.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -45,6 +46,7 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final notificationsAsync = ref.watch(notificationsProvider);
     final unreadCountAsync = ref.watch(unreadCountProvider);
     final feedState = notificationsAsync.valueOrNull;
@@ -55,7 +57,7 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
       appBar: AppBar(
         title: Row(
           children: [
-            const Text('Notifications'),
+            Text(l10n.t('notifications.title')),
             if (unreadCount > 0) ...[
               const SizedBox(width: 8),
               Container(
@@ -79,7 +81,7 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
         actions: [
           if (unreadCount > 0)
             IconButton(
-              tooltip: 'Mark all as read',
+              tooltip: l10n.t('notifications.mark_all_as_read'),
               onPressed: _markAllAsRead,
               icon: const Icon(Icons.done_all_rounded),
             ),
@@ -98,7 +100,7 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
                   onRetry: () {
                     onRefresh();
                   },
-                  retryLabel: 'Retry',
+                  retryLabel: l10n.t('common.retry'),
                 ),
                 data: (data) => _buildContent(context, data),
               ),
@@ -115,11 +117,17 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
         children: [
-          _buildFilterChip(label: 'All', value: null),
+          _buildFilterChip(label: context.l10n.t('common.all'), value: null),
           const SizedBox(width: 8),
-          _buildFilterChip(label: 'Unread', value: false),
+          _buildFilterChip(
+            label: context.l10n.t('common.unread'),
+            value: false,
+          ),
           const SizedBox(width: 8),
-          _buildFilterChip(label: 'Read', value: true),
+          _buildFilterChip(
+            label: context.l10n.t('common.read'),
+            value: true,
+          ),
         ],
       ),
     );
@@ -139,12 +147,12 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
       return ListView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
+        children: [
           SizedBox(height: 120),
           AppEmpty(
             icon: Icons.notifications_none_rounded,
-            title: 'No notifications yet',
-            description: 'New plan, group, and chat updates will appear here.',
+            title: context.l10n.t('notifications.empty_title'),
+            description: context.l10n.t('notifications.empty_description'),
           ),
         ],
       );

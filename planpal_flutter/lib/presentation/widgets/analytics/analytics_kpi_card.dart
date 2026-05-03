@@ -6,23 +6,24 @@ class AnalyticsKpiCard extends StatelessWidget {
   final AnalyticsKpi metric;
   final Color accentColor;
   final bool percentage;
+  final String? label;
 
   const AnalyticsKpiCard({
     super.key,
     required this.metric,
     required this.accentColor,
     this.percentage = false,
+    this.label,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final surfaceColor = theme.colorScheme.surface;
 
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: surfaceColor,
+        color: theme.colorScheme.surface,
         border: Border.all(color: accentColor.withValues(alpha: 0.14)),
         boxShadow: [
           BoxShadow(
@@ -37,7 +38,7 @@ class AnalyticsKpiCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            metric.label,
+            label ?? metric.label,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -64,7 +65,9 @@ class AnalyticsKpiCard extends StatelessWidget {
             child: Text(
               metric.changeLabel,
               style: theme.textTheme.labelMedium?.copyWith(
-                color: metric.isPositiveChange ? Colors.green.shade700 : Colors.red.shade700,
+                color: metric.isPositiveChange
+                    ? Colors.green.shade700
+                    : Colors.red.shade700,
                 fontWeight: FontWeight.w700,
               ),
             ),

@@ -15,6 +15,7 @@ from planpals.groups.application.commands import (
     DeleteGroupCommand,
     PromoteMemberCommand,
     DemoteMemberCommand,
+    SetMemberRoleCommand,
 )
 from planpals.groups.application import factories as group_factories
 
@@ -143,6 +144,10 @@ class GroupService(BaseService):
     @classmethod
     def can_edit_group(cls, group, user) -> bool:
         return group.is_admin(user)
+
+    @classmethod
+    def can_create_group_plan(cls, group, user) -> bool:
+        return group.can_create_plans(user)
     
     
     @classmethod
@@ -174,11 +179,16 @@ class GroupService(BaseService):
     @classmethod
     def change_member_role(cls, group, target_user, role: str, actor) -> Tuple[bool, str]:
         normalized_role = (role or '').strip().lower()
-        if normalized_role == 'admin':
-            return cls.promote_member(group, target_user, actor)
-        if normalized_role == 'member':
-            return cls.demote_member(group, target_user, actor)
-        raise ValueError("role must be either 'admin' or 'member'")
+        cmd = SetMemberRoleCommand(
+            group_id=group.id,
+            user_id=actor.id,
+            target_user_id=target_user.id,
+            role=normalized_role,
+        )
+        handler = group_factories.get_set_member_role_handler()
+        handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return True, f"Member role changed to {normalized_role}"
     
     @classmethod
     def search_user_groups(cls, user, query: str):        
@@ -194,7 +204,7 @@ class GroupService(BaseService):
             'group_id': str(group.id),
             'group_name': group.name,
             'count': len(plans),
-            'can_create_plan': group.is_admin(user)
+            'can_create_plan': cls.can_create_group_plan(group, user)
         }
 
     # ------------------------------------------------------------------

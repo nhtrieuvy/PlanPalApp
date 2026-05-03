@@ -112,7 +112,12 @@ class RealtimeEventPublisher:
 
             # Serialize event to plain dict — Celery tasks only accept
             # JSON-serialisable primitives.
-            send_event_push_notification_task.delay(event.to_dict())
+            send_event_push_notification_task.apply_async(
+                args=[event.to_dict()],
+                queue='high_priority',
+                retry=False,
+                ignore_result=True,
+            )
             return True
 
         except Exception as e:
@@ -232,9 +237,18 @@ def publish_plan_deleted(plan_id: str, title: str):
 
 
 # Activity Event Helpers
-def publish_activity_created(plan_id: str, activity_id: str, title: str, activity_type: str,
-                           start_time: str = None, end_time: str = None, 
-                           location_name: str = None, estimated_cost: float = None):
+def publish_activity_created(
+    plan_id: str,
+    activity_id: str,
+    title: str,
+    activity_type: str,
+    version: int = 1,
+    start_time: str = None,
+    end_time: str = None,
+    location_name: str = None,
+    estimated_cost: float = None,
+    activity: dict | None = None,
+):
     """Publish activity created event"""
     event = RealtimeEvent(
         event_type=EventType.ACTIVITY_CREATED,
@@ -244,18 +258,30 @@ def publish_activity_created(plan_id: str, activity_id: str, title: str, activit
             'plan_id': plan_id,
             'title': title,
             'activity_type': activity_type,
+            'version': version,
             'start_time': start_time,
             'end_time': end_time,
             'location_name': location_name,
-            'estimated_cost': estimated_cost
+            'estimated_cost': estimated_cost,
+            'activity': activity,
         }
     )
     
     return event_publisher.publish_event(event, send_push=False)
 
 
-def publish_activity_updated(plan_id: str, activity_id: str, title: str, 
-                           is_completed: bool, last_updated: str):
+def publish_activity_updated(
+    plan_id: str,
+    activity_id: str,
+    title: str,
+    is_completed: bool,
+    last_updated: str,
+    version: int,
+    updated_fields: list[str] | None = None,
+    updated_by: str | None = None,
+    updated_by_name: str | None = None,
+    activity: dict | None = None,
+):
     """Publish activity updated event"""
     event = RealtimeEvent(
         event_type=EventType.ACTIVITY_UPDATED,
@@ -265,15 +291,27 @@ def publish_activity_updated(plan_id: str, activity_id: str, title: str,
             'plan_id': plan_id,
             'title': title,
             'is_completed': is_completed,
-            'last_updated': last_updated
+            'last_updated': last_updated,
+            'version': version,
+            'updated_fields': updated_fields or [],
+            'updated_by': updated_by,
+            'updated_by_name': updated_by_name,
+            'activity': activity,
         }
     )
     
     return event_publisher.publish_event(event, send_push=False)
 
 
-def publish_activity_completed(plan_id: str, activity_id: str, title: str, 
-                              completed_by: str = None):
+def publish_activity_completed(
+    plan_id: str,
+    activity_id: str,
+    title: str,
+    completed_by: str = None,
+    version: int | None = None,
+    completed_by_name: str | None = None,
+    activity: dict | None = None,
+):
     """Publish activity completion event"""
     event = RealtimeEvent(
         event_type=EventType.ACTIVITY_COMPLETED,
@@ -282,7 +320,10 @@ def publish_activity_completed(plan_id: str, activity_id: str, title: str,
             'activity_id': activity_id,
             'title': title,
             'completed_by': completed_by,
-            'initiator_id': completed_by
+            'completed_by_name': completed_by_name,
+            'initiator_id': completed_by,
+            'version': version,
+            'activity': activity,
         }
     )
     
@@ -402,6 +443,25 @@ def publish_message_updated(conversation_id: str, message_id: str, sender_id: st
 
 
 # User Event Helpers
+def _presence_channel_groups(user_id: str) -> List[str]:
+    channel_groups = {ChannelGroups.user(str(user_id))}
+
+    try:
+        from planpals.auth.infrastructure.models import Friendship
+
+        friendships = Friendship.objects.for_user(user_id).accepted().values_list(
+            'user_a_id',
+            'user_b_id',
+        )
+        for user_a_id, user_b_id in friendships:
+            other_id = user_b_id if str(user_a_id) == str(user_id) else user_a_id
+            channel_groups.add(ChannelGroups.user(str(other_id)))
+    except Exception as e:
+        logger.warning("Failed to resolve presence subscribers for %s: %s", user_id, e)
+
+    return list(channel_groups)
+
+
 def publish_user_online(user_id: str, username: str, last_seen: str = None):
     """Publish user online event"""
     event = RealtimeEvent(
@@ -415,7 +475,11 @@ def publish_user_online(user_id: str, username: str, last_seen: str = None):
         }
     )
     
-    return event_publisher.publish_event(event, send_push=False)
+    return event_publisher.publish_event(
+        event,
+        channel_groups=_presence_channel_groups(user_id),
+        send_push=False,
+    )
 
 
 def publish_user_offline(user_id: str, username: str, last_seen: str = None):
@@ -431,7 +495,11 @@ def publish_user_offline(user_id: str, username: str, last_seen: str = None):
         }
     )
     
-    return event_publisher.publish_event(event, send_push=False)
+    return event_publisher.publish_event(
+        event,
+        channel_groups=_presence_channel_groups(user_id),
+        send_push=False,
+    )
 
 
 def publish_friend_request(user_id: str, from_user_id: str, from_name: str):

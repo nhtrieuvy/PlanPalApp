@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class ExpenseItem extends StatelessWidget {
@@ -49,7 +49,11 @@ class ExpenseItem extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      _formatCurrency(expense.amount, currency),
+                      AppFormatters.currency(
+                        context,
+                        amount: expense.amount,
+                        currencyCode: currency,
+                      ),
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                         color: AppColors.warning,
@@ -77,7 +81,7 @@ class ExpenseItem extends StatelessWidget {
                 ],
                 const SizedBox(height: 8),
                 Text(
-                  DateFormat('dd/MM/yyyy HH:mm').format(expense.createdAt),
+                  AppFormatters.fullDateTime(context, expense.createdAt),
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -88,15 +92,5 @@ class ExpenseItem extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _formatCurrency(double amount, String currency) {
-    final symbol = currency.toUpperCase() == 'VND'
-        ? '₫'
-        : currency.toUpperCase();
-    return NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: symbol,
-    ).format(amount);
   }
 }

@@ -121,6 +121,7 @@ class DjangoAuditLogRepository(AuditLogRepository):
             | Q(resource_type=AuditResourceType.PLAN.value, resource_id__in=plan_ids)
             | Q(
                 resource_type__in=[
+                    AuditResourceType.ACTIVITY.value,
                     AuditResourceType.BUDGET.value,
                     AuditResourceType.EXPENSE.value,
                 ],
@@ -139,6 +140,7 @@ class DjangoAuditLogRepository(AuditLogRepository):
                     Q(resource_type=AuditResourceType.PLAN.value)
                     | Q(
                         resource_type__in=[
+                            AuditResourceType.ACTIVITY.value,
                             AuditResourceType.BUDGET.value,
                             AuditResourceType.EXPENSE.value,
                         ],
@@ -206,6 +208,7 @@ class DjangoAuditLogRepository(AuditLogRepository):
                 Q(resource_type=AuditResourceType.PLAN.value, resource_id=resource_id)
                 | Q(
                     resource_type__in=[
+                        AuditResourceType.ACTIVITY.value,
                         AuditResourceType.BUDGET.value,
                         AuditResourceType.EXPENSE.value,
                     ],

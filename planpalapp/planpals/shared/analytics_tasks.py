@@ -183,7 +183,7 @@ def cleanup_invalid_fcm_tokens_task(self) -> Dict[str, Any]:
         stale_count = stale_qs.count()
 
         if stale_count > 0:
-            stale_qs.update(fcm_token=None)
+            stale_qs.update(fcm_token='')
             logger.info(f"Cleared {stale_count} stale FCM tokens")
         else:
             logger.info("No stale FCM tokens found")

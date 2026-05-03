@@ -20,6 +20,39 @@ from cloudinary import CloudinaryImage, CloudinaryResource
 from planpals.shared.base_models import BaseModel
 
 
+_CLOUDINARY_DELIVERY_PREFIXES = (
+    'image/upload/',
+    'video/upload/',
+    'raw/upload/',
+    'auto/upload/',
+)
+
+
+def _normalize_cloudinary_public_id(identifier: str) -> str:
+    """Normalize persisted Cloudinary identifiers to a plain public_id."""
+    normalized = (identifier or '').strip().lstrip('/')
+    if not normalized:
+        return normalized
+
+    while True:
+        matched_prefix = None
+        for prefix in _CLOUDINARY_DELIVERY_PREFIXES:
+            if normalized.startswith(prefix):
+                matched_prefix = prefix
+                break
+
+        if matched_prefix is None:
+            return normalized
+
+        normalized = normalized[len(matched_prefix):]
+
+        # Cloudinary delivery URLs may include a version segment like v12345.
+        if normalized.startswith('v'):
+            version_segment, separator, remainder = normalized.partition('/')
+            if separator and version_segment[1:].isdigit():
+                normalized = remainder
+
+
 class ConversationQuerySet(models.QuerySet['Conversation']):    
     def active(self) -> 'ConversationQuerySet':
         return self.filter(is_active=True)
@@ -479,23 +512,32 @@ class ChatMessage(BaseModel):
     def attachment_url(self):
         if not self.has_attachment:
             return None
-        attachment_identifier = str(self.attachment)
+        attachment_identifier = str(self.attachment).strip()
         if attachment_identifier.startswith(('http://', 'https://')):
             return attachment_identifier
+
+        if not attachment_identifier:
+            return None
+
+        normalized_identifier = _normalize_cloudinary_public_id(attachment_identifier)
+
         resource_type = self.attachment_resource_type or (
             'image' if self.message_type == 'image' else 'raw'
         )
-        if attachment_identifier and resource_type == 'image':
-            cloudinary_image = CloudinaryImage(attachment_identifier)
+
+        if resource_type == 'external':
+            return attachment_identifier
+
+        if resource_type == 'image':
+            cloudinary_image = CloudinaryImage(normalized_identifier)
             return cloudinary_image.build_url(secure=True)
-        if attachment_identifier:
-            cloudinary_resource = CloudinaryResource(
-                attachment_identifier,
-                resource_type=resource_type,
-                type='upload',
-            )
-            return cloudinary_resource.build_url(secure=True)
-        return None
+
+        cloudinary_resource = CloudinaryResource(
+            normalized_identifier,
+            resource_type=resource_type,
+            type='upload',
+        )
+        return cloudinary_resource.build_url(secure=True)
 
     @property
     def attachment_size_display(self):

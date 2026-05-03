@@ -86,9 +86,18 @@ def publish_plan_deleted(plan_id: str, title: str):
 
 # ── Activity Event Helpers ──────────────────────────────────────────
 
-def publish_activity_created(plan_id: str, activity_id: str, title: str, activity_type: str,
-                           start_time: str = None, end_time: str = None,
-                           location_name: str = None, estimated_cost: float = None):
+def publish_activity_created(
+    plan_id: str,
+    activity_id: str,
+    title: str,
+    activity_type: str,
+    version: int = 1,
+    start_time: str = None,
+    end_time: str = None,
+    location_name: str = None,
+    estimated_cost: float = None,
+    activity: dict | None = None,
+):
     """Publish activity created event"""
     event = RealtimeEvent(
         event_type=EventType.ACTIVITY_CREATED,
@@ -98,18 +107,30 @@ def publish_activity_created(plan_id: str, activity_id: str, title: str, activit
             'plan_id': plan_id,
             'title': title,
             'activity_type': activity_type,
+            'version': version,
             'start_time': start_time,
             'end_time': end_time,
             'location_name': location_name,
-            'estimated_cost': estimated_cost
+            'estimated_cost': estimated_cost,
+            'activity': activity,
         }
     )
     
     return event_publisher.publish_event(event)
 
 
-def publish_activity_updated(plan_id: str, activity_id: str, title: str,
-                           is_completed: bool, last_updated: str):
+def publish_activity_updated(
+    plan_id: str,
+    activity_id: str,
+    title: str,
+    is_completed: bool,
+    last_updated: str,
+    version: int,
+    updated_fields: list[str] | None = None,
+    updated_by: str | None = None,
+    updated_by_name: str | None = None,
+    activity: dict | None = None,
+):
     """Publish activity updated event"""
     event = RealtimeEvent(
         event_type=EventType.ACTIVITY_UPDATED,
@@ -119,15 +140,27 @@ def publish_activity_updated(plan_id: str, activity_id: str, title: str,
             'plan_id': plan_id,
             'title': title,
             'is_completed': is_completed,
-            'last_updated': last_updated
+            'last_updated': last_updated,
+            'version': version,
+            'updated_fields': updated_fields or [],
+            'updated_by': updated_by,
+            'updated_by_name': updated_by_name,
+            'activity': activity,
         }
     )
     
     return event_publisher.publish_event(event)
 
 
-def publish_activity_completed(plan_id: str, activity_id: str, title: str,
-                              completed_by: str = None):
+def publish_activity_completed(
+    plan_id: str,
+    activity_id: str,
+    title: str,
+    completed_by: str = None,
+    version: int | None = None,
+    completed_by_name: str | None = None,
+    activity: dict | None = None,
+):
     """Publish activity completion event"""
     event = RealtimeEvent(
         event_type=EventType.ACTIVITY_COMPLETED,
@@ -136,7 +169,10 @@ def publish_activity_completed(plan_id: str, activity_id: str, title: str,
             'activity_id': activity_id,
             'title': title,
             'completed_by': completed_by,
-            'initiator_id': completed_by
+            'completed_by_name': completed_by_name,
+            'initiator_id': completed_by,
+            'version': version,
+            'activity': activity,
         }
     )
     

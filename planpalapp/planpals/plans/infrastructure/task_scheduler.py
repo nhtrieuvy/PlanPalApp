@@ -38,13 +38,21 @@ class PlanTaskScheduler:
 
                     if plan.start_date:
                         start_task = start_plan_task.apply_async(
-                            args=[str(plan.id)], eta=plan.start_date,
+                            args=[str(plan.id)],
+                            eta=plan.start_date,
+                            queue='plan_status',
+                            retry=False,
+                            ignore_result=True,
                         )
                         scheduled_start_id = start_task.id
 
                     if plan.end_date:
                         end_task = complete_plan_task.apply_async(
-                            args=[str(plan.id)], eta=plan.end_date,
+                            args=[str(plan.id)],
+                            eta=plan.end_date,
+                            queue='plan_status',
+                            retry=False,
+                            ignore_result=True,
                         )
                         scheduled_end_id = end_task.id
 
@@ -102,7 +110,11 @@ class PlanTaskScheduler:
                             pass
 
                     end_task = complete_plan_task.apply_async(
-                        args=[str(plan.id)], eta=plan.end_date,
+                        args=[str(plan.id)],
+                        eta=plan.end_date,
+                        queue='plan_status',
+                        retry=False,
+                        ignore_result=True,
                     )
                     self._plan_repo.update_fields(
                         plan.id, scheduled_end_task_id=end_task.id,

@@ -31,6 +31,7 @@ class GroupModel extends Equatable {
   final String userRole;
   final bool canEdit;
   final bool canDelete;
+  final bool canCreatePlan;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String initials;
@@ -55,6 +56,7 @@ class GroupModel extends Equatable {
     required this.userRole,
     required this.canEdit,
     required this.canDelete,
+    required this.canCreatePlan,
     required this.createdAt,
     required this.updatedAt,
     required this.initials,
@@ -99,6 +101,7 @@ class GroupModel extends Equatable {
       userRole: json['user_role']?.toString() ?? 'member',
       canEdit: json['can_edit'] == true,
       canDelete: json['can_delete'] == true,
+      canCreatePlan: json['can_create_plan'] == true,
       createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
       updatedAt: parseServerDateTime(json['updated_at']) ?? DateTime.now(),
       initials: json['initials']?.toString() ?? 'G',
@@ -126,6 +129,7 @@ class GroupModel extends Equatable {
       'user_role': userRole,
       'can_edit': canEdit,
       'can_delete': canDelete,
+      'can_create_plan': canCreatePlan,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'initials': initials,
@@ -152,6 +156,7 @@ class GroupModel extends Equatable {
     String? userRole,
     bool? canEdit,
     bool? canDelete,
+    bool? canCreatePlan,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? initials,
@@ -176,6 +181,7 @@ class GroupModel extends Equatable {
       userRole: userRole ?? this.userRole,
       canEdit: canEdit ?? this.canEdit,
       canDelete: canDelete ?? this.canDelete,
+      canCreatePlan: canCreatePlan ?? this.canCreatePlan,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       initials: initials ?? this.initials,
@@ -187,6 +193,7 @@ class GroupModel extends Equatable {
   String get coverImageForDisplay =>
       coverImageUrl.isNotEmpty ? coverImageUrl : '';
   bool get isAdmin => userRole == 'admin';
+  bool get isPlanCreator => userRole == 'plan_creator';
   String get memberCountText =>
       '$memberCount ${memberCount == 1 ? 'member' : 'members'}';
   String get plansCountText =>
@@ -216,6 +223,7 @@ class GroupModel extends Equatable {
     userRole,
     canEdit,
     canDelete,
+    canCreatePlan,
     createdAt,
     updatedAt,
     initials,

@@ -301,6 +301,7 @@ class SetOnlineStatusHandler(BaseCommandHandler[SetOnlineStatusCommand, bool]):
 
         success = self.user_repo.set_online_status(command.user_id, command.is_online)
         if success:
+            user = self.user_repo.get_by_id(command.user_id) or user
             username = getattr(user, 'username', str(command.user_id))
             last_seen = getattr(user, 'last_seen', None)
             last_seen_str = last_seen.isoformat() if last_seen else None

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
@@ -91,7 +92,9 @@ class ChatWebSocketService {
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   static const int maxReconnectAttempts = 5;
-  static const Duration reconnectDelay = Duration(seconds: 2);
+  static const Duration baseReconnectDelay = Duration(seconds: 2);
+  static const Duration maxReconnectDelay = Duration(seconds: 30);
+  final Random _reconnectJitter = Random();
 
   // Typing indicator
   Timer? _typingTimer;
@@ -253,10 +256,18 @@ class ChatWebSocketService {
     _setConnectionState(ConnectionState.reconnecting);
 
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(reconnectDelay, () {
+    final delay = _nextReconnectDelay();
+    _reconnectTimer = Timer(delay, () {
       debugPrint('Attempting to reconnect... (attempt $_reconnectAttempts)');
       _connect();
     });
+  }
+
+  Duration _nextReconnectDelay() {
+    final exponent = (_reconnectAttempts - 1).clamp(0, 4).toInt();
+    final baseMs = baseReconnectDelay.inMilliseconds * (1 << exponent);
+    final cappedMs = min(baseMs, maxReconnectDelay.inMilliseconds);
+    return Duration(milliseconds: cappedMs + _reconnectJitter.nextInt(500));
   }
 
   /// Dispose resources

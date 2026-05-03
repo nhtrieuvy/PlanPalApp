@@ -2,8 +2,9 @@ import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class BudgetTrendChart extends StatelessWidget {
@@ -22,7 +23,7 @@ class BudgetTrendChart extends StatelessWidget {
           color: theme.colorScheme.surface,
         ),
         child: Text(
-          'No spending trend data yet.',
+          context.l10n.t('budget.chart_empty'),
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -51,7 +52,7 @@ class BudgetTrendChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Spending Trend',
+            context.l10n.t('budget.chart_title'),
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -108,7 +109,10 @@ class BudgetTrendChart extends StatelessWidget {
                         return Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(
-                            DateFormat('MM/dd').format(points[index].date),
+                            AppFormatters.shortMonthDay(
+                              context,
+                              points[index].date,
+                            ),
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),

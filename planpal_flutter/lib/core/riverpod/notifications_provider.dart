@@ -270,6 +270,8 @@ class NotificationsNotifier
           ),
         );
         break;
+      case NotificationSocketEventType.userOnline:
+      case NotificationSocketEventType.userOffline:
       case NotificationSocketEventType.unknown:
         break;
     }
@@ -351,6 +353,8 @@ class UnreadCountNotifier extends AutoDisposeAsyncNotifier<int> {
         case NotificationSocketEventType.readAll:
           state = AsyncData(event.unreadCount ?? 0);
           break;
+        case NotificationSocketEventType.userOnline:
+        case NotificationSocketEventType.userOffline:
         case NotificationSocketEventType.unknown:
           break;
       }

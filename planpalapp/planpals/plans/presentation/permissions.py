@@ -17,7 +17,7 @@ class PlanPermission(BasePermission):
             if plan_type == 'group' and group_id:
                 try:
                     group = Group.objects.get(id=group_id)
-                    return GroupService.can_edit_group(group, request.user)
+                    return GroupService.can_create_group_plan(group, request.user)
                 except Group.DoesNotExist:
                     return False
             return True
@@ -38,12 +38,12 @@ class PlanPermission(BasePermission):
 class PlanActivityPermission(BasePermission):
     def has_permission(self, request, view):
         if request.method == 'POST':
-            plan_id = request.data.get('plan')
+            plan_id = request.data.get('plan') or request.data.get('plan_id')
             if plan_id:
                 try:
                     plan = Plan.objects.select_related('group').get(id=plan_id)
                     if plan.is_group_plan():
-                        return plan.group.is_admin(request.user)
+                        return plan.creator == request.user or plan.group.is_admin(request.user)
                     else:
                         return plan.creator == request.user
                 except Plan.DoesNotExist:

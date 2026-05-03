@@ -146,7 +146,7 @@ class ChatPushNotificationPublisher:
                     'sender_id': str(message.sender.id),
                     'sender_name': sender_name,
                     'preview': content_preview,
-                    'message_type': message.message_type or 'text',
+                    'chat_message_type': message.message_type or 'text',
                     'group_name': group_name,
                     'actor_name': sender_name,
                 },

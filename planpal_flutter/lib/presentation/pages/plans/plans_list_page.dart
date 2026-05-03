@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:planpal_flutter/core/dtos/plan_summary.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/riverpod/plans_notifier.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
-import '../../../core/dtos/plan_summary.dart';
-import '../../../core/riverpod/plans_notifier.dart';
-import '../../widgets/common/refreshable_page_wrapper.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
+
+import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../shared/ui_states/ui_states.dart';
 
 class PlansListPage extends ConsumerStatefulWidget {
@@ -30,7 +33,7 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
   final ScrollController _scrollController = ScrollController();
   static const double _prefetchThreshold = 0.7;
 
-  String _currentFilter = 'all'; // 'all', 'personal', 'group'
+  String _currentFilter = 'all';
 
   @override
   void initState() {
@@ -70,7 +73,6 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
       if (position.maxScrollExtent <= 0) return;
       final ratio = position.pixels / position.maxScrollExtent;
       if (ratio >= _prefetchThreshold) {
-        // Near-bottom prefetch to improve perceived latency.
         ref.read(plansNotifierProvider.notifier).prefetchNextPage();
       }
     });
@@ -84,43 +86,60 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
 
   List<PlanSummary> _filterPlans(List<PlanSummary> plans) {
     if (widget.showGroupPlansOnly) {
-      return plans.where((p) => p.planType == 'group').toList();
+      return plans.where((plan) => plan.planType == 'group').toList();
     }
-    if (_currentFilter == 'all') return plans;
-    return plans.where((p) => p.planType == _currentFilter).toList();
+    if (_currentFilter == 'all') {
+      return plans;
+    }
+    return plans.where((plan) => plan.planType == _currentFilter).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           widget.showGroupPlansOnly && widget.groupName != null
-              ? '${widget.groupName} - Kế hoạch'
-              : 'Kế hoạch của bạn',
+              ? l10n.t(
+                  'plans.group_title',
+                  params: {'group': widget.groupName!},
+                )
+              : l10n.t('plans.title'),
         ),
         bottom: widget.showGroupPlansOnly
             ? null
             : TabBar(
                 controller: _tabController,
                 onTap: _onTabChanged,
-                tabs: const [
-                  Tab(icon: Icon(Icons.all_inclusive), text: 'Tất cả'),
-                  Tab(icon: Icon(Icons.person), text: 'Cá nhân'),
-                  Tab(icon: Icon(Icons.group), text: 'Nhóm'),
+                tabs: [
+                  Tab(
+                    icon: const Icon(Icons.all_inclusive),
+                    text: l10n.t('common.all'),
+                  ),
+                  Tab(
+                    icon: const Icon(Icons.person),
+                    text: l10n.t('plan.personal_plan'),
+                  ),
+                  Tab(
+                    icon: const Icon(Icons.group),
+                    text: l10n.t('plan.group_plan'),
+                  ),
                 ],
               ),
       ),
-      body: _buildBody(),
+      body: _buildBody(context),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreatePlanDialog(),
-        tooltip: 'Tạo kế hoạch mới',
+        onPressed: _showCreatePlanDialog,
+        tooltip: l10n.t('plans.create_tooltip'),
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(BuildContext context) {
+    final l10n = context.l10n;
     final plansAsync = ref.watch(plansNotifierProvider);
 
     return plansAsync.when(
@@ -128,14 +147,14 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
       error: (error, _) => AppError(
         message: ErrorDisplayService.getUserFriendlyMessage(error),
         onRetry: () => ref.refresh(plansNotifierProvider),
-        retryLabel: 'Thử lại',
+        retryLabel: l10n.t('common.retry'),
       ),
       data: (plansState) {
         final filteredPlans = _filterPlans(plansState.items);
         final isFirstPageEmpty = plansState.items.isEmpty;
 
         if (filteredPlans.isEmpty && isFirstPageEmpty) {
-          return _buildEmptyState();
+          return _buildEmptyState(context);
         }
 
         return RefreshablePageWrapper(
@@ -147,10 +166,9 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
             itemCount: filteredPlans.length + 1,
             itemBuilder: (context, index) {
               if (index == filteredPlans.length) {
-                return _buildPaginationFooter(plansState);
+                return _buildPaginationFooter(context, plansState);
               }
-              final plan = filteredPlans[index];
-              return _buildPlanCard(plan);
+              return _buildPlanCard(context, filteredPlans[index]);
             },
           ),
         );
@@ -158,12 +176,14 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
     );
   }
 
-  Widget _buildPaginationFooter(PlansFeedState state) {
+  Widget _buildPaginationFooter(BuildContext context, PlansFeedState state) {
+    final l10n = context.l10n;
+
     if (state.isLoadingMore) {
-      return const AppLoading(
+      return AppLoading(
         inline: true,
-        message: 'Đang tải thêm',
-        padding: EdgeInsets.symmetric(vertical: 20),
+        message: l10n.t('plans.loading_more'),
+        padding: const EdgeInsets.symmetric(vertical: 20),
       );
     }
 
@@ -174,14 +194,14 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
           child: Column(
             children: [
               Text(
-                'Không tải được trang tiếp theo',
+                l10n.t('plans.load_more_error'),
                 style: TextStyle(color: Colors.red[600]),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
                 onPressed: () =>
                     ref.read(plansNotifierProvider.notifier).loadMore(),
-                child: const Text('Thử lại'),
+                child: Text(l10n.t('common.retry')),
               ),
             ],
           ),
@@ -190,50 +210,48 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
     }
 
     if (!state.hasMore) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(child: Text('Đã hiển thị tất cả kế hoạch')),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: Text(l10n.t('plans.all_loaded'))),
       );
     }
 
     return const SizedBox(height: 40);
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final l10n = context.l10n;
     return AppEmpty(
       icon: Icons.event_note,
-      title: 'Chưa có kế hoạch nào',
+      title: l10n.t('plans.empty_title'),
       description: widget.showGroupPlansOnly
-          ? 'Nhóm này chưa có kế hoạch nào'
-          : _getEmptyMessage(),
-      actionLabel: 'Tạo kế hoạch mới',
-      onAction: () => _showCreatePlanDialog(),
+          ? l10n.t('plans.empty_group_description')
+          : _emptyMessage(context),
+      actionLabel: l10n.t('plans.create_tooltip'),
+      onAction: _showCreatePlanDialog,
     );
   }
 
-  String _getEmptyMessage() {
+  String _emptyMessage(BuildContext context) {
+    final l10n = context.l10n;
     switch (_currentFilter) {
       case 'personal':
-        return 'Chưa có kế hoạch cá nhân nào';
+        return l10n.t('plans.empty_personal');
       case 'group':
-        return 'Chưa có kế hoạch nhóm nào';
+        return l10n.t('plans.empty_group');
       default:
-        return 'Tạo kế hoạch đầu tiên của bạn';
+        return l10n.t('plans.empty_default');
     }
   }
 
-  Widget _buildPlanCard(PlanSummary plan) {
+  Widget _buildPlanCard(BuildContext context, PlanSummary plan) {
+    final l10n = context.l10n;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       child: InkWell(
         onTap: () async {
-          // Navigate to plan details page. Details page contains schedule
-          // button and edit/delete actions; reflect returned changes in
-          // provider (clean separation of concerns).
-          // debug: log plan id before navigation
-          // ignore: avoid_print
-          print('Navigating to PlanDetailsPage with id=${plan.id}');
           final result = await Navigator.of(context).push<Map<String, dynamic>>(
             MaterialPageRoute(builder: (_) => PlanDetailsPage(id: plan.id)),
           );
@@ -251,9 +269,7 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
                 Map<String, dynamic>.from(result['plan'] as Map),
               );
               ref.read(plansNotifierProvider.notifier).updatePlan(updated);
-            } catch (_) {
-              // ignore malformed return
-            }
+            } catch (_) {}
           }
         },
         borderRadius: BorderRadius.circular(8),
@@ -279,13 +295,13 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: _getPlanTypeColor(
-                        plan.planType,
-                      ).withValues(alpha: 0.1),
+                      color: _getPlanTypeColor(plan.planType).withValues(
+                        alpha: 0.1,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      _getPlanTypeName(plan.planType),
+                      l10n.planTypeLabel(plan.planType),
                       style: TextStyle(
                         fontSize: 12,
                         color: _getPlanTypeColor(plan.planType),
@@ -296,9 +312,7 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
                 ],
               ),
               const SizedBox(height: 12),
-
-              // Date range
-              if (plan.dateRange.isNotEmpty) ...[
+              if (_dateRange(context, plan).isNotEmpty) ...[
                 Row(
                   children: [
                     Icon(
@@ -308,38 +322,35 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      plan.dateRange,
+                      _dateRange(context, plan),
                       style: TextStyle(color: Colors.grey[600], fontSize: 14),
                     ),
                     const SizedBox(width: 16),
                     Icon(Icons.timer, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
-                      plan.activitiesCountText,
+                      l10n.activityCountLabel(plan.activitiesCount),
                       style: TextStyle(color: Colors.grey[600], fontSize: 14),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
               ],
-
-              // Statistics row
               Row(
                 children: [
                   _buildStatChip(
                     Icons.event,
-                    plan.activitiesCountText,
+                    l10n.activityCountLabel(plan.activitiesCount),
                     Colors.blue,
                   ),
                   const SizedBox(width: 8),
                   _buildStatChip(
                     Icons.schedule,
-                    plan.durationDisplay,
+                    context.l10n.durationDaysLabel(plan.durationDays),
                     Colors.green,
                   ),
                 ],
               ),
-
               if (plan.planType == 'group') ...[
                 const SizedBox(height: 8),
                 Row(
@@ -347,7 +358,7 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
                     Icon(Icons.group, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
-                      'Kế hoạch nhóm',
+                      l10n.t('plan.group_plan'),
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 14,
@@ -357,7 +368,6 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
                   ],
                 ),
               ],
-
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -367,13 +377,11 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(
-                        plan.status,
-                      ).withValues(alpha: 0.1),
+                      color: _getStatusColor(plan.status).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      plan.statusDisplay,
+                      l10n.planStatusLabel(plan.status),
                       style: TextStyle(
                         fontSize: 12,
                         color: _getStatusColor(plan.status),
@@ -389,6 +397,18 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
         ),
       ),
     );
+  }
+
+  String _dateRange(BuildContext context, PlanSummary plan) {
+    if (plan.startDate != null && plan.endDate != null) {
+      final start = AppFormatters.shortDate(context, plan.startDate!);
+      final end = AppFormatters.shortDate(context, plan.endDate!);
+      return '$start - $end';
+    }
+    if (plan.startDate != null) {
+      return AppFormatters.shortDate(context, plan.startDate!);
+    }
+    return '';
   }
 
   Widget _buildStatChip(IconData icon, String label, Color color) {
@@ -427,40 +447,30 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
     }
   }
 
-  String _getPlanTypeName(String planType) {
-    switch (planType) {
-      case 'personal':
-        return 'Cá nhân';
-      case 'group':
-        return 'Nhóm';
-      default:
-        return 'Khác';
-    }
-  }
-
   Color _getStatusColor(String status) {
     switch (status) {
       case 'draft':
         return Colors.grey;
       case 'active':
+      case 'ongoing':
         return Colors.green;
       case 'completed':
         return Colors.blue;
       case 'cancelled':
         return Colors.red;
+      case 'upcoming':
+        return Colors.orange;
       default:
         return Colors.grey;
     }
   }
 
   Future<void> _showCreatePlanDialog() async {
-    // Open plan creation form and insert newly created plan into provider
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(builder: (_) => const PlanFormPage()),
     );
 
-    if (!mounted) return;
-    if (result == null) return;
+    if (!mounted || result == null) return;
     if (result['action'] == 'created' && result['plan'] is Map) {
       try {
         final summary = PlanSummary.fromJson(
@@ -468,11 +478,9 @@ class _PlansListPageState extends ConsumerState<PlansListPage>
         );
         ref.read(plansNotifierProvider.notifier).addPlan(summary);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tạo kế hoạch mới thành công')),
+          SnackBar(content: Text(context.l10n.t('plans.created_success'))),
         );
-      } catch (_) {
-        // ignore malformed return
-      }
+      } catch (_) {}
     }
   }
 }

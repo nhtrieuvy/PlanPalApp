@@ -27,7 +27,7 @@ class ChatConsumer(BaseRealtimeConsumer):
         has_access = await self.check_conversation_access(self.conversation_id, self.user.id)
         if not has_access:
             await self.close(code=4003)  # Forbidden
-            return
+            return False
             
         # Join conversation channel
         group_name = ChannelGroups.conversation(self.conversation_id)

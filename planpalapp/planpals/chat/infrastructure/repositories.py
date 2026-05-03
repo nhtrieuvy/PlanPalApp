@@ -177,7 +177,8 @@ class DjangoChatMessageRepository(ChatMessageRepository):
             messages = messages[:limit]
 
         return {
-            'messages': list(reversed(messages)),
+            # Return newest-first to match mobile chat rendering (ListView reverse=true).
+            'messages': messages,
             'has_more': has_more,
             'next_cursor': str(messages[-1].id) if has_more and messages else None,
         }

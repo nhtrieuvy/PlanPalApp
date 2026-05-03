@@ -35,9 +35,51 @@ from planpals.shared.domain_exceptions import (
     PlanCompletedException, PlanCancelledException,
     ActivityNotFoundException, ActivityOverlapException,
     InvalidStatusTransitionException, DomainException,
+    ActivityVersionConflictException, ActivityVersionRequiredException,
+    CannotModifyActivityException,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _serialize_activity_snapshot(activity) -> dict:
+    return {
+        'id': str(activity.id),
+        'plan': str(activity.plan_id),
+        'title': activity.title,
+        'description': activity.description,
+        'activity_type': activity.activity_type,
+        'start_time': activity.start_time.isoformat() if activity.start_time else None,
+        'end_time': activity.end_time.isoformat() if activity.end_time else None,
+        'location_name': activity.location_name,
+        'location_address': activity.location_address,
+        'latitude': str(activity.latitude) if activity.latitude is not None else None,
+        'longitude': str(activity.longitude) if activity.longitude is not None else None,
+        'goong_place_id': activity.goong_place_id,
+        'estimated_cost': str(activity.estimated_cost) if activity.estimated_cost is not None else None,
+        'notes': activity.notes,
+        'is_completed': activity.is_completed,
+        'version': activity.version,
+        'created_at': activity.created_at.isoformat() if activity.created_at else None,
+        'updated_at': activity.updated_at.isoformat() if activity.updated_at else None,
+    }
+
+
+def _attempted_activity_changes(command: UpdateActivityCommand) -> dict:
+    changes = {}
+    for field_name in (
+        'title', 'description', 'activity_type', 'start_time', 'end_time',
+        'location_name', 'location_address', 'latitude', 'longitude',
+        'goong_place_id', 'estimated_cost', 'notes',
+    ):
+        value = getattr(command, field_name, None)
+        if value is not None:
+            changes[field_name] = value.isoformat() if hasattr(value, 'isoformat') else value
+    return changes
+
+
+def _audit_value(value):
+    return value.isoformat() if hasattr(value, 'isoformat') else value
 
 
 class CreatePlanHandler(BaseCommandHandler[CreatePlanCommand, Any]):
@@ -88,7 +130,7 @@ class CreatePlanHandler(BaseCommandHandler[CreatePlanCommand, Any]):
             status=str(plan.status),
             creator_id=str(command.creator_id),
             group_id=str(command.group_id) if command.group_id else None,
-            is_public=command.is_public,
+            is_public=plan.is_public,
             start_date=str(command.start_date) if command.start_date else None,
             end_date=str(command.end_date) if command.end_date else None,
         ))
@@ -191,8 +233,8 @@ class ChangePlanStatusHandler(BaseCommandHandler[ChangePlanStatusCommand, Any]):
 
     VALID_TRANSITIONS = {
         'upcoming': ['ongoing', 'cancelled'],
-        'ongoing': ['completed', 'cancelled'],
-        'overdue': ['ongoing', 'completed', 'cancelled'],
+        'ongoing': ['completed'],
+        'overdue': ['ongoing', 'completed'],
     }
 
     def __init__(self, plan_repo: PlanRepository, event_publisher: DomainEventPublisher):
@@ -313,10 +355,12 @@ class AddActivityHandler(BaseCommandHandler[AddActivityCommand, Any]):
         plan_repo: PlanRepository,
         activity_repo: PlanActivityRepository,
         event_publisher: DomainEventPublisher,
+        audit_service=None,
     ):
         self.plan_repo = plan_repo
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: AddActivityCommand) -> Any:
@@ -344,11 +388,32 @@ class AddActivityHandler(BaseCommandHandler[AddActivityCommand, Any]):
             activity_id=str(activity.id),
             title=command.title,
             activity_type=command.activity_type,
+            version=activity.version,
             start_time=str(command.start_time) if command.start_time else None,
             end_time=str(command.end_time) if command.end_time else None,
             location_name=command.location_name or None,
             estimated_cost=command.estimated_cost,
+            activity=_serialize_activity_snapshot(activity),
         ))
+
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.CREATE_ACTIVITY.value,
+                resource_type=AuditResourceType.ACTIVITY.value,
+                resource_id=activity.id,
+                metadata={
+                    'plan_id': activity.plan_id,
+                    'plan_title': plan.title,
+                    'title': activity.title,
+                    'activity_type': activity.activity_type,
+                    'start_time': activity.start_time,
+                    'end_time': activity.end_time,
+                    'location_name': activity.location_name,
+                    'estimated_cost': activity.estimated_cost,
+                    'version': activity.version,
+                },
+            )
 
         return activity
 
@@ -360,35 +425,74 @@ class UpdateActivityHandler(BaseCommandHandler[UpdateActivityCommand, Any]):
         self,
         activity_repo: PlanActivityRepository,
         event_publisher: DomainEventPublisher,
+        audit_service=None,
     ):
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: UpdateActivityCommand) -> Any:
-        activity = self.activity_repo.get_by_id(command.activity_id)
+        get_for_update = getattr(self.activity_repo, 'get_by_id_for_update', None)
+        activity = get_for_update(command.activity_id) if get_for_update else self.activity_repo.get_by_id(command.activity_id)
         if not activity:
             raise ActivityNotFoundException()
 
+        plan = activity.plan
+        if str(plan.creator_id) != str(command.user_id):
+            if not (plan.group and plan.group.is_admin_by_id(command.user_id)):
+                raise CannotModifyActivityException()
+
+        if not command.force:
+            if command.version is None:
+                raise ActivityVersionRequiredException()
+            if command.version != activity.version:
+                attempted_changes = _attempted_activity_changes(command)
+                server_state = _serialize_activity_snapshot(activity)
+                conflicting_fields = tuple(
+                    field
+                    for field, value in attempted_changes.items()
+                    if str(server_state.get(field)) != str(value)
+                )
+                raise ActivityVersionConflictException(
+                    extra={
+                        'server_state': server_state,
+                        'server_version': activity.version,
+                        'client_version': command.version,
+                        'attempted_changes': attempted_changes,
+                        'conflicting_fields': list(conflicting_fields),
+                    }
+                )
+
         # Check time conflicts if times changed
-        if command.start_time and command.end_time:
+        effective_start_time = command.start_time or activity.start_time
+        effective_end_time = command.end_time or activity.end_time
+        if effective_start_time and effective_end_time and (
+            command.start_time is not None or command.end_time is not None
+        ):
             conflicts = self.activity_repo.check_time_conflicts(
                 activity.plan_id,
-                command.start_time,
-                command.end_time,
+                effective_start_time,
+                effective_end_time,
                 exclude_activity_id=command.activity_id,
             )
             if conflicts:
                 raise ActivityOverlapException()
 
+        updated_fields = []
+        previous_values = {}
+        next_values = {}
         for field_name in [
             'title', 'description', 'activity_type', 'start_time', 'end_time',
             'location_name', 'location_address', 'latitude', 'longitude',
-            'estimated_cost', 'notes',
+            'goong_place_id', 'estimated_cost', 'notes',
         ]:
             value = getattr(command, field_name, None)
             if value is not None:
+                previous_values[field_name] = _audit_value(getattr(activity, field_name, None))
+                next_values[field_name] = _audit_value(value)
                 setattr(activity, field_name, value)
+                updated_fields.append(field_name)
         activity = self.activity_repo.save(activity)
 
         self.event_publisher.publish(ActivityUpdated(
@@ -397,7 +501,31 @@ class UpdateActivityHandler(BaseCommandHandler[UpdateActivityCommand, Any]):
             title=activity.title,
             is_completed=activity.is_completed,
             last_updated=str(activity.updated_at),
+            version=activity.version,
+            updated_fields=tuple(updated_fields),
+            updated_by=str(command.user_id),
+            updated_by_name=command.updated_by_name,
+            activity=_serialize_activity_snapshot(activity),
         ))
+
+        if updated_fields and self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.UPDATE_ACTIVITY.value,
+                resource_type=AuditResourceType.ACTIVITY.value,
+                resource_id=activity.id,
+                metadata={
+                    'plan_id': activity.plan_id,
+                    'plan_title': plan.title,
+                    'title': activity.title,
+                    'activity_type': activity.activity_type,
+                    'updated_fields': updated_fields,
+                    'before': previous_values,
+                    'after': next_values,
+                    'version': activity.version,
+                    'force': command.force,
+                },
+            )
 
         return activity
 
@@ -413,6 +541,11 @@ class RemoveActivityHandler(BaseCommandHandler[RemoveActivityCommand, bool]):
         activity = self.activity_repo.get_by_id(command.activity_id)
         if not activity:
             raise ActivityNotFoundException()
+
+        plan = activity.plan
+        if str(plan.creator_id) != str(command.user_id):
+            if not (plan.group and plan.group.is_admin_by_id(command.user_id)):
+                raise CannotModifyActivityException()
 
         plan_id = str(activity.plan_id)
         title = activity.title
@@ -430,16 +563,29 @@ class RemoveActivityHandler(BaseCommandHandler[RemoveActivityCommand, bool]):
 
 class ToggleActivityCompletionHandler(BaseCommandHandler[ToggleActivityCompletionCommand, Any]):
 
-    def __init__(self, activity_repo: PlanActivityRepository, event_publisher: DomainEventPublisher):
+    def __init__(
+        self,
+        activity_repo: PlanActivityRepository,
+        event_publisher: DomainEventPublisher,
+        audit_service=None,
+    ):
         self.activity_repo = activity_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: ToggleActivityCompletionCommand) -> Any:
-        activity = self.activity_repo.get_by_id(command.activity_id)
+        get_for_update = getattr(self.activity_repo, 'get_by_id_for_update', None)
+        activity = get_for_update(command.activity_id) if get_for_update else self.activity_repo.get_by_id(command.activity_id)
         if not activity:
             raise ActivityNotFoundException()
 
+        plan = activity.plan
+        if str(plan.creator_id) != str(command.user_id):
+            if not (plan.group and plan.group.is_admin_by_id(command.user_id)):
+                raise CannotModifyActivityException()
+
+        previous_completed = activity.is_completed
         activity.is_completed = not activity.is_completed
         activity = self.activity_repo.save(activity)
 
@@ -449,6 +595,8 @@ class ToggleActivityCompletionHandler(BaseCommandHandler[ToggleActivityCompletio
                 activity_id=str(activity.id),
                 title=activity.title,
                 completed_by=str(command.user_id),
+                version=activity.version,
+                activity=_serialize_activity_snapshot(activity),
             ))
         else:
             self.event_publisher.publish(ActivityUpdated(
@@ -457,6 +605,28 @@ class ToggleActivityCompletionHandler(BaseCommandHandler[ToggleActivityCompletio
                 title=activity.title,
                 is_completed=False,
                 last_updated=str(activity.updated_at),
+                version=activity.version,
+                updated_fields=('is_completed',),
+                updated_by=str(command.user_id),
+                activity=_serialize_activity_snapshot(activity),
             ))
+
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.UPDATE_ACTIVITY.value,
+                resource_type=AuditResourceType.ACTIVITY.value,
+                resource_id=activity.id,
+                metadata={
+                    'plan_id': activity.plan_id,
+                    'plan_title': plan.title,
+                    'title': activity.title,
+                    'activity_type': activity.activity_type,
+                    'updated_fields': ['is_completed'],
+                    'before': {'is_completed': previous_completed},
+                    'after': {'is_completed': activity.is_completed},
+                    'version': activity.version,
+                },
+            )
 
         return activity

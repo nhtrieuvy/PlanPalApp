@@ -136,6 +136,11 @@ class PlanActivityRepository(ABC):
         ...
 
     @abstractmethod
+    def get_by_id_for_update(self, activity_id: UUID) -> Optional[Any]:
+        """Get and lock an activity row for mutation."""
+        ...
+
+    @abstractmethod
     def get_activities_for_plan(self, plan_id: UUID) -> Any:
         """Get all activities for a plan, ordered by start_time."""
         ...

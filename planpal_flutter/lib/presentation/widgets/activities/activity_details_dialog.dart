@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:planpal_flutter/core/dtos/plan_activity.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/riverpod/activity_providers.dart';
+import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../core/dtos/plan_activity.dart';
-import '../../../core/theme/app_colors.dart';
 
 class ActivityDetailsDialog extends StatelessWidget {
   final PlanActivity activity;
   final bool canEdit;
+  final ActivityRealtimeHighlight? realtimeHighlight;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
@@ -14,6 +17,7 @@ class ActivityDetailsDialog extends StatelessWidget {
     super.key,
     required this.activity,
     this.canEdit = false,
+    this.realtimeHighlight,
     this.onEdit,
     this.onDelete,
   });
@@ -38,24 +42,27 @@ class ActivityDetailsDialog extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildActivityType(),
+                      _buildActivityType(context),
+                      if (realtimeHighlight != null) ...[
+                        const SizedBox(height: 16),
+                        _buildRealtimeNotice(context),
+                      ],
                       const SizedBox(height: 16),
-                      _buildDescription(),
+                      _buildDescription(context),
                       const SizedBox(height: 16),
-                      _buildTimeInfo(),
+                      _buildTimeInfo(context),
                       const SizedBox(height: 16),
                       _buildLocationSection(context),
                       const SizedBox(height: 16),
-                      // DEBUG: Hiển thị thông tin location để debug
-                      const SizedBox(height: 16),
-                      _buildCostInfo(),
-                      if (activity.notes != null &&
-                          activity.notes!.isNotEmpty) ...[
+                      _buildCostInfo(context),
+                      if (activity.notes != null && activity.notes!.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        _buildNotes(),
+                        _buildNotes(context),
                       ],
                       const SizedBox(height: 16),
-                      _buildStatusInfo(),
+                      _buildStatusInfo(context),
+                      const SizedBox(height: 16),
+                      _buildVersionInfo(context),
                     ],
                   ),
                 ),
@@ -72,7 +79,7 @@ class ActivityDetailsDialog extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: AppColors.primaryGradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -120,9 +127,9 @@ class ActivityDetailsDialog extends StatelessWidget {
                       color: Colors.green.withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'Đã hoàn thành',
-                      style: TextStyle(
+                    child: Text(
+                      context.l10n.t('activity_details.completed'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -141,39 +148,86 @@ class ActivityDetailsDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildActivityType() {
+  Widget _buildActivityType(BuildContext context) {
     return _buildInfoCard(
+      context: context,
       icon: Icons.category,
-      title: 'Loại hoạt động',
+      title: context.l10n.t('activity_details.type'),
       content: Text(
-        activity.activityTypeDisplay.isNotEmpty
-            ? activity.activityTypeDisplay
-            : _getActivityTypeName(activity.activityType),
+        context.l10n.activityTypeLabel(activity.activityType),
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
       ),
       color: _getActivityTypeColor(activity.activityType),
     );
   }
 
-  Widget _buildDescription() {
+  Widget _buildRealtimeNotice(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final accent = Colors.amber;
+    final fields = realtimeHighlight!.updatedFields
+        .map((field) => context.l10n.activityFieldLabel(field))
+        .join(', ');
+    final updatedBy = realtimeHighlight!.updatedBy;
+    final message = updatedBy == null || updatedBy.isEmpty
+        ? context.l10n.t(
+            'activity_collab.edited_fields',
+            params: {
+              'fields': fields.isEmpty ? context.l10n.t('common.edit') : fields,
+            },
+          )
+        : context.l10n.t(
+            'activity_collab.edited_by',
+            params: {
+              'user': updatedBy,
+              'fields': fields.isEmpty ? context.l10n.t('common.edit') : fields,
+            },
+          );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, color: accent, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDescription(BuildContext context) {
     if (activity.description == null || activity.description!.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return _buildInfoCard(
+      context: context,
       icon: Icons.description,
-      title: 'Mô tả',
-      content: Text(
-        activity.description!,
-        style: const TextStyle(fontSize: 14),
-      ),
+      title: context.l10n.t('activity_details.description'),
+      content: Text(activity.description!, style: const TextStyle(fontSize: 14)),
     );
   }
 
-  Widget _buildTimeInfo() {
+  Widget _buildTimeInfo(BuildContext context) {
     return _buildInfoCard(
+      context: context,
       icon: Icons.access_time,
-      title: 'Thời gian',
+      title: context.l10n.t('activity_details.time'),
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -183,7 +237,15 @@ class ActivityDetailsDialog extends StatelessWidget {
                 const Icon(Icons.play_arrow, size: 16, color: Colors.green),
                 const SizedBox(width: 4),
                 Text(
-                  'Bắt đầu: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.startTime!)}',
+                  context.l10n.t(
+                    'activity_details.start',
+                    params: {
+                      'value': AppFormatters.fullDateTime(
+                        context,
+                        activity.startTime!,
+                      ),
+                    },
+                  ),
                   style: const TextStyle(fontSize: 14),
                 ),
               ],
@@ -195,21 +257,35 @@ class ActivityDetailsDialog extends StatelessWidget {
                 const Icon(Icons.stop, size: 16, color: Colors.red),
                 const SizedBox(width: 4),
                 Text(
-                  'Kết thúc: ${DateFormat('dd/MM/yyyy HH:mm').format(activity.endTime!)}',
+                  context.l10n.t(
+                    'activity_details.end',
+                    params: {
+                      'value': AppFormatters.fullDateTime(
+                        context,
+                        activity.endTime!,
+                      ),
+                    },
+                  ),
                   style: const TextStyle(fontSize: 14),
                 ),
               ],
             ),
           ],
-          if (activity.durationMinutes != null &&
-              activity.durationMinutes! > 0) ...[
+          if (activity.durationMinutes != null && activity.durationMinutes! > 0) ...[
             const SizedBox(height: 4),
             Row(
               children: [
                 const Icon(Icons.timer, size: 16, color: Colors.blue),
                 const SizedBox(width: 4),
                 Text(
-                  'Thời gian: ${activity.durationDisplay.isNotEmpty ? activity.durationDisplay : "${activity.durationMinutes}m"}',
+                  context.l10n.t(
+                    'activity_details.duration',
+                    params: {
+                      'value': activity.durationDisplay.isNotEmpty
+                          ? activity.durationDisplay
+                          : '${activity.durationMinutes}m',
+                    },
+                  ),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -224,18 +300,18 @@ class ActivityDetailsDialog extends StatelessWidget {
   }
 
   Widget _buildLocationSection(BuildContext context) {
-    // Show location section when the activity has any location information.
     if (!activity.hasLocation) {
       return const SizedBox.shrink();
     }
+
     return _buildInfoCard(
+      context: context,
       icon: Icons.location_on,
-      title: 'Vị trí',
+      title: context.l10n.t('activity_details.location'),
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (activity.locationName != null &&
-              activity.locationName!.isNotEmpty)
+          if (activity.locationName != null && activity.locationName!.isNotEmpty)
             Text(
               activity.locationName!,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -246,7 +322,10 @@ class ActivityDetailsDialog extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               activity.locationAddress!,
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
           if (activity.latitude != null && activity.longitude != null) ...[
@@ -257,21 +336,21 @@ class ActivityDetailsDialog extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _openInMaps(),
+                    onPressed: _openInMaps,
                     icon: const Icon(Icons.map, size: 16),
-                    label: const Text('Mở bản đồ'),
+                    label: Text(context.l10n.t('activity_details.open_map')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary),
+                      side: const BorderSide(color: AppColors.primary),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _openDirections(),
+                    onPressed: _openDirections,
                     icon: const Icon(Icons.directions, size: 16),
-                    label: const Text('Chỉ đường'),
+                    label: Text(context.l10n.t('activity_details.directions')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.blue,
                       side: const BorderSide(color: Colors.blue),
@@ -291,56 +370,65 @@ class ActivityDetailsDialog extends StatelessWidget {
     if (activity.latitude == null || activity.longitude == null) {
       return const SizedBox.shrink();
     }
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       height: 120,
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Stack(
           children: [
-            // Static map using Google Static Maps API
             Image.network(
               'https://maps.googleapis.com/maps/api/staticmap?'
               'center=${activity.latitude},${activity.longitude}&'
               'zoom=15&'
               'size=400x120&'
               'markers=color:red%7C${activity.latitude},${activity.longitude}&'
-              'key=AIzaSyD1GIETwZj5CNGQtZR2CPqDCkCYLZ6SZrc', // Replace with actual API key
+              'key=AIzaSyD1GIETwZj5CNGQtZR2CPqDCkCYLZ6SZrc',
               width: double.infinity,
               height: 120,
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
-                  color: Colors.grey[100],
+                  color: colorScheme.surfaceContainerHighest,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.map, size: 32, color: Colors.grey[400]),
+                      Icon(
+                        Icons.map,
+                        size: 32,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(height: 4),
                       Text(
-                        'Xem trên bản đồ',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        context.l10n.t('activity_details.view_on_map'),
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                       Text(
                         '${activity.latitude!.toStringAsFixed(6)}, ${activity.longitude!.toStringAsFixed(6)}',
-                        style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 10,
+                        ),
                       ),
                     ],
                   ),
                 );
               },
             ),
-            // Overlay for interaction
             Positioned.fill(
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () => _openInMaps(),
+                  onTap: _openInMaps,
                   child: const SizedBox.expand(),
                 ),
               ),
@@ -351,73 +439,93 @@ class ActivityDetailsDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildCostInfo() {
+  Widget _buildCostInfo(BuildContext context) {
+    final hasCost = activity.estimatedCost != null && activity.estimatedCost! > 0;
+    final valueColor = hasCost ? Colors.orange : Colors.green;
     return _buildInfoCard(
+      context: context,
       icon: Icons.attach_money,
-      title: 'Chi phí dự kiến',
+      title: context.l10n.t('activity_form.field_cost'),
       content: Text(
-        activity.estimatedCost != null && activity.estimatedCost! > 0
-            ? '${NumberFormat('#,###').format(activity.estimatedCost)} VND'
-            : 'Miễn phí',
+        hasCost
+            ? AppFormatters.currency(
+                context,
+                amount: activity.estimatedCost!.toDouble(),
+                currencyCode: 'VND',
+              )
+            : context.l10n.t('common.free'),
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: activity.estimatedCost != null && activity.estimatedCost! > 0
-              ? Colors.orange[700]
-              : Colors.green[700],
+          color: valueColor,
         ),
       ),
-      color: activity.estimatedCost != null && activity.estimatedCost! > 0
-          ? Colors.orange
-          : Colors.green,
+      color: hasCost ? Colors.orange : Colors.green,
     );
   }
 
-  Widget _buildNotes() {
+  Widget _buildNotes(BuildContext context) {
     return _buildInfoCard(
+      context: context,
       icon: Icons.note_alt,
-      title: 'Ghi chú',
+      title: context.l10n.t('activity_details.notes'),
       content: Text(activity.notes!, style: const TextStyle(fontSize: 14)),
     );
   }
 
-  Widget _buildStatusInfo() {
+  Widget _buildStatusInfo(BuildContext context) {
+    final completed = activity.isCompleted;
+    final statusColor = completed ? Colors.green : Colors.orange;
     return _buildInfoCard(
-      icon: activity.isCompleted
-          ? Icons.check_circle
-          : Icons.radio_button_unchecked,
-      title: 'Trạng thái',
+      context: context,
+      icon: completed ? Icons.check_circle : Icons.radio_button_unchecked,
+      title: context.l10n.t('activity_details.status'),
       content: Row(
         children: [
           Icon(
-            activity.isCompleted ? Icons.check_circle : Icons.pending,
-            color: activity.isCompleted ? Colors.green : Colors.orange,
+            completed ? Icons.check_circle : Icons.pending,
+            color: statusColor,
             size: 20,
           ),
           const SizedBox(width: 8),
           Text(
-            activity.isCompleted ? 'Đã hoàn thành' : 'Chưa hoàn thành',
+            completed
+                ? context.l10n.t('activity_details.completed')
+                : context.l10n.t('activity_details.not_completed'),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: activity.isCompleted
-                  ? Colors.green[700]
-                  : Colors.orange[700],
+              color: statusColor,
             ),
           ),
         ],
       ),
-      color: activity.isCompleted ? Colors.green : Colors.orange,
+      color: completed ? Colors.green : Colors.orange,
+    );
+  }
+
+  Widget _buildVersionInfo(BuildContext context) {
+    return _buildInfoCard(
+      context: context,
+      icon: Icons.layers,
+      title: context.l10n.t('activity_collab.version_label'),
+      content: Text(
+        'v${activity.version}',
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+      color: Colors.blueGrey,
     );
   }
 
   Widget _buildInfoCard({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required Widget content,
     Color? color,
   }) {
     final cardColor = color ?? AppColors.primary;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -425,7 +533,10 @@ class ActivityDetailsDialog extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cardColor.withValues(alpha: 0.2), width: 1),
+        border: Border.all(
+          color: cardColor.withValues(alpha: 0.28),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,17 +556,21 @@ class ActivityDetailsDialog extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          content,
+          DefaultTextStyle.merge(
+            style: TextStyle(color: colorScheme.onSurface),
+            child: content,
+          ),
         ],
       ),
     );
   }
 
   Widget _buildActionButtons(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: colorScheme.surfaceContainerHighest,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(16),
           bottomRight: Radius.circular(16),
@@ -466,7 +581,7 @@ class ActivityDetailsDialog extends StatelessWidget {
           Expanded(
             child: TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Đóng'),
+              child: Text(context.l10n.t('activity_details.close')),
             ),
           ),
           if (canEdit && onEdit != null) ...[
@@ -478,7 +593,7 @@ class ActivityDetailsDialog extends StatelessWidget {
                   onEdit?.call();
                 },
                 icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Chỉnh sửa'),
+                label: Text(context.l10n.t('activity_details.edit')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -494,7 +609,7 @@ class ActivityDetailsDialog extends StatelessWidget {
                 _showDeleteConfirmation(context);
               },
               icon: const Icon(Icons.delete, color: Colors.red),
-              tooltip: 'Xóa hoạt động',
+              tooltip: context.l10n.t('activity_details.delete_tooltip'),
             ),
           ],
         ],
@@ -506,14 +621,17 @@ class ActivityDetailsDialog extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xác nhận xóa'),
+        title: Text(context.l10n.t('activity_details.delete_confirm_title')),
         content: Text(
-          'Bạn có chắc chắn muốn xóa hoạt động "${activity.title}"?',
+          context.l10n.t(
+            'activity_details.delete_confirm_message',
+            params: {'title': activity.title},
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Hủy'),
+            child: Text(context.l10n.t('common.cancel')),
           ),
           ElevatedButton(
             onPressed: () {
@@ -521,30 +639,31 @@ class ActivityDetailsDialog extends StatelessWidget {
               onDelete?.call();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Xóa', style: TextStyle(color: Colors.white)),
+            child: Text(
+              context.l10n.t('common.delete'),
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _openInMaps() async {
-    if (activity.latitude != null && activity.longitude != null) {
-      final url =
-          'https://www.google.com/maps/search/?api=1&query=${activity.latitude},${activity.longitude}';
-      if (await canLaunchUrl(Uri.parse(url))) {
-        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      }
+  Future<void> _openInMaps() async {
+    if (activity.latitude == null || activity.longitude == null) return;
+    final url =
+        'https://www.google.com/maps/search/?api=1&query=${activity.latitude},${activity.longitude}';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     }
   }
 
-  void _openDirections() async {
-    if (activity.latitude != null && activity.longitude != null) {
-      final url =
-          'https://www.google.com/maps/dir/?api=1&destination=${activity.latitude},${activity.longitude}';
-      if (await canLaunchUrl(Uri.parse(url))) {
-        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      }
+  Future<void> _openDirections() async {
+    if (activity.latitude == null || activity.longitude == null) return;
+    final url =
+        'https://www.google.com/maps/dir/?api=1&destination=${activity.latitude},${activity.longitude}';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     }
   }
 
@@ -599,33 +718,6 @@ class ActivityDetailsDialog extends StatelessWidget {
         return Colors.grey;
       default:
         return Colors.grey;
-    }
-  }
-
-  String _getActivityTypeName(String activityType) {
-    switch (activityType) {
-      case 'eating':
-        return 'Ăn uống';
-      case 'resting':
-        return 'Nghỉ ngơi';
-      case 'moving':
-        return 'Di chuyển';
-      case 'sightseeing':
-        return 'Tham quan';
-      case 'shopping':
-        return 'Mua sắm';
-      case 'entertainment':
-        return 'Giải trí';
-      case 'event':
-        return 'Sự kiện';
-      case 'sport':
-        return 'Thể thao';
-      case 'study':
-        return 'Học tập';
-      case 'work':
-        return 'Công việc';
-      default:
-        return 'Khác';
     }
   }
 }

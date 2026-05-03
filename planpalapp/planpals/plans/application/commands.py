@@ -89,6 +89,9 @@ class AddActivityCommand(BaseCommand):
 class UpdateActivityCommand(BaseCommand):
     activity_id: UUID
     user_id: UUID
+    version: Optional[int] = None
+    force: bool = False
+    updated_by_name: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
     activity_type: Optional[str] = None
@@ -98,6 +101,7 @@ class UpdateActivityCommand(BaseCommand):
     location_address: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    goong_place_id: Optional[str] = None
     estimated_cost: Optional[float] = None
     notes: Optional[str] = None
 

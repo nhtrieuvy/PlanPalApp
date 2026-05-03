@@ -2,8 +2,9 @@ import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:planpal_flutter/core/dtos/analytics_model.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 
 class AnalyticsTimeSeriesChart extends StatelessWidget {
   final String title;
@@ -66,20 +67,28 @@ class AnalyticsTimeSeriesChart extends StatelessWidget {
                   drawVerticalLine: false,
                   horizontalInterval: maxY <= 4 ? 1 : maxY / 4,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.35,
+                    ),
                     strokeWidth: 1,
                   ),
                 ),
                 titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 44,
                       interval: maxY <= 4 ? 1 : maxY / 4,
                       getTitlesWidget: (value, meta) => Text(
-                        percentage ? '${value.toStringAsFixed(0)}%' : value.toStringAsFixed(0),
+                        percentage
+                            ? '${value.toStringAsFixed(0)}%'
+                            : value.toStringAsFixed(0),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -99,7 +108,10 @@ class AnalyticsTimeSeriesChart extends StatelessWidget {
                         return Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(
-                            DateFormat('MM/dd').format(points[index].date),
+                            AppFormatters.shortMonthDay(
+                              context,
+                              points[index].date,
+                            ),
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -138,9 +150,7 @@ class AnalyticsTimeSeriesChart extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         color: Theme.of(context).colorScheme.surface,
       ),
-      child: const Center(
-        child: Text('No time-series data available'),
-      ),
+      child: Center(child: Text(context.l10n.t('analytics.empty_series'))),
     );
   }
 }

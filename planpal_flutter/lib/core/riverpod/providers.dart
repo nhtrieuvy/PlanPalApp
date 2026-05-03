@@ -1,11 +1,13 @@
 // Barrel export for all Riverpod providers.
 export 'auth_notifier.dart';
 export 'analytics_providers.dart';
+export 'activity_providers.dart';
 export 'budget_providers.dart';
 export 'conversation_providers.dart';
 export 'groups_notifier.dart';
 export 'notifications_provider.dart';
 export 'plans_notifier.dart';
 export 'repository_providers.dart';
+export 'locale_notifier.dart';
 export 'storage_providers.dart';
 export 'theme_notifier.dart';

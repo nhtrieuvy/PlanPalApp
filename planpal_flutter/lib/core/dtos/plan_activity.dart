@@ -25,6 +25,7 @@ class PlanActivity extends Equatable {
   final String? notes;
   final int order;
   final bool isCompleted;
+  final int version;
   final double durationHours;
   final bool hasLocation;
   final DateTime createdAt;
@@ -51,6 +52,7 @@ class PlanActivity extends Equatable {
     this.notes,
     required this.order,
     required this.isCompleted,
+    required this.version,
     required this.durationHours,
     required this.hasLocation,
     required this.createdAt,
@@ -79,6 +81,7 @@ class PlanActivity extends Equatable {
       notes: json['notes']?.toString(),
       order: json['order']?.toInt() ?? 0,
       isCompleted: json['is_completed'] == true,
+      version: json['version']?.toInt() ?? 1,
       durationHours:
           _parseNullableDouble(json['duration_hours']) ??
           (json['duration_minutes'] != null
@@ -159,6 +162,7 @@ class PlanActivity extends Equatable {
       'notes': notes,
       'order': order,
       'is_completed': isCompleted,
+      'version': version,
       'duration_hours': durationHours,
       'has_location': hasLocation,
       'created_at': createdAt.toIso8601String(),
@@ -187,6 +191,7 @@ class PlanActivity extends Equatable {
     String? notes,
     int? order,
     bool? isCompleted,
+    int? version,
     double? durationHours,
     bool? hasLocation,
     DateTime? createdAt,
@@ -213,6 +218,7 @@ class PlanActivity extends Equatable {
       notes: notes ?? this.notes,
       order: order ?? this.order,
       isCompleted: isCompleted ?? this.isCompleted,
+      version: version ?? this.version,
       durationHours: durationHours ?? this.durationHours,
       hasLocation: hasLocation ?? this.hasLocation,
       createdAt: createdAt ?? this.createdAt,
@@ -263,6 +269,7 @@ class PlanActivity extends Equatable {
     notes,
     order,
     isCompleted,
+    version,
     durationHours,
     hasLocation,
     createdAt,

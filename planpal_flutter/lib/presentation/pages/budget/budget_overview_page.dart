@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -31,14 +32,15 @@ class BudgetOverviewPage extends ConsumerStatefulWidget {
 class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final budgetAsync = ref.watch(budgetProvider(widget.planId));
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Budget Overview'),
+        title: Text(l10n.t('budget.overview_title')),
         actions: [
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: l10n.t('common.refresh'),
             onPressed: _refresh,
             icon: const Icon(Icons.refresh_rounded),
           ),
@@ -49,7 +51,7 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Quick add'),
+        label: Text(l10n.t('budget.quick_add')),
       ),
       body: RefreshablePageWrapper(
         onRefresh: _refresh,
@@ -58,7 +60,7 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
           error: (error, _) => AppError(
             message: ErrorDisplayService.getUserFriendlyMessage(error),
             onRetry: _refresh,
-            retryLabel: 'Retry',
+            retryLabel: l10n.t('common.retry'),
           ),
           data: (summary) => _buildContent(context, summary),
         ),
@@ -78,7 +80,7 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Track budget health, per-user contributions, and recent spending.',
+          context.l10n.t('budget.track_description'),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -106,19 +108,21 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
         FilledButton.icon(
           onPressed: _openExpenseList,
           icon: const Icon(Icons.receipt_long_rounded),
-          label: const Text('View expenses'),
+          label: Text(context.l10n.t('budget.view_expenses')),
         ),
         OutlinedButton.icon(
           onPressed: _openAddExpense,
           icon: const Icon(Icons.add_card_rounded),
-          label: const Text('Add expense'),
+          label: Text(context.l10n.t('budget.add_expense')),
         ),
         if (widget.canManageBudget)
           OutlinedButton.icon(
             onPressed: () => _openBudgetDialog(summary),
             icon: const Icon(Icons.edit_note_rounded),
             label: Text(
-              summary.hasBudgetConfigured ? 'Update budget' : 'Set budget',
+              summary.hasBudgetConfigured
+                  ? context.l10n.t('budget.update_budget')
+                  : context.l10n.t('budget.set_budget'),
             ),
           ),
       ],
@@ -156,12 +160,12 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
     if (warnings.isEmpty) {
       ErrorDisplayService.showSuccessSnackbar(
         context,
-        'Expense added successfully',
+        context.l10n.t('budget.expense_added_successfully'),
       );
       return;
     }
 
-    final buffer = StringBuffer('Expense added');
+    final buffer = StringBuffer(context.l10n.t('budget.expense_added'));
     for (final warning in warnings) {
       buffer.write('\n- ${warning.message}');
     }
@@ -183,7 +187,9 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
-          summary.hasBudgetConfigured ? 'Update budget' : 'Set budget',
+          summary.hasBudgetConfigured
+              ? context.l10n.t('budget.dialog_title_update')
+              : context.l10n.t('budget.dialog_title_set'),
         ),
         content: Form(
           key: formKey,
@@ -195,14 +201,16 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                decoration: const InputDecoration(
-                  labelText: 'Total budget',
-                  prefixIcon: Icon(Icons.payments_outlined),
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('budget.total_budget'),
+                  prefixIcon: const Icon(Icons.payments_outlined),
                 ),
                 validator: (value) {
                   final parsed = double.tryParse((value ?? '').trim());
                   if (parsed == null || parsed < 0) {
-                    return 'Enter a valid non-negative amount';
+                    return context.l10n.t(
+                      'budget.validation_non_negative_amount',
+                    );
                   }
                   return null;
                 },
@@ -210,14 +218,16 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: currencyController,
-                decoration: const InputDecoration(
-                  labelText: 'Currency',
-                  prefixIcon: Icon(Icons.currency_exchange_rounded),
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('budget.currency'),
+                  prefixIcon: const Icon(Icons.currency_exchange_rounded),
                 ),
                 validator: (value) {
                   final text = (value ?? '').trim();
                   if (text.length < 3 || text.length > 10) {
-                    return 'Currency must be between 3 and 10 characters';
+                    return context.l10n.t(
+                      'budget.validation_currency_length',
+                    );
                   }
                   return null;
                 },
@@ -228,14 +238,14 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.t('common.cancel')),
           ),
           FilledButton(
             onPressed: () {
               if (!formKey.currentState!.validate()) return;
               Navigator.of(dialogContext).pop(true);
             },
-            child: const Text('Save'),
+            child: Text(context.l10n.t('common.save')),
           ),
         ],
       ),
@@ -253,7 +263,7 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
       if (!mounted) return;
       ErrorDisplayService.showSuccessSnackbar(
         context,
-        'Budget saved successfully',
+        context.l10n.t('budget.saved_successfully'),
       );
     } catch (error) {
       if (!mounted) return;

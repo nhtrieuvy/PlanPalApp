@@ -206,6 +206,7 @@ class ConversationSerializer(serializers.ModelSerializer):
                     'username': other_user.username,
                     'full_name': other_user.get_full_name(),
                     'is_online': other_user.is_online,
+                    'online_status': other_user.online_status,
                     'last_seen': (
                         other_user.last_seen.isoformat()
                         if other_user.last_seen
@@ -313,6 +314,7 @@ class ConversationSummarySerializer(serializers.ModelSerializer):
             if other_user:
                 data['other_user_id'] = str(other_user.id)
                 data['other_user_online'] = other_user.is_online
+                data['other_user_online_status'] = other_user.online_status
 
         return data
 

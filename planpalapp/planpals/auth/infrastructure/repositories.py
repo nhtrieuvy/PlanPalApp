@@ -14,6 +14,7 @@ from planpals.auth.domain.repositories import (
     UserRepository, FriendshipRepository, TokenRepository, GroupRepository as AuthGroupRepository,
 )
 from planpals.auth.infrastructure.models import Friendship, FriendshipRejection
+from planpals.shared.cache import CacheKeys
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,6 @@ class DjangoUserRepository(UserRepository):
                 for field, value in update_data.items():
                     setattr(user, field, value)
                 user.save(update_fields=list(update_data.keys()))
-                user.update_last_seen()
                 return user, True
         except User.DoesNotExist:
             return None, False
@@ -86,6 +86,10 @@ class DjangoUserRepository(UserRepository):
         if not is_online:
             updates['last_seen'] = timezone.now()
         updated = User.objects.filter(id=user_id).update(**updates)
+        if updated:
+            from django.core.cache import cache
+
+            cache.delete(CacheKeys.user_profile(user_id))
         return updated > 0
 
     def update_fcm_token(self, user_id: UUID, token: Optional[str]) -> bool:

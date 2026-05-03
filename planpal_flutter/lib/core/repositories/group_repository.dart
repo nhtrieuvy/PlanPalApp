@@ -1,20 +1,43 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/auth/auth_session.dart';
-import 'dart:io';
-import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
-import '../dtos/group_summary.dart';
+import 'package:planpal_flutter/core/services/apis.dart';
+
 import '../dtos/group_model.dart';
 import '../dtos/group_requests.dart';
+import '../dtos/group_summary.dart';
 
 class GroupRepository {
   final AuthProvider auth;
-  GroupRepository(this.auth); // Constructor
 
-  // Simple in-memory cache for group details
+  GroupRepository(this.auth);
+
+  static const Duration _detailCacheTtl = Duration(seconds: 20);
+
+  // Group roles are permission data. Keep detail cache short-lived so role
+  // changes made by another device are not displayed as stale state forever.
   final Map<String, GroupModel> _detailCache = {};
+  final Map<String, DateTime> _detailCacheStoredAt = {};
 
   Never _throwApiError(Response res) => throw buildApiException(res);
+
+  bool _hasFreshDetailCache(String id) {
+    final cachedAt = _detailCacheStoredAt[id];
+    if (!_detailCache.containsKey(id) || cachedAt == null) return false;
+    return DateTime.now().difference(cachedAt) < _detailCacheTtl;
+  }
+
+  void _setDetailCache(GroupModel detail) {
+    _detailCache[detail.id] = detail;
+    _detailCacheStoredAt[detail.id] = DateTime.now();
+  }
+
+  void _removeDetailCache(String groupId) {
+    _detailCache.remove(groupId);
+    _detailCacheStoredAt.remove(groupId);
+  }
 
   Future<List<GroupSummary>> getGroups() async {
     try {
@@ -48,10 +71,10 @@ class GroupRepository {
     String id, {
     bool forceRefresh = false,
   }) async {
-    // Trả về từ cache nếu có
-    if (!forceRefresh && _detailCache.containsKey(id)) {
+    if (!forceRefresh && _hasFreshDetailCache(id)) {
       return _detailCache[id]!;
     }
+
     try {
       final Response res = await auth.requestWithAutoRefresh(
         (c) => c.dio.get(Endpoints.groupDetails(id)),
@@ -60,7 +83,7 @@ class GroupRepository {
         final detail = GroupModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
-        _detailCache[id] = detail;
+        _setDetailCache(detail);
         return detail;
       }
       return _throwApiError(res);
@@ -101,7 +124,7 @@ class GroupRepository {
         final detail = GroupModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
-        _detailCache[detail.id] = detail;
+        _setDetailCache(detail);
         return detail;
       }
       return _throwApiError(res);
@@ -143,7 +166,7 @@ class GroupRepository {
         final detail = GroupModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
-        _detailCache[id] = detail;
+        _setDetailCache(detail);
         return detail;
       }
       return _throwApiError(res);
@@ -166,7 +189,7 @@ class GroupRepository {
       if (r != null) _throwApiError(r);
       rethrow;
     } finally {
-      _detailCache.remove(id);
+      _removeDetailCache(id);
     }
   }
 
@@ -179,8 +202,7 @@ class GroupRepository {
         ),
       );
       if (res.statusCode == 200 || res.statusCode == 201) {
-        // Clear cache để reload dữ liệu mới
-        _detailCache.remove(groupId);
+        _removeDetailCache(groupId);
         return;
       }
       _throwApiError(res);
@@ -200,7 +222,7 @@ class GroupRepository {
         final detail = GroupModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
-        _detailCache[detail.id] = detail;
+        _setDetailCache(detail);
         return detail;
       }
       return _throwApiError(res);
@@ -211,14 +233,13 @@ class GroupRepository {
     }
   }
 
-  // API rời nhóm
   Future<void> leaveGroup(String groupId) async {
     try {
       final Response res = await auth.requestWithAutoRefresh(
         (c) => c.dio.post(Endpoints.groupLeave(groupId)),
       );
       if (res.statusCode == 200) {
-        _detailCache.remove(groupId);
+        _removeDetailCache(groupId);
         return;
       }
       _throwApiError(res);
@@ -229,7 +250,6 @@ class GroupRepository {
     }
   }
 
-  // API xóa thành viên khỏi nhóm
   Future<void> removeMember(String groupId, RemoveMemberRequest request) async {
     try {
       final Response res = await auth.requestWithAutoRefresh(
@@ -239,8 +259,7 @@ class GroupRepository {
         ),
       );
       if (res.statusCode == 200 || res.statusCode == 201) {
-        // Clear cache để reload dữ liệu mới
-        _detailCache.remove(groupId);
+        _removeDetailCache(groupId);
         return;
       }
       _throwApiError(res);
@@ -251,12 +270,35 @@ class GroupRepository {
     }
   }
 
-  // Cache management
+  Future<void> changeMemberRole(
+    String groupId,
+    ChangeMemberRoleRequest request,
+  ) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(
+          Endpoints.groupChangeRole(groupId),
+          data: request.toJson(),
+        ),
+      );
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        _removeDetailCache(groupId);
+        return;
+      }
+      _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) _throwApiError(r);
+      rethrow;
+    }
+  }
+
   void clearCache() {
     _detailCache.clear();
+    _detailCacheStoredAt.clear();
   }
 
   void clearCacheEntry(String groupId) {
-    _detailCache.remove(groupId);
+    _removeDetailCache(groupId);
   }
 }

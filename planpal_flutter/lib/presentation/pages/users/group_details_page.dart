@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:planpal_flutter/core/dtos/group_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -10,8 +10,10 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/plan_summary.dart';
+import '../../../core/dtos/group_membership.dart';
 import '../../../core/dtos/group_requests.dart';
 import '../../../core/dtos/conversation.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../widgets/audit/audit_log_list.dart';
@@ -30,7 +32,7 @@ class GroupDetailsPage extends ConsumerStatefulWidget {
 }
 
 class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
-    with RefreshablePage<GroupDetailsPage> {
+    with RefreshablePage<GroupDetailsPage>, WidgetsBindingObserver {
   GroupModel? groupData;
   List<PlanSummary> groupPlans = [];
   bool isLoading = true;
@@ -41,32 +43,54 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadGroupData();
   }
 
   @override
-  Future<void> onRefresh() async {
-    await _loadGroupData();
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
-  Future<void> _loadGroupData({bool forceRefresh = false}) async {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadGroupData(forceRefresh: true, showLoading: false);
+    }
+  }
+
+  @override
+  Future<void> onRefresh() async {
+    await _loadGroupData(forceRefresh: true);
+  }
+
+  Future<void> _loadGroupData({
+    bool forceRefresh = false,
+    bool showLoading = true,
+  }) async {
     try {
-      setState(() {
-        isLoading = true;
-        error = null;
-      });
+      if (showLoading) {
+        setState(() {
+          isLoading = true;
+          error = null;
+        });
+      }
       final repo = ref.read(groupRepositoryProvider);
       final data = await repo.getGroupDetail(
         widget.id,
         forceRefresh: forceRefresh,
       );
+      if (!mounted) return;
       setState(() {
         groupData = data;
         isLoading = false;
+        error = null;
       });
       // Load plans after group data is loaded
       _loadGroupPlans();
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         error = e.toString();
         isLoading = false;
@@ -92,6 +116,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   }
 
   Future<void> _updateCoverImage() async {
+    final l10n = context.l10n;
     try {
       final picker = ImagePicker();
       final XFile? picked = await picker.pickImage(
@@ -110,7 +135,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           context: context,
           barrierDismissible: false,
           builder: (context) =>
-              const AppLoading(message: 'Đang cập nhật ảnh bìa...'),
+              AppLoading(message: l10n.t('group_details.update_cover_loading')),
         );
 
         // Update group with new cover image using DTO (no changes to name/description)
@@ -130,7 +155,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
         if (!mounted) return;
         ErrorDisplayService.showSuccessSnackbar(
           context,
-          'Ảnh bìa đã được cập nhật',
+          l10n.t('group_details.update_cover_success'),
         );
       }
     } catch (e) {
@@ -177,9 +202,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            flexibleSpace: const FlexibleSpaceBar(
+            flexibleSpace: FlexibleSpaceBar(
               background: SizedBox.shrink(),
-              title: Text('Chi tiết nhóm'),
+              title: Text(context.l10n.t('group_details.title')),
               centerTitle: true,
             ),
           ),
@@ -196,9 +221,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            flexibleSpace: const FlexibleSpaceBar(
+            flexibleSpace: FlexibleSpaceBar(
               background: SizedBox.shrink(),
-              title: Text('Chi tiết nhóm'),
+              title: Text(context.l10n.t('group_details.title')),
               centerTitle: true,
             ),
           ),
@@ -206,7 +231,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
         body: AppError(
           message: error,
           onRetry: () => _loadGroupData(forceRefresh: true),
-          retryLabel: 'Tải lại',
+          retryLabel: context.l10n.t('common.retry'),
         ),
       ),
     );
@@ -238,7 +263,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                   foregroundColor: AppColors.primary,
                 ),
                 icon: const Icon(Icons.chat),
-                tooltip: 'Chat nhóm',
+                tooltip: context.l10n.t('group_details.chat_tooltip'),
               ),
             ),
             Container(
@@ -250,7 +275,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                   foregroundColor: AppColors.primary,
                 ),
                 icon: const Icon(Icons.photo_camera),
-                tooltip: 'Cập nhật ảnh bìa',
+                tooltip: context.l10n.t('group_details.update_cover_tooltip'),
               ),
             ),
           ],
@@ -349,7 +374,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(
-                            name.isNotEmpty ? name : 'Nhóm không tên',
+                            name.isNotEmpty ? name : context.l10n.t('group_details.unnamed'),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 24,
@@ -377,7 +402,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               _buildAdminCard(adminAvatar, adminName, adminInitials),
               const SizedBox(height: 16),
               if (desc?.isNotEmpty == true)
-                _buildInfoCard('Mô tả', desc!, Icons.description_outlined),
+                _buildInfoCard(context.l10n.t('plan.description'), desc!, Icons.description_outlined),
               const SizedBox(height: 16),
               _buildMembersCard(membersCount, members),
               const SizedBox(height: 16),
@@ -422,9 +447,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           children: [
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: SectionHeader(
-                    title: 'Thành viên',
+                    title: context.l10n.t('group_details.members_title'),
                     icon: Icons.people_alt_outlined,
                   ),
                 ),
@@ -446,7 +471,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                     ),
                   ),
                 ),
-                // Nút thêm thành viên cho admin
+                // NÃºt thÃªm thÃ nh viÃªn cho admin
                 if (isAdmin) ...[
                   const SizedBox(width: 8),
                   IconButton(
@@ -456,7 +481,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                       backgroundColor: AppColors.primary.withAlpha(25),
                       foregroundColor: AppColors.primary,
                     ),
-                    tooltip: 'Thêm thành viên',
+                    tooltip: context.l10n.t('group_details.add_member'),
                   ),
                 ],
               ],
@@ -487,7 +512,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Nhấn vào thành viên để xóa khỏi nhóm',
+                          context.l10n.t('group_details.tap_member_remove'),
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.blue[700],
@@ -504,6 +529,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                 spacing: 12,
                 runSpacing: 12,
                 children: members.take(12).map((member) {
+                  final membership = _membershipForUser(member.id);
+                  final role = membership?.role ??
+                      (member.id == groupData!.admin.id ? 'admin' : 'member');
                   // members already parsed to UserSummary objects
                   final display = member.fullName;
                   final initials = member.initials.isNotEmpty
@@ -526,18 +554,23 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                             : '?');
                   final avatar = member.avatarUrl ?? '';
                   final isCurrentUserAdmin =
-                      groupData!.admin.id ==
-                      ref.read(authNotifierProvider).user?.id;
-                  final isMemberAdmin = member.id == groupData!.admin.id;
+                      groupData?.canEdit == true;
+                  final currentUserId = ref.read(authNotifierProvider).user?.id;
+                  final isSelf = member.id == currentUserId;
+                  final isMemberAdmin = role == 'admin';
+                  final isPlanCreator = role == 'plan_creator';
+
+                  final canManageThisMember =
+                      isCurrentUserAdmin && !isSelf && !isMemberAdmin;
 
                   return GestureDetector(
-                    onTap: isCurrentUserAdmin && !isMemberAdmin
-                        ? () => _showMemberOptions(member)
+                    onTap: canManageThisMember
+                        ? () => _showMemberOptions(member, role)
                         : null,
                     child: Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
-                        border: isCurrentUserAdmin && !isMemberAdmin
+                        border: canManageThisMember
                             ? Border.all(
                                 color: Colors.grey.withValues(alpha: 0.3),
                               )
@@ -590,8 +623,29 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                                     ),
                                   ),
                                 ),
+                              if (isPlanCreator)
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.all(2),
+                                    child: const Icon(
+                                      Icons.event_note,
+                                      size: 12,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
                               // Remove indicator for admin
-                              if (isCurrentUserAdmin && !isMemberAdmin)
+                              if (isCurrentUserAdmin && !isSelf)
                                 Positioned(
                                   top: 0,
                                   right: 0,
@@ -625,16 +679,36 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                               style: const TextStyle(fontSize: 12),
                             ),
                           ),
-                          if (isCurrentUserAdmin && !isMemberAdmin)
-                            const SizedBox(
+                          Text(
+                            _roleLabel(role),
+                            maxLines: 1,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isMemberAdmin
+                                  ? Colors.orange
+                                  : isPlanCreator
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                              fontWeight: isMemberAdmin || isPlanCreator
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                          if (canManageThisMember)
+                            SizedBox(
                               width: 72,
                               child: Text(
-                                'Nhấn để xóa',
+                                context.l10n.t('group_details.tap_to_remove'),
                                 maxLines: 1,
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: Colors.grey,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
@@ -649,9 +723,12 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
-                    '... và ${members.length - 12} thành viên khác',
+                    context.l10n.t(
+                      'group_details.other_members',
+                      params: {'count': '${members.length - 12}'},
+                    ),
                     style: TextStyle(
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -663,7 +740,28 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     );
   }
 
+  GroupMembership? _membershipForUser(String userId) {
+    final memberships = groupData?.memberships ?? const <GroupMembership>[];
+    for (final membership in memberships) {
+      if (membership.user.id == userId) return membership;
+    }
+    return null;
+  }
+
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'admin':
+        return context.l10n.t('group_details.role_admin');
+      case 'plan_creator':
+        return context.l10n.t('group_details.role_plan_creator');
+      default:
+        return context.l10n.t('group_details.role_member');
+    }
+  }
+
   Widget _buildAdminCard(String avatarUrl, String name, String initials) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       elevation: 2,
       shadowColor: Colors.black26,
@@ -674,7 +772,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           children: [
             CircleAvatar(
               radius: 32,
-              backgroundColor: Colors.white,
+              backgroundColor: colorScheme.surface,
               child: CircleAvatar(
                 radius: 30,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.1),
@@ -698,15 +796,19 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Quản trị viên',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  Text(
+                    context.l10n.t('group_details.admin_label'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   Text(
-                    name.isNotEmpty ? name : 'Không rõ',
-                    style: const TextStyle(
+                    name.isNotEmpty ? name : context.l10n.t('common.unknown'),
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                 ],
@@ -732,50 +834,57 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               children: [
                 Expanded(
                   child: SectionHeader(
-                    title: 'Kế hoạch nhóm (${groupPlans.length})',
+                    title: context.l10n.t(
+                      'group_details.plans_title',
+                      params: {'count': '${groupPlans.length}'},
+                    ),
                     icon: Icons.event_note_outlined,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => _navigateToCreatePlan(g),
-              icon: const Icon(Icons.add),
-              label: const Text('Tạo kế hoạch mới'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 16,
+            if (g.canCreatePlan) ...[
+              ElevatedButton.icon(
+                onPressed: () => _navigateToCreatePlan(g),
+                icon: const Icon(Icons.add),
+                label: Text(context.l10n.t('group_details.create_plan')),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  minimumSize: const Size(double.infinity, 44),
                 ),
-                minimumSize: const Size(double.infinity, 44),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
             if (isLoadingPlans)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(8),
                 child: AppLoading(
                   inline: true,
-                  message: 'Đang tải kế hoạch...',
+                  message: context.l10n.t('group_details.loading_plans'),
                 ),
               )
             else if (groupPlans.isEmpty)
               AppEmpty(
                 icon: Icons.event_note_outlined,
-                title: 'Chưa có kế hoạch nào',
-                description: 'Hãy tạo kế hoạch đầu tiên cho nhóm',
-                actionLabel: 'Tạo kế hoạch mới',
-                onAction: () => _navigateToCreatePlan(g),
+                title: context.l10n.t('group_details.empty_plans_title'),
+                description: context.l10n.t('group_details.empty_plans_description'),
+                actionLabel: g.canCreatePlan
+                    ? context.l10n.t('group_details.create_plan')
+                    : null,
+                onAction: g.canCreatePlan ? () => _navigateToCreatePlan(g) : null,
               )
             else
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Danh sách kế hoạch:',
+                  Text(
+                    context.l10n.t('group_details.plans_list'),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -877,6 +986,10 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   }
 
   Widget _buildPlanItem(PlanSummary plan) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final mutedColor = colorScheme.onSurfaceVariant;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -885,12 +998,16 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[200]!),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: colorScheme.shadow.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.18 : 0.05,
+                ),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -913,9 +1030,10 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                   children: [
                     Text(
                       plan.title,
-                      style: const TextStyle(
+                      style: theme.textTheme.titleSmall?.copyWith(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -923,27 +1041,27 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.event, size: 16, color: Colors.grey[500]),
+                        Icon(Icons.event, size: 16, color: mutedColor),
                         const SizedBox(width: 4),
                         Text(
-                          '${plan.activitiesCount} hoạt động',
+                          context.l10n.activityCountLabel(plan.activitiesCount),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[500],
+                            color: mutedColor,
                           ),
                         ),
                         const SizedBox(width: 16),
                         Icon(
                           Icons.info_outline,
                           size: 16,
-                          color: Colors.grey[500],
+                          color: mutedColor,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          plan.statusDisplay,
+                          context.l10n.planStatusLabel(plan.status),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[500],
+                            color: mutedColor,
                           ),
                         ),
                       ],
@@ -951,7 +1069,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+              Icon(Icons.arrow_forward_ios, size: 16, color: mutedColor),
             ],
           ),
         ),
@@ -964,7 +1082,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     final isAdmin = g.admin.id == currentUser?.id;
 
     if (isAdmin) {
-      // Admin có thể chỉnh sửa, xóa nhóm và rời nhóm
+      // Admin cÃ³ thá»ƒ chá»‰nh sá»­a, xÃ³a nhÃ³m vÃ  rá»i nhÃ³m
       return Column(
         children: [
           Row(
@@ -987,7 +1105,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   icon: const Icon(Icons.edit),
-                  label: const Text('Chỉnh sửa'),
+                  label: Text(context.l10n.t('common.edit')),
                   heroTag: 'edit_group',
                 ),
               ),
@@ -1000,7 +1118,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                   backgroundColor: Colors.redAccent,
                   foregroundColor: Colors.white,
                   icon: const Icon(Icons.delete_outline),
-                  label: const Text('Xóa nhóm'),
+                  label: Text(context.l10n.t('common.delete')),
                   heroTag: 'delete_group',
                 ),
               ),
@@ -1017,13 +1135,13 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               icon: const Icon(Icons.exit_to_app),
-              label: const Text('Rời nhóm'),
+              label: Text(context.l10n.t('group_details.leave_action')),
             ),
           ),
         ],
       );
     } else {
-      // Thành viên thường chỉ có thể rời nhóm
+      // ThÃ nh viÃªn thÆ°á»ng chá»‰ cÃ³ thá»ƒ rá»i nhÃ³m
       return SizedBox(
         width: double.infinity,
         child: FloatingActionButton.extended(
@@ -1031,7 +1149,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           backgroundColor: Colors.redAccent,
           foregroundColor: Colors.white,
           icon: const Icon(Icons.exit_to_app),
-          label: const Text('Rời nhóm'),
+          label: Text(context.l10n.t('group_details.leave_action')),
           heroTag: 'leave_group',
         ),
       );
@@ -1082,7 +1200,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             if (!pageContext.mounted) return;
             ErrorDisplayService.showSuccessSnackbar(
               pageContext,
-              'Đã thêm thành viên thành công',
+              pageContext.l10n.t('group_details.add_member_success'),
             );
           } catch (e) {
             if (!pageContext.mounted) return;
@@ -1093,22 +1211,27 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     );
   }
 
-  // Dialog xác nhận rời nhóm
+  // Dialog xÃ¡c nháº­n rá»i nhÃ³m
   Future<void> _showLeaveGroupDialog(GroupModel group) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Rời nhóm'),
-        content: Text('Bạn có chắc chắn muốn rời khỏi nhóm "${group.name}"?'),
+        title: Text(context.l10n.t('group_details.leave_title')),
+        content: Text(
+          context.l10n.t(
+            'group_details.leave_confirm',
+            params: {'group': group.name},
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Hủy'),
+            child: Text(context.l10n.t('common.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Rời nhóm'),
+            child: Text(context.l10n.t('group_details.leave_action')),
           ),
         ],
       ),
@@ -1119,8 +1242,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     }
   }
 
-  // Dialog tùy chọn cho thành viên (admin sử dụng)
-  Future<void> _showMemberOptions(UserSummary member) async {
+  // Dialog tÃ¹y chá»n cho thÃ nh viÃªn (admin sá»­ dá»¥ng)
+  Future<void> _showMemberOptions(UserSummary member, String currentRole) async {
+    final isPlanCreator = currentRole == 'plan_creator';
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -1159,14 +1283,18 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                     children: [
                       Text(
                         member.fullName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       Text(
                         '@${member.username}',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -1175,6 +1303,45 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             ),
             const SizedBox(height: 20),
             const Divider(),
+            const SizedBox(height: 10),
+
+            ListTile(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  isPlanCreator ? Icons.event_busy : Icons.event_note,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                isPlanCreator
+                    ? context.l10n.t('group_details.revoke_plan_creator')
+                    : context.l10n.t('group_details.grant_plan_creator'),
+              ),
+              subtitle: Text(
+                isPlanCreator
+                    ? context.l10n.t(
+                        'group_details.revoke_plan_creator_description',
+                      )
+                    : context.l10n.t(
+                        'group_details.grant_plan_creator_description',
+                      ),
+              ),
+              onTap: () {
+                Navigator.of(context).pop();
+                _changeMemberRole(
+                  member,
+                  isPlanCreator ? 'member' : 'plan_creator',
+                );
+              },
+            ),
+
             const SizedBox(height: 10),
 
             // Remove member option
@@ -1192,12 +1359,12 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                   size: 20,
                 ),
               ),
-              title: const Text(
-                'Xóa khỏi nhóm',
+              title: Text(
+                context.l10n.t('group_details.member_options_remove'),
                 style: TextStyle(color: Colors.red),
               ),
-              subtitle: const Text(
-                'Thành viên sẽ không còn truy cập được nhóm',
+              subtitle: Text(
+                context.l10n.t('group_details.member_options_remove_description'),
               ),
               onTap: () {
                 Navigator.of(context).pop();
@@ -1212,7 +1379,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Hủy'),
+                child: Text(context.l10n.t('common.cancel')),
               ),
             ),
 
@@ -1224,24 +1391,27 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     );
   }
 
-  // Dialog xác nhận xóa thành viên
+  // Dialog xÃ¡c nháº­n xÃ³a thÃ nh viÃªn
   Future<void> _showRemoveMemberDialog(UserSummary member) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa thành viên'),
+        title: Text(context.l10n.t('group_details.remove_member_title')),
         content: Text(
-          'Bạn có chắc chắn muốn xóa "${member.fullName}" khỏi nhóm?',
+          context.l10n.t(
+            'group_details.remove_member_confirm',
+            params: {'name': member.fullName},
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Hủy'),
+            child: Text(context.l10n.t('common.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Xóa'),
+            child: Text(context.l10n.t('common.delete')),
           ),
         ],
       ),
@@ -1252,7 +1422,35 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     }
   }
 
-  // Thực hiện rời nhóm
+  Future<void> _changeMemberRole(UserSummary member, String role) async {
+    try {
+      final request = ChangeMemberRoleRequest(userId: member.id, role: role);
+      await ref.read(groupRepositoryProvider).changeMemberRole(
+            widget.id,
+            request,
+          );
+
+      if (!mounted) return;
+      await _loadGroupData(forceRefresh: true);
+      _hasChanges = true;
+      if (!mounted) return;
+
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t(
+          role == 'plan_creator'
+              ? 'group_details.grant_plan_creator_success'
+              : 'group_details.revoke_plan_creator_success',
+          params: {'name': member.fullName},
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ErrorDisplayService.handleError(context, e, showDialog: true);
+    }
+  }
+
+  // Thá»±c hiá»‡n rá»i nhÃ³m
   Future<void> _leaveGroup(GroupModel group) async {
     try {
       final navigator = Navigator.of(context);
@@ -1264,7 +1462,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
 
       ErrorDisplayService.showSuccessSnackbar(
         context,
-        'Đã rời nhóm thành công',
+        context.l10n.t('group_details.leave_success'),
       );
     } catch (e) {
       if (!mounted) return;
@@ -1272,7 +1470,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     }
   }
 
-  // Thực hiện xóa thành viên
+  // Thá»±c hiá»‡n xÃ³a thÃ nh viÃªn
   Future<void> _removeMember(UserSummary member) async {
     try {
       final request = RemoveMemberRequest(userId: member.id);
@@ -1285,7 +1483,10 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
 
       ErrorDisplayService.showSuccessSnackbar(
         context,
-        'Đã xóa "${member.fullName}" khỏi nhóm',
+        context.l10n.t(
+          'group_details.remove_member_success',
+          params: {'name': member.fullName},
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -1322,22 +1523,27 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   Widget build(BuildContext context) {
     if (widget.loading) {
       return AlertDialog(
-        title: const Text('Thêm thành viên'),
-        content: const SizedBox(
+        title: Text(context.l10n.t('group_details.add_member_dialog_title')),
+        content: SizedBox(
           height: 100,
-          child: AppLoading(message: 'Đang tải danh sách bạn bè...'),
+          child: AppLoading(message: context.l10n.t('group_details.add_member_loading')),
         ),
       );
     }
 
     if (widget.error != null) {
       return AlertDialog(
-        title: const Text('Lỗi'),
-        content: Text('Không thể tải danh sách bạn bè: ${widget.error}'),
+        title: Text(context.l10n.t('common.error')),
+        content: Text(
+          context.l10n.t(
+            'group_details.add_member_error',
+            params: {'error': widget.error ?? ''},
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Đóng'),
+            child: Text(context.l10n.t('common.close')),
           ),
         ],
       );
@@ -1351,7 +1557,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     }).toList();
 
     return AlertDialog(
-      title: const Text('Thêm thành viên'),
+      title: Text(context.l10n.t('group_details.add_member_dialog_title')),
       content: SizedBox(
         width: double.maxFinite,
         height: 400,
@@ -1359,8 +1565,8 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           children: [
             // Search field
             TextField(
-              decoration: const InputDecoration(
-                hintText: 'Tìm kiếm bạn bè...',
+              decoration: InputDecoration(
+                hintText: context.l10n.t('group_details.add_member_search_hint'),
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
               ),
@@ -1374,8 +1580,8 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             // Friends list
             Expanded(
               child: filteredFriends.isEmpty
-                  ? const Center(
-                      child: Text('Không có bạn bè nào để thêm vào nhóm'),
+                  ? Center(
+                      child: Text(context.l10n.t('group_details.add_member_empty')),
                     )
                   : ListView.builder(
                       itemCount: filteredFriends.length,
@@ -1424,9 +1630,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Đóng'),
+          child: Text(context.l10n.t('common.close')),
         ),
       ],
     );
   }
 }
+

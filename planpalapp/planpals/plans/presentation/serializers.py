@@ -71,7 +71,7 @@ class PlanActivitySerializer(serializers.ModelSerializer):
             'id', 'plan', 'title', 'description', 'activity_type',
             'start_time', 'end_time', 'location_name', 'location_address', 
             'latitude', 'longitude', 'goong_place_id', 'estimated_cost', 
-            'notes', 'order', 'is_completed', 'duration_hours', 'has_location',
+            'notes', 'order', 'is_completed', 'version', 'duration_hours', 'has_location',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -173,6 +173,66 @@ class PlanActivityCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('plan_id', None)
         return super().create(validated_data)
+
+
+class PlanActivityUpdateSerializer(serializers.ModelSerializer):
+    version = serializers.IntegerField(write_only=True, required=False, min_value=1)
+    force = serializers.BooleanField(write_only=True, required=False, default=False)
+
+    class Meta:
+        model = PlanActivity
+        fields = [
+            'version', 'force',
+            'title', 'description', 'activity_type',
+            'start_time', 'end_time', 'location_name', 'location_address',
+            'latitude', 'longitude', 'goong_place_id', 'estimated_cost',
+            'notes', 'order', 'is_completed'
+        ]
+        extra_kwargs = {
+            'title': {'required': False},
+            'description': {'required': False},
+            'activity_type': {'required': False},
+            'start_time': {'required': False},
+            'end_time': {'required': False},
+            'location_name': {'required': False},
+            'location_address': {'required': False},
+            'latitude': {'required': False},
+            'longitude': {'required': False},
+            'goong_place_id': {'required': False},
+            'estimated_cost': {'required': False},
+            'notes': {'required': False},
+            'order': {'required': False},
+            'is_completed': {'required': False},
+        }
+
+    def validate(self, attrs):
+        if not attrs.get('force') and attrs.get('version') is None:
+            raise serializers.ValidationError({'version': 'Version is required for updates'})
+
+        activity = self.context.get('activity') or getattr(self, 'instance', None)
+
+        start_time = attrs.get('start_time', getattr(activity, 'start_time', None))
+        end_time = attrs.get('end_time', getattr(activity, 'end_time', None))
+        if start_time and end_time:
+            time_error = validate_activity_times(start_time, end_time)
+            if time_error:
+                raise serializers.ValidationError({'end_time': time_error})
+
+        latitude = attrs.get('latitude', getattr(activity, 'latitude', None))
+        longitude = attrs.get('longitude', getattr(activity, 'longitude', None))
+        coord_error = validate_coordinates(latitude, longitude)
+        if coord_error:
+            raise serializers.ValidationError(coord_error)
+
+        estimated_cost = attrs.get(
+            'estimated_cost',
+            getattr(activity, 'estimated_cost', None),
+        )
+        cost_error = validate_estimated_cost(estimated_cost)
+        if cost_error:
+            raise serializers.ValidationError({'estimated_cost': cost_error})
+
+        return attrs
 
 
 class PlanDetailSerializer(serializers.ModelSerializer):
@@ -311,6 +371,9 @@ class PlanDetailSerializer(serializers.ModelSerializer):
             except Group.DoesNotExist:
                 raise serializers.ValidationError("Group does not exist")
 
+        if instance and instance.plan_type == 'group' and 'is_public' in attrs:
+            attrs['is_public'] = True
+
         return attrs
     
     def create(self, validated_data):
@@ -374,6 +437,7 @@ class PlanCreateSerializer(serializers.ModelSerializer):
                             "You are not a member of this group"
                         )
                 attrs['group'] = group
+                attrs['is_public'] = True
             except Group.DoesNotExist:
                 raise serializers.ValidationError("Group does not exist")
         elif plan_type == 'personal':

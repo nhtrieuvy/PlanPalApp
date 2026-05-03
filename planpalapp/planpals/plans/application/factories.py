@@ -89,6 +89,7 @@ def get_add_activity_handler() -> AddActivityHandler:
         plan_repo=_plan_repo(),
         activity_repo=_activity_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
     )
 
 
@@ -96,6 +97,7 @@ def get_update_activity_handler() -> UpdateActivityHandler:
     return UpdateActivityHandler(
         activity_repo=_activity_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
     )
 
 
@@ -110,6 +112,7 @@ def get_toggle_activity_completion_handler() -> ToggleActivityCompletionHandler:
     return ToggleActivityCompletionHandler(
         activity_repo=_activity_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
     )
 
 

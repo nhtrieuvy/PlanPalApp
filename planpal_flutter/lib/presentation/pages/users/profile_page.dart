@@ -1,17 +1,21 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:getwidget/getwidget.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:planpal_flutter/core/dtos/user_model.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/repositories/user_repository.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
-import 'package:planpal_flutter/core/dtos/user_model.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import 'package:getwidget/getwidget.dart';
-import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import 'package:planpal_flutter/core/repositories/user_repository.dart';
 import 'package:planpal_flutter/presentation/pages/friends/friends_page.dart';
-import '../../../shared/widgets/widgets.dart';
+
 import '../../../shared/ui_states/ui_states.dart';
+import '../../../shared/widgets/widgets.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -21,7 +25,6 @@ class ProfilePage extends ConsumerStatefulWidget {
 }
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
-  // Constants
   static const double _avatarRadius = 54.0;
   static const double _editIconSize = 20.0;
   static const EdgeInsets _pagePadding = EdgeInsets.symmetric(
@@ -29,25 +32,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     vertical: 32,
   );
 
-  // Repo & API result
   UserRepository get _repo => ref.read(userRepositoryProvider);
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
-    // Watch auth provider for user changes via Riverpod
+    final l10n = context.l10n;
     final user = ref.watch(authNotifierProvider).user;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Trang cá nhân'), centerTitle: true),
+      appBar: AppBar(title: Text(l10n.t('profile.title')), centerTitle: true),
       body: user == null
-          ? const AppLoading(message: 'Đang tải hồ sơ')
+          ? AppLoading(message: l10n.t('profile.loading'))
           : SingleChildScrollView(
               padding: _pagePadding,
               child: Column(
@@ -55,11 +52,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 children: [
                   Center(child: _buildAvatarSection(user, colorScheme)),
                   const SizedBox(height: 24),
-                  ..._buildStatisticsCards(user, colorScheme, theme),
+                  ..._buildStatisticsCards(context, user, colorScheme),
                   const SizedBox(height: 24),
                   _buildUserNameSection(user, theme, colorScheme),
                   const SizedBox(height: 24),
-                  _buildPersonalInfoCard(user, theme, colorScheme),
+                  _buildPersonalInfoCard(context, user, theme, colorScheme),
                   const SizedBox(height: 32),
                   _buildLogoutButton(context),
                 ],
@@ -68,11 +65,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  // Widget builders
   Widget _buildAvatarSection(UserModel user, ColorScheme colorScheme) {
     return Stack(
       children: [
-        // Avatar with placeholder and error handling
         GFAvatar(
           backgroundColor: colorScheme.primary.withAlpha(30),
           radius: _avatarRadius,
@@ -83,8 +78,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     width: _avatarRadius * 2,
                     height: _avatarRadius * 2,
                     fit: BoxFit.cover,
-                    placeholder: (c, u) => Container(
-                      color: Colors.grey[200],
+                    placeholder: (context, url) => Container(
+                      color: colorScheme.surfaceContainerHighest,
                       child: const Center(
                         child: SizedBox(
                           width: 20,
@@ -93,30 +88,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                       ),
                     ),
-                    errorWidget: (c, u, e) => Container(
-                      color: Colors.grey[100],
-                      child: Center(
-                        child: Text(
-                          user.initials,
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.primary,
-                          ),
-                        ),
-                      ),
+                    errorWidget: (context, url, error) => _buildAvatarFallback(
+                      user.initials,
+                      colorScheme,
                     ),
                   )
-                : Center(
-                    child: Text(
-                      user.initials,
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  ),
+                : _buildAvatarFallback(user.initials, colorScheme),
           ),
         ),
         Positioned(
@@ -129,11 +106,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             child: InkWell(
               customBorder: const CircleBorder(),
               onTap: () async {
-                final user = ref.read(authNotifierProvider).user;
-                if (user != null) await _showEditProfileDialog(context, user);
+                final currentUser = ref.read(authNotifierProvider).user;
+                if (currentUser != null) {
+                  await _showEditProfileDialog(context, currentUser);
+                }
               },
               child: Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.all(8),
                 child: Icon(
                   Icons.edit,
                   color: Colors.white,
@@ -144,6 +123,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAvatarFallback(String initials, ColorScheme colorScheme) {
+    return Container(
+      color: colorScheme.surfaceContainerHighest,
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+            color: colorScheme.primary,
+          ),
+        ),
+      ),
     );
   }
 
@@ -165,48 +160,49 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   List<Widget> _buildStatisticsCards(
+    BuildContext context,
     UserModel user,
     ColorScheme colorScheme,
-    ThemeData theme,
   ) {
+    final l10n = context.l10n;
     final statisticsData = [
-      {
-        'icon': Icons.travel_explore,
-        'label': 'Kế hoạch',
-        'count': user.plansCount,
-        'color': colorScheme.primary,
-        'containerColor': colorScheme.primaryContainer,
-      },
-      {
-        'icon': Icons.group,
-        'label': 'Nhóm',
-        'count': user.groupsCount,
-        'color': colorScheme.secondary,
-        'containerColor': colorScheme.secondaryContainer,
-      },
-      {
-        'icon': Icons.people,
-        'label': 'Bạn bè',
-        'count': user.friendsCount,
-        'color': colorScheme.tertiary,
-        'containerColor': colorScheme.tertiaryContainer,
-      },
+      (
+        icon: Icons.travel_explore,
+        label: l10n.t('profile.stats.plans'),
+        count: user.plansCount,
+        color: colorScheme.primary,
+        background: colorScheme.primaryContainer,
+      ),
+      (
+        icon: Icons.group,
+        label: l10n.t('profile.stats.groups'),
+        count: user.groupsCount,
+        color: colorScheme.secondary,
+        background: colorScheme.secondaryContainer,
+      ),
+      (
+        icon: Icons.people,
+        label: l10n.t('profile.stats.friends'),
+        count: user.friendsCount,
+        color: colorScheme.tertiary,
+        background: colorScheme.tertiaryContainer,
+      ),
     ];
 
     return statisticsData.asMap().entries.map((entry) {
       final index = entry.key;
       final stat = entry.value;
-      final isFriendsCard = stat['label'] == 'Bạn bè';
-      final cardWidget = StatCard(
-        icon: stat['icon'] as IconData,
-        label: stat['label'] as String,
-        value: '${stat['count']}',
-        color: stat['color'] as Color,
-        backgroundColor: stat['containerColor'] as Color,
+      final isFriendsCard = stat.label == l10n.t('profile.stats.friends');
+      final card = StatCard(
+        icon: stat.icon,
+        label: stat.label,
+        value: '${stat.count}',
+        color: stat.color,
+        backgroundColor: stat.background,
         onTap: isFriendsCard
             ? () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const FriendsPage()),
+                  MaterialPageRoute(builder: (_) => const FriendsPage()),
                 );
               }
             : null,
@@ -214,7 +210,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
       return Column(
         children: [
-          cardWidget,
+          card,
           if (index < statisticsData.length - 1) const SizedBox(height: 12),
         ],
       );
@@ -222,10 +218,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Widget _buildPersonalInfoCard(
+    BuildContext context,
     UserModel user,
     ThemeData theme,
     ColorScheme colorScheme,
   ) {
+    final l10n = context.l10n;
     return GFCard(
       color: colorScheme.surfaceContainerHighest,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -234,40 +232,40 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Thông tin cá nhân',
+            l10n.t('profile.personal_info'),
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: colorScheme.primary,
             ),
           ),
           const SizedBox(height: 12),
-          _buildInfoRow('Tên đăng nhập', user.username),
-          _buildInfoRow('Họ tên', user.fullName),
-          _buildInfoRow('Email', user.email ?? ''),
-          _buildInfoRow('Số điện thoại', user.phoneNumber ?? ''),
+          _buildInfoRow(l10n.t('profile.username'), user.username),
+          _buildInfoRow(l10n.t('profile.full_name'), user.fullName),
+          _buildInfoRow(l10n.t('auth.email'), user.email ?? ''),
+          _buildInfoRow(l10n.t('profile.phone'), user.phoneNumber ?? ''),
           _buildInfoRow(
-            'Ngày sinh',
+            l10n.t('profile.birth_date'),
             user.dateOfBirth != null
-                ? '${user.dateOfBirth!.day}/${user.dateOfBirth!.month}/${user.dateOfBirth!.year}'
-                : 'Chưa cập nhật',
+                ? AppFormatters.shortDate(context, user.dateOfBirth!)
+                : l10n.t('profile.not_updated'),
           ),
           const SizedBox(height: 8),
-          _buildInfoRow('Giới thiệu', user.bio ?? ''),
+          _buildInfoRow(l10n.t('profile.bio'), user.bio ?? ''),
         ],
       ),
     );
   }
 
   Widget _buildLogoutButton(BuildContext context) {
+    final l10n = context.l10n;
     return GFButton(
       onPressed: () async {
-        final authProvider = ref.read(authNotifierProvider);
-        await authProvider.logout();
+        await ref.read(authNotifierProvider).logout();
         if (context.mounted) {
           Navigator.of(context).pushReplacementNamed('/login');
         }
       },
-      text: 'Đăng xuất',
+      text: l10n.t('profile.logout'),
       icon: const Icon(Icons.logout, color: Colors.white),
       type: GFButtonType.solid,
       shape: GFButtonShape.pills,
@@ -295,30 +293,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  // Helper methods
   Future<void> _showEditProfileDialog(
     BuildContext pageContext,
     UserModel user,
   ) async {
-    final TextEditingController firstNameController = TextEditingController(
-      text: user.firstName,
-    );
-    final TextEditingController lastNameController = TextEditingController(
-      text: user.lastName,
-    );
-    final TextEditingController emailController = TextEditingController(
-      text: user.email ?? '',
-    );
-    final TextEditingController phoneController = TextEditingController(
-      text: user.phoneNumber ?? '',
-    );
-    final TextEditingController bioController = TextEditingController(
-      text: user.bio ?? '',
-    );
+    final l10n = pageContext.l10n;
+    final firstNameController = TextEditingController(text: user.firstName);
+    final lastNameController = TextEditingController(text: user.lastName);
+    final emailController = TextEditingController(text: user.email ?? '');
+    final phoneController = TextEditingController(text: user.phoneNumber ?? '');
+    final bioController = TextEditingController(text: user.bio ?? '');
 
     File? selectedImage;
-    final ImagePicker picker = ImagePicker();
-
+    final picker = ImagePicker();
     final scaffoldMessenger = ScaffoldMessenger.of(pageContext);
     final pageNavigator = Navigator.of(pageContext);
     final authProvider = ref.read(authNotifierProvider);
@@ -327,14 +314,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       context: pageContext,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: const Text('Chỉnh sửa thông tin'),
+          title: Text(l10n.t('profile.edit_info')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 GestureDetector(
                   onTap: () async {
-                    final XFile? image = await picker.pickImage(
+                    final image = await picker.pickImage(
                       source: ImageSource.gallery,
                       maxWidth: 800,
                       maxHeight: 800,
@@ -348,7 +335,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   },
                   child: CircleAvatar(
                     radius: 40,
-                    backgroundColor: Colors.grey[200],
+                    backgroundColor:
+                        Theme.of(dialogContext).colorScheme.surfaceContainerHighest,
                     child: selectedImage != null
                         ? ClipOval(
                             child: Image.file(
@@ -365,19 +353,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     width: 80,
                                     height: 80,
                                     fit: BoxFit.cover,
-                                    placeholder: (c, u) => Container(
-                                      color: Colors.grey[200],
-                                      child: const Center(
-                                        child: SizedBox(
+                                    placeholder: (context, url) =>
+                                        const SizedBox(
                                           width: 18,
                                           height: 18,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
                                           ),
                                         ),
-                                      ),
-                                    ),
-                                    errorWidget: (c, u, e) =>
+                                    errorWidget: (context, url, error) =>
                                         const Icon(Icons.error),
                                   ),
                                 )
@@ -387,27 +371,27 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: l10n.t('auth.email'),
+                    border: const OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Số điện thoại',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: l10n.t('profile.phone'),
+                    border: const OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: bioController,
-                  decoration: const InputDecoration(
-                    labelText: 'Giới thiệu bản thân',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: l10n.t('profile.bio_hint'),
+                    border: const OutlineInputBorder(),
                   ),
                   maxLines: 3,
                 ),
@@ -417,7 +401,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Hủy'),
+              child: Text(l10n.t('common.cancel')),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -432,30 +416,26 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   );
 
                   if (!mounted) return;
-
-                  try {
-                    authProvider.setUser(updated);
-                  } catch (_) {}
-                  // Close the dialog using the page navigator we captured
+                  authProvider.setUser(updated);
                   pageNavigator.pop();
                   scaffoldMessenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Cập nhật thông tin thành công'),
+                    SnackBar(
+                      content: Text(l10n.t('profile.updated_success')),
                       backgroundColor: Colors.green,
-                      duration: Duration(seconds: 2),
+                      duration: const Duration(seconds: 2),
                     ),
                   );
-                } catch (e) {
+                } catch (_) {
                   scaffoldMessenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Đã xảy ra lỗi. Vui lòng thử lại.'),
+                    SnackBar(
+                      content: Text(l10n.t('profile.updated_error')),
                       backgroundColor: Colors.red,
-                      duration: Duration(seconds: 2),
+                      duration: const Duration(seconds: 2),
                     ),
                   );
                 }
               },
-              child: const Text('Lưu'),
+              child: Text(l10n.t('common.save')),
             ),
           ],
         ),

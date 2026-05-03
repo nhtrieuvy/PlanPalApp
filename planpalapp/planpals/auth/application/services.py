@@ -89,6 +89,11 @@ class UserService(BaseService):
             'unread_messages_count': getattr(user, 'unread_messages_count', 0),
             'date_joined': user.date_joined.isoformat() if user.date_joined else None,
             'is_active': user.is_active,
+            'is_email_verified': getattr(user, 'is_email_verified', False),
+            'email_verified_at': (
+                user.email_verified_at.isoformat()
+                if getattr(user, 'email_verified_at', None) else None
+            ),
             'is_staff': getattr(user, 'is_staff', False),
         }
     
@@ -150,7 +155,11 @@ class UserService(BaseService):
                 token_repo = auth_factories.get_token_repo()
                 revoked = token_repo.revoke_access_token(token_string, user.id)
             except Exception as e:
-                cls.log_error("Failed to revoke access token during logout", e, {'user_id': user.id, 'token': token_string})
+                cls.log_error(
+                    "Failed to revoke access token during logout",
+                    e,
+                    {'user_id': user.id, 'token_present': True},
+                )
 
         # Delegate online-status to handler
         try:

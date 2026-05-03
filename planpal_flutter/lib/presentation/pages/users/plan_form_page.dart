@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/dtos/plan_requests.dart';
@@ -54,8 +55,10 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
       }
     } catch (_) {}
 
-    _isPublic = widget.initial?['is_public'] ?? true;
     _planType = widget.initial?['plan_type']?.toString() ?? 'personal';
+    _isPublic = _planType == 'group'
+        ? true
+        : (widget.initial?['is_public'] ?? true);
     _selectedGroupId = widget.initial?['group_id']?.toString();
     _fetchGroups();
   }
@@ -119,13 +122,14 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
         _endDate!.isBefore(_startDate!)) {
       ErrorDisplayService.showErrorSnackbar(
         context,
-        'Ngày kết thúc phải sau ngày bắt đầu',
+        context.l10n.t('plan_form.validation_end_after_start'),
       );
       return;
     }
     setState(() => _submitting = true);
     try {
       PlanModel result;
+      final isPublic = _planType == 'group' ? true : _isPublic;
       // Check if we have an ID to determine edit vs create mode
       final planId = widget.initial?['id']?.toString();
       if (planId == null || planId.isEmpty) {
@@ -136,7 +140,7 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
           // send UTC ISO strings so server stores an unambiguous instant
           startDate: _startDate?.toUtc().toIso8601String() ?? '',
           endDate: _endDate?.toUtc().toIso8601String() ?? '',
-          isPublic: _isPublic,
+          isPublic: isPublic,
           planType: _planType,
           groupId: _selectedGroupId,
         );
@@ -162,7 +166,7 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
           // send UTC ISO strings so server stores an unambiguous instant
           startDate: _startDate?.toUtc().toIso8601String(),
           endDate: _endDate?.toUtc().toIso8601String(),
-          isPublic: _isPublic,
+          isPublic: isPublic,
           planType: _planType,
         );
         result = await _repo.updatePlan(planId, request);
@@ -195,9 +199,14 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
     // Check if we have an ID to determine edit vs create mode
     final planId = widget.initial?['id']?.toString();
     final isEdit = planId != null && planId.isNotEmpty;
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEdit ? 'Sửa kế hoạch' : 'Tạo kế hoạch'),
+        title: Text(
+          isEdit
+              ? l10n.t('plan_form.title_edit')
+              : l10n.t('plan_form.title_create'),
+        ),
         centerTitle: true,
       ),
       body: Padding(
@@ -208,20 +217,20 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
             children: [
               TextFormField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Tiêu đề kế hoạch',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.t('plan_form.field_title'),
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Vui lòng nhập tiêu đề kế hoạch'
+                    ? l10n.t('plan_form.validation_title_required')
                     : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _descriptionCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: l10n.t('plan_form.field_description'),
+                  border: const OutlineInputBorder(),
                 ),
                 maxLines: 3,
               ),
@@ -229,8 +238,8 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Loại kế hoạch',
+                  Text(
+                    l10n.t('plan_form.field_type'),
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
@@ -282,7 +291,11 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
                                       : null,
                                 ),
                                 const SizedBox(width: 12),
-                                const Expanded(child: Text('Kế hoạch cá nhân')),
+                                Expanded(
+                                  child: Text(
+                                    l10n.t('plan_form.type_personal'),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -293,6 +306,7 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
                         child: InkWell(
                           onTap: () => setState(() {
                             _planType = 'group';
+                            _isPublic = true;
                           }),
                           child: Container(
                             padding: const EdgeInsets.all(12),
@@ -334,7 +348,9 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
                                       : null,
                                 ),
                                 const SizedBox(width: 12),
-                                const Expanded(child: Text('Kế hoạch nhóm')),
+                                Expanded(
+                                  child: Text(l10n.t('plan_form.type_group')),
+                                ),
                               ],
                             ),
                           ),
@@ -347,9 +363,9 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
               if (_planType == 'group') ...[
                 DropdownButtonFormField<String>(
                   initialValue: _selectedGroupId,
-                  decoration: const InputDecoration(
-                    labelText: 'Chọn nhóm',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: l10n.t('plan_form.select_group'),
+                    border: const OutlineInputBorder(),
                   ),
                   items: _groups
                       .map(
@@ -359,7 +375,7 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
                       .toList(),
                   validator: (v) {
                     if (_planType == 'group' && (v == null || v.isEmpty)) {
-                      return 'Vui lòng chọn nhóm';
+                      return l10n.t('plan_form.validation_group_required');
                     }
                     return null;
                   },
@@ -375,8 +391,16 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
                       icon: const Icon(Icons.play_circle_outline),
                       label: Text(
                         _startDate != null
-                            ? 'Bắt đầu: ${DateFormat('dd/MM/yyyy HH:mm').format(_startDate!)}'
-                            : 'Chọn ngày bắt đầu',
+                            ? l10n.t(
+                                'plan_form.start_label',
+                                params: {
+                                  'value': AppFormatters.fullDateTime(
+                                    context,
+                                    _startDate!,
+                                  ),
+                                },
+                              )
+                            : l10n.t('plan_form.select_start_date'),
                       ),
                     ),
                   ),
@@ -391,29 +415,44 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
                       icon: const Icon(Icons.stop_circle_outlined),
                       label: Text(
                         _endDate != null
-                            ? 'Kết thúc: ${DateFormat('dd/MM/yyyy HH:mm').format(_endDate!)}'
-                            : 'Chọn ngày kết thúc',
+                            ? l10n.t(
+                                'plan_form.end_label',
+                                params: {
+                                  'value': AppFormatters.fullDateTime(
+                                    context,
+                                    _endDate!,
+                                  ),
+                                },
+                              )
+                            : l10n.t('plan_form.select_end_date'),
                       ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              SwitchListTile(
-                title: const Text('Công khai'),
-                subtitle: Text(
-                  _isPublic ? 'Mọi người có thể xem' : 'Chỉ mình tôi',
+              if (_planType != 'group')
+                SwitchListTile(
+                  title: Text(l10n.t('plan_form.public')),
+                  subtitle: Text(
+                    _isPublic
+                        ? l10n.t('plan_form.public_description_public')
+                        : l10n.t('plan_form.public_description_private'),
+                  ),
+                  value: _isPublic,
+                  onChanged: (value) => setState(() => _isPublic = value),
                 ),
-                value: _isPublic,
-                onChanged: (value) => setState(() => _isPublic = value),
-              ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _submitting ? null : _submit,
                   icon: const Icon(Icons.save),
-                  label: Text(isEdit ? 'Lưu thay đổi' : 'Tạo'),
+                  label: Text(
+                    isEdit
+                        ? l10n.t('plan_form.save_changes')
+                        : l10n.t('plan_form.create'),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,

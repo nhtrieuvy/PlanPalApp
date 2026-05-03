@@ -60,6 +60,7 @@ class AuthProvider {
           final userRepo = UserRepository(this);
           await userRepo
               .getProfile(); // This will call setUser() and update cache
+          await markOnline();
         } catch (e) {
           // Nếu token hết hạn hoặc không hợp lệ, clear session
           await _clearSession();
@@ -148,9 +149,11 @@ class AuthProvider {
       return false;
     } on DioException catch (e) {
       if (e.response != null) {
-        debugPrint('Refresh token error: ${e.response!.data}');
+        debugPrint(
+          'Refresh token failed with status ${e.response!.statusCode}',
+        );
       } else {
-        debugPrint('Refresh token network error: $e');
+        debugPrint('Refresh token network error: ${e.type}');
       }
       _refreshCompleter!.complete(false);
       return false;
@@ -211,6 +214,7 @@ class AuthProvider {
           final repo = UserRepository(this);
           final profile = await repo.getProfile();
           setUser(profile);
+          await markOnline();
 
           await _initializeFirebaseAfterLogin();
         } catch (e) {
@@ -226,7 +230,11 @@ class AuthProvider {
           final errorType = res.data['error'];
           final errorDesc = res.data['error_description'];
 
-          if (errorType == 'invalid_grant') {
+          if (errorType == 'email_not_verified') {
+            throw Exception(
+              'Email chưa được xác thực. Vui lòng kiểm tra hộp thư và xác thực email trước khi đăng nhập.',
+            );
+          } else if (errorType == 'invalid_grant') {
             throw Exception('Sai tên đăng nhập hoặc mật khẩu.');
           } else if (errorType == 'invalid_client') {
             throw Exception(
@@ -254,10 +262,25 @@ class AuthProvider {
         await apiClient.dio.post(Endpoints.logout);
       }
     } catch (e) {
-      debugPrint('Logout API error: $e');
+      debugPrint('Logout API error');
     } finally {
       await _clearSession();
       FirebaseService.instance.reset();
+    }
+  }
+
+  Future<void> markOnline() => _setOnlineStatus(true);
+
+  Future<void> markOffline() => _setOnlineStatus(false);
+
+  Future<void> _setOnlineStatus(bool isOnline) async {
+    if (_token == null || _user == null) return;
+
+    try {
+      final repo = UserRepository(this);
+      await repo.setOnlineStatus(isOnline);
+    } catch (e) {
+      debugPrint('AuthProvider: failed to set online=$isOnline');
     }
   }
 

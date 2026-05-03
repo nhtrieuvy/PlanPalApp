@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:planpal_flutter/core/dtos/notification_model.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class NotificationItem extends StatelessWidget {
@@ -62,7 +63,7 @@ class NotificationItem extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          _formatTimestamp(notification.createdAt),
+                          _formatTimestamp(context, notification.createdAt),
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: Theme.of(
@@ -92,7 +93,7 @@ class NotificationItem extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            notification.typeLabel,
+                            context.l10n.notificationTypeLabel(notification.type),
                             style: Theme.of(context).textTheme.labelMedium
                                 ?.copyWith(
                                   color: style.color,
@@ -122,16 +123,34 @@ class NotificationItem extends StatelessWidget {
     );
   }
 
-  String _formatTimestamp(DateTime value) {
+  String _formatTimestamp(BuildContext context, DateTime value) {
+    final l10n = context.l10n;
     final now = DateTime.now();
     final diff = now.difference(value);
 
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays < 7) return '${diff.inDays}d';
+    if (diff.inMinutes < 1) {
+      return l10n.t('notifications.time.just_now');
+    }
+    if (diff.inMinutes < 60) {
+      return l10n.t(
+        'notifications.time.minutes',
+        params: {'value': '${diff.inMinutes}'},
+      );
+    }
+    if (diff.inHours < 24) {
+      return l10n.t(
+        'notifications.time.hours',
+        params: {'value': '${diff.inHours}'},
+      );
+    }
+    if (diff.inDays < 7) {
+      return l10n.t(
+        'notifications.time.days',
+        params: {'value': '${diff.inDays}'},
+      );
+    }
 
-    return DateFormat('dd/MM HH:mm').format(value);
+    return AppFormatters.notificationDateTime(context, value);
   }
 
   _NotificationStyle _styleForType(String type) {

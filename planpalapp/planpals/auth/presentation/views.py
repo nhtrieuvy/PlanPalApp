@@ -1,12 +1,15 @@
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.db import models, transaction
 from django.core.exceptions import ValidationError, PermissionDenied
 from datetime import datetime
+import json
 import logging
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from oauth2_provider.views import TokenView
 
 from rest_framework import viewsets, status, generics, mixins
 from rest_framework.decorators import action
@@ -18,13 +21,15 @@ from rest_framework.request import Request
 from planpals.auth.infrastructure.models import User, Friendship
 from planpals.auth.presentation.serializers import (
     UserSerializer, UserCreateSerializer, UserSummarySerializer,
-    FriendshipSerializer, FriendRequestSerializer
+    FriendshipSerializer, FriendRequestSerializer, OnlineStatusSerializer,
+    EmailVerificationSerializer, ResendEmailVerificationSerializer,
 )
 from planpals.auth.presentation.permissions import (
     IsAuthenticatedAndActive, FriendshipPermission, UserProfilePermission,
     CanViewUserProfile, CanManageFriendship
 )
 from planpals.auth.application.services import UserService
+from planpals.auth.infrastructure.email_verification import EmailVerificationService
 from planpals.auth.infrastructure.oauth2_utils import OAuth2ResponseFormatter
 from planpals.shared.paginators import (
     StandardResultsPagination, SearchResultsPagination,
@@ -37,6 +42,35 @@ from planpals.plans.presentation.serializers import PlanSummarySerializer, PlanA
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+
+class EmailAwareTokenView(TokenView):
+    def post(self, request, *args, **kwargs):
+        request_data = getattr(request, 'data', {})
+        body_data = {}
+        if not request.POST and request.body:
+            try:
+                body_data = json.loads(request.body.decode('utf-8'))
+            except (TypeError, ValueError, UnicodeDecodeError):
+                body_data = {}
+        username = (
+            request.POST.get('username')
+            or request_data.get('username')
+            or body_data.get('username')
+        )
+        if username:
+            user = User.objects.filter(username__iexact=username).first()
+            if user and not user.is_active and not user.is_email_verified:
+                return JsonResponse(
+                    {
+                        'error': 'email_not_verified',
+                        'error_description': (
+                            'Please verify your email address before signing in.'
+                        ),
+                    },
+                    status=403,
+                )
+        return super().post(request, *args, **kwargs)
 
 
 class OAuth2LogoutView(APIView):
@@ -62,8 +96,9 @@ class OAuth2LogoutView(APIView):
                 return Response(data, status=code)
                 
         except Exception as e:
+            logger.exception("Logout failed for user %s", getattr(user, 'id', None))
             data, code = OAuth2ResponseFormatter.error_response(
-                'server_error', f'Logout failed: {e}', 500
+                'server_error', 'Logout failed. Please try again.', 500
             )
             return Response(data, status=code)
 
@@ -77,7 +112,11 @@ class UserViewSet(viewsets.GenericViewSet,
     pagination_class = StandardResultsPagination
     
     def get_permissions(self):
-        if self.action == 'create':
+        if self.action in [
+            'create',
+            'verify_email',
+            'resend_verification_email',
+        ]:
             permission_classes = [AllowAny]
         elif self.action in ['update', 'partial_update', 'destroy']:
             permission_classes = [IsAuthenticated, UserProfilePermission]
@@ -103,6 +142,76 @@ class UserViewSet(viewsets.GenericViewSet,
         if self.action == "list":
             return UserSummarySerializer
         return UserSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        email_sent = EmailVerificationService.send_verification_email(
+            user,
+            request=request,
+        )
+
+        headers = self.get_success_headers(serializer.data)
+        data = dict(serializer.data)
+        data['message'] = (
+            'Registration successful. Please enter the 6-digit code sent to '
+            'your email before signing in.'
+        )
+        data['email_verification_required'] = True
+        data['verification_email_sent'] = email_sent
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @action(
+        detail=False,
+        methods=['get', 'post'],
+        permission_classes=[AllowAny],
+        url_path='verify-email',
+    )
+    def verify_email(self, request):
+        payload = request.query_params if request.method == 'GET' else request.data
+        serializer = EmailVerificationSerializer(data=payload)
+        serializer.is_valid(raise_exception=True)
+
+        result = EmailVerificationService.verify(
+            email=serializer.validated_data.get('email'),
+            code=serializer.validated_data.get('code'),
+            uid=serializer.validated_data.get('uid'),
+            token=serializer.validated_data.get('token'),
+        )
+        response_status = status.HTTP_200_OK if result.success else status.HTTP_400_BAD_REQUEST
+        return Response(
+            {
+                'message': result.message,
+                'email_verified': result.success,
+                'error_code': result.error_code,
+            },
+            status=response_status,
+        )
+
+    @action(
+        detail=False,
+        methods=['post'],
+        permission_classes=[AllowAny],
+        url_path='resend-verification-email',
+    )
+    def resend_verification_email(self, request):
+        serializer = ResendEmailVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = EmailVerificationService.resend(
+            email=serializer.validated_data['email'],
+            request=request,
+        )
+        response_status = status.HTTP_200_OK if result.success else status.HTTP_400_BAD_REQUEST
+        return Response(
+            {
+                'message': result.message,
+                'error_code': result.error_code,
+            },
+            status=response_status,
+        )
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def register_device_token(self, request):
@@ -242,13 +351,19 @@ class UserViewSet(viewsets.GenericViewSet,
     
     @action(detail=False, methods=['post'])
     def set_online_status(self, request):
-        is_online = request.data.get('is_online', True)
+        serializer = OnlineStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        is_online = serializer.validated_data['is_online']
         success = UserService.set_user_online_status(request.user, is_online)
         
         if success:
+            request.user.refresh_from_db(fields=['is_online', 'last_seen'])
             return Response({
                 'is_online': request.user.is_online,
-                'last_seen': request.user.last_seen
+                'online_status': request.user.online_status,
+                'last_seen': request.user.last_seen.isoformat()
+                if request.user.last_seen else None,
             })
         else:
             return Response({'error': 'Failed to update status'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

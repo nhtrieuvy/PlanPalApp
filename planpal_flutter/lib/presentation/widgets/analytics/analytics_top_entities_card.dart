@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:planpal_flutter/core/dtos/analytics_model.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 
 class AnalyticsTopEntitiesCard extends StatelessWidget {
   final String title;
@@ -36,9 +37,11 @@ class AnalyticsTopEntitiesCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           if (entities.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: Text('No ranked entities yet')),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(context.l10n.t('analytics.empty_ranked_entities')),
+              ),
             )
           else ...[
             SizedBox(height: 220, child: _buildChart(context)),
@@ -93,7 +96,10 @@ class AnalyticsTopEntitiesCard extends StatelessWidget {
 
   Widget _buildChart(BuildContext context) {
     final theme = Theme.of(context);
-    final maxValue = entities.fold<int>(0, (current, item) => math.max(current, item.value));
+    final maxValue = entities.fold<int>(
+      0,
+      (current, item) => math.max(current, item.value),
+    );
     return BarChart(
       BarChartData(
         maxY: math.max<double>(1, maxValue.toDouble() * 1.2),
@@ -101,7 +107,9 @@ class AnalyticsTopEntitiesCard extends StatelessWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: maxValue <= 4 ? 1 : math.max(1, maxValue / 4).toDouble(),
+          horizontalInterval: maxValue <= 4
+              ? 1
+              : math.max(1, maxValue / 4).toDouble(),
           getDrawingHorizontalLine: (value) => FlLine(
             color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
             strokeWidth: 1,
@@ -153,7 +161,9 @@ class AnalyticsTopEntitiesCard extends StatelessWidget {
                 BarChartRodData(
                   toY: entities[index].value.toDouble(),
                   width: 22,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(10),
+                  ),
                   color: accentColor,
                 ),
               ],

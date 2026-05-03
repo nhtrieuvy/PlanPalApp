@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
+import 'package:planpal_flutter/core/theme/app_colors.dart';
 
-// StatefullWidget là widget có trạng thái, cho phép thay đổi trạng thái trong quá trình sử dụng
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -12,7 +12,6 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
-  // Form controllers and state
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -37,7 +36,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     try {
       final authProvider = ref.read(authNotifierProvider);
-
       await authProvider.login(
         username: _usernameController.text.trim(),
         password: _passwordController.text.trim(),
@@ -66,12 +64,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
+    final l10n = context.l10n;
 
     return Scaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -120,7 +119,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'Đăng nhập PlanPal',
+                            l10n.t('auth.login_title'),
                             style: theme.textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: colorScheme.onSurface,
@@ -137,7 +136,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         color: colorScheme.onSurface,
                       ),
                       decoration: InputDecoration(
-                        labelText: 'Tên đăng nhập',
+                        labelText: l10n.t('auth.username'),
                         labelStyle: theme.textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -148,8 +147,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         filled: true,
                         fillColor: colorScheme.surfaceContainerHighest,
                       ),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Nhập tên đăng nhập' : null,
+                      validator: (value) => value == null || value.isEmpty
+                          ? l10n.t('auth.validation_username_required')
+                          : null,
                       textInputAction: TextInputAction.next,
                     ),
                     const SizedBox(height: 16),
@@ -159,7 +159,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         color: colorScheme.onSurface,
                       ),
                       decoration: InputDecoration(
-                        labelText: 'Mật khẩu',
+                        labelText: l10n.t('auth.password'),
                         labelStyle: theme.textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -184,8 +184,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                       ),
                       obscureText: _obscurePassword,
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Nhập mật khẩu' : null,
+                      validator: (value) => value == null || value.isEmpty
+                          ? l10n.t('auth.validation_password_required')
+                          : null,
                       textInputAction: TextInputAction.done,
                     ),
                     const SizedBox(height: 24),
@@ -194,7 +195,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(
                           _error!,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppColors.error,
                             fontWeight: FontWeight.w600,
                           ),
@@ -204,13 +205,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     SizedBox(
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _loading
-                            ? null
-                            : () {
-                                if (_formKey.currentState!.validate()) {
-                                  _login();
-                                }
-                              },
+                        onPressed: _loading ? null : _login,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           shape: RoundedRectangleBorder(
@@ -231,16 +226,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text('Đăng nhập'),
+                            : Text(l10n.t('auth.login')),
                       ),
                     ),
                     const SizedBox(height: 20),
-                    // Link đăng ký
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Chưa có tài khoản? ',
+                          '${l10n.t('auth.no_account')} ',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: colorScheme.onSurface.withAlpha(
                               (0.8 * 255).round(),
@@ -253,7 +247,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             Navigator.of(context).pushNamed('/register');
                           },
                           child: Text(
-                            'Đăng ký ngay',
+                            l10n.t('auth.register_now'),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: AppColors.primary,
                               fontSize: 16,

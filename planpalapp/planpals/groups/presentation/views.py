@@ -362,8 +362,9 @@ class GroupViewSet(viewsets.GenericViewSet,
         group = self.get_object()
         user_id = request.data.get('user_id')
         role = request.data.get('role')
+        normalized_role = (role or '').strip().lower()
 
-        if not user_id or not role:
+        if not user_id or not normalized_role:
             return Response(
                 {'error': 'user_id and role are required'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -374,7 +375,7 @@ class GroupViewSet(viewsets.GenericViewSet,
             success, message = GroupService.change_member_role(
                 group=group,
                 target_user=user_to_update,
-                role=role,
+                role=normalized_role,
                 actor=request.user,
             )
             if not success:
@@ -383,7 +384,7 @@ class GroupViewSet(viewsets.GenericViewSet,
                 'message': message,
                 'group_id': str(group.id),
                 'user_id': user_id,
-                'role': role,
+                'role': normalized_role,
             })
         except User.DoesNotExist:
             return Response({'error': 'KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng'}, status=status.HTTP_404_NOT_FOUND)

@@ -64,6 +64,15 @@ class GroupQuerySet(models.QuerySet['Group']):
             memberships__role=GroupMembership.ADMIN
         )
 
+    def plan_creatable_by(self, user) -> 'GroupQuerySet':
+        return self.filter(
+            memberships__user=user,
+            memberships__role__in=[
+                GroupMembership.ADMIN,
+                GroupMembership.PLAN_CREATOR,
+            ],
+        )
+
 
 class Group(BaseModel):
 
@@ -210,6 +219,41 @@ class Group(BaseModel):
             role=GroupMembership.ADMIN
         ).exists()
 
+    def is_admin_by_id(self, user_id) -> bool:
+        return GroupMembership.objects.filter(
+            group=self,
+            user_id=user_id,
+            role=GroupMembership.ADMIN,
+        ).exists()
+
+    def is_plan_creator(self, user) -> bool:
+        return GroupMembership.objects.filter(
+            group=self,
+            user=user,
+            role=GroupMembership.PLAN_CREATOR,
+        ).exists()
+
+    def is_plan_creator_by_id(self, user_id) -> bool:
+        return GroupMembership.objects.filter(
+            group=self,
+            user_id=user_id,
+            role=GroupMembership.PLAN_CREATOR,
+        ).exists()
+
+    def can_create_plans(self, user) -> bool:
+        return GroupMembership.objects.filter(
+            group=self,
+            user=user,
+            role__in=[GroupMembership.ADMIN, GroupMembership.PLAN_CREATOR],
+        ).exists()
+
+    def can_create_plans_by_id(self, user_id) -> bool:
+        return GroupMembership.objects.filter(
+            group=self,
+            user_id=user_id,
+            role__in=[GroupMembership.ADMIN, GroupMembership.PLAN_CREATOR],
+        ).exists()
+
     def get_admins(self) -> QuerySet:
         from django.contrib.auth import get_user_model
         User = get_user_model()
@@ -257,6 +301,9 @@ class Group(BaseModel):
 class GroupMembershipQuerySet(models.QuerySet['GroupMembership']):
     def admins(self) -> 'GroupMembershipQuerySet':
         return self.filter(role=GroupMembership.ADMIN)
+
+    def plan_creators(self) -> 'GroupMembershipQuerySet':
+        return self.filter(role=GroupMembership.PLAN_CREATOR)
     
     def members(self) -> 'GroupMembershipQuerySet':
         return self.filter(role=GroupMembership.MEMBER)
@@ -270,9 +317,11 @@ class GroupMembershipQuerySet(models.QuerySet['GroupMembership']):
 
 class GroupMembership(BaseModel):
     ADMIN = 'admin'
+    PLAN_CREATOR = 'plan_creator'
     MEMBER = 'member'
     
     ROLE_CHOICES = [
+        (PLAN_CREATOR, 'Plan creator'),
         (ADMIN, 'Quản trị viên'),
         (MEMBER, 'Thành viên'),
     ]
@@ -322,7 +371,7 @@ class GroupMembership(BaseModel):
     def clean(self) -> None:
         super().clean()
         
-        if self.pk and self.role == self.MEMBER:
+        if self.pk and self.role != self.ADMIN:
             admin_count = GroupMembership.objects.filter(
                 group=self.group,
                 role=self.ADMIN
@@ -332,7 +381,7 @@ class GroupMembership(BaseModel):
                 raise ValidationError("Group must have at least one admin")
 
     def save(self, *args: Any, **kwargs: Any) -> None:
-        if self.pk and self.role == self.MEMBER:
+        if self.pk and self.role != self.ADMIN:
             admin_count = GroupMembership.objects.filter(
                 group=self.group,
                 role=self.ADMIN

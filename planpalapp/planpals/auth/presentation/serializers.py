@@ -12,6 +12,7 @@ class UserSerializer(serializers.ModelSerializer):
     avatar_url = serializers.CharField(read_only=True)
     has_avatar = serializers.BooleanField(read_only=True)
     is_recently_online = serializers.BooleanField(read_only=True)
+    is_email_verified = serializers.BooleanField(read_only=True)
     
     plans_count = serializers.IntegerField(read_only=True)
     personal_plans_count = serializers.IntegerField(read_only=True)
@@ -25,13 +26,21 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
             'phone_number', 'avatar', 'avatar_url', 'has_avatar',
+            'is_email_verified', 'email_verified_at',
             'date_of_birth', 'bio', 'is_online', 'last_seen', 
             'is_recently_online', 'online_status',
             'plans_count', 'personal_plans_count', 'group_plans_count', 
             'groups_count', 'friends_count', 'unread_messages_count', 
             'date_joined', 'is_active', 'is_staff'
         ]
-        read_only_fields = ['id', 'date_joined', 'last_seen', 'is_online']
+        read_only_fields = [
+            'id',
+            'date_joined',
+            'last_seen',
+            'is_online',
+            'is_email_verified',
+            'email_verified_at',
+        ]
     
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -48,15 +57,20 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True)
+    is_email_verified = serializers.BooleanField(read_only=True)
+    email_verification_required = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
-            'username', 'email', 'password', 'password_confirm',
-            'first_name', 'last_name', 'phone_number', 'avatar'
+            'id', 'username', 'email', 'password', 'password_confirm',
+            'first_name', 'last_name', 'phone_number', 'avatar',
+            'is_active', 'is_email_verified', 'email_verification_required'
         ]
+        read_only_fields = ['id', 'is_active', 'is_email_verified']
     
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
@@ -75,8 +89,37 @@ class UserCreateSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         validated_data.pop('password_confirm') # Xóa trường không cần thiết
+        validated_data['is_active'] = False
         user = User.objects.create_user(**validated_data) # Giải nén dictionary thành keyword arguments
         return user
+
+    def get_email_verification_required(self, obj):
+        return not obj.is_email_verified
+
+
+class EmailVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    code = serializers.RegexField(
+        regex=r'^\d{6}$',
+        required=False,
+        error_messages={'invalid': 'Verification code must be 6 digits.'},
+    )
+    # Legacy link verification remains accepted to avoid breaking old emails.
+    uid = serializers.CharField(required=False)
+    token = serializers.CharField(required=False)
+
+    def validate(self, attrs):
+        has_code_payload = bool(attrs.get('email')) and bool(attrs.get('code'))
+        has_token_payload = bool(attrs.get('uid')) and bool(attrs.get('token'))
+        if has_code_payload or has_token_payload:
+            return attrs
+        raise serializers.ValidationError(
+            'Email and 6-digit code are required.'
+        )
+
+
+class ResendEmailVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
 
 
 class UserSummarySerializer(serializers.ModelSerializer):
@@ -120,6 +163,10 @@ class FCMTokenSerializer(serializers.Serializer):
         if len(value) < 10:
             raise serializers.ValidationError("FCM token seems too short")
         return value
+
+
+class OnlineStatusSerializer(serializers.Serializer):
+    is_online = serializers.BooleanField(required=True)
 
 
 class FriendshipSerializer(serializers.ModelSerializer):

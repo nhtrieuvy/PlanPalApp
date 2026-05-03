@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import 'package:planpal_flutter/core/localization/app_locale.dart';
+
 const String baseUrl = String.fromEnvironment(
   'PLANPAL_BASE_URL',
   defaultValue: 'http://10.0.2.2:8000',
@@ -22,10 +24,14 @@ class Endpoints {
 
   // User endpoints
   static String get register => _v1('/users/');
+  static String get verifyEmail => _v1('/users/verify-email/');
+  static String get resendEmailVerification =>
+      _v1('/users/resend-verification-email/');
   static String get users => _v1('/users');
   static String get profile => _v1('/users/profile/');
   static String get updateProfile => _v1('/users/update_profile/');
   static String get searchUsers => _v1('/users/search/');
+  static String get setOnlineStatus => _v1('/users/set_online_status/');
 
   // Core API endpoints
   static String get plans => _v1('/plans/');
@@ -47,6 +53,7 @@ class Endpoints {
       _v1('/plans/$planId/activities_by_date/?date=$date');
   static String planSchedule(String planId) => _v1('/plans/$planId/schedule/');
   static String planJoin(String planId) => _v1('/plans/$planId/join/');
+  static String planCancel(String planId) => _v1('/plans/$planId/cancel/');
   static String planBudget(String planId) => _v1('/plans/$planId/budget/');
   static String planExpenses(String planId) => _v1('/plans/$planId/expenses/');
 
@@ -58,6 +65,8 @@ class Endpoints {
   static String groupLeave(String groupId) => _v1('/groups/$groupId/leave/');
   static String groupRemoveMember(String groupId) =>
       _v1('/groups/$groupId/remove_member/');
+  static String groupChangeRole(String groupId) =>
+      _v1('/groups/$groupId/change_role/');
   static String resourceAuditLogs(String resourceType, String resourceId) =>
       _v1('/audit-logs/resource/$resourceType/$resourceId/');
   static String notificationRead(String notificationId) =>
@@ -117,7 +126,10 @@ class ApiClient {
   ApiClient({this.token}) {
     BaseOptions options = BaseOptions(
       baseUrl: baseUrl,
-      headers: {if (token != null) 'Authorization': 'Bearer $token'},
+      headers: {
+        if (token != null) 'Authorization': 'Bearer $token',
+        'Accept-Language': AppLocaleStore.currentLanguageCode,
+      },
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 15),

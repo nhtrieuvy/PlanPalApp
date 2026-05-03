@@ -3,6 +3,10 @@ Notification application factories.
 """
 from __future__ import annotations
 
+import logging
+
+from django.db import transaction
+
 from planpals.notifications.application.services import NotificationService
 from planpals.notifications.infrastructure.publishers import ChannelsNotificationPublisher
 from planpals.notifications.infrastructure.push import FCMPushService
@@ -10,6 +14,9 @@ from planpals.notifications.infrastructure.repositories import (
     DjangoDeviceTokenRepository,
     DjangoNotificationRepository,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_notification_repo() -> DjangoNotificationRepository:
@@ -57,6 +64,22 @@ def get_audit_log_notification_dispatcher():
             AuditAction.DELETE_GROUP.value,
         }:
             return
-        process_audit_log_notification_task.delay(str(audit_log.id))
+
+        def enqueue_notification_task():
+            try:
+                process_audit_log_notification_task.apply_async(
+                    args=[str(audit_log.id)],
+                    queue='default',
+                    retry=False,
+                    ignore_result=True,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to enqueue audit notification task for audit_log=%s: %s",
+                    audit_log.id,
+                    exc,
+                )
+
+        transaction.on_commit(enqueue_notification_task)
 
     return dispatch

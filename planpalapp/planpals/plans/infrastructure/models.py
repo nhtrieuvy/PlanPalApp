@@ -207,6 +207,8 @@ class Plan(BaseModel):
     def save(self, *args: Any, **kwargs: Any) -> None:
         # Infer plan_type from group FK — pure data derivation, not business logic.
         self.plan_type = 'personal' if self.group is None else 'group'
+        if self.plan_type == 'group':
+            self.is_public = True
         self.clean()
         super().save(*args, **kwargs)
 

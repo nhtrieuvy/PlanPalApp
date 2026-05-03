@@ -24,6 +24,7 @@ class OtherParticipant extends Equatable {
   final String username;
   final String fullName;
   final bool isOnline;
+  final String onlineStatus;
   final DateTime? lastSeen;
 
   const OtherParticipant({
@@ -31,6 +32,7 @@ class OtherParticipant extends Equatable {
     required this.username,
     required this.fullName,
     required this.isOnline,
+    this.onlineStatus = 'offline',
     this.lastSeen,
   });
 
@@ -40,6 +42,7 @@ class OtherParticipant extends Equatable {
       username: json['username']?.toString() ?? '',
       fullName: (json['full_name'] as String?) ?? '',
       isOnline: json['is_online'] == true,
+      onlineStatus: json['online_status']?.toString() ?? 'offline',
       lastSeen: parseServerDateTime(json['last_seen']),
     );
   }
@@ -50,12 +53,38 @@ class OtherParticipant extends Equatable {
       'username': username,
       'full_name': fullName,
       'is_online': isOnline,
+      'online_status': onlineStatus,
       'last_seen': lastSeen?.toIso8601String(),
     };
   }
 
+  OtherParticipant copyWith({
+    String? id,
+    String? username,
+    String? fullName,
+    bool? isOnline,
+    String? onlineStatus,
+    DateTime? lastSeen,
+  }) {
+    return OtherParticipant(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      fullName: fullName ?? this.fullName,
+      isOnline: isOnline ?? this.isOnline,
+      onlineStatus: onlineStatus ?? this.onlineStatus,
+      lastSeen: lastSeen ?? this.lastSeen,
+    );
+  }
+
   @override
-  List<Object?> get props => [id, username, fullName, isOnline, lastSeen];
+  List<Object?> get props => [
+    id,
+    username,
+    fullName,
+    isOnline,
+    onlineStatus,
+    lastSeen,
+  ];
 }
 
 /// Last message preview for conversation list

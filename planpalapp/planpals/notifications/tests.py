@@ -1,5 +1,5 @@
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -10,13 +10,15 @@ from rest_framework.test import APIClient
 from planpals.audit.application.services import AuditLogService
 from planpals.audit.domain.entities import AuditAction, AuditResourceType
 from planpals.audit.infrastructure.repositories import DjangoAuditLogRepository
+from planpals.chat.infrastructure.publishers import ChatPushNotificationPublisher
+from planpals.integrations.notification_service import NotificationService
 from planpals.models import Group, GroupMembership, Plan, User
 from planpals.notifications.application.factories import (
     get_audit_log_notification_dispatcher,
     get_notification_service,
 )
 from planpals.notifications.domain.entities import NotificationType
-from planpals.notifications.infrastructure.models import Notification
+from planpals.notifications.infrastructure.models import Notification, UserDeviceToken
 
 
 class NotificationTests(TestCase):
@@ -174,3 +176,101 @@ class NotificationTests(TestCase):
             dispatcher(audit_log)
 
         mocked_delay.assert_not_called()
+
+    def test_cleanup_invalid_token_clears_user_fcm_token_without_null_assignment(self):
+        invalid_token = 'invalid-token-1234567890'
+        user = User.objects.create_user(
+            username='token_user',
+            password='password123',
+            email='token_user@example.com',
+        )
+        user.fcm_token = invalid_token
+        user.save(update_fields=['fcm_token'])
+        device_token = UserDeviceToken.objects.create(
+            user=user,
+            token=invalid_token,
+            platform=UserDeviceToken.PLATFORM_ANDROID,
+            is_active=True,
+        )
+
+        with patch(
+            'planpals.integrations.notification_service.NotificationService._initialize_firebase',
+            return_value=False,
+        ):
+            service = NotificationService()
+            service._cleanup_invalid_token(invalid_token)
+
+        user.refresh_from_db()
+        device_token.refresh_from_db()
+
+        self.assertEqual(user.fcm_token, '')
+        self.assertFalse(device_token.is_active)
+
+    def test_chat_push_publisher_uses_fcm_safe_message_type_key(self):
+        sender = Mock()
+        sender.id = self.owner.id
+        sender.username = self.owner.username
+        sender.get_full_name.return_value = ''
+
+        conversation = Mock()
+        conversation.id = self.group.id
+        conversation.group = None
+        conversation.conversation_type = 'direct'
+        conversation.get_other_participant.return_value = self.member
+        conversation.participants.exclude.return_value.values_list.return_value = [self.member.id]
+
+        message = Mock()
+        message.id = self.plan.id
+        message.sender = sender
+        message.conversation = conversation
+        message.message_type = 'image'
+        message.content = 'Photo message'
+        message.attachment_name = ''
+        message.location_name = ''
+
+        with patch(
+            'planpals.notifications.infrastructure.tasks.fanout_group_notification_task.delay'
+        ) as mocked_delay:
+            ChatPushNotificationPublisher().send_notification(message)
+
+        mocked_delay.assert_called_once()
+        payload = mocked_delay.call_args.kwargs['data']
+        self.assertEqual(payload['chat_message_type'], 'image')
+        self.assertNotIn('message_type', payload)
+
+    def test_send_push_notification_batch_remaps_reserved_fcm_data_keys(self):
+        with (
+            patch(
+                'planpals.integrations.notification_service.NotificationService._initialize_firebase',
+                return_value=True,
+            ),
+            patch('planpals.integrations.notification_service.messaging.Message') as mocked_message,
+            patch('planpals.integrations.notification_service.messaging.send') as mocked_send,
+        ):
+            service = NotificationService()
+            service.firebase_initialized = True
+
+            with patch.object(service, 'check_rate_limit', return_value=True):
+                success_count, total_count = service.send_push_notification_batch(
+                    fcm_tokens=['token-1'],
+                    title='Hello',
+                    body='World',
+                    data={
+                        'message_type': 'image',
+                        'from': 'system',
+                        'google.ttl': 3600,
+                        'preview': 'New attachment',
+                    },
+                )
+
+        self.assertEqual(success_count, 1)
+        self.assertEqual(total_count, 1)
+        mocked_send.assert_called_once()
+        payload = mocked_message.call_args.kwargs['data']
+        self.assertEqual(payload['app_message_type'], 'image')
+        self.assertEqual(payload['app_from'], 'system')
+        self.assertEqual(payload['app_google_ttl'], '3600')
+        self.assertEqual(payload['preview'], 'New attachment')
+        self.assertNotIn('message_type', payload)
+        self.assertNotIn('from', payload)
+        self.assertNotIn('google.ttl', payload)

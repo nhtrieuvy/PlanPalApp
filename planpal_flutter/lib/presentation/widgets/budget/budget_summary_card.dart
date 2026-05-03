@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class BudgetSummaryCard extends StatelessWidget {
@@ -11,6 +12,7 @@ class BudgetSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final progress = (summary.spentPercentage.clamp(0, 100) / 100).toDouble();
     final accent = summary.overBudget
         ? AppColors.error
@@ -46,7 +48,7 @@ class BudgetSummaryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Budget Overview',
+                      l10n.t('budget.summary_title'),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -54,8 +56,14 @@ class BudgetSummaryCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       summary.hasBudgetConfigured
-                          ? '${summary.spentPercentage.toStringAsFixed(1)}% spent'
-                          : 'No budget configured yet',
+                          ? l10n.t(
+                              'budget.summary_spent',
+                              params: {
+                                'value':
+                                    summary.spentPercentage.toStringAsFixed(1),
+                              },
+                            )
+                          : l10n.t('budget.summary_no_budget'),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -81,27 +89,36 @@ class BudgetSummaryCard extends StatelessWidget {
             runSpacing: 12,
             children: [
               _MetricChip(
-                label: 'Budget',
-                value: _formatCurrency(summary.totalBudget, summary.currency),
+                label: l10n.t('budget.metric_budget'),
+                value: AppFormatters.currency(
+                  context,
+                  amount: summary.totalBudget,
+                  currencyCode: summary.currency,
+                ),
                 color: AppColors.primary,
               ),
               _MetricChip(
-                label: 'Spent',
-                value: _formatCurrency(summary.totalSpent, summary.currency),
+                label: l10n.t('budget.metric_spent'),
+                value: AppFormatters.currency(
+                  context,
+                  amount: summary.totalSpent,
+                  currencyCode: summary.currency,
+                ),
                 color: AppColors.warning,
               ),
               _MetricChip(
-                label: 'Remaining',
-                value: _formatCurrency(
-                  summary.remainingBudget,
-                  summary.currency,
+                label: l10n.t('budget.metric_remaining'),
+                value: AppFormatters.currency(
+                  context,
+                  amount: summary.remainingBudget,
+                  currencyCode: summary.currency,
                 ),
                 color: summary.remainingBudget < 0
                     ? AppColors.error
                     : AppColors.success,
               ),
               _MetricChip(
-                label: 'Expenses',
+                label: l10n.t('budget.metric_expenses'),
                 value: summary.expenseCount.toString(),
                 color: AppColors.info,
               ),
@@ -129,8 +146,8 @@ class BudgetSummaryCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       summary.overBudget
-                          ? 'This plan is over budget.'
-                          : 'This plan is close to its budget limit.',
+                          ? l10n.t('budget.over_budget')
+                          : l10n.t('budget.near_limit'),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: accent,
                         fontWeight: FontWeight.w600,
@@ -144,16 +161,6 @@ class BudgetSummaryCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _formatCurrency(double amount, String currency) {
-    final symbol = currency.toUpperCase() == 'VND'
-        ? '₫'
-        : currency.toUpperCase();
-    return NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: symbol,
-    ).format(amount);
   }
 }
 
