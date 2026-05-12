@@ -49,7 +49,7 @@ class AuthEmailVerificationTests(TestCase):
         cache.clear()
         self.client = APIClient()
 
-    def test_registration_creates_inactive_user_and_sends_verification_email(self):
+    def test_registration_stays_pending_until_email_code_is_verified(self):
         response = self.client.post(
             '/api/v1/users/',
             {
@@ -67,12 +67,72 @@ class AuthEmailVerificationTests(TestCase):
         self.assertTrue(response.data['email_verification_required'])
         self.assertTrue(response.data['verification_email_sent'])
 
-        user = User.objects.get(username='verify_me')
-        self.assertFalse(user.is_active)
-        self.assertFalse(user.is_email_verified)
+        self.assertFalse(User.objects.filter(username='verify_me').exists())
         self.assertEqual(len(mail.outbox), 1)
         self.assertRegex(mail.outbox[0].body, r'\b\d{6}\b')
         self.assertNotIn('/api/v1/users/verify-email/?', mail.outbox[0].body)
+
+    def test_verify_pending_registration_code_creates_active_verified_user(self):
+        register_response = self.client.post(
+            '/api/v1/users/',
+            {
+                'username': 'verify_create',
+                'email': 'verify-create@example.com',
+                'password': 'password123',
+                'password_confirm': 'password123',
+                'first_name': 'Verify',
+                'last_name': 'Create',
+            },
+            format='multipart',
+        )
+        self.assertEqual(register_response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(User.objects.filter(username='verify_create').exists())
+
+        code_match = re.search(r'\b(\d{6})\b', mail.outbox[0].body)
+        self.assertIsNotNone(code_match)
+
+        response = self.client.post(
+            '/api/v1/users/verify-email/',
+            {
+                'email': 'verify-create@example.com',
+                'code': code_match.group(1),
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user = User.objects.get(username='verify_create')
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.is_email_verified)
+
+    def test_pending_registration_login_returns_email_not_verified(self):
+        register_response = self.client.post(
+            '/api/v1/users/',
+            {
+                'username': 'pending_login',
+                'email': 'pending-login@example.com',
+                'password': 'password123',
+                'password_confirm': 'password123',
+                'first_name': 'Pending',
+                'last_name': 'Login',
+            },
+            format='multipart',
+        )
+        self.assertEqual(register_response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(User.objects.filter(username='pending_login').exists())
+
+        response = self.client.post(
+            '/o/token/',
+            {
+                'grant_type': 'password',
+                'username': 'pending_login',
+                'password': 'password123',
+                'client_id': 'any-client',
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()['error'], 'email_not_verified')
 
     def test_verify_email_with_six_digit_code_activates_user(self):
         user = User.objects.create_user(
