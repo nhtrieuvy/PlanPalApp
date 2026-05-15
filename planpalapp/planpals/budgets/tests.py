@@ -13,7 +13,7 @@ from planpals.analytics.application.factories import get_analytics_service
 from planpals.audit.domain.entities import AuditAction, AuditResourceType
 from planpals.audit.infrastructure.models import AuditLog
 from planpals.budgets.application.factories import get_budget_service
-from planpals.budgets.infrastructure.models import Budget, Expense
+from planpals.budgets.infrastructure.models import Budget, Expense, ExpenseParticipant, Settlement
 from planpals.groups.infrastructure.models import Group, GroupMembership
 from planpals.notifications.domain.entities import NotificationType
 from planpals.notifications.infrastructure.models import Notification
@@ -191,13 +191,131 @@ class BudgetTrackingTests(TestCase):
         self.assertEqual(expenses_response.status_code, status.HTTP_200_OK)
         self.assertEqual(expenses_response.data['count'], 1)
         self.assertEqual(len(expenses_response.data['results']), 1)
+        self.assertEqual(expenses_response.data['results'][0]['split_strategy'], 'equal')
+        self.assertGreaterEqual(len(expenses_response.data['results'][0]['participants']), 1)
         self.assertIsNone(expenses_response.data['next'])
+
+        balances_response = self.client.get(
+            reverse('plan-balances', kwargs={'plan_id': self.plan.id}),
+        )
+        self.assertEqual(balances_response.status_code, status.HTTP_200_OK)
+        self.assertIn('settlement_suggestions', balances_response.data)
 
         self.client.force_authenticate(self.outsider)
         forbidden_response = self.client.get(
             reverse('plan-budget', kwargs={'plan_id': self.plan.id}),
         )
         self.assertEqual(forbidden_response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_equal_split_calculates_participants_and_balances(self):
+        result = self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='1200000',
+            category='Food',
+            description='Shared dinner',
+            paid_by_user_id=self.owner.id,
+            split_strategy='equal',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+        )
+
+        participants = ExpenseParticipant.objects.filter(expense_id=result.expense.id)
+        self.assertEqual(participants.count(), 2)
+        self.assertTrue(
+            participants.filter(user=self.owner, owed_amount=Decimal('600000.00')).exists()
+        )
+        self.assertTrue(
+            participants.filter(user=self.member, owed_amount=Decimal('600000.00')).exists()
+        )
+
+        balances = self.budget_service.get_balances(self.plan.id, self.owner)
+        by_user = {item.user_id: item for item in balances.balances}
+        self.assertEqual(by_user[self.owner.id].net_balance, Decimal('600000.00'))
+        self.assertEqual(by_user[self.member.id].net_balance, Decimal('-600000.00'))
+        self.assertEqual(len(balances.settlement_suggestions), 1)
+        suggestion = balances.settlement_suggestions[0]
+        self.assertEqual(suggestion.from_user_id, self.member.id)
+        self.assertEqual(suggestion.to_user_id, self.owner.id)
+        self.assertEqual(suggestion.amount, Decimal('600000.00'))
+
+    def test_percentage_and_exact_splits_are_validated(self):
+        percentage_result = self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='1000000',
+            category='Hotel',
+            paid_by_user_id=self.owner.id,
+            split_strategy='percentage',
+            participants=[
+                {'user_id': str(self.owner.id), 'percentage': '25'},
+                {'user_id': str(self.member.id), 'percentage': '75'},
+            ],
+        )
+        participant_amounts = {
+            participant.user_id: participant.owed_amount
+            for participant in percentage_result.expense.participants
+        }
+        self.assertEqual(participant_amounts[self.owner.id], Decimal('250000.00'))
+        self.assertEqual(participant_amounts[self.member.id], Decimal('750000.00'))
+
+        exact_result = self.budget_service.add_expense(
+            self.plan.id,
+            self.member,
+            amount='300000',
+            category='Tickets',
+            paid_by_user_id=self.member.id,
+            split_strategy='exact',
+            participants=[
+                {'user_id': str(self.owner.id), 'amount': '100000'},
+                {'user_id': str(self.member.id), 'amount': '200000'},
+            ],
+        )
+        exact_amounts = {
+            participant.user_id: participant.owed_amount
+            for participant in exact_result.expense.participants
+        }
+        self.assertEqual(exact_amounts[self.owner.id], Decimal('100000.00'))
+        self.assertEqual(exact_amounts[self.member.id], Decimal('200000.00'))
+
+    def test_settlement_reduces_debt_and_is_audited(self):
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='1200000',
+            category='Food',
+            paid_by_user_id=self.owner.id,
+            split_strategy='equal',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+        )
+
+        settlement = self.budget_service.create_settlement(
+            plan_id=self.plan.id,
+            actor=self.member,
+            from_user_id=self.member.id,
+            to_user_id=self.owner.id,
+            amount='600000',
+            currency='VND',
+        )
+
+        self.assertEqual(settlement.status, 'completed')
+        self.assertEqual(Settlement.objects.count(), 1)
+        balances = self.budget_service.get_balances(self.plan.id, self.owner)
+        by_user = {item.user_id: item for item in balances.balances}
+        self.assertEqual(by_user[self.owner.id].net_balance, Decimal('0.00'))
+        self.assertEqual(by_user[self.member.id].net_balance, Decimal('0.00'))
+        self.assertEqual(len(balances.settlement_suggestions), 0)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action=AuditAction.SETTLEMENT_COMPLETED.value,
+                resource_id=self.plan.id,
+            ).exists()
+        )
 
     def test_process_expense_notifications_creates_budget_alerts(self):
         self.budget_service.create_or_update_budget(
@@ -217,7 +335,14 @@ class BudgetTrackingTests(TestCase):
         outcome = self.budget_service.process_expense_notifications(result.expense.id)
 
         self.assertEqual(outcome['status'], 'processed')
-        self.assertEqual(outcome['notifications_sent'], 2)
+        self.assertEqual(outcome['notifications_sent'], 3)
+        self.assertEqual(
+            Notification.objects.filter(
+                user=self.owner,
+                type=NotificationType.EXPENSE_ADDED.value,
+            ).count(),
+            1,
+        )
         self.assertEqual(
             Notification.objects.filter(
                 user=self.owner,

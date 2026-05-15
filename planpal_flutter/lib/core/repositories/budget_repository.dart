@@ -51,6 +51,10 @@ class BudgetRepository {
     required double amount,
     required String category,
     String description = '',
+    String? paidByUserId,
+    String currency = 'VND',
+    String splitStrategy = 'equal',
+    List<ExpenseParticipantInput> participants = const [],
   }) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(
@@ -60,11 +64,72 @@ class BudgetRepository {
             'amount': amount,
             'category': category,
             'description': description,
+            'currency': currency,
+            'split_strategy': splitStrategy,
+            if (paidByUserId != null && paidByUserId.isNotEmpty)
+              'paid_by_user_id': paidByUserId,
+            if (participants.isNotEmpty)
+              'participants': participants
+                  .map((item) => item.toJson())
+                  .toList(),
           },
         ),
       );
       if (res.statusCode == 201 && res.data is Map) {
         return ExpenseCreateResult.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<BalanceSummaryModel> getBalances(String planId) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.planBalances(planId)),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        return BalanceSummaryModel.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<SettlementModel> createSettlement({
+    required String planId,
+    required String fromUserId,
+    required String toUserId,
+    required double amount,
+    String currency = 'VND',
+    String status = 'completed',
+    String note = '',
+  }) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.post(
+          Endpoints.settlements,
+          data: {
+            'plan_id': planId,
+            'from_user_id': fromUserId,
+            'to_user_id': toUserId,
+            'amount': amount,
+            'currency': currency,
+            'status': status,
+            'note': note,
+          },
+        ),
+      );
+      if (res.statusCode == 201 && res.data is Map) {
+        return SettlementModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
       }

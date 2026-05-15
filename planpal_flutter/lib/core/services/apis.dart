@@ -56,6 +56,8 @@ class Endpoints {
   static String planCancel(String planId) => _v1('/plans/$planId/cancel/');
   static String planBudget(String planId) => _v1('/plans/$planId/budget/');
   static String planExpenses(String planId) => _v1('/plans/$planId/expenses/');
+  static String planBalances(String planId) => _v1('/plans/$planId/balances/');
+  static String get settlements => _v1('/settlements/');
 
   static String groupDetails(String groupId) => _v1('/groups/$groupId/');
   static String groupJoin(String groupId) => _v1('/groups/$groupId/join/');

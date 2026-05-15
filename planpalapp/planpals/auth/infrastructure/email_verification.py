@@ -2,15 +2,16 @@ import logging
 import secrets
 from base64 import b64decode, b64encode
 from dataclasses import dataclass
+from io import BytesIO
 from typing import Optional
 from urllib.parse import urlencode
 
+import cloudinary.uploader
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.cache import cache
-from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -483,21 +484,26 @@ class EmailVerificationService:
         pending['is_active'] = True
         pending['email_verified_at'] = timezone.now()
 
-        if avatar_payload:
-            pending['avatar'] = ContentFile(
-                b64decode(avatar_payload['content']),
-                name=avatar_payload['name'],
-            )
-
         try:
             with transaction.atomic():
                 user = User.objects.create(**pending)
         except IntegrityError:
+            cls._clear_pending_registration(email=email, username=username)
             return EmailVerificationResult(
                 success=False,
                 message='Account could not be created. Please register again.',
                 error_code='account_create_failed',
             )
+        except Exception:
+            logger.exception('Unexpected error while creating verified user for %s', email)
+            return EmailVerificationResult(
+                success=False,
+                message='Account could not be created. Please try again later.',
+                error_code='account_create_failed',
+            )
+
+        if avatar_payload:
+            cls._save_pending_avatar(user=user, avatar_payload=avatar_payload)
 
         cls._clear_pending_registration(email=email, username=username)
         cache.delete(CacheKeys.user_profile(user.id))
@@ -506,6 +512,31 @@ class EmailVerificationService:
             message='Email verified successfully. You can now sign in.',
             user=user,
         )
+
+    @classmethod
+    def _save_pending_avatar(cls, *, user, avatar_payload: dict) -> None:
+        try:
+            avatar_bytes = b64decode(avatar_payload['content'])
+            avatar_stream = BytesIO(avatar_bytes)
+            avatar_stream.name = avatar_payload.get('name') or 'avatar.jpg'
+            upload_result = cloudinary.uploader.upload(
+                avatar_stream,
+                folder='planpal/avatars',
+                resource_type='image',
+                use_filename=True,
+                unique_filename=True,
+                overwrite=False,
+            )
+            public_id = upload_result.get('public_id')
+            if public_id:
+                user.avatar = public_id
+                user.save(update_fields=['avatar', 'updated_at'])
+        except Exception as exc:
+            logger.warning(
+                'Verified user %s was created, but avatar upload was skipped: %s',
+                user.id,
+                exc,
+            )
 
     @classmethod
     def resend(cls, email: str, request=None) -> EmailVerificationResult:

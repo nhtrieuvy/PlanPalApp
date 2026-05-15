@@ -163,9 +163,66 @@ void main() {
       action: 'CHANGE_ROLE',
       metadata: {'new_role': 'admin'},
     );
+    final activityLog = buildLog(
+      id: 'log-5',
+      action: 'UPDATE_ACTIVITY',
+      metadata: {
+        'title': 'Dinner',
+        'plan_id': 'internal-plan-id',
+        'updated_fields': [
+          'title',
+          'description',
+          'activity_type',
+          'start_time',
+          'end_time',
+          'location_name',
+          'location_address',
+          'goong_place_id',
+          'estimated_cost',
+          'notes',
+        ],
+      },
+    );
+    final budgetLog = buildLog(
+      id: 'log-6',
+      action: 'UPDATE_BUDGET',
+      metadata: {
+        'plan_id': 'internal-plan-id',
+        'plan_title': 'Da Nang Trip',
+        'total_budget': '3000000.00',
+        'currency': 'VND',
+      },
+    );
+    final expenseLog = buildLog(
+      id: 'log-7',
+      action: 'CREATE_EXPENSE',
+      metadata: {
+        'expense_id': 'internal-expense-id',
+        'plan_id': 'internal-plan-id',
+        'plan_title': 'Da Nang Trip',
+        'amount': '250000',
+        'currency': 'VND',
+        'category': 'food',
+        'description': 'Dinner',
+      },
+    );
 
     expect(createPlanLog.metadataSummary, 'Created "Trip to Hoi An"');
     expect(roleLog.metadataSummary, 'Changed role to ADMIN');
+    expect(
+      activityLog.metadataSummary,
+      'Updated activity "Dinner": title, description, activity type, start time, end time, location, address, estimated cost, and notes',
+    );
+    expect(activityLog.metadataSummary.contains('goong_place_id'), isFalse);
+    expect(
+      budgetLog.metadataSummary,
+      'Updated budget for "Da Nang Trip" to 3000000 VND',
+    );
+    expect(budgetLog.metadataSummary.contains('plan_id'), isFalse);
+    expect(
+      expenseLog.metadataSummary,
+      'Added expense to "Da Nang Trip": 250000 VND - food - "Dinner"',
+    );
   });
 }
 

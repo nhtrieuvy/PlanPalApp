@@ -8,6 +8,16 @@ import '../dtos/plan_model.dart';
 import '../dtos/plan_activity_requests.dart';
 import '../dtos/pagination_responses.dart';
 
+class GroupPlansResult {
+  final List<PlanSummary> plans;
+  final bool canCreatePlan;
+
+  const GroupPlansResult({
+    required this.plans,
+    required this.canCreatePlan,
+  });
+}
+
 class PlanRepository {
   final AuthProvider _auth;
   final Map<String, PlanModel> _detailCache = {};
@@ -242,7 +252,7 @@ class PlanRepository {
     }
   }
 
-  Future<List<PlanSummary>> getGroupPlans(String groupId) async {
+  Future<GroupPlansResult> getGroupPlansWithPermission(String groupId) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(
         (c) => c.dio.get(Endpoints.groupPlans(groupId)),
@@ -250,12 +260,18 @@ class PlanRepository {
 
       if (res.statusCode == 200) {
         final data = res.data;
+        final canCreatePlan = data is Map && data['can_create_plan'] == true;
         // Handle response with 'plans' array
         final List<dynamic> rawList = (data is Map && data['plans'] is List)
             ? List<dynamic>.from(data['plans'] as List)
             : const <dynamic>[];
 
-        if (rawList.isEmpty) return const <PlanSummary>[];
+        if (rawList.isEmpty) {
+          return GroupPlansResult(
+            plans: const <PlanSummary>[],
+            canCreatePlan: canCreatePlan,
+          );
+        }
         final parsed = <PlanSummary>[];
         for (final item in rawList) {
           if (item is Map) {
@@ -266,13 +282,18 @@ class PlanRepository {
             }
           }
         }
-        return parsed;
+        return GroupPlansResult(plans: parsed, canCreatePlan: canCreatePlan);
       }
       throw buildApiException(res);
     } on DioException catch (e) {
       if (e.response != null) throw buildApiException(e.response!);
       rethrow;
     }
+  }
+
+  Future<List<PlanSummary>> getGroupPlans(String groupId) async {
+    final result = await getGroupPlansWithPermission(groupId);
+    return result.plans;
   }
 
   Future<List<PlanSummary>> getJoinedPlans() async {

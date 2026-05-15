@@ -271,6 +271,21 @@ class NotificationService:
                 return 'Large expense added', f'{actor_name} added {amount} {currency} to "{plan_title}".'
             return 'Large expense added', f'{actor_name} added a large expense to "{plan_title}".'
 
+        if notification_type == NotificationType.EXPENSE_ADDED.value:
+            plan_title = str(data.get('plan_title') or 'your plan')
+            amount = data.get('amount')
+            currency = str(data.get('currency') or 'VND')
+            if amount is not None:
+                return 'New shared expense', f'{actor_name} added {amount} {currency} to "{plan_title}".'
+            return 'New shared expense', f'{actor_name} added you to an expense in "{plan_title}".'
+
+        if notification_type == NotificationType.SETTLEMENT_REQUESTED.value:
+            amount = data.get('amount')
+            currency = str(data.get('currency') or 'VND')
+            if amount is not None:
+                return 'Settlement recorded', f'{actor_name} recorded a {amount} {currency} settlement.'
+            return 'Settlement recorded', f'{actor_name} recorded a settlement.'
+
         raise ValidationError({'type': f'Unsupported notification type: {notification_type}'})
 
     def _push_payload(self, notification) -> dict[str, Any]:

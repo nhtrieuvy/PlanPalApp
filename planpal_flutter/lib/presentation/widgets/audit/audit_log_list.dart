@@ -11,12 +11,14 @@ class AuditLogList extends ConsumerStatefulWidget {
   final String title;
   final String? resourceType;
   final String? resourceId;
+  final int refreshSignal;
 
   const AuditLogList({
     super.key,
     this.title = 'Audit Log',
     this.resourceType,
     this.resourceId,
+    this.refreshSignal = 0,
   });
 
   bool get isResourceScoped =>
@@ -49,6 +51,16 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
       ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant AuditLogList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshSignal != widget.refreshSignal) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _refresh();
+      });
+    }
   }
 
   AuditLogFilter get _filters => AuditLogFilter(
@@ -252,9 +264,7 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
 
   Widget _buildListState(BuildContext context, AuditLogFeedState state) {
     if (state.items.isEmpty) {
-      return Center(
-        child: Text(context.l10n.t('audit.empty')),
-      );
+      return Center(child: Text(context.l10n.t('audit.empty')));
     }
 
     return ListView.separated(

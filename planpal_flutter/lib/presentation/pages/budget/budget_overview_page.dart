@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/dtos/user_summary.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/presentation/pages/budget/add_expense_form.dart';
+import 'package:planpal_flutter/presentation/pages/budget/balances_page.dart';
 import 'package:planpal_flutter/presentation/pages/budget/expense_list_page.dart';
 import 'package:planpal_flutter/presentation/widgets/budget/budget_breakdown_card.dart';
 import 'package:planpal_flutter/presentation/widgets/budget/budget_summary_card.dart';
@@ -111,6 +114,11 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
           label: Text(context.l10n.t('budget.view_expenses')),
         ),
         OutlinedButton.icon(
+          onPressed: _openBalances,
+          icon: const Icon(Icons.account_balance_rounded),
+          label: const Text('Balances'),
+        ),
+        OutlinedButton.icon(
           onPressed: _openAddExpense,
           icon: const Icon(Icons.add_card_rounded),
           label: Text(context.l10n.t('budget.add_expense')),
@@ -144,10 +152,15 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
   }
 
   Future<void> _openAddExpense() async {
+    final members = await _loadPlanMembers();
+    if (!mounted) return;
     final result = await Navigator.of(context).push<ExpenseCreateResult>(
       MaterialPageRoute(
-        builder: (context) =>
-            AddExpenseForm(planId: widget.planId, planTitle: widget.planTitle),
+        builder: (context) => AddExpenseForm(
+          planId: widget.planId,
+          planTitle: widget.planTitle,
+          members: members,
+        ),
       ),
     );
 
@@ -172,6 +185,27 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(buffer.toString())));
+  }
+
+  Future<void> _openBalances() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) =>
+            BalancesPage(planId: widget.planId, planTitle: widget.planTitle),
+      ),
+    );
+    await _refresh();
+  }
+
+  Future<List<UserSummary>> _loadPlanMembers() async {
+    try {
+      final plan = await ref
+          .read(planRepositoryProvider)
+          .getPlanDetail(widget.planId);
+      return plan.collaborators;
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<void> _openBudgetDialog(BudgetModel summary) async {
@@ -225,9 +259,7 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
                 validator: (value) {
                   final text = (value ?? '').trim();
                   if (text.length < 3 || text.length > 10) {
-                    return context.l10n.t(
-                      'budget.validation_currency_length',
-                    );
+                    return context.l10n.t('budget.validation_currency_length');
                   }
                   return null;
                 },

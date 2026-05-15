@@ -27,6 +27,20 @@ class BudgetNotifier extends FamilyAsyncNotifier<BudgetModel, String> {
   }
 }
 
+class BalancesNotifier
+    extends FamilyAsyncNotifier<BalanceSummaryModel, String> {
+  @override
+  Future<BalanceSummaryModel> build(String arg) async {
+    final repo = ref.watch(budgetRepositoryProvider);
+    return repo.getBalances(arg);
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => build(arg));
+  }
+}
+
 class ExpenseFeedState {
   final List<ExpenseModel> items;
   final bool isLoading;
@@ -162,3 +176,8 @@ final expensesProvider =
       ExpenseFeedState,
       ExpenseListQuery
     >(ExpensesNotifier.new);
+
+final balancesProvider =
+    AsyncNotifierProvider.family<BalancesNotifier, BalanceSummaryModel, String>(
+      BalancesNotifier.new,
+    );

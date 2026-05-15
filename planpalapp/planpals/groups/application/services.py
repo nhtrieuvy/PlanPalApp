@@ -8,6 +8,7 @@ from planpals.shared.cache import CacheKeys, CacheTTL
 # Commands & factories — thin delegation layer
 from planpals.groups.application.commands import (
     CreateGroupCommand,
+    UpdateGroupCommand,
     AddMemberCommand,
     RemoveMemberCommand,
     JoinGroupCommand,
@@ -85,6 +86,22 @@ class GroupService(BaseService):
             return False, "User not found"
         
         return cls.add_member(group, target_user, added_by=added_by)
+
+    @classmethod
+    def update_group(cls, group, user, **fields):
+        """Update group details through the application handler so audit/cache stay consistent."""
+        cmd = UpdateGroupCommand(
+            group_id=group.id,
+            user_id=user.id,
+            name=fields.get('name'),
+            description=fields.get('description'),
+            avatar=fields.get('avatar'),
+            cover_image=fields.get('cover_image'),
+        )
+        handler = group_factories.get_update_group_handler()
+        updated_group = handler.handle(cmd)
+        cls._invalidate_group_cache(group.id)
+        return updated_group
     
     @classmethod
     def remove_member_from_group(cls, group, user, 

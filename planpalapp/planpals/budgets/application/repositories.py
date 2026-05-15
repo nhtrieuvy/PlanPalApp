@@ -11,6 +11,8 @@ from planpals.budgets.domain.entities import (
     BudgetBreakdownItem,
     BudgetTrendPoint,
     Expense,
+    ExpenseParticipant,
+    Settlement,
 )
 
 
@@ -25,9 +27,32 @@ class BudgetUpsertData:
 class ExpenseCreateData:
     plan_id: UUID
     user_id: UUID
+    paid_by_user_id: UUID
     amount: Decimal
+    currency: str
     category: str
     description: str = ''
+    split_strategy: str = 'equal'
+    participants: Sequence['ExpenseParticipantCreateData'] = ()
+
+
+@dataclass(frozen=True)
+class ExpenseParticipantCreateData:
+    user_id: UUID
+    owed_amount: Decimal
+    settled_amount: Decimal = Decimal('0.00')
+    balance: Decimal = Decimal('0.00')
+
+
+@dataclass(frozen=True)
+class SettlementCreateData:
+    plan_id: UUID
+    from_user_id: UUID
+    to_user_id: UUID
+    amount: Decimal
+    currency: str
+    status: str = 'completed'
+    note: str = ''
 
 
 @dataclass(frozen=True)
@@ -95,4 +120,22 @@ class ExpenseRepository(ABC):
 
     @abstractmethod
     def get_by_id(self, expense_id: UUID) -> Expense | None:
+        ...
+
+    @abstractmethod
+    def list_expenses_for_balances(self, plan_id: UUID) -> Sequence[Expense]:
+        ...
+
+    @abstractmethod
+    def get_participant_user_ids(self, expense_id: UUID) -> Sequence[UUID]:
+        ...
+
+
+class SettlementRepository(ABC):
+    @abstractmethod
+    def create_settlement(self, data: SettlementCreateData) -> Settlement:
+        ...
+
+    @abstractmethod
+    def list_settlements(self, plan_id: UUID) -> Sequence[Settlement]:
         ...

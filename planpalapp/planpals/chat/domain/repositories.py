@@ -40,6 +40,11 @@ class ConversationRepository(ABC):
         ...
 
     @abstractmethod
+    def delete_group_conversation(self, group_id: UUID) -> int:
+        """Delete the conversation owned by a group. Returns deleted row count."""
+        ...
+
+    @abstractmethod
     def can_user_access(self, conversation_id: UUID, user_id: UUID) -> bool:
         ...
 

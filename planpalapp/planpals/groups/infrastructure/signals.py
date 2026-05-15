@@ -7,6 +7,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 from planpals.groups.infrastructure.models import GroupMembership
+from planpals.groups.infrastructure.cache import invalidate_group_detail_cache
 from planpals.groups.infrastructure.publishers import (
     publish_group_member_added,
     publish_group_member_removed,
@@ -23,6 +24,7 @@ def group_membership_post_save(sender, instance, created, **kwargs):
         if created:
             # New member added
             def _publish_member_added():
+                invalidate_group_detail_cache(instance.group_id)
                 publish_group_member_added(
                     group_id=str(instance.group_id),
                     user_id=str(instance.user_id),
@@ -34,6 +36,7 @@ def group_membership_post_save(sender, instance, created, **kwargs):
         else:
             # Role changed
             def _publish_role_changed():
+                invalidate_group_detail_cache(instance.group_id)
                 publish_group_role_changed(
                     group_id=str(instance.group_id),
                     user_id=str(instance.user_id),
@@ -52,6 +55,7 @@ def group_membership_post_delete(sender, instance, **kwargs):
     """Publish group member removal event"""
     try:
         def _publish_member_removed():
+            invalidate_group_detail_cache(instance.group_id)
             publish_group_member_removed(
                 group_id=str(instance.group_id),
                 user_id=str(instance.user_id),
