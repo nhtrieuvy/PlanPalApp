@@ -4,6 +4,7 @@ from planpals.budgets.application.services import BudgetService
 from planpals.budgets.infrastructure.repositories import (
     DjangoBudgetRepository,
     DjangoExpenseRepository,
+    DjangoSettlementRepository,
 )
 
 
@@ -15,6 +16,10 @@ def get_expense_repo() -> DjangoExpenseRepository:
     return DjangoExpenseRepository()
 
 
+def get_settlement_repo() -> DjangoSettlementRepository:
+    return DjangoSettlementRepository()
+
+
 def get_budget_service() -> BudgetService:
     from planpals.audit.application.factories import get_audit_log_service
     from planpals.notifications.application.factories import get_notification_service
@@ -24,6 +29,7 @@ def get_budget_service() -> BudgetService:
     return BudgetService(
         budget_repo=get_budget_repo(),
         expense_repo=get_expense_repo(),
+        settlement_repo=get_settlement_repo(),
         plan_repo=get_plan_repo(),
         cache_service=DjangoCacheService(),
         audit_service=get_audit_log_service(),

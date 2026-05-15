@@ -202,8 +202,40 @@ class DjangoAuditLogRepository(AuditLogRepository):
     @staticmethod
     def _resource_scope_filter(resource_type: str, resource_id: UUID) -> Q:
         normalized_resource_type = (resource_type or '').strip().lower()
+        resource_id_str = str(resource_id)
+
+        if normalized_resource_type == AuditResourceType.GROUP.value:
+            plan_ids = list(
+                Plan.objects.filter(group_id=resource_id).values_list('id', flat=True)
+            )
+            plan_id_strings = [str(plan_id) for plan_id in plan_ids]
+
+            return (
+                Q(resource_type=AuditResourceType.GROUP.value, resource_id=resource_id)
+                | Q(resource_type=AuditResourceType.PLAN.value, resource_id__in=plan_ids)
+                | Q(
+                    resource_type=AuditResourceType.PLAN.value,
+                    metadata__group_id=resource_id_str,
+                )
+                | Q(
+                    resource_type__in=[
+                        AuditResourceType.ACTIVITY.value,
+                        AuditResourceType.BUDGET.value,
+                        AuditResourceType.EXPENSE.value,
+                    ],
+                    metadata__plan_id__in=plan_id_strings,
+                )
+                | Q(
+                    resource_type__in=[
+                        AuditResourceType.ACTIVITY.value,
+                        AuditResourceType.BUDGET.value,
+                        AuditResourceType.EXPENSE.value,
+                    ],
+                    metadata__group_id=resource_id_str,
+                )
+            )
+
         if normalized_resource_type == AuditResourceType.PLAN.value:
-            resource_id_str = str(resource_id)
             return (
                 Q(resource_type=AuditResourceType.PLAN.value, resource_id=resource_id)
                 | Q(

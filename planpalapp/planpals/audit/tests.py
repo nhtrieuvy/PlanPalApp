@@ -138,6 +138,63 @@ class AuditLogTests(TestCase):
         denied_response = self.client.get(resource_url)
         self.assertEqual(denied_response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_group_resource_endpoint_includes_related_plan_and_activity_logs(self):
+        self.audit_service.log_action(
+            user=self.owner,
+            action=AuditAction.CREATE_PLAN.value,
+            resource_type=AuditResourceType.PLAN.value,
+            resource_id=self.plan.id,
+            metadata={'title': self.plan.title, 'group_id': self.group.id},
+        )
+        self.audit_service.log_action(
+            user=self.owner,
+            action=AuditAction.UPDATE_PLAN.value,
+            resource_type=AuditResourceType.PLAN.value,
+            resource_id=self.plan.id,
+            metadata={'title': self.plan.title},
+        )
+        self.audit_service.log_action(
+            user=self.owner,
+            action=AuditAction.CREATE_ACTIVITY.value,
+            resource_type=AuditResourceType.ACTIVITY.value,
+            resource_id=self.plan.id,
+            metadata={'plan_id': str(self.plan.id), 'title': 'Book hotel'},
+        )
+
+        self.client.force_authenticate(self.member)
+        response = self.client.get(
+            reverse(
+                'audit-log-resource',
+                kwargs={
+                    'resource_type': AuditResourceType.GROUP.value,
+                    'resource_id': str(self.group.id),
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        actions = {item['action'] for item in response.data['results']}
+        self.assertIn(AuditAction.CREATE_PLAN.value, actions)
+        self.assertIn(AuditAction.UPDATE_PLAN.value, actions)
+        self.assertIn(AuditAction.CREATE_ACTIVITY.value, actions)
+
+    def test_group_update_endpoint_writes_group_audit_log(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.patch(
+            reverse('group-detail', kwargs={'pk': str(self.group.id)}),
+            {'description': 'Updated audit group description'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        audit_log = AuditLog.objects.get(
+            action=AuditAction.UPDATE_GROUP.value,
+            resource_type=AuditResourceType.GROUP.value,
+            resource_id=self.group.id,
+        )
+        self.assertEqual(audit_log.user_id, self.owner.id)
+        self.assertIn('description', audit_log.metadata['updated_fields'])
+
     def test_plan_resource_endpoint_allows_participants_only(self):
         self.audit_service.log_action(
             user=self.owner,

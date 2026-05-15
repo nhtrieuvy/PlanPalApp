@@ -60,7 +60,10 @@ class EmailAwareTokenView(TokenView):
         )
         if username:
             user = User.objects.filter(username__iexact=username).first()
-            if user and not user.is_active and not user.is_email_verified:
+            if (
+                (user and not user.is_active and not user.is_email_verified)
+                or EmailVerificationService.is_pending_identifier(username)
+            ):
                 return JsonResponse(
                     {
                         'error': 'email_not_verified',
@@ -146,22 +149,31 @@ class UserViewSet(viewsets.GenericViewSet,
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
 
-        email_sent = EmailVerificationService.send_verification_email(
-            user,
-            request=request,
+        result = EmailVerificationService.start_pending_registration(
+            serializer.validated_data,
+        )
+        response_status = (
+            status.HTTP_201_CREATED if result.success else status.HTTP_400_BAD_REQUEST
         )
 
-        headers = self.get_success_headers(serializer.data)
-        data = dict(serializer.data)
-        data['message'] = (
-            'Registration successful. Please enter the 6-digit code sent to '
-            'your email before signing in.'
-        )
-        data['email_verification_required'] = True
-        data['verification_email_sent'] = email_sent
-        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
+        data = {
+            'username': serializer.validated_data['username'],
+            'email': serializer.validated_data['email'],
+            'first_name': serializer.validated_data.get('first_name', ''),
+            'last_name': serializer.validated_data.get('last_name', ''),
+            'phone_number': serializer.validated_data.get('phone_number', ''),
+            'is_active': False,
+            'is_email_verified': False,
+            'email_verification_required': True,
+            'message': (
+                'Registration successful. Please enter the 6-digit code sent to '
+                'your email before signing in.'
+            ) if result.success else result.message,
+            'verification_email_sent': result.success,
+            'error_code': result.error_code,
+        }
+        return Response(data, status=response_status)
 
     @action(
         detail=False,

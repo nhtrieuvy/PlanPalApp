@@ -63,13 +63,20 @@ class ExpenseItem extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  expense.user.fullName.isNotEmpty
-                      ? expense.user.fullName
-                      : expense.user.username,
+                  'Paid by ${expense.paidByUser.fullName.isNotEmpty ? expense.paidByUser.fullName : expense.paidByUser.username}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                if (expense.participants.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '${expense.splitStrategyLabel} split · ${expense.participants.length} participant(s)',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
                 if (expense.description.trim().isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(

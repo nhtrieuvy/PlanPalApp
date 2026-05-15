@@ -34,6 +34,8 @@ class AuditLogModel extends Equatable {
   });
 
   static const List<AuditActionOption> actionOptions = [
+    AuditActionOption(value: 'CREATE_GROUP', label: 'Create Group'),
+    AuditActionOption(value: 'UPDATE_GROUP', label: 'Update Group'),
     AuditActionOption(value: 'CREATE_PLAN', label: 'Create Plan'),
     AuditActionOption(value: 'UPDATE_PLAN', label: 'Update Plan'),
     AuditActionOption(value: 'DELETE_PLAN', label: 'Delete Plan'),
@@ -44,6 +46,8 @@ class AuditLogModel extends Equatable {
     AuditActionOption(value: 'CREATE_EXPENSE', label: 'Create Expense'),
     AuditActionOption(value: 'JOIN_GROUP', label: 'Join Group'),
     AuditActionOption(value: 'LEAVE_GROUP', label: 'Leave Group'),
+    AuditActionOption(value: 'ADD_MEMBER', label: 'Add Member'),
+    AuditActionOption(value: 'REMOVE_MEMBER', label: 'Remove Member'),
     AuditActionOption(value: 'CHANGE_ROLE', label: 'Change Role'),
     AuditActionOption(value: 'DELETE_GROUP', label: 'Delete Group'),
     AuditActionOption(
@@ -89,15 +93,37 @@ class AuditLogModel extends Equatable {
   String get metadataSummary {
     final title = _metadataString('title');
     final groupName = _metadataString('group_name');
+    final planTitle = _metadataString('plan_title');
+    final activityTitle = title.isNotEmpty
+        ? title
+        : _metadataString('activity_title');
     final newRole = _metadataString('new_role');
-    final updatedFields = metadata['updated_fields'];
+    final changedFields = _metadataList('updated_fields').isNotEmpty
+        ? _metadataList('updated_fields')
+        : _metadataList('changed_fields');
+    final changedFieldSummary = _humanFieldList(changedFields);
 
     switch (action) {
+      case 'CREATE_GROUP':
+        return groupName.isNotEmpty
+            ? 'Created "$groupName"'
+            : 'Created a group';
+      case 'UPDATE_GROUP':
+        if (changedFieldSummary.isNotEmpty) {
+          return groupName.isNotEmpty
+              ? 'Updated "$groupName": $changedFieldSummary'
+              : 'Updated group: $changedFieldSummary';
+        }
+        return groupName.isNotEmpty
+            ? 'Updated "$groupName"'
+            : 'Updated a group';
       case 'CREATE_PLAN':
         return title.isNotEmpty ? 'Created "$title"' : 'Created a plan';
       case 'UPDATE_PLAN':
-        if (updatedFields is List && updatedFields.isNotEmpty) {
-          return 'Updated ${updatedFields.join(', ')}';
+        if (changedFieldSummary.isNotEmpty) {
+          return title.isNotEmpty
+              ? 'Updated "$title": $changedFieldSummary'
+              : 'Updated $changedFieldSummary';
         }
         return title.isNotEmpty ? 'Updated "$title"' : 'Updated a plan';
       case 'DELETE_PLAN':
@@ -105,22 +131,61 @@ class AuditLogModel extends Equatable {
       case 'COMPLETE_PLAN':
         return title.isNotEmpty ? 'Completed "$title"' : 'Completed a plan';
       case 'CREATE_ACTIVITY':
-        return title.isNotEmpty
-            ? 'Created activity "$title"'
+        return activityTitle.isNotEmpty
+            ? 'Created activity "$activityTitle"'
             : 'Created an activity';
       case 'UPDATE_ACTIVITY':
-        if (updatedFields is List && updatedFields.isNotEmpty) {
-          return title.isNotEmpty
-              ? 'Updated activity "$title": ${updatedFields.join(', ')}'
-              : 'Updated activity fields: ${updatedFields.join(', ')}';
+        if (changedFieldSummary.isNotEmpty) {
+          return activityTitle.isNotEmpty
+              ? 'Updated activity "$activityTitle": $changedFieldSummary'
+              : 'Updated activity: $changedFieldSummary';
         }
-        return title.isNotEmpty
-            ? 'Updated activity "$title"'
+        return activityTitle.isNotEmpty
+            ? 'Updated activity "$activityTitle"'
             : 'Updated an activity';
+      case 'UPDATE_BUDGET':
+        final totalBudget = _metadataString('total_budget');
+        final currency = _metadataString('currency');
+        final amountText = _formatMoney(totalBudget, currency);
+        if (amountText.isNotEmpty) {
+          return planTitle.isNotEmpty
+              ? 'Updated budget for "$planTitle" to $amountText'
+              : 'Updated budget to $amountText';
+        }
+        return planTitle.isNotEmpty
+            ? 'Updated budget for "$planTitle"'
+            : 'Updated budget';
+      case 'CREATE_EXPENSE':
+        final amount = _metadataString('amount');
+        final currency = _metadataString('currency');
+        final category = _metadataString('category');
+        final description = _metadataString('description');
+        final amountText = _formatMoney(amount, currency);
+        final detail = [
+          if (amountText.isNotEmpty) amountText,
+          if (category.isNotEmpty) _fieldLabel(category),
+          if (description.isNotEmpty) '"$description"',
+        ].join(' - ');
+        if (detail.isNotEmpty) {
+          return planTitle.isNotEmpty
+              ? 'Added expense to "$planTitle": $detail'
+              : 'Added expense: $detail';
+        }
+        return planTitle.isNotEmpty
+            ? 'Added expense to "$planTitle"'
+            : 'Added expense';
       case 'JOIN_GROUP':
         return groupName.isNotEmpty ? 'Joined "$groupName"' : 'Joined a group';
       case 'LEAVE_GROUP':
         return groupName.isNotEmpty ? 'Left "$groupName"' : 'Left a group';
+      case 'ADD_MEMBER':
+        return groupName.isNotEmpty
+            ? 'Added a member to "$groupName"'
+            : 'Added a member';
+      case 'REMOVE_MEMBER':
+        return groupName.isNotEmpty
+            ? 'Removed a member from "$groupName"'
+            : 'Removed a member';
       case 'CHANGE_ROLE':
         return newRole.isNotEmpty
             ? 'Changed role to ${newRole.toUpperCase()}'
@@ -138,12 +203,91 @@ class AuditLogModel extends Equatable {
 
   String _metadataString(String key) => metadata[key]?.toString() ?? '';
 
+  List<String> _metadataList(String key) {
+    final value = metadata[key];
+    if (value is List) {
+      return value.map((item) => item.toString()).toList();
+    }
+    return const <String>[];
+  }
+
+  String _humanFieldList(List<String> fields) {
+    final labels = fields
+        .where((field) => !_isInternalField(field))
+        .map(_fieldLabel)
+        .where((label) => label.isNotEmpty)
+        .toSet()
+        .toList();
+    if (labels.isEmpty) return '';
+    if (labels.length == 1) return labels.first;
+    if (labels.length == 2) return '${labels[0]} and ${labels[1]}';
+    return '${labels.take(labels.length - 1).join(', ')}, and ${labels.last}';
+  }
+
+  bool _isInternalField(String field) {
+    final normalized = field.trim().toLowerCase();
+    return normalized.isEmpty ||
+        normalized == 'id' ||
+        normalized == 'entity_type' ||
+        normalized.endsWith('_id') ||
+        normalized == 'version' ||
+        normalized == 'force';
+  }
+
+  String _fieldLabel(String field) {
+    final normalized = field.trim().toLowerCase();
+    const labels = {
+      'title': 'title',
+      'name': 'name',
+      'description': 'description',
+      'activity_type': 'activity type',
+      'start_time': 'start time',
+      'end_time': 'end time',
+      'location_name': 'location',
+      'location_address': 'address',
+      'latitude': 'location',
+      'longitude': 'location',
+      'estimated_cost': 'estimated cost',
+      'notes': 'notes',
+      'is_completed': 'completion status',
+      'is_public': 'visibility',
+      'status': 'status',
+      'total_budget': 'total budget',
+      'currency': 'currency',
+      'amount': 'amount',
+      'category': 'category',
+      'avatar': 'avatar',
+      'cover_image': 'cover image',
+      'food': 'food',
+      'transport': 'transport',
+      'accommodation': 'accommodation',
+      'activity': 'activity',
+      'shopping': 'shopping',
+      'other': 'other',
+    };
+    return labels[normalized] ?? normalized.replaceAll('_', ' ');
+  }
+
+  String _formatMoney(String amount, String currency) {
+    if (amount.isEmpty) return '';
+    final parsed = num.tryParse(amount);
+    final normalizedAmount = parsed == null
+        ? amount
+        : parsed == parsed.roundToDouble()
+        ? parsed.toInt().toString()
+        : parsed.toStringAsFixed(2);
+    return currency.isNotEmpty
+        ? '$normalizedAmount $currency'
+        : normalizedAmount;
+  }
+
   String _fallbackSummary() {
     if (metadata.isEmpty) return actionLabel;
     final preview = metadata.entries
-        .take(2)
+        .where((entry) => !_isInternalField(entry.key))
+        .take(3)
         .map((entry) {
-          return '${entry.key}: ${entry.value}';
+          return '${_fieldLabel(entry.key)}: ${entry.value}';
         })
         .join(' | ');
     return preview.isNotEmpty ? preview : actionLabel;

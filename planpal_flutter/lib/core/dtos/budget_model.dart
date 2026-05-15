@@ -161,9 +161,14 @@ class ExpenseModel extends Equatable {
   final String planId;
   final String userId;
   final UserSummary user;
+  final String paidByUserId;
+  final UserSummary paidByUser;
   final double amount;
+  final String currency;
   final String category;
   final String description;
+  final String splitStrategy;
+  final List<ExpenseParticipantModel> participants;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -172,29 +177,67 @@ class ExpenseModel extends Equatable {
     required this.planId,
     required this.userId,
     required this.user,
+    required this.paidByUserId,
+    required this.paidByUser,
     required this.amount,
+    required this.currency,
     required this.category,
     required this.description,
+    required this.splitStrategy,
+    required this.participants,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory ExpenseModel.fromJson(Map<String, dynamic> json) {
+    final userJson = Map<String, dynamic>.from(
+      json['user'] as Map? ?? const <String, dynamic>{},
+    );
+    final rawPaidByUser =
+        json['paid_by_user'] as Map? ??
+        json['user'] as Map? ??
+        const <String, dynamic>{};
+    final paidByUserJson = Map<String, dynamic>.from(rawPaidByUser);
+    final rawParticipants =
+        json['participants'] as List<dynamic>? ?? const <dynamic>[];
     return ExpenseModel(
       id: json['id']?.toString() ?? '',
       planId: json['plan_id']?.toString() ?? '',
       userId: json['user_id']?.toString() ?? '',
-      user: UserSummary.fromJson(
-        Map<String, dynamic>.from(
-          json['user'] as Map? ?? const <String, dynamic>{},
-        ),
-      ),
+      user: UserSummary.fromJson(userJson),
+      paidByUserId:
+          json['paid_by_user_id']?.toString() ??
+          json['user_id']?.toString() ??
+          '',
+      paidByUser: UserSummary.fromJson(paidByUserJson),
       amount: _asDouble(json['amount']),
+      currency: json['currency']?.toString() ?? 'VND',
       category: json['category']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
+      splitStrategy: json['split_strategy']?.toString() ?? 'equal',
+      participants: rawParticipants
+          .whereType<Map>()
+          .map(
+            (item) => ExpenseParticipantModel.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
+          )
+          .toList(),
       createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
       updatedAt: parseServerDateTime(json['updated_at']),
     );
+  }
+
+  String get splitStrategyLabel {
+    switch (splitStrategy) {
+      case 'percentage':
+        return 'Percentage';
+      case 'exact':
+        return 'Exact';
+      case 'equal':
+      default:
+        return 'Equal';
+    }
   }
 
   @override
@@ -203,11 +246,63 @@ class ExpenseModel extends Equatable {
     planId,
     userId,
     user,
+    paidByUserId,
+    paidByUser,
     amount,
+    currency,
     category,
     description,
+    splitStrategy,
+    participants,
     createdAt,
     updatedAt,
+  ];
+}
+
+class ExpenseParticipantModel extends Equatable {
+  final String id;
+  final String expenseId;
+  final String userId;
+  final UserSummary user;
+  final double owedAmount;
+  final double settledAmount;
+  final double balance;
+
+  const ExpenseParticipantModel({
+    required this.id,
+    required this.expenseId,
+    required this.userId,
+    required this.user,
+    required this.owedAmount,
+    required this.settledAmount,
+    required this.balance,
+  });
+
+  factory ExpenseParticipantModel.fromJson(Map<String, dynamic> json) {
+    return ExpenseParticipantModel(
+      id: json['id']?.toString() ?? '',
+      expenseId: json['expense_id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      user: UserSummary.fromJson(
+        Map<String, dynamic>.from(
+          json['user'] as Map? ?? const <String, dynamic>{},
+        ),
+      ),
+      owedAmount: _asDouble(json['owed_amount']),
+      settledAmount: _asDouble(json['settled_amount']),
+      balance: _asDouble(json['balance']),
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    id,
+    expenseId,
+    userId,
+    user,
+    owedAmount,
+    settledAmount,
+    balance,
   ];
 }
 
@@ -275,6 +370,232 @@ class ExpenseCreateResult extends Equatable {
 
   @override
   List<Object?> get props => [expense, summary, warnings];
+}
+
+class ExpenseParticipantInput extends Equatable {
+  final String userId;
+  final double? amount;
+  final double? percentage;
+
+  const ExpenseParticipantInput({
+    required this.userId,
+    this.amount,
+    this.percentage,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'user_id': userId,
+      if (amount != null) 'amount': amount,
+      if (percentage != null) 'percentage': percentage,
+    };
+  }
+
+  @override
+  List<Object?> get props => [userId, amount, percentage];
+}
+
+class BalanceUser extends Equatable {
+  final String id;
+  final String username;
+  final String fullName;
+
+  const BalanceUser({
+    required this.id,
+    required this.username,
+    required this.fullName,
+  });
+
+  factory BalanceUser.fromJson(Map<String, dynamic> json) {
+    return BalanceUser(
+      id: json['id']?.toString() ?? '',
+      username: json['username']?.toString() ?? '',
+      fullName:
+          json['full_name']?.toString() ?? json['username']?.toString() ?? '',
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, username, fullName];
+}
+
+class UserBalanceModel extends Equatable {
+  final BalanceUser user;
+  final double totalPaid;
+  final double totalOwed;
+  final double settlementPaid;
+  final double settlementReceived;
+  final double netBalance;
+
+  const UserBalanceModel({
+    required this.user,
+    required this.totalPaid,
+    required this.totalOwed,
+    required this.settlementPaid,
+    required this.settlementReceived,
+    required this.netBalance,
+  });
+
+  factory UserBalanceModel.fromJson(Map<String, dynamic> json) {
+    return UserBalanceModel(
+      user: BalanceUser.fromJson(
+        Map<String, dynamic>.from(
+          json['user'] as Map? ?? const <String, dynamic>{},
+        ),
+      ),
+      totalPaid: _asDouble(json['total_paid']),
+      totalOwed: _asDouble(json['total_owed']),
+      settlementPaid: _asDouble(json['settlement_paid']),
+      settlementReceived: _asDouble(json['settlement_received']),
+      netBalance: _asDouble(json['net_balance']),
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    user,
+    totalPaid,
+    totalOwed,
+    settlementPaid,
+    settlementReceived,
+    netBalance,
+  ];
+}
+
+class DebtSuggestionModel extends Equatable {
+  final BalanceUser fromUser;
+  final BalanceUser toUser;
+  final double amount;
+
+  const DebtSuggestionModel({
+    required this.fromUser,
+    required this.toUser,
+    required this.amount,
+  });
+
+  factory DebtSuggestionModel.fromJson(Map<String, dynamic> json) {
+    return DebtSuggestionModel(
+      fromUser: BalanceUser.fromJson(
+        Map<String, dynamic>.from(
+          json['from_user'] as Map? ?? const <String, dynamic>{},
+        ),
+      ),
+      toUser: BalanceUser.fromJson(
+        Map<String, dynamic>.from(
+          json['to_user'] as Map? ?? const <String, dynamic>{},
+        ),
+      ),
+      amount: _asDouble(json['amount']),
+    );
+  }
+
+  @override
+  List<Object?> get props => [fromUser, toUser, amount];
+}
+
+class BalanceSummaryModel extends Equatable {
+  final String planId;
+  final String currency;
+  final double totalExpenses;
+  final List<UserBalanceModel> balances;
+  final List<DebtSuggestionModel> settlementSuggestions;
+
+  const BalanceSummaryModel({
+    required this.planId,
+    required this.currency,
+    required this.totalExpenses,
+    required this.balances,
+    required this.settlementSuggestions,
+  });
+
+  factory BalanceSummaryModel.fromJson(Map<String, dynamic> json) {
+    final rawBalances = json['balances'] as List<dynamic>? ?? const <dynamic>[];
+    final rawSuggestions =
+        json['settlement_suggestions'] as List<dynamic>? ?? const <dynamic>[];
+    return BalanceSummaryModel(
+      planId: json['plan_id']?.toString() ?? '',
+      currency: json['currency']?.toString() ?? 'VND',
+      totalExpenses: _asDouble(json['total_expenses']),
+      balances: rawBalances
+          .whereType<Map>()
+          .map(
+            (item) =>
+                UserBalanceModel.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList(),
+      settlementSuggestions: rawSuggestions
+          .whereType<Map>()
+          .map(
+            (item) =>
+                DebtSuggestionModel.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList(),
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    planId,
+    currency,
+    totalExpenses,
+    balances,
+    settlementSuggestions,
+  ];
+}
+
+class SettlementModel extends Equatable {
+  final String id;
+  final String planId;
+  final String fromUserId;
+  final String toUserId;
+  final double amount;
+  final String currency;
+  final String status;
+  final String note;
+  final DateTime? settledAt;
+  final DateTime createdAt;
+
+  const SettlementModel({
+    required this.id,
+    required this.planId,
+    required this.fromUserId,
+    required this.toUserId,
+    required this.amount,
+    required this.currency,
+    required this.status,
+    required this.note,
+    required this.settledAt,
+    required this.createdAt,
+  });
+
+  factory SettlementModel.fromJson(Map<String, dynamic> json) {
+    return SettlementModel(
+      id: json['id']?.toString() ?? '',
+      planId: json['plan_id']?.toString() ?? '',
+      fromUserId: json['from_user_id']?.toString() ?? '',
+      toUserId: json['to_user_id']?.toString() ?? '',
+      amount: _asDouble(json['amount']),
+      currency: json['currency']?.toString() ?? 'VND',
+      status: json['status']?.toString() ?? 'completed',
+      note: json['note']?.toString() ?? '',
+      settledAt: parseServerDateTime(json['settled_at']),
+      createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    id,
+    planId,
+    fromUserId,
+    toUserId,
+    amount,
+    currency,
+    status,
+    note,
+    settledAt,
+    createdAt,
+  ];
 }
 
 class ExpenseFilter extends Equatable {

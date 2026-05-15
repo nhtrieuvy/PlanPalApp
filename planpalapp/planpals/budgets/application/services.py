@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, Iterable
 from uuid import UUID
 
 from django.db import transaction
@@ -13,13 +13,22 @@ from planpals.budgets.application.repositories import (
     BudgetUpsertData,
     ExpenseCreateData,
     ExpenseFilters,
+    ExpenseParticipantCreateData,
     ExpenseRepository,
+    SettlementCreateData,
+    SettlementRepository,
 )
 from planpals.budgets.domain.entities import (
+    BalanceSummary,
     Budget,
     BudgetSummary,
+    DebtSuggestion,
     ExpenseCreationResult,
     ExpenseWarning,
+    Settlement,
+    SettlementStatus,
+    SplitStrategy,
+    UserBalance,
 )
 from planpals.notifications.domain.entities import NotificationType
 from planpals.shared.cache import CacheKeys, CacheTTL, CachePort
@@ -37,6 +46,7 @@ class BudgetService:
         self,
         budget_repo: BudgetRepository,
         expense_repo: ExpenseRepository,
+        settlement_repo: SettlementRepository,
         plan_repo,
         cache_service: CachePort,
         audit_service=None,
@@ -45,6 +55,7 @@ class BudgetService:
     ):
         self.budget_repo = budget_repo
         self.expense_repo = expense_repo
+        self.settlement_repo = settlement_repo
         self.plan_repo = plan_repo
         self.cache_service = cache_service
         self.audit_service = audit_service
@@ -116,6 +127,10 @@ class BudgetService:
         amount,
         category: str,
         description: str = '',
+        paid_by_user_id=None,
+        currency: str | None = None,
+        split_strategy: str = SplitStrategy.EQUAL.value,
+        participants: Iterable[dict[str, Any]] | None = None,
     ) -> ExpenseCreationResult:
         plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
         actor_id = self._normalize_required_uuid(user, 'user')
@@ -126,16 +141,34 @@ class BudgetService:
 
         budget = self.budget_repo.ensure_budget(plan_uuid, currency=self.DEFAULT_CURRENCY)
         expense_amount = self._normalize_positive_amount(amount, 'amount')
+        normalized_currency = self._normalize_currency(currency or budget.currency)
         normalized_category = self._normalize_category(category)
         normalized_description = (description or '').strip()
+        paid_by_id = self._normalize_required_uuid(
+            paid_by_user_id or actor_id,
+            'paid_by_user_id',
+        )
+        self._validate_plan_member_ids(plan, [paid_by_id], field_name='paid_by_user_id')
+        normalized_strategy = self._normalize_split_strategy(split_strategy)
+        participant_items = self._calculate_participants(
+            plan=plan,
+            paid_by_user_id=paid_by_id,
+            amount=expense_amount,
+            split_strategy=normalized_strategy,
+            raw_participants=list(participants or []),
+        )
 
         expense = self.expense_repo.create_expense(
             ExpenseCreateData(
                 plan_id=plan_uuid,
                 user_id=actor_id,
+                paid_by_user_id=paid_by_id,
                 amount=expense_amount,
+                currency=normalized_currency,
                 category=normalized_category,
                 description=normalized_description,
+                split_strategy=normalized_strategy,
+                participants=participant_items,
             )
         )
         summary = self._build_summary(plan_uuid, budget)
@@ -152,10 +185,13 @@ class BudgetService:
                     'expense_id': expense.id,
                     'plan_id': plan_uuid,
                     'plan_title': getattr(plan, 'title', 'Plan'),
+                    'paid_by_user_id': paid_by_id,
                     'amount': expense.amount,
+                    'currency': normalized_currency,
                     'category': expense.category,
                     'description': expense.description,
-                    'currency': budget.currency,
+                    'split_strategy': normalized_strategy,
+                    'participant_ids': [item.user_id for item in participant_items],
                     'total_spent': summary.total_spent,
                     'remaining_budget': summary.remaining_budget,
                 },
@@ -207,6 +243,151 @@ class BudgetService:
         )
         return self.expense_repo.list_expenses(plan_uuid, normalized_filters)
 
+    def get_balances(self, plan_id, viewer) -> BalanceSummary:
+        plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
+        plan = self._require_plan(plan_uuid)
+        if not self._can_view_budget(plan, viewer):
+            raise PermissionDenied('You do not have permission to view these balances.')
+
+        budget = self.budget_repo.ensure_budget(plan_uuid, currency=self.DEFAULT_CURRENCY)
+        expenses = self.expense_repo.list_expenses_for_balances(plan_uuid)
+        settlements = self.settlement_repo.list_settlements(plan_uuid)
+        member_profiles = self._plan_member_profiles(plan)
+
+        totals: dict[UUID, dict[str, Decimal]] = {
+            user_id: {
+                'paid': Decimal('0.00'),
+                'owed': Decimal('0.00'),
+                'settlement_paid': Decimal('0.00'),
+                'settlement_received': Decimal('0.00'),
+            }
+            for user_id in member_profiles
+        }
+
+        total_expenses = Decimal('0.00')
+        for expense in expenses:
+            paid_by = expense.paid_by_user_id
+            totals.setdefault(paid_by, self._empty_balance_totals())
+            totals[paid_by]['paid'] += expense.amount
+            total_expenses += expense.amount
+            for participant in expense.participants:
+                totals.setdefault(participant.user_id, self._empty_balance_totals())
+                totals[participant.user_id]['owed'] += participant.owed_amount
+
+        for settlement in settlements:
+            if settlement.status != SettlementStatus.COMPLETED.value:
+                continue
+            totals.setdefault(settlement.from_user_id, self._empty_balance_totals())
+            totals.setdefault(settlement.to_user_id, self._empty_balance_totals())
+            totals[settlement.from_user_id]['settlement_paid'] += settlement.amount
+            totals[settlement.to_user_id]['settlement_received'] += settlement.amount
+
+        balances: list[UserBalance] = []
+        for user_id, values in totals.items():
+            profile = member_profiles.get(user_id, {})
+            net_balance = (
+                values['paid']
+                - values['owed']
+                + values['settlement_paid']
+                - values['settlement_received']
+            ).quantize(Decimal('0.01'))
+            balances.append(
+                UserBalance(
+                    user_id=user_id,
+                    username=profile.get('username', ''),
+                    full_name=profile.get('full_name', profile.get('username', '')),
+                    total_paid=values['paid'].quantize(Decimal('0.01')),
+                    total_owed=values['owed'].quantize(Decimal('0.01')),
+                    settlement_paid=values['settlement_paid'].quantize(Decimal('0.01')),
+                    settlement_received=values['settlement_received'].quantize(Decimal('0.01')),
+                    net_balance=net_balance,
+                )
+            )
+
+        balances.sort(key=lambda item: (item.full_name or item.username).lower())
+        suggestions = self._build_debt_suggestions(balances)
+        return BalanceSummary(
+            plan_id=plan_uuid,
+            currency=budget.currency,
+            total_expenses=total_expenses.quantize(Decimal('0.01')),
+            balances=tuple(balances),
+            settlement_suggestions=tuple(suggestions),
+        )
+
+    @transaction.atomic
+    def create_settlement(
+        self,
+        *,
+        plan_id,
+        actor,
+        from_user_id,
+        to_user_id,
+        amount,
+        currency: str | None = None,
+        status: str = SettlementStatus.COMPLETED.value,
+        note: str = '',
+    ) -> Settlement:
+        plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
+        actor_id = self._normalize_required_uuid(actor, 'actor')
+        plan = self._require_plan(plan_uuid)
+        if not self._can_view_budget(plan, actor):
+            raise PermissionDenied('You do not have permission to settle this plan.')
+
+        payer_id = self._normalize_required_uuid(from_user_id, 'from_user_id')
+        receiver_id = self._normalize_required_uuid(to_user_id, 'to_user_id')
+        if payer_id == receiver_id:
+            raise ValidationError({'to_user_id': 'from_user_id and to_user_id must be different'})
+        self._validate_plan_member_ids(plan, [payer_id, receiver_id], field_name='participants')
+        if actor_id != payer_id and not self._can_manage_budget(plan, actor):
+            raise PermissionDenied('Only the payer or a plan admin can record this settlement.')
+
+        normalized_status = self._normalize_settlement_status(status)
+        budget = self.budget_repo.ensure_budget(plan_uuid, currency=self.DEFAULT_CURRENCY)
+        settlement = self.settlement_repo.create_settlement(
+            SettlementCreateData(
+                plan_id=plan_uuid,
+                from_user_id=payer_id,
+                to_user_id=receiver_id,
+                amount=self._normalize_positive_amount(amount, 'amount'),
+                currency=self._normalize_currency(currency or budget.currency),
+                status=normalized_status,
+                note=(note or '').strip(),
+            )
+        )
+
+        if self.audit_service and settlement.status == SettlementStatus.COMPLETED.value:
+            self.audit_service.log_action(
+                user=actor_id,
+                action=AuditAction.SETTLEMENT_COMPLETED.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan_uuid,
+                metadata={
+                    'plan_id': plan_uuid,
+                    'plan_title': getattr(plan, 'title', 'Plan'),
+                    'from_user_id': payer_id,
+                    'to_user_id': receiver_id,
+                    'amount': settlement.amount,
+                    'currency': settlement.currency,
+                },
+            )
+
+        if self.notification_service:
+            self.notification_service.notify(
+                user_id=receiver_id,
+                notification_type=NotificationType.SETTLEMENT_REQUESTED.value,
+                data={
+                    'plan_id': str(plan_uuid),
+                    'plan_title': getattr(plan, 'title', 'Plan'),
+                    'actor_name': self._resolve_actor_name(plan, actor_id),
+                    'amount': float(settlement.amount),
+                    'currency': settlement.currency,
+                },
+                send_push=True,
+            )
+
+        self.invalidate_budget_cache(plan_uuid)
+        return settlement
+
     def process_expense_notifications(self, expense_id) -> dict[str, Any]:
         if not self.notification_service:
             return {'status': 'skipped', 'reason': 'notification_service_unavailable'}
@@ -220,8 +401,13 @@ class BudgetService:
         budget = self.budget_repo.ensure_budget(expense.plan_id, currency=self.DEFAULT_CURRENCY)
         summary = self._build_summary(expense.plan_id, budget)
         recipients = self._notification_recipients(plan, exclude_user_id=expense.user_id)
+        participant_recipients = [
+            user_id
+            for user_id in self.expense_repo.get_participant_user_ids(expense.id)
+            if str(user_id) != str(expense.user_id)
+        ]
         if not recipients:
-            return {'status': 'skipped', 'reason': 'no_recipients'}
+            recipients = []
 
         notifications_sent = 0
         previous_total = summary.total_spent - expense.amount
@@ -230,14 +416,24 @@ class BudgetService:
             'plan_title': getattr(plan, 'title', 'Plan'),
             'actor_name': self._resolve_actor_name(plan, expense.user_id),
             'amount': float(expense.amount),
-            'currency': budget.currency,
+            'currency': expense.currency or budget.currency,
             'category': expense.category,
             'total_budget': float(budget.total_budget),
             'total_spent': float(summary.total_spent),
             'remaining_budget': float(summary.remaining_budget),
         }
 
-        if self._is_large_expense(expense.amount, budget.total_budget):
+        if participant_recipients:
+            self.notification_service.notify_many(
+                user_ids=participant_recipients,
+                notification_type=NotificationType.EXPENSE_ADDED.value,
+                data=payload_base,
+                send_push=True,
+                exclude_user_ids=[expense.user_id],
+            )
+            notifications_sent += len(participant_recipients)
+
+        if recipients and self._is_large_expense(expense.amount, budget.total_budget):
             self.notification_service.notify_many(
                 user_ids=recipients,
                 notification_type=NotificationType.LARGE_EXPENSE.value,
@@ -252,7 +448,7 @@ class BudgetService:
             current_total=summary.total_spent,
             total_budget=budget.total_budget,
         )
-        if crossed_threshold is not None:
+        if recipients and crossed_threshold is not None:
             self.notification_service.notify_many(
                 user_ids=recipients,
                 notification_type=NotificationType.BUDGET_ALERT.value,
@@ -267,6 +463,8 @@ class BudgetService:
             )
             notifications_sent += len(recipients)
 
+        if notifications_sent == 0:
+            return {'status': 'skipped', 'reason': 'no_recipients'}
         return {'status': 'processed', 'notifications_sent': notifications_sent}
 
     def invalidate_budget_cache(self, plan_id) -> None:
@@ -329,6 +527,160 @@ class BudgetService:
                 )
             )
         return warnings
+
+    def _calculate_participants(
+        self,
+        *,
+        plan,
+        paid_by_user_id: UUID,
+        amount: Decimal,
+        split_strategy: str,
+        raw_participants: list[dict[str, Any]],
+    ) -> tuple[ExpenseParticipantCreateData, ...]:
+        if not raw_participants:
+            member_ids = list(self._plan_member_profiles(plan).keys())
+            raw_participants = [{'user_id': user_id} for user_id in member_ids]
+
+        participant_ids: list[UUID] = []
+        for item in raw_participants:
+            participant_ids.append(self._normalize_required_uuid(item.get('user_id'), 'participants.user_id'))
+
+        if not participant_ids:
+            raise ValidationError({'participants': 'At least one participant is required'})
+        if len(participant_ids) != len(set(participant_ids)):
+            raise ValidationError({'participants': 'Participants must be unique'})
+        self._validate_plan_member_ids(plan, participant_ids, field_name='participants')
+
+        if split_strategy == SplitStrategy.EQUAL.value:
+            owed_amounts = self._split_equal(amount, len(participant_ids))
+        elif split_strategy == SplitStrategy.PERCENTAGE.value:
+            percentages = [
+                self._normalize_non_negative_amount(
+                    item.get('percentage', item.get('percent')),
+                    'participants.percentage',
+                )
+                for item in raw_participants
+            ]
+            if sum(percentages, Decimal('0.00')) != Decimal('100.00'):
+                raise ValidationError({'participants': 'Percentage split must total 100'})
+            owed_amounts = self._split_percentage(amount, percentages)
+        elif split_strategy == SplitStrategy.EXACT.value:
+            owed_amounts = [
+                self._normalize_non_negative_amount(
+                    item.get('amount', item.get('owed_amount')),
+                    'participants.amount',
+                )
+                for item in raw_participants
+            ]
+            if sum(owed_amounts, Decimal('0.00')) != amount:
+                raise ValidationError({'participants': 'Exact split amounts must equal the expense amount'})
+        else:
+            raise ValidationError({'split_strategy': 'Unsupported split strategy'})
+
+        return tuple(
+            ExpenseParticipantCreateData(
+                user_id=user_id,
+                owed_amount=owed,
+                settled_amount=Decimal('0.00'),
+                balance=(amount - owed if user_id == paid_by_user_id else -owed).quantize(Decimal('0.01')),
+            )
+            for user_id, owed in zip(participant_ids, owed_amounts)
+        )
+
+    @staticmethod
+    def _split_equal(amount: Decimal, count: int) -> list[Decimal]:
+        base = (amount / Decimal(count)).quantize(Decimal('0.01'))
+        amounts = [base for _ in range(count)]
+        diff = amount - sum(amounts, Decimal('0.00'))
+        cents = int((diff * Decimal('100')).to_integral_value())
+        step = Decimal('0.01') if cents >= 0 else Decimal('-0.01')
+        for index in range(abs(cents)):
+            amounts[index % count] += step
+        return [item.quantize(Decimal('0.01')) for item in amounts]
+
+    @staticmethod
+    def _split_percentage(amount: Decimal, percentages: list[Decimal]) -> list[Decimal]:
+        amounts = [
+            ((amount * percentage) / Decimal('100')).quantize(Decimal('0.01'))
+            for percentage in percentages
+        ]
+        diff = amount - sum(amounts, Decimal('0.00'))
+        if amounts:
+            amounts[-1] = (amounts[-1] + diff).quantize(Decimal('0.01'))
+        return amounts
+
+    def _build_debt_suggestions(self, balances: list[UserBalance]) -> list[DebtSuggestion]:
+        debtors = [
+            {'balance': -item.net_balance, 'user': item}
+            for item in balances
+            if item.net_balance < Decimal('-0.00')
+        ]
+        creditors = [
+            {'balance': item.net_balance, 'user': item}
+            for item in balances
+            if item.net_balance > Decimal('0.00')
+        ]
+        debtors.sort(key=lambda row: row['balance'], reverse=True)
+        creditors.sort(key=lambda row: row['balance'], reverse=True)
+
+        suggestions: list[DebtSuggestion] = []
+        debtor_index = 0
+        creditor_index = 0
+        while debtor_index < len(debtors) and creditor_index < len(creditors):
+            debtor = debtors[debtor_index]
+            creditor = creditors[creditor_index]
+            amount = min(debtor['balance'], creditor['balance']).quantize(Decimal('0.01'))
+            if amount > Decimal('0.00'):
+                from_user = debtor['user']
+                to_user = creditor['user']
+                suggestions.append(
+                    DebtSuggestion(
+                        from_user_id=from_user.user_id,
+                        from_username=from_user.username,
+                        from_full_name=from_user.full_name,
+                        to_user_id=to_user.user_id,
+                        to_username=to_user.username,
+                        to_full_name=to_user.full_name,
+                        amount=amount,
+                    )
+                )
+            debtor['balance'] = (debtor['balance'] - amount).quantize(Decimal('0.01'))
+            creditor['balance'] = (creditor['balance'] - amount).quantize(Decimal('0.01'))
+            if debtor['balance'] <= Decimal('0.00'):
+                debtor_index += 1
+            if creditor['balance'] <= Decimal('0.00'):
+                creditor_index += 1
+        return suggestions
+
+    @staticmethod
+    def _empty_balance_totals() -> dict[str, Decimal]:
+        return {
+            'paid': Decimal('0.00'),
+            'owed': Decimal('0.00'),
+            'settlement_paid': Decimal('0.00'),
+            'settlement_received': Decimal('0.00'),
+        }
+
+    def _plan_member_profiles(self, plan) -> dict[UUID, dict[str, str]]:
+        return {
+            UUID(str(user.id)): {
+                'username': user.username,
+                'full_name': user.get_full_name() or user.username,
+            }
+            for user in plan.get_members()
+        }
+
+    def _validate_plan_member_ids(
+        self,
+        plan,
+        user_ids: Iterable[UUID],
+        *,
+        field_name: str,
+    ) -> None:
+        member_ids = set(self._plan_member_profiles(plan).keys())
+        invalid_ids = [str(user_id) for user_id in user_ids if user_id not in member_ids]
+        if invalid_ids:
+            raise ValidationError({field_name: f'Users are not plan participants: {", ".join(invalid_ids)}'})
 
     def _crossed_budget_threshold(
         self,
@@ -458,6 +810,20 @@ class BudgetService:
         normalized = (value or BudgetService.DEFAULT_CURRENCY).strip().upper()
         if len(normalized) < 3 or len(normalized) > 10:
             raise ValidationError({'currency': 'currency must be between 3 and 10 characters'})
+        return normalized
+
+    @staticmethod
+    def _normalize_split_strategy(value: str | None) -> str:
+        normalized = (value or SplitStrategy.EQUAL.value).strip().lower()
+        if normalized not in SplitStrategy.values():
+            raise ValidationError({'split_strategy': 'Unsupported split strategy'})
+        return normalized
+
+    @staticmethod
+    def _normalize_settlement_status(value: str | None) -> str:
+        normalized = (value or SettlementStatus.COMPLETED.value).strip().lower()
+        if normalized not in SettlementStatus.values():
+            raise ValidationError({'status': 'Unsupported settlement status'})
         return normalized
 
     @staticmethod

@@ -202,6 +202,23 @@ class GroupModel extends Equatable {
   /// Get list of members from memberships
   List<UserSummary> get members => memberships.map((m) => m.user).toList();
 
+  GroupMembership? membershipForUser(String? userId) {
+    if (userId == null || userId.isEmpty) return null;
+    for (final membership in memberships) {
+      if (membership.user.id == userId) {
+        return membership;
+      }
+    }
+    return null;
+  }
+
+  bool canCreatePlanForUser(String? userId) {
+    if (canCreatePlan) return true;
+    if (userId == null || userId.isEmpty) return false;
+    if (admin.id == userId) return true;
+    return membershipForUser(userId)?.canCreatePlan ?? false;
+  }
+
   @override
   List<Object?> get props => [
     id,

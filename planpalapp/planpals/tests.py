@@ -49,7 +49,7 @@ class AuthEmailVerificationTests(TestCase):
         cache.clear()
         self.client = APIClient()
 
-    def test_registration_creates_inactive_user_and_sends_verification_email(self):
+    def test_registration_stays_pending_until_email_code_is_verified(self):
         response = self.client.post(
             '/api/v1/users/',
             {
@@ -67,12 +67,117 @@ class AuthEmailVerificationTests(TestCase):
         self.assertTrue(response.data['email_verification_required'])
         self.assertTrue(response.data['verification_email_sent'])
 
-        user = User.objects.get(username='verify_me')
-        self.assertFalse(user.is_active)
-        self.assertFalse(user.is_email_verified)
+        self.assertFalse(User.objects.filter(username='verify_me').exists())
         self.assertEqual(len(mail.outbox), 1)
         self.assertRegex(mail.outbox[0].body, r'\b\d{6}\b')
         self.assertNotIn('/api/v1/users/verify-email/?', mail.outbox[0].body)
+
+    def test_verify_pending_registration_code_creates_active_verified_user(self):
+        register_response = self.client.post(
+            '/api/v1/users/',
+            {
+                'username': 'verify_create',
+                'email': 'verify-create@example.com',
+                'password': 'password123',
+                'password_confirm': 'password123',
+                'first_name': 'Verify',
+                'last_name': 'Create',
+            },
+            format='multipart',
+        )
+        self.assertEqual(register_response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(User.objects.filter(username='verify_create').exists())
+
+        code_match = re.search(r'\b(\d{6})\b', mail.outbox[0].body)
+        self.assertIsNotNone(code_match)
+
+        response = self.client.post(
+            '/api/v1/users/verify-email/',
+            {
+                'email': 'verify-create@example.com',
+                'code': code_match.group(1),
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user = User.objects.get(username='verify_create')
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.is_email_verified)
+
+    def test_verify_pending_registration_with_avatar_still_creates_user(self):
+        avatar = SimpleUploadedFile(
+            'avatar.jpg',
+            b'\xff\xd8\xff\xe0' + b'fake-image-data',
+            content_type='image/jpeg',
+        )
+        register_response = self.client.post(
+            '/api/v1/users/',
+            {
+                'username': 'verify_avatar',
+                'email': 'verify-avatar@example.com',
+                'password': 'password123',
+                'password_confirm': 'password123',
+                'first_name': 'Verify',
+                'last_name': 'Avatar',
+                'avatar': avatar,
+            },
+            format='multipart',
+        )
+        self.assertEqual(register_response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(User.objects.filter(username='verify_avatar').exists())
+
+        code_match = re.search(r'\b(\d{6})\b', mail.outbox[0].body)
+        self.assertIsNotNone(code_match)
+
+        with patch(
+            'planpals.auth.infrastructure.email_verification.cloudinary.uploader.upload',
+            return_value={'public_id': 'planpal/avatars/verify_avatar'},
+        ) as upload_mock:
+            response = self.client.post(
+                '/api/v1/users/verify-email/',
+                {
+                    'email': 'verify-avatar@example.com',
+                    'code': code_match.group(1),
+                },
+                format='json',
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        upload_mock.assert_called_once()
+        user = User.objects.get(username='verify_avatar')
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.is_email_verified)
+        self.assertEqual(str(user.avatar), 'planpal/avatars/verify_avatar')
+
+    def test_pending_registration_login_returns_email_not_verified(self):
+        register_response = self.client.post(
+            '/api/v1/users/',
+            {
+                'username': 'pending_login',
+                'email': 'pending-login@example.com',
+                'password': 'password123',
+                'password_confirm': 'password123',
+                'first_name': 'Pending',
+                'last_name': 'Login',
+            },
+            format='multipart',
+        )
+        self.assertEqual(register_response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(User.objects.filter(username='pending_login').exists())
+
+        response = self.client.post(
+            '/o/token/',
+            {
+                'grant_type': 'password',
+                'username': 'pending_login',
+                'password': 'password123',
+                'client_id': 'any-client',
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.json()['error'], 'email_not_verified')
 
     def test_verify_email_with_six_digit_code_activates_user(self):
         user = User.objects.create_user(
@@ -1047,6 +1152,13 @@ class SystemRegressionTests(TestCase):
             GroupMembership.PLAN_CREATOR,
         )
 
+        plans_response = self.client.get(
+            reverse('group-plans', kwargs={'pk': group.id}),
+            format='json',
+        )
+        self.assertEqual(plans_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(plans_response.data['can_create_plan'])
+
         create_response = self.client.post(
             reverse('plan-list'),
             {
@@ -1062,6 +1174,57 @@ class SystemRegressionTests(TestCase):
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(create_response.data['creator']['id'], str(self.friend_a.id))
         self.assertTrue(create_response.data['is_public'])
+
+    def test_set_member_role_handler_invalidates_cached_group_detail_permissions(self):
+        from planpals.groups.application.commands import SetMemberRoleCommand
+        from planpals.groups.application.handlers import SetMemberRoleHandler
+        from planpals.groups.application.services import GroupService
+        from planpals.groups.infrastructure.cache import invalidate_group_detail_cache
+        from planpals.groups.infrastructure.repositories import DjangoGroupMembershipRepository
+
+        group = self._create_group_with_owner('Handler Permission Cache Group')
+        membership = GroupMembership.objects.create(
+            group=group,
+            user=self.friend_a,
+            role=GroupMembership.MEMBER,
+        )
+
+        def serialize(current_group):
+            current_membership = current_group.get_user_membership(self.friend_a)
+            return {
+                'user_role': current_membership.role,
+                'can_create_plan': current_group.can_create_plans(self.friend_a),
+            }
+
+        cached_before = GroupService.get_group_detail_cached(
+            group.id,
+            self.friend_a.id,
+            serialize,
+        )
+        self.assertEqual(cached_before['user_role'], GroupMembership.MEMBER)
+        self.assertFalse(cached_before['can_create_plan'])
+
+        handler = SetMemberRoleHandler(
+            DjangoGroupMembershipRepository(),
+            Mock(),
+            group_cache_invalidator=invalidate_group_detail_cache,
+        )
+        handler.handle(
+            SetMemberRoleCommand(
+                group_id=group.id,
+                user_id=self.owner.id,
+                target_user_id=self.friend_a.id,
+                role=GroupMembership.PLAN_CREATOR,
+            )
+        )
+
+        cached_after = GroupService.get_group_detail_cached(
+            group.id,
+            self.friend_a.id,
+            serialize,
+        )
+        self.assertEqual(cached_after['user_role'], GroupMembership.PLAN_CREATOR)
+        self.assertTrue(cached_after['can_create_plan'])
 
     def test_plan_creator_cannot_manage_group_roles(self):
         group = self._create_group_with_owner('Role Guard Group')
@@ -1309,6 +1472,21 @@ class SystemRegressionTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
         self.assertEqual(response.data['error_code'], 'payload_too_large')
+
+    def test_delete_group_deletes_owned_group_conversation(self):
+        group = self._create_group_with_owner('Delete Conversation Group')
+        conversation = Conversation.objects.create(
+            conversation_type='group',
+            group=group,
+            name='Group Chat: Delete Conversation Group',
+        )
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.delete(f'/api/v1/groups/{group.id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Group.objects.filter(id=group.id).exists())
+        self.assertFalse(Conversation.objects.filter(id=conversation.id).exists())
 
     def _make_accepted_friendship(self, user_a, user_b):
         return Friendship.objects.create(

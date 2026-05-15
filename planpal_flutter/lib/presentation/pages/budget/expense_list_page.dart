@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/dtos/user_summary.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/presentation/pages/budget/add_expense_form.dart';
+import 'package:planpal_flutter/presentation/pages/budget/expense_detail_page.dart';
 import 'package:planpal_flutter/presentation/widgets/budget/expense_item.dart';
 import 'package:planpal_flutter/presentation/widgets/common/refreshable_page_wrapper.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
@@ -178,7 +181,16 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        return ExpenseItem(expense: data.items[index], currency: currency);
+        final expense = data.items[index];
+        return InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ExpenseDetailPage(expense: expense),
+            ),
+          ),
+          child: ExpenseItem(expense: expense, currency: currency),
+        );
       },
     );
   }
@@ -212,14 +224,30 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
   }
 
   Future<void> _openAddExpense() async {
+    final members = await _loadPlanMembers();
+    if (!mounted) return;
     final result = await Navigator.of(context).push<ExpenseCreateResult>(
       MaterialPageRoute(
-        builder: (context) =>
-            AddExpenseForm(planId: widget.planId, planTitle: widget.planTitle),
+        builder: (context) => AddExpenseForm(
+          planId: widget.planId,
+          planTitle: widget.planTitle,
+          members: members,
+        ),
       ),
     );
     if (result == null) return;
     ref.invalidate(budgetProvider(widget.planId));
     await _refresh();
+  }
+
+  Future<List<UserSummary>> _loadPlanMembers() async {
+    try {
+      final plan = await ref
+          .read(planRepositoryProvider)
+          .getPlanDetail(widget.planId);
+      return plan.collaborators;
+    } catch (_) {
+      return const [];
+    }
   }
 }

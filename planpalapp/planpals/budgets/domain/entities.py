@@ -17,6 +17,26 @@ class BudgetSortField(str, Enum):
         return tuple(item.value for item in cls)
 
 
+class SplitStrategy(str, Enum):
+    EQUAL = 'equal'
+    PERCENTAGE = 'percentage'
+    EXACT = 'exact'
+
+    @classmethod
+    def values(cls) -> tuple[str, ...]:
+        return tuple(item.value for item in cls)
+
+
+class SettlementStatus(str, Enum):
+    PENDING = 'pending'
+    COMPLETED = 'completed'
+    CANCELLED = 'cancelled'
+
+    @classmethod
+    def values(cls) -> tuple[str, ...]:
+        return tuple(item.value for item in cls)
+
+
 @dataclass(frozen=True)
 class Budget:
     id: UUID
@@ -50,10 +70,45 @@ class Expense:
     plan_id: UUID
     user_id: UUID
     user: ExpenseUser | None
+    paid_by_user_id: UUID
+    paid_by_user: ExpenseUser | None
     amount: Decimal
+    currency: str
     category: str
     description: str
+    split_strategy: str
     created_at: datetime
+    updated_at: datetime | None = None
+    participants: tuple['ExpenseParticipant', ...] = ()
+
+
+@dataclass(frozen=True)
+class ExpenseParticipant:
+    id: UUID
+    expense_id: UUID
+    user_id: UUID
+    user: ExpenseUser | None
+    owed_amount: Decimal
+    settled_amount: Decimal
+    balance: Decimal
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class Settlement:
+    id: UUID
+    plan_id: UUID
+    from_user_id: UUID
+    from_user: ExpenseUser | None
+    to_user_id: UUID
+    to_user: ExpenseUser | None
+    amount: Decimal
+    currency: str
+    status: str
+    note: str
+    created_at: datetime
+    settled_at: datetime | None = None
     updated_at: datetime | None = None
 
 
@@ -69,6 +124,38 @@ class BudgetBreakdownItem:
 class BudgetTrendPoint:
     metric_date: date
     amount: Decimal
+
+
+@dataclass(frozen=True)
+class UserBalance:
+    user_id: UUID
+    username: str
+    full_name: str
+    total_paid: Decimal
+    total_owed: Decimal
+    settlement_paid: Decimal
+    settlement_received: Decimal
+    net_balance: Decimal
+
+
+@dataclass(frozen=True)
+class DebtSuggestion:
+    from_user_id: UUID
+    from_username: str
+    from_full_name: str
+    to_user_id: UUID
+    to_username: str
+    to_full_name: str
+    amount: Decimal
+
+
+@dataclass(frozen=True)
+class BalanceSummary:
+    plan_id: UUID
+    currency: str
+    total_expenses: Decimal
+    balances: tuple[UserBalance, ...]
+    settlement_suggestions: tuple[DebtSuggestion, ...]
 
 
 @dataclass(frozen=True)

@@ -15,7 +15,12 @@ from planpals.groups.presentation.views import GroupViewSet
 from planpals.chat.presentation.views import ChatMessageViewSet, ConversationViewSet
 from planpals.notifications.presentation.views import NotificationViewSet
 from planpals.analytics.presentation.views import AnalyticsViewSet
-from planpals.budgets.presentation.views import PlanBudgetView, PlanExpenseListCreateView
+from planpals.budgets.presentation.views import (
+    PlanBalancesView,
+    PlanBudgetView,
+    PlanExpenseListCreateView,
+    SettlementCreateView,
+)
 from planpals.locations.presentation.views import (
     LocationReverseGeocodeView, LocationSearchView, LocationAutocompleteView, LocationPlaceDetailsView,
 )
@@ -51,6 +56,8 @@ urlpatterns = [
     path('location/place-details/', LocationPlaceDetailsView.as_view(), name='location_place_details'),
     path('plans/<uuid:plan_id>/budget/', PlanBudgetView.as_view(), name='plan-budget'),
     path('plans/<uuid:plan_id>/expenses/', PlanExpenseListCreateView.as_view(), name='plan-expenses'),
+    path('plans/<uuid:plan_id>/balances/', PlanBalancesView.as_view(), name='plan-balances'),
+    path('settlements/', SettlementCreateView.as_view(), name='settlements'),
     
     # API routes
     path('', include(router.urls)),

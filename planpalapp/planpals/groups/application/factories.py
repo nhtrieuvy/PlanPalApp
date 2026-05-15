@@ -47,6 +47,18 @@ def _conversation_creator():
     return repo.create_group_conversation
 
 
+def _group_conversation_deleter():
+    """Returns a callable(group_id) -> deleted conversation count."""
+    from planpals.chat.infrastructure.repositories import DjangoConversationRepository
+    repo = DjangoConversationRepository()
+    return repo.delete_group_conversation
+
+
+def _group_cache_invalidator():
+    from planpals.groups.infrastructure.cache import invalidate_group_detail_cache
+    return invalidate_group_detail_cache
+
+
 def get_create_group_handler() -> CreateGroupHandler:
     return CreateGroupHandler(
         group_repo=_group_repo(),
@@ -54,6 +66,7 @@ def get_create_group_handler() -> CreateGroupHandler:
         event_publisher=_event_publisher(),
         friendship_checker=_friendship_checker(),
         conversation_creator=_conversation_creator(),
+        audit_service=get_audit_log_service(),
     )
 
 
@@ -62,6 +75,7 @@ def get_update_group_handler() -> UpdateGroupHandler:
         group_repo=_group_repo(),
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
     )
 
 
@@ -71,6 +85,7 @@ def get_add_member_handler() -> AddMemberHandler:
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
         friendship_checker=_friendship_checker(),
+        audit_service=get_audit_log_service(),
     )
 
 
@@ -79,6 +94,7 @@ def get_remove_member_handler() -> RemoveMemberHandler:
         group_repo=_group_repo(),
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
     )
 
 
@@ -105,6 +121,7 @@ def get_delete_group_handler() -> DeleteGroupHandler:
         group_repo=_group_repo(),
         membership_repo=_membership_repo(),
         audit_service=get_audit_log_service(),
+        group_conversation_deleter=_group_conversation_deleter(),
     )
 
 
@@ -113,6 +130,7 @@ def get_promote_member_handler() -> PromoteMemberHandler:
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
         audit_service=get_audit_log_service(),
+        group_cache_invalidator=_group_cache_invalidator(),
     )
 
 
@@ -121,6 +139,7 @@ def get_demote_member_handler() -> DemoteMemberHandler:
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
         audit_service=get_audit_log_service(),
+        group_cache_invalidator=_group_cache_invalidator(),
     )
 
 
@@ -129,6 +148,7 @@ def get_set_member_role_handler() -> SetMemberRoleHandler:
         membership_repo=_membership_repo(),
         event_publisher=_event_publisher(),
         audit_service=get_audit_log_service(),
+        group_cache_invalidator=_group_cache_invalidator(),
     )
 
 

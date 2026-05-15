@@ -58,28 +58,34 @@ void main() {
     required double amount,
     required String category,
   }) {
+    final user = UserSummary(
+      id: 'user-1',
+      username: 'owner',
+      firstName: 'Plan',
+      lastName: 'Owner',
+      email: null,
+      isOnline: true,
+      onlineStatus: 'online',
+      avatarUrl: null,
+      hasAvatar: false,
+      dateJoined: DateTime(2026, 1, 1),
+      lastSeen: null,
+      fullName: 'Plan Owner',
+      initials: 'PO',
+    );
     return ExpenseModel(
       id: id,
       planId: 'plan-1',
       userId: 'user-1',
-      user: UserSummary(
-        id: 'user-1',
-        username: 'owner',
-        firstName: 'Plan',
-        lastName: 'Owner',
-        email: null,
-        isOnline: true,
-        onlineStatus: 'online',
-        avatarUrl: null,
-        hasAvatar: false,
-        dateJoined: DateTime(2026, 1, 1),
-        lastSeen: null,
-        fullName: 'Plan Owner',
-        initials: 'PO',
-      ),
+      user: user,
+      paidByUserId: 'user-1',
+      paidByUser: user,
       amount: amount,
+      currency: 'VND',
       category: category,
       description: 'Expense $id',
+      splitStrategy: 'equal',
+      participants: const [],
       createdAt: DateTime(2026, 4, 5, 10),
       updatedAt: null,
     );
@@ -218,6 +224,10 @@ class FakeBudgetRepository extends BudgetRepository {
     required double amount,
     required String category,
     String description = '',
+    String? paidByUserId,
+    String currency = 'VND',
+    String splitStrategy = 'equal',
+    List<ExpenseParticipantInput> participants = const [],
   }) async {
     return ExpenseCreateResult(
       expense: buildFakeExpense(
@@ -227,6 +237,41 @@ class FakeBudgetRepository extends BudgetRepository {
       ),
       summary: summary,
       warnings: const [],
+    );
+  }
+
+  @override
+  Future<BalanceSummaryModel> getBalances(String planId) async {
+    return const BalanceSummaryModel(
+      planId: 'plan-1',
+      currency: 'VND',
+      totalExpenses: 0,
+      balances: [],
+      settlementSuggestions: [],
+    );
+  }
+
+  @override
+  Future<SettlementModel> createSettlement({
+    required String planId,
+    required String fromUserId,
+    required String toUserId,
+    required double amount,
+    String currency = 'VND',
+    String status = 'completed',
+    String note = '',
+  }) async {
+    return SettlementModel(
+      id: 'settlement-1',
+      planId: planId,
+      fromUserId: fromUserId,
+      toUserId: toUserId,
+      amount: amount,
+      currency: currency,
+      status: status,
+      note: note,
+      settledAt: DateTime(2026, 4, 5),
+      createdAt: DateTime(2026, 4, 5),
     );
   }
 
@@ -257,28 +302,34 @@ class FakeBudgetRepository extends BudgetRepository {
     required double amount,
     required String category,
   }) {
+    final user = UserSummary(
+      id: 'user-1',
+      username: 'owner',
+      firstName: 'Plan',
+      lastName: 'Owner',
+      email: null,
+      isOnline: true,
+      onlineStatus: 'online',
+      avatarUrl: null,
+      hasAvatar: false,
+      dateJoined: DateTime(2026, 1, 1),
+      lastSeen: null,
+      fullName: 'Plan Owner',
+      initials: 'PO',
+    );
     return ExpenseModel(
       id: id,
       planId: 'plan-1',
       userId: 'user-1',
-      user: UserSummary(
-        id: 'user-1',
-        username: 'owner',
-        firstName: 'Plan',
-        lastName: 'Owner',
-        email: null,
-        isOnline: true,
-        onlineStatus: 'online',
-        avatarUrl: null,
-        hasAvatar: false,
-        dateJoined: DateTime(2026, 1, 1),
-        lastSeen: null,
-        fullName: 'Plan Owner',
-        initials: 'PO',
-      ),
+      user: user,
+      paidByUserId: 'user-1',
+      paidByUser: user,
       amount: amount,
+      currency: 'VND',
       category: category,
       description: 'Expense $id',
+      splitStrategy: 'equal',
+      participants: const [],
       createdAt: DateTime(2026, 4, 5, 10),
       updatedAt: null,
     );

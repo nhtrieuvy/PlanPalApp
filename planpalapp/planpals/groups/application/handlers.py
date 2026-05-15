@@ -4,7 +4,7 @@ Groups Application — Command Handlers
 Each handler implements ONE use case for the groups bounded context.
 """
 import logging
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID
 
 from django.db import transaction
@@ -41,12 +41,14 @@ class CreateGroupHandler(BaseCommandHandler[CreateGroupCommand, Any]):
         event_publisher: DomainEventPublisher,
         friendship_checker=None,  # callable(user1_id, user2_id) -> bool
         conversation_creator=None,  # callable(group) -> conversation
+        audit_service=None,
     ):
         self.group_repo = group_repo
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
         self.friendship_checker = friendship_checker
         self.conversation_creator = conversation_creator
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: CreateGroupCommand) -> Any:
@@ -77,6 +79,19 @@ class CreateGroupHandler(BaseCommandHandler[CreateGroupCommand, Any]):
         if self.conversation_creator:
             self.conversation_creator(group)
 
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.admin_id,
+                action=AuditAction.CREATE_GROUP.value,
+                resource_type=AuditResourceType.GROUP.value,
+                resource_id=group.id,
+                metadata={
+                    'group_name': group.name,
+                    'description': group.description,
+                    'initial_member_ids': command.initial_member_ids,
+                },
+            )
+
         self._log(f"Group created: {group.id} by {command.admin_id}")
         return group
 
@@ -89,10 +104,12 @@ class UpdateGroupHandler(BaseCommandHandler[UpdateGroupCommand, Any]):
         group_repo: GroupRepository,
         membership_repo: GroupMembershipRepository,
         event_publisher: DomainEventPublisher,
+        audit_service=None,
     ):
         self.group_repo = group_repo
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: UpdateGroupCommand) -> Any:
@@ -111,9 +128,26 @@ class UpdateGroupHandler(BaseCommandHandler[UpdateGroupCommand, Any]):
                 update_fields[field_name] = value
 
         if update_fields:
+            previous_values = {
+                field: str(getattr(group, field, '') or '')
+                for field in update_fields
+            }
             for k, v in update_fields.items():
                 setattr(group, k, v)
             group = self.group_repo.save(group)
+
+            if self.audit_service:
+                self.audit_service.log_action(
+                    user=command.user_id,
+                    action=AuditAction.UPDATE_GROUP.value,
+                    resource_type=AuditResourceType.GROUP.value,
+                    resource_id=command.group_id,
+                    metadata={
+                        'group_name': group.name,
+                        'updated_fields': list(update_fields.keys()),
+                        'before': previous_values,
+                    },
+                )
 
         self._log(f"Group updated: {group.id} by {command.user_id}")
         return group
@@ -128,11 +162,13 @@ class AddMemberHandler(BaseCommandHandler[AddMemberCommand, Any]):
         membership_repo: GroupMembershipRepository,
         event_publisher: DomainEventPublisher,
         friendship_checker=None,
+        audit_service=None,
     ):
         self.group_repo = group_repo
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
         self.friendship_checker = friendship_checker
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: AddMemberCommand) -> Any:
@@ -167,6 +203,19 @@ class AddMemberHandler(BaseCommandHandler[AddMemberCommand, Any]):
             added_by=str(command.user_id),
         ))
 
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.ADD_MEMBER.value,
+                resource_type=AuditResourceType.GROUP.value,
+                resource_id=command.group_id,
+                metadata={
+                    'group_name': group.name,
+                    'target_user_id': command.target_user_id,
+                    'role': 'member',
+                },
+            )
+
         return membership
 
 
@@ -178,10 +227,12 @@ class RemoveMemberHandler(BaseCommandHandler[RemoveMemberCommand, bool]):
         group_repo: GroupRepository,
         membership_repo: GroupMembershipRepository,
         event_publisher: DomainEventPublisher,
+        audit_service=None,
     ):
         self.group_repo = group_repo
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
+        self.audit_service = audit_service
 
     @transaction.atomic
     def handle(self, command: RemoveMemberCommand) -> bool:
@@ -207,6 +258,18 @@ class RemoveMemberHandler(BaseCommandHandler[RemoveMemberCommand, bool]):
             username='',
             group_name=group.name,
         ))
+
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=command.user_id,
+                action=AuditAction.REMOVE_MEMBER.value,
+                resource_type=AuditResourceType.GROUP.value,
+                resource_id=command.group_id,
+                metadata={
+                    'group_name': group.name,
+                    'target_user_id': command.target_user_id,
+                },
+            )
 
         return True
 
@@ -323,10 +386,12 @@ class PromoteMemberHandler(BaseCommandHandler[PromoteMemberCommand, bool]):
         membership_repo: GroupMembershipRepository,
         event_publisher: DomainEventPublisher,
         audit_service=None,
+        group_cache_invalidator: Callable[[UUID], None] | None = None,
     ):
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
         self.audit_service = audit_service
+        self.group_cache_invalidator = group_cache_invalidator
 
     @transaction.atomic
     def handle(self, command: PromoteMemberCommand) -> bool:
@@ -338,6 +403,8 @@ class PromoteMemberHandler(BaseCommandHandler[PromoteMemberCommand, bool]):
 
         previous_role = self.membership_repo.get_role(command.group_id, command.target_user_id)
         self.membership_repo.set_role(command.group_id, command.target_user_id, 'admin')
+        if self.group_cache_invalidator:
+            self.group_cache_invalidator(command.group_id)
 
         self.event_publisher.publish(GroupRoleChanged(
             group_id=str(command.group_id),
@@ -369,10 +436,12 @@ class DemoteMemberHandler(BaseCommandHandler[DemoteMemberCommand, bool]):
         membership_repo: GroupMembershipRepository,
         event_publisher: DomainEventPublisher,
         audit_service=None,
+        group_cache_invalidator: Callable[[UUID], None] | None = None,
     ):
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
         self.audit_service = audit_service
+        self.group_cache_invalidator = group_cache_invalidator
 
     @transaction.atomic
     def handle(self, command: DemoteMemberCommand) -> bool:
@@ -388,6 +457,8 @@ class DemoteMemberHandler(BaseCommandHandler[DemoteMemberCommand, bool]):
 
         previous_role = self.membership_repo.get_role(command.group_id, command.target_user_id)
         self.membership_repo.set_role(command.group_id, command.target_user_id, 'member')
+        if self.group_cache_invalidator:
+            self.group_cache_invalidator(command.group_id)
 
         self.event_publisher.publish(GroupRoleChanged(
             group_id=str(command.group_id),
@@ -428,10 +499,12 @@ class SetMemberRoleHandler(BaseCommandHandler[SetMemberRoleCommand, bool]):
         membership_repo: GroupMembershipRepository,
         event_publisher: DomainEventPublisher,
         audit_service=None,
+        group_cache_invalidator: Callable[[UUID], None] | None = None,
     ):
         self.membership_repo = membership_repo
         self.event_publisher = event_publisher
         self.audit_service = audit_service
+        self.group_cache_invalidator = group_cache_invalidator
 
     @transaction.atomic
     def handle(self, command: SetMemberRoleCommand) -> bool:
@@ -457,6 +530,8 @@ class SetMemberRoleHandler(BaseCommandHandler[SetMemberRoleCommand, bool]):
             raise LastAdminException()
 
         self.membership_repo.set_role(command.group_id, command.target_user_id, role)
+        if self.group_cache_invalidator:
+            self.group_cache_invalidator(command.group_id)
 
         self.event_publisher.publish(GroupRoleChanged(
             group_id=str(command.group_id),
@@ -488,10 +563,12 @@ class DeleteGroupHandler(BaseCommandHandler[DeleteGroupCommand, bool]):
         group_repo: GroupRepository,
         membership_repo: GroupMembershipRepository,
         audit_service=None,
+        group_conversation_deleter: Callable[[UUID], int] | None = None,
     ):
         self.group_repo = group_repo
         self.membership_repo = membership_repo
         self.audit_service = audit_service
+        self.group_conversation_deleter = group_conversation_deleter
 
     @transaction.atomic
     def handle(self, command: DeleteGroupCommand) -> bool:
@@ -509,6 +586,9 @@ class DeleteGroupHandler(BaseCommandHandler[DeleteGroupCommand, bool]):
             'plans_count': group.plans_count,
             'member_ids': list(group.members.values_list('id', flat=True)),
         }
+        if self.group_conversation_deleter:
+            self.group_conversation_deleter(command.group_id)
+
         deleted = self.group_repo.delete(command.group_id)
 
         if deleted and self.audit_service:

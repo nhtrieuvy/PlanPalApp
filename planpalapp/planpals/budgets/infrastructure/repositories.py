@@ -16,16 +16,21 @@ from planpals.budgets.application.repositories import (
     ExpenseCreateData,
     ExpenseFilters,
     ExpensePage,
+    ExpenseParticipantCreateData,
     ExpenseRepository,
+    SettlementCreateData,
+    SettlementRepository,
 )
 from planpals.budgets.domain.entities import (
     Budget as BudgetEntity,
     BudgetBreakdownItem,
     BudgetTrendPoint,
     Expense as ExpenseEntity,
+    ExpenseParticipant as ExpenseParticipantEntity,
     ExpenseUser,
+    Settlement as SettlementEntity,
 )
-from planpals.budgets.infrastructure.models import Budget, Expense
+from planpals.budgets.infrastructure.models import Budget, Expense, ExpenseParticipant, Settlement
 
 
 class DjangoBudgetRepository(BudgetRepository):
@@ -69,14 +74,42 @@ class DjangoExpenseRepository(ExpenseRepository):
         row = Expense.objects.create(
             plan_id=data.plan_id,
             user_id=data.user_id,
+            paid_by_user_id=data.paid_by_user_id,
             amount=data.amount,
+            currency=data.currency,
             category=data.category,
             description=data.description,
+            split_strategy=data.split_strategy,
+        )
+        if data.participants:
+            ExpenseParticipant.objects.bulk_create(
+                [
+                    ExpenseParticipant(
+                        expense=row,
+                        user_id=participant.user_id,
+                        owed_amount=participant.owed_amount,
+                        settled_amount=participant.settled_amount,
+                        balance=participant.balance,
+                    )
+                    for participant in data.participants
+                ],
+                batch_size=500,
+            )
+        row = (
+            Expense.objects
+            .select_related('user', 'paid_by_user')
+            .prefetch_related('participants__user')
+            .get(id=row.id)
         )
         return self._to_entity(row)
 
     def list_expenses(self, plan_id: UUID, filters: ExpenseFilters) -> ExpensePage:
-        queryset = Expense.objects.filter(plan_id=plan_id).select_related('user')
+        queryset = (
+            Expense.objects
+            .filter(plan_id=plan_id)
+            .select_related('user', 'paid_by_user')
+            .prefetch_related('participants__user')
+        )
         if filters.category:
             queryset = queryset.filter(category__iexact=filters.category)
         if filters.user_id:
@@ -118,7 +151,7 @@ class DjangoExpenseRepository(ExpenseRepository):
     def get_breakdown(self, plan_id: UUID) -> Sequence[BudgetBreakdownItem]:
         rows = (
             Expense.objects.filter(plan_id=plan_id)
-            .values('user_id', 'user__username')
+            .values('paid_by_user_id', 'paid_by_user__username')
             .annotate(
                 amount=Coalesce(
                     Sum('amount'),
@@ -126,18 +159,18 @@ class DjangoExpenseRepository(ExpenseRepository):
                     output_field=self.AMOUNT_FIELD,
                 ),
                 full_name=Concat(
-                    Coalesce(F('user__first_name'), Value('')),
+                    Coalesce(F('paid_by_user__first_name'), Value('')),
                     Value(' '),
-                    Coalesce(F('user__last_name'), Value('')),
+                    Coalesce(F('paid_by_user__last_name'), Value('')),
                 ),
             )
-            .order_by('-amount', 'user__username')
+            .order_by('-amount', 'paid_by_user__username')
         )
         return [
             BudgetBreakdownItem(
-                user_id=row['user_id'],
-                username=row['user__username'],
-                full_name=str(row['full_name']).strip() or row['user__username'],
+                user_id=row['paid_by_user_id'],
+                username=row['paid_by_user__username'],
+                full_name=str(row['full_name']).strip() or row['paid_by_user__username'],
                 amount=row['amount'],
             )
             for row in rows
@@ -173,20 +206,71 @@ class DjangoExpenseRepository(ExpenseRepository):
         ]
 
     def get_by_id(self, expense_id: UUID) -> ExpenseEntity | None:
-        row = Expense.objects.select_related('user', 'plan').filter(id=expense_id).first()
+        row = (
+            Expense.objects
+            .select_related('user', 'paid_by_user', 'plan')
+            .prefetch_related('participants__user')
+            .filter(id=expense_id)
+            .first()
+        )
         return self._to_entity(row) if row else None
+
+    def list_expenses_for_balances(self, plan_id: UUID) -> Sequence[ExpenseEntity]:
+        rows = (
+            Expense.objects
+            .filter(plan_id=plan_id)
+            .select_related('user', 'paid_by_user')
+            .prefetch_related('participants__user')
+            .order_by('created_at', 'id')
+        )
+        return [self._to_entity(row) for row in rows]
+
+    def get_participant_user_ids(self, expense_id: UUID) -> Sequence[UUID]:
+        return list(
+            ExpenseParticipant.objects.filter(expense_id=expense_id)
+            .values_list('user_id', flat=True)
+        )
 
     @staticmethod
     def _to_entity(row: Expense) -> ExpenseEntity:
         user = getattr(row, 'user', None)
+        paid_by_user = getattr(row, 'paid_by_user', None) or user
+        participants = tuple(
+            DjangoExpenseRepository._participant_to_entity(participant)
+            for participant in getattr(row, 'participants', []).all()
+        )
         return ExpenseEntity(
             id=row.id,
             plan_id=row.plan_id,
             user_id=row.user_id,
             user=DjangoExpenseRepository._to_user_entity(user) if user is not None else None,
+            paid_by_user_id=row.paid_by_user_id or row.user_id,
+            paid_by_user=(
+                DjangoExpenseRepository._to_user_entity(paid_by_user)
+                if paid_by_user is not None
+                else None
+            ),
             amount=row.amount,
+            currency=row.currency,
             category=row.category,
             description=row.description,
+            split_strategy=row.split_strategy,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            participants=participants,
+        )
+
+    @staticmethod
+    def _participant_to_entity(row: ExpenseParticipant) -> ExpenseParticipantEntity:
+        user = getattr(row, 'user', None)
+        return ExpenseParticipantEntity(
+            id=row.id,
+            expense_id=row.expense_id,
+            user_id=row.user_id,
+            user=DjangoExpenseRepository._to_user_entity(user) if user is not None else None,
+            owed_amount=row.owed_amount,
+            settled_amount=row.settled_amount,
+            balance=row.balance,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
@@ -215,4 +299,59 @@ class DjangoExpenseRepository(ExpenseRepository):
             date_joined=getattr(user, 'date_joined', None),
             last_seen=getattr(user, 'last_seen', None),
             initials=initials,
+        )
+
+
+class DjangoSettlementRepository(SettlementRepository):
+    def create_settlement(self, data: SettlementCreateData) -> SettlementEntity:
+        row = Settlement.objects.create(
+            plan_id=data.plan_id,
+            from_user_id=data.from_user_id,
+            to_user_id=data.to_user_id,
+            amount=data.amount,
+            currency=data.currency,
+            status=data.status,
+            note=data.note,
+            settled_at=timezone.now() if data.status == Settlement.STATUS_COMPLETED else None,
+        )
+        row = (
+            Settlement.objects
+            .select_related('from_user', 'to_user')
+            .get(id=row.id)
+        )
+        return self._to_entity(row)
+
+    def list_settlements(self, plan_id: UUID) -> Sequence[SettlementEntity]:
+        rows = (
+            Settlement.objects
+            .filter(plan_id=plan_id)
+            .select_related('from_user', 'to_user')
+            .order_by('created_at', 'id')
+        )
+        return [self._to_entity(row) for row in rows]
+
+    @staticmethod
+    def _to_entity(row: Settlement) -> SettlementEntity:
+        return SettlementEntity(
+            id=row.id,
+            plan_id=row.plan_id,
+            from_user_id=row.from_user_id,
+            from_user=(
+                DjangoExpenseRepository._to_user_entity(row.from_user)
+                if row.from_user is not None
+                else None
+            ),
+            to_user_id=row.to_user_id,
+            to_user=(
+                DjangoExpenseRepository._to_user_entity(row.to_user)
+                if row.to_user is not None
+                else None
+            ),
+            amount=row.amount,
+            currency=row.currency,
+            status=row.status,
+            note=row.note,
+            settled_at=row.settled_at,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
         )

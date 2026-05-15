@@ -11,6 +11,7 @@ from .models import (
     ChatMessage, Friendship, FriendshipRejection, MessageReadStatus,
     Conversation, Budget, Expense
 )
+from planpals.groups.infrastructure.cache import invalidate_group_detail_cache
 
 # ============================================================================
 # USER ADMIN
@@ -233,12 +234,30 @@ class GroupAdmin(admin.ModelAdmin):
         return "Chưa có ảnh bìa"
     cover_preview.short_description = "Preview Cover"
 
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save()
+        for instance in instances:
+            if isinstance(instance, GroupMembership):
+                invalidate_group_detail_cache(instance.group_id)
+        for deleted in formset.deleted_objects:
+            if isinstance(deleted, GroupMembership):
+                invalidate_group_detail_cache(deleted.group_id)
+
 @admin.register(GroupMembership)
 class GroupMembershipAdmin(admin.ModelAdmin):
     list_display = ['user', 'group', 'role']
     list_filter = ['role']
     search_fields = ['user__username', 'group__name']
     readonly_fields = ['id', 'created_at', 'updated_at']
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        invalidate_group_detail_cache(obj.group_id)
+
+    def delete_model(self, request, obj):
+        group_id = obj.group_id
+        super().delete_model(request, obj)
+        invalidate_group_detail_cache(group_id)
 
 # ============================================================================
 # PLAN ADMIN
@@ -343,7 +362,7 @@ class PlanActivityAdmin(admin.ModelAdmin):
     duration_hours.short_description = 'Thời lượng'
     
     def has_location(self, obj):
-        return "✓" if obj.has_location else "✗"
+        return bool(obj.has_location)
     has_location.short_description = 'GPS'
     has_location.boolean = True
 

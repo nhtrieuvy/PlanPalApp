@@ -9,12 +9,15 @@ from rest_framework.views import APIView
 
 from planpals.budgets.application.factories import get_budget_service
 from planpals.budgets.presentation.serializers import (
+    BalanceSummarySerializer,
     BudgetSummarySerializer,
     BudgetUpsertSerializer,
     ExpenseCreateResponseSerializer,
     ExpenseCreateSerializer,
     ExpenseFilterSerializer,
     ExpenseSerializer,
+    SettlementCreateSerializer,
+    SettlementSerializer,
 )
 
 
@@ -78,6 +81,10 @@ class PlanExpenseListCreateView(APIView):
             amount=serializer.validated_data['amount'],
             category=serializer.validated_data['category'],
             description=serializer.validated_data.get('description', ''),
+            paid_by_user_id=serializer.validated_data.get('paid_by_user_id'),
+            currency=serializer.validated_data.get('currency', 'VND'),
+            split_strategy=serializer.validated_data.get('split_strategy', 'equal'),
+            participants=serializer.validated_data.get('participants') or None,
         )
         return Response(
             ExpenseCreateResponseSerializer.from_result(result),
@@ -97,3 +104,36 @@ class PlanExpenseListCreateView(APIView):
         params['page'] = page.page - 1
         query_string = urlencode(params, doseq=True)
         return request.build_absolute_uri(f'{request.path}?{query_string}')
+
+
+class PlanBalancesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, plan_id):
+        summary = get_budget_service().get_balances(plan_id, request.user)
+        return Response(
+            BalanceSummarySerializer.from_summary(summary),
+            status=status.HTTP_200_OK,
+        )
+
+
+class SettlementCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = SettlementCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        settlement = get_budget_service().create_settlement(
+            plan_id=serializer.validated_data['plan_id'],
+            actor=request.user,
+            from_user_id=serializer.validated_data['from_user_id'],
+            to_user_id=serializer.validated_data['to_user_id'],
+            amount=serializer.validated_data['amount'],
+            currency=serializer.validated_data.get('currency', 'VND'),
+            status=serializer.validated_data.get('status', 'completed'),
+            note=serializer.validated_data.get('note', ''),
+        )
+        return Response(
+            SettlementSerializer.from_entity(settlement),
+            status=status.HTTP_201_CREATED,
+        )

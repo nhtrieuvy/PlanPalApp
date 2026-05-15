@@ -122,6 +122,13 @@ class DjangoConversationRepository(ConversationRepository):
         except Conversation.DoesNotExist:
             return None
 
+    def delete_group_conversation(self, group_id: UUID) -> int:
+        deleted_count, _ = Conversation.objects.filter(
+            conversation_type='group',
+            group_id=group_id,
+        ).delete()
+        return deleted_count
+
     def can_user_access(self, conversation_id: UUID, user_id: UUID) -> bool:
         try:
             conv = Conversation.objects.select_related('group').get(id=conversation_id)

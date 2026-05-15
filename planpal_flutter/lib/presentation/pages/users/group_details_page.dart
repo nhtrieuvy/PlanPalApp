@@ -1,13 +1,18 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:planpal_flutter/core/dtos/group_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/riverpod/conversation_providers.dart';
+import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:async';
+import 'dart:convert';
+import 'package:web_socket_channel/status.dart' as ws_status;
+import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/dtos/user_summary.dart';
 import '../../../core/dtos/plan_summary.dart';
 import '../../../core/dtos/group_membership.dart';
@@ -21,6 +26,7 @@ import '../../../shared/ui_states/ui_states.dart';
 import '../../../shared/widgets/widgets.dart';
 import 'plan_form_page.dart';
 import 'plan_details_page.dart';
+import 'group_form_page.dart';
 import '../chat/chat_page.dart';
 
 class GroupDetailsPage extends ConsumerStatefulWidget {
@@ -37,19 +43,27 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   List<PlanSummary> groupPlans = [];
   bool isLoading = true;
   bool isLoadingPlans = false;
+  bool _isDeletingGroup = false;
+  int _auditRefreshSignal = 0;
   String? error;
   bool _hasChanges = false;
+  WebSocketChannel? _groupChannel;
+  StreamSubscription? _groupSubscription;
+  Timer? _groupReconnectTimer;
+  bool _manualGroupSocketDisconnect = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadGroupData();
+    _loadGroupData(forceRefresh: true);
+    _connectGroupRealtime();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _disconnectGroupRealtime();
     super.dispose();
   }
 
@@ -57,12 +71,82 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _loadGroupData(forceRefresh: true, showLoading: false);
+      _connectGroupRealtime();
     }
   }
 
   @override
   Future<void> onRefresh() async {
     await _loadGroupData(forceRefresh: true);
+    if (mounted) {
+      setState(() => _auditRefreshSignal++);
+    }
+  }
+
+  Future<void> _connectGroupRealtime() async {
+    final token = ref.read(authNotifierProvider).token;
+    if (token == null || token.isEmpty) return;
+
+    _manualGroupSocketDisconnect = false;
+    await _groupSubscription?.cancel();
+    await _groupChannel?.sink.close(ws_status.goingAway);
+
+    try {
+      final wsUrl = '$baseWsUrl/ws/groups/${widget.id}/?token=$token';
+      final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+      await channel.ready;
+      if (!mounted) {
+        await channel.sink.close(ws_status.goingAway);
+        return;
+      }
+      _groupChannel = channel;
+      _groupSubscription = channel.stream.listen(
+        _handleGroupRealtimeMessage,
+        onError: (_) => _scheduleGroupRealtimeReconnect(),
+        onDone: _scheduleGroupRealtimeReconnect,
+      );
+    } catch (_) {
+      _scheduleGroupRealtimeReconnect();
+    }
+  }
+
+  void _handleGroupRealtimeMessage(dynamic rawMessage) {
+    try {
+      final decoded = jsonDecode(rawMessage as String);
+      if (decoded is! Map) return;
+
+      final eventType = decoded['event_type']?.toString();
+      if (eventType != 'group.role_changed' &&
+          eventType != 'group.member_added' &&
+          eventType != 'group.member_removed') {
+        return;
+      }
+
+      ref.read(groupRepositoryProvider).clearCacheEntry(widget.id);
+      if (mounted) {
+        _loadGroupData(forceRefresh: true, showLoading: false);
+      }
+    } catch (_) {
+      // Ignore malformed realtime payloads; manual refresh still works.
+    }
+  }
+
+  void _scheduleGroupRealtimeReconnect() {
+    if (_manualGroupSocketDisconnect || !mounted) return;
+    _groupReconnectTimer?.cancel();
+    _groupReconnectTimer = Timer(
+      const Duration(seconds: 2),
+      _connectGroupRealtime,
+    );
+  }
+
+  Future<void> _disconnectGroupRealtime() async {
+    _manualGroupSocketDisconnect = true;
+    _groupReconnectTimer?.cancel();
+    await _groupSubscription?.cancel();
+    await _groupChannel?.sink.close(ws_status.goingAway);
+    _groupSubscription = null;
+    _groupChannel = null;
   }
 
   Future<void> _loadGroupData({
@@ -102,9 +186,16 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     try {
       setState(() => isLoadingPlans = true);
       final planRepo = ref.read(planRepositoryProvider);
-      final plans = await planRepo.getGroupPlans(widget.id);
+      final result = await planRepo.getGroupPlansWithPermission(widget.id);
+      final currentUserId = ref.read(authNotifierProvider).user?.id;
       setState(() {
-        groupPlans = plans;
+        groupPlans = result.plans;
+        final canCreatePlan =
+            result.canCreatePlan ||
+            (groupData?.canCreatePlanForUser(currentUserId) ?? false);
+        if (groupData != null && groupData!.canCreatePlan != canCreatePlan) {
+          groupData = groupData!.copyWith(canCreatePlan: canCreatePlan);
+        }
         isLoadingPlans = false;
       });
     } catch (e) {
@@ -151,6 +242,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
         // Reload group data to show updated cover
         await _loadGroupData(forceRefresh: true);
         _hasChanges = true;
+        if (mounted) {
+          setState(() => _auditRefreshSignal++);
+        }
 
         if (!mounted) return;
         ErrorDisplayService.showSuccessSnackbar(
@@ -374,7 +468,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(
-                            name.isNotEmpty ? name : context.l10n.t('group_details.unnamed'),
+                            name.isNotEmpty
+                                ? name
+                                : context.l10n.t('group_details.unnamed'),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 24,
@@ -402,7 +498,11 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               _buildAdminCard(adminAvatar, adminName, adminInitials),
               const SizedBox(height: 16),
               if (desc?.isNotEmpty == true)
-                _buildInfoCard(context.l10n.t('plan.description'), desc!, Icons.description_outlined),
+                _buildInfoCard(
+                  context.l10n.t('plan.description'),
+                  desc!,
+                  Icons.description_outlined,
+                ),
               const SizedBox(height: 16),
               _buildMembersCard(membersCount, members),
               const SizedBox(height: 16),
@@ -412,6 +512,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                 title: 'Group Audit Log',
                 resourceType: 'group',
                 resourceId: g.id,
+                refreshSignal: _auditRefreshSignal,
               ),
               const SizedBox(height: 24),
               _buildActionButtons(context, g),
@@ -530,7 +631,8 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                 runSpacing: 12,
                 children: members.take(12).map((member) {
                   final membership = _membershipForUser(member.id);
-                  final role = membership?.role ??
+                  final role =
+                      membership?.role ??
                       (member.id == groupData!.admin.id ? 'admin' : 'member');
                   // members already parsed to UserSummary objects
                   final display = member.fullName;
@@ -553,8 +655,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                                   .toUpperCase())
                             : '?');
                   final avatar = member.avatarUrl ?? '';
-                  final isCurrentUserAdmin =
-                      groupData?.canEdit == true;
+                  final isCurrentUserAdmin = groupData?.canEdit == true;
                   final currentUserId = ref.read(authNotifierProvider).user?.id;
                   final isSelf = member.id == currentUserId;
                   final isMemberAdmin = role == 'admin';
@@ -688,10 +789,10 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                               color: isMemberAdmin
                                   ? Colors.orange
                                   : isPlanCreator
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                               fontWeight: isMemberAdmin || isPlanCreator
                                   ? FontWeight.w600
                                   : FontWeight.normal,
@@ -821,6 +922,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   }
 
   Widget _buildPlansCard(GroupModel g) {
+    final currentUserId = ref.read(authNotifierProvider).user?.id;
+    final canCreatePlan = g.canCreatePlanForUser(currentUserId);
+
     return Card(
       elevation: 2,
       shadowColor: Colors.black26,
@@ -844,7 +948,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               ],
             ),
             const SizedBox(height: 16),
-            if (g.canCreatePlan) ...[
+            if (canCreatePlan) ...[
               ElevatedButton.icon(
                 onPressed: () => _navigateToCreatePlan(g),
                 icon: const Icon(Icons.add),
@@ -873,11 +977,13 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               AppEmpty(
                 icon: Icons.event_note_outlined,
                 title: context.l10n.t('group_details.empty_plans_title'),
-                description: context.l10n.t('group_details.empty_plans_description'),
-                actionLabel: g.canCreatePlan
+                description: context.l10n.t(
+                  'group_details.empty_plans_description',
+                ),
+                actionLabel: canCreatePlan
                     ? context.l10n.t('group_details.create_plan')
                     : null,
-                onAction: g.canCreatePlan ? () => _navigateToCreatePlan(g) : null,
+                onAction: canCreatePlan ? () => _navigateToCreatePlan(g) : null,
               )
             else
               Column(
@@ -917,6 +1023,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
         .then((_) {
           // Refresh plans list after creating a new plan
           _loadGroupPlans();
+          if (mounted) {
+            setState(() => _auditRefreshSignal++);
+          }
         });
   }
 
@@ -933,11 +1042,10 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           if (result == null) return;
 
           if (result['action'] == 'delete' && result['id'] == plan.id) {
-            setState(
-              () => groupPlans = groupPlans
-                  .where((p) => p.id != plan.id)
-                  .toList(),
-            );
+            setState(() {
+              groupPlans = groupPlans.where((p) => p.id != plan.id).toList();
+              _auditRefreshSignal++;
+            });
           }
 
           if ((result['action'] == 'updated' || result['action'] == 'edit') &&
@@ -946,11 +1054,12 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               final updated = PlanSummary.fromJson(
                 Map<String, dynamic>.from(result['plan'] as Map),
               );
-              setState(
-                () => groupPlans = groupPlans
+              setState(() {
+                groupPlans = groupPlans
                     .map((p) => p.id == updated.id ? updated : p)
-                    .toList(),
-              );
+                    .toList();
+                _auditRefreshSignal++;
+              });
             } catch (_) {}
           }
         });
@@ -1045,24 +1154,14 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                         const SizedBox(width: 4),
                         Text(
                           context.l10n.activityCountLabel(plan.activitiesCount),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: mutedColor,
-                          ),
+                          style: TextStyle(fontSize: 12, color: mutedColor),
                         ),
                         const SizedBox(width: 16),
-                        Icon(
-                          Icons.info_outline,
-                          size: 16,
-                          color: mutedColor,
-                        ),
+                        Icon(Icons.info_outline, size: 16, color: mutedColor),
                         const SizedBox(width: 4),
                         Text(
                           context.l10n.planStatusLabel(plan.status),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: mutedColor,
-                          ),
+                          style: TextStyle(fontSize: 12, color: mutedColor),
                         ),
                       ],
                     ),
@@ -1089,19 +1188,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             children: [
               Expanded(
                 child: FloatingActionButton.extended(
-                  onPressed: () {
-                    Navigator.of(context).pop({
-                      'action': 'edit',
-                      'group': {
-                        'id': g.id,
-                        'name': g.name,
-                        'description': g.description,
-                        'avatar_url': g.avatarUrl,
-                        'cover_image_url': g.coverImageUrl,
-                        'member_count': g.memberCount,
-                      },
-                    });
-                  },
+                  onPressed: () => _navigateToEditGroup(g),
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   icon: const Icon(Icons.edit),
@@ -1112,13 +1199,26 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               const SizedBox(width: 16),
               Expanded(
                 child: FloatingActionButton.extended(
-                  onPressed: () {
-                    Navigator.of(context).pop({'action': 'delete', 'id': g.id});
-                  },
+                  onPressed: _isDeletingGroup
+                      ? null
+                      : () => _confirmDeleteGroup(g),
                   backgroundColor: Colors.redAccent,
                   foregroundColor: Colors.white,
-                  icon: const Icon(Icons.delete_outline),
-                  label: Text(context.l10n.t('common.delete')),
+                  icon: _isDeletingGroup
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.delete_outline),
+                  label: Text(
+                    _isDeletingGroup
+                        ? context.l10n.t('group_details.delete_loading')
+                        : context.l10n.t('common.delete'),
+                  ),
                   heroTag: 'delete_group',
                 ),
               ),
@@ -1153,6 +1253,78 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           heroTag: 'leave_group',
         ),
       );
+    }
+  }
+
+  Future<void> _navigateToEditGroup(GroupModel group) async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => GroupFormPage(
+          initial: {
+            'id': group.id,
+            'name': group.name,
+            'description': group.description,
+            'avatar_url': group.avatarUrl,
+            'cover_image_url': group.coverImageUrl,
+            'member_count': group.memberCount,
+          },
+        ),
+      ),
+    );
+
+    if (!mounted || result == null || result['action'] != 'updated') return;
+
+    await _loadGroupData(forceRefresh: true);
+    if (!mounted) return;
+    _hasChanges = true;
+    setState(() => _auditRefreshSignal++);
+    ErrorDisplayService.showSuccessSnackbar(
+      context,
+      context.l10n.t('group_details.update_success'),
+    );
+  }
+
+  Future<void> _confirmDeleteGroup(GroupModel group) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.t('group_details.delete_title')),
+        content: Text(
+          context.l10n.t(
+            'group_details.delete_confirm',
+            params: {'group': group.name},
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.l10n.t('common.cancel')),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.l10n.t('common.delete')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isDeletingGroup = true);
+    try {
+      await ref.read(groupRepositoryProvider).deleteGroup(group.id);
+      ref.read(groupRepositoryProvider).clearCacheEntry(group.id);
+
+      if (!mounted) return;
+      Navigator.of(context).pop({'action': 'deleted', 'id': group.id});
+    } catch (e) {
+      if (!mounted) return;
+      ErrorDisplayService.handleError(context, e, showDialog: true);
+    } finally {
+      if (mounted) {
+        setState(() => _isDeletingGroup = false);
+      }
     }
   }
 
@@ -1197,6 +1369,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             navigator.pop();
             await _loadGroupData(forceRefresh: true); // Reload group data
             _hasChanges = true;
+            if (mounted) {
+              setState(() => _auditRefreshSignal++);
+            }
             if (!pageContext.mounted) return;
             ErrorDisplayService.showSuccessSnackbar(
               pageContext,
@@ -1243,7 +1418,10 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   }
 
   // Dialog tÃ¹y chá»n cho thÃ nh viÃªn (admin sá»­ dá»¥ng)
-  Future<void> _showMemberOptions(UserSummary member, String currentRole) async {
+  Future<void> _showMemberOptions(
+    UserSummary member,
+    String currentRole,
+  ) async {
     final isPlanCreator = currentRole == 'plan_creator';
     showModalBottomSheet(
       context: context,
@@ -1364,7 +1542,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                 style: TextStyle(color: Colors.red),
               ),
               subtitle: Text(
-                context.l10n.t('group_details.member_options_remove_description'),
+                context.l10n.t(
+                  'group_details.member_options_remove_description',
+                ),
               ),
               onTap: () {
                 Navigator.of(context).pop();
@@ -1425,15 +1605,15 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   Future<void> _changeMemberRole(UserSummary member, String role) async {
     try {
       final request = ChangeMemberRoleRequest(userId: member.id, role: role);
-      await ref.read(groupRepositoryProvider).changeMemberRole(
-            widget.id,
-            request,
-          );
+      await ref
+          .read(groupRepositoryProvider)
+          .changeMemberRole(widget.id, request);
 
       if (!mounted) return;
       await _loadGroupData(forceRefresh: true);
       _hasChanges = true;
       if (!mounted) return;
+      setState(() => _auditRefreshSignal++);
 
       ErrorDisplayService.showSuccessSnackbar(
         context,
@@ -1480,6 +1660,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
       await _loadGroupData(forceRefresh: true); // Reload group data
       _hasChanges = true;
       if (!mounted) return;
+      setState(() => _auditRefreshSignal++);
 
       ErrorDisplayService.showSuccessSnackbar(
         context,
@@ -1526,7 +1707,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         title: Text(context.l10n.t('group_details.add_member_dialog_title')),
         content: SizedBox(
           height: 100,
-          child: AppLoading(message: context.l10n.t('group_details.add_member_loading')),
+          child: AppLoading(
+            message: context.l10n.t('group_details.add_member_loading'),
+          ),
         ),
       );
     }
@@ -1566,7 +1749,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             // Search field
             TextField(
               decoration: InputDecoration(
-                hintText: context.l10n.t('group_details.add_member_search_hint'),
+                hintText: context.l10n.t(
+                  'group_details.add_member_search_hint',
+                ),
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
               ),
@@ -1581,7 +1766,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             Expanded(
               child: filteredFriends.isEmpty
                   ? Center(
-                      child: Text(context.l10n.t('group_details.add_member_empty')),
+                      child: Text(
+                        context.l10n.t('group_details.add_member_empty'),
+                      ),
                     )
                   : ListView.builder(
                       itemCount: filteredFriends.length,
@@ -1636,4 +1823,3 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     );
   }
 }
-

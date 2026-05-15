@@ -93,6 +93,18 @@ class GroupViewSet(viewsets.GenericViewSet,
         )
         serializer.instance = group
 
+    def perform_update(self, serializer):
+        data = serializer.validated_data
+        group = GroupService.update_group(
+            serializer.instance,
+            self.request.user,
+            name=data.get('name'),
+            description=data.get('description'),
+            avatar=data.get('avatar'),
+            cover_image=data.get('cover_image'),
+        )
+        serializer.instance = group
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)

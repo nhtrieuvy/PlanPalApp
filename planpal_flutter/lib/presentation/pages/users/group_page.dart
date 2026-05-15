@@ -293,7 +293,14 @@ class _GroupPageState extends ConsumerState<GroupPage>
     await ref.read(groupsNotifierProvider.notifier).refreshSilently();
     if (!mounted || action == null) return;
 
-    if (action['action'] == 'left' && action['id'] == id) {
+    if ((action['action'] == 'deleted' || action['action'] == 'delete') &&
+        action['id'] == id) {
+      ref.read(groupsNotifierProvider.notifier).removeGroup(id);
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t('groups.deleted_success'),
+      );
+    } else if (action['action'] == 'left' && action['id'] == id) {
       ref.read(groupsNotifierProvider.notifier).removeGroup(id);
       ErrorDisplayService.showSuccessSnackbar(
         context,
