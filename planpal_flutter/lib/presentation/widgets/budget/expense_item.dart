@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class ExpenseItem extends StatelessWidget {
@@ -12,6 +13,11 @@ class ExpenseItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final payerName = expense.paidByUser.fullName.isNotEmpty
+        ? expense.paidByUser.fullName
+        : expense.paidByUser.username;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -63,7 +69,7 @@ class ExpenseItem extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Paid by ${expense.paidByUser.fullName.isNotEmpty ? expense.paidByUser.fullName : expense.paidByUser.username}',
+                  l10n.t('budget.paid_by_name', params: {'name': payerName}),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -71,7 +77,16 @@ class ExpenseItem extends StatelessWidget {
                 if (expense.participants.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    '${expense.splitStrategyLabel} split · ${expense.participants.length} participant(s)',
+                    l10n.t(
+                      'budget.split_info',
+                      params: {
+                        'strategy': _localizedSplitStrategy(
+                          l10n,
+                          expense.splitStrategy,
+                        ),
+                        'count': '${expense.participants.length}',
+                      },
+                    ),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -99,5 +114,17 @@ class ExpenseItem extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _localizedSplitStrategy(AppLocalizations l10n, String strategy) {
+    switch (strategy) {
+      case 'percentage':
+        return l10n.t('budget.split_percentage');
+      case 'exact':
+        return l10n.t('budget.split_exact');
+      case 'equal':
+      default:
+        return l10n.t('budget.split_equal');
+    }
   }
 }

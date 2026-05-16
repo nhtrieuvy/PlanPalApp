@@ -23,7 +23,12 @@ from planpals.auth.infrastructure.email_verification import EmailVerificationSer
 from planpals.auth.infrastructure.repositories import DjangoUserRepository
 from planpals.chat.infrastructure.models import ChatMessage, Conversation
 from planpals.chat.application.services import ConversationService
-from planpals.groups.infrastructure.models import Group, GroupMembership
+from planpals.groups.infrastructure.models import (
+    Group,
+    GroupInvite,
+    GroupJoinRequest,
+    GroupMembership,
+)
 from planpals.plans.infrastructure.models import Plan, PlanActivity
 from planpals.plans.application.commands import UpdateActivityCommand
 from planpals.plans.application.handlers import UpdateActivityHandler
@@ -874,17 +879,57 @@ class SystemRegressionTests(TestCase):
         payload = next(item for item in groups if item['id'] == str(group.id))
         self.assertEqual(payload['member_count'], 3)
 
-    def test_group_detail_cache_refreshes_after_join(self):
+    def test_group_direct_join_endpoint_is_disabled_for_private_groups(self):
         group = self._create_group_with_owner('Cache Group')
+
+        self.client.force_authenticate(self.joiner)
+        join_response = self.client.post(reverse('group-join', kwargs={'pk': group.id}))
+        self.assertEqual(join_response.status_code, status.HTTP_410_GONE)
+        self.assertEqual(join_response.data['error_code'], 'invite_required')
+
+    def test_group_create_can_start_with_admin_only_for_invite_based_onboarding(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(
+            reverse('group-list'),
+            {
+                'name': 'Invite First Group',
+                'description': 'Created without manual member selection',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['member_count'], 1)
+        self.assertEqual(len(response.data['memberships']), 1)
+
+    def test_public_group_invite_valid_join_refreshes_membership_and_audit(self):
+        group = self._create_group_with_owner('Invite Join Group')
+        group.visibility = Group.PUBLIC
+        group.save(update_fields=['visibility'])
 
         self.client.force_authenticate(self.owner)
         detail_before = self.client.get(reverse('group-detail', kwargs={'pk': group.id}))
         self.assertEqual(detail_before.status_code, status.HTTP_200_OK)
         self.assertEqual(detail_before.data['member_count'], 1)
 
+        invite_response = self.client.post(
+            reverse('group-invites', kwargs={'group_id': group.id}),
+            {'max_uses': 5},
+            format='json',
+        )
+        self.assertEqual(invite_response.status_code, status.HTTP_201_CREATED)
+        self.assertRegex(invite_response.data['invite_code'], r'^\d{6}$')
+        self.assertEqual(invite_response.data['token'], invite_response.data['invite_code'])
+
         self.client.force_authenticate(self.joiner)
-        join_response = self.client.post(reverse('group-join', kwargs={'pk': group.id}))
+        join_response = self.client.post(
+            reverse('group-join-code'),
+            {'code': invite_response.data['invite_code']},
+            format='json',
+        )
         self.assertEqual(join_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(join_response.data['status'], 'joined')
+        self.assertEqual(join_response.data['membership_role'], GroupMembership.MEMBER)
 
         self.client.force_authenticate(self.owner)
         detail_after = self.client.get(reverse('group-detail', kwargs={'pk': group.id}))
@@ -892,6 +937,124 @@ class SystemRegressionTests(TestCase):
         self.assertEqual(detail_after.data['member_count'], 2)
         member_ids = {item['user']['id'] for item in detail_after.data['memberships']}
         self.assertIn(str(self.joiner.id), member_ids)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action=AuditAction.GROUP_JOINED_VIA_INVITE.value,
+                resource_id=group.id,
+                user=self.joiner,
+            ).exists()
+        )
+
+    def test_private_group_invite_creates_join_request_until_admin_approval(self):
+        group = self._create_group_with_owner('Invite Approval Group')
+        self.assertEqual(group.visibility, Group.PRIVATE)
+
+        self.client.force_authenticate(self.owner)
+        invite_response = self.client.post(
+            reverse('group-invites', kwargs={'group_id': group.id}),
+            {'max_uses': 3},
+            format='json',
+        )
+        self.assertEqual(invite_response.status_code, status.HTTP_201_CREATED)
+
+        self.client.force_authenticate(self.joiner)
+        join_response = self.client.post(
+            reverse('group-join-code'),
+            {'code': invite_response.data['invite_code']},
+            format='json',
+        )
+        self.assertEqual(join_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(join_response.data['status'], 'pending')
+        self.assertIsNone(join_response.data['membership_role'])
+        self.assertFalse(
+            GroupMembership.objects.filter(group=group, user=self.joiner).exists()
+        )
+        join_request = GroupJoinRequest.objects.get(group=group, user=self.joiner)
+        self.assertEqual(join_request.status, GroupJoinRequest.PENDING)
+
+        self.client.force_authenticate(self.owner)
+        approve_response = self.client.post(
+            reverse('group-join-request-approve', kwargs={'request_id': join_request.id}),
+            format='json',
+        )
+        self.assertEqual(approve_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(approve_response.data['status'], 'approved')
+        self.assertTrue(
+            GroupMembership.objects.filter(group=group, user=self.joiner).exists()
+        )
+        join_request.refresh_from_db()
+        self.assertEqual(join_request.status, GroupJoinRequest.APPROVED)
+
+    def test_group_invite_rejects_revoked_expired_duplicate_and_usage_limit(self):
+        group = self._create_group_with_owner('Invite Guard Group')
+        group.visibility = Group.PUBLIC
+        group.save(update_fields=['visibility'])
+
+        revoked_invite = GroupInvite.objects.create(
+            group=group,
+            created_by=self.owner,
+            token='revoked-token',
+            expires_at=timezone.now() + timedelta(days=1),
+            is_active=False,
+        )
+        expired_invite = GroupInvite.objects.create(
+            group=group,
+            created_by=self.owner,
+            token='expired-token',
+            expires_at=timezone.now() - timedelta(minutes=1),
+        )
+        limited_invite = GroupInvite.objects.create(
+            group=group,
+            created_by=self.owner,
+            token='limited-token',
+            expires_at=timezone.now() + timedelta(days=1),
+            max_uses=1,
+        )
+
+        self.client.force_authenticate(self.joiner)
+        invalid_response = self.client.post(
+            reverse('group-join-invite', kwargs={'token': 'missing-token'}),
+            format='json',
+        )
+        self.assertEqual(invalid_response.status_code, status.HTTP_404_NOT_FOUND)
+
+        revoked_response = self.client.post(
+            reverse('group-join-invite', kwargs={'token': revoked_invite.token}),
+            format='json',
+        )
+        self.assertEqual(revoked_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(revoked_response.data['error_code'], 'group_invite_revoked')
+
+        expired_response = self.client.post(
+            reverse('group-join-invite', kwargs={'token': expired_invite.token}),
+            format='json',
+        )
+        self.assertEqual(expired_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(expired_response.data['error_code'], 'group_invite_expired')
+
+        first_join = self.client.post(
+            reverse('group-join-invite', kwargs={'token': limited_invite.token}),
+            format='json',
+        )
+        self.assertEqual(first_join.status_code, status.HTTP_200_OK)
+
+        duplicate_join = self.client.post(
+            reverse('group-join-invite', kwargs={'token': limited_invite.token}),
+            format='json',
+        )
+        self.assertEqual(duplicate_join.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(duplicate_join.data['error_code'], 'already_member')
+
+        self.client.force_authenticate(self.outsider)
+        limit_response = self.client.post(
+            reverse('group-join-invite', kwargs={'token': limited_invite.token}),
+            format='json',
+        )
+        self.assertEqual(limit_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            limit_response.data['error_code'],
+            'group_invite_usage_limit_exceeded',
+        )
 
     def test_group_detail_requires_membership(self):
         group = self._create_group_with_owner('Private Group')

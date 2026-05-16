@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
@@ -21,9 +22,10 @@ class BalancesPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(balancesProvider(planId));
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Balances'),
+        title: Text(l10n.t('budget.balances')),
         actions: [
           IconButton(
             onPressed: () =>
@@ -67,16 +69,25 @@ class _BalanceContent extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Total shared expenses: ${AppFormatters.currency(context, amount: summary.totalExpenses, currencyCode: summary.currency)}',
+            context.l10n.t(
+              'budget.total_shared_expenses',
+              params: {
+                'amount': AppFormatters.currency(
+                  context,
+                  amount: summary.totalExpenses,
+                  currencyCode: summary.currency,
+                ),
+              },
+            ),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 20),
-          _sectionTitle(context, 'Who owes whom'),
+          _sectionTitle(context, context.l10n.t('budget.who_owes_whom')),
           const SizedBox(height: 8),
           if (summary.settlementSuggestions.isEmpty)
-            _emptyCard(context, 'All balances are settled.')
+            _emptyCard(context, context.l10n.t('budget.all_balances_settled'))
           else
             ...summary.settlementSuggestions.map(
               (suggestion) => _DebtSuggestionCard(
@@ -86,7 +97,7 @@ class _BalanceContent extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 20),
-          _sectionTitle(context, 'Member balances'),
+          _sectionTitle(context, context.l10n.t('budget.member_balances')),
           const SizedBox(height: 8),
           ...summary.balances.map(
             (balance) =>
@@ -144,7 +155,13 @@ class _DebtSuggestionCardState extends ConsumerState<_DebtSuggestionCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${suggestion.fromUser.fullName} owes ${suggestion.toUser.fullName}',
+              context.l10n.t(
+                'budget.owes_to',
+                params: {
+                  'from': suggestion.fromUser.fullName,
+                  'to': suggestion.toUser.fullName,
+                },
+              ),
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
@@ -168,7 +185,7 @@ class _DebtSuggestionCardState extends ConsumerState<_DebtSuggestionCard> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.check_circle_outline_rounded),
-                label: const Text('Mark as settled'),
+                label: Text(context.l10n.t('budget.mark_as_settled')),
               ),
             ],
           ],
@@ -191,7 +208,10 @@ class _DebtSuggestionCardState extends ConsumerState<_DebtSuggestionCard> {
           );
       ref.invalidate(balancesProvider(widget.planId));
       if (!mounted) return;
-      ErrorDisplayService.showSuccessSnackbar(context, 'Settlement recorded.');
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t('budget.settlement_recorded'),
+      );
     } catch (error) {
       if (!mounted) return;
       ErrorDisplayService.handleError(context, error, showDialog: true);
@@ -212,7 +232,9 @@ class _BalanceCard extends StatelessWidget {
     final color = balance.netBalance >= 0
         ? Colors.green
         : Theme.of(context).colorScheme.error;
-    final label = balance.netBalance >= 0 ? 'gets back' : 'owes';
+    final label = balance.netBalance >= 0
+        ? context.l10n.t('budget.gets_back')
+        : context.l10n.t('budget.owes');
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -231,7 +253,21 @@ class _BalanceCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Paid ${AppFormatters.currency(context, amount: balance.totalPaid, currencyCode: currency)} · owes ${AppFormatters.currency(context, amount: balance.totalOwed, currencyCode: currency)}',
+                    context.l10n.t(
+                      'budget.paid_owes',
+                      params: {
+                        'paid': AppFormatters.currency(
+                          context,
+                          amount: balance.totalPaid,
+                          currencyCode: currency,
+                        ),
+                        'owed': AppFormatters.currency(
+                          context,
+                          amount: balance.totalOwed,
+                          currencyCode: currency,
+                        ),
+                      },
+                    ),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],

@@ -13,6 +13,7 @@ class GroupSummary extends Equatable {
   final String id;
   final String name;
   final String? description;
+  final String visibility;
   final int memberCount;
   final String avatarUrl;
   final DateTime createdAt;
@@ -22,6 +23,7 @@ class GroupSummary extends Equatable {
     required this.id,
     required this.name,
     this.description,
+    this.visibility = 'private',
     required this.memberCount,
     required this.avatarUrl,
     required this.createdAt,
@@ -39,6 +41,7 @@ class GroupSummary extends Equatable {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       description: json['description']?.toString(),
+      visibility: json['visibility']?.toString() ?? 'private',
       memberCount: json['member_count']?.toInt() ?? 0,
       avatarUrl: validatedAvatarUrl,
       createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
@@ -51,6 +54,7 @@ class GroupSummary extends Equatable {
       'id': id,
       'name': name,
       'description': description,
+      'visibility': visibility,
       'member_count': memberCount,
       'avatar_url': avatarUrl,
       'created_at': createdAt.toIso8601String(),
@@ -62,6 +66,7 @@ class GroupSummary extends Equatable {
     String? id,
     String? name,
     String? description,
+    String? visibility,
     int? memberCount,
     String? avatarUrl,
     DateTime? createdAt,
@@ -71,6 +76,7 @@ class GroupSummary extends Equatable {
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
+      visibility: visibility ?? this.visibility,
       memberCount: memberCount ?? this.memberCount,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       createdAt: createdAt ?? this.createdAt,
@@ -80,6 +86,7 @@ class GroupSummary extends Equatable {
 
   /// Helper getters for UI display
   String get avatarForDisplay => avatarUrl.isNotEmpty ? avatarUrl : '';
+  bool get isPublic => visibility == 'public';
   String get memberCountText =>
       '$memberCount ${memberCount == 1 ? 'member' : 'members'}';
 
@@ -88,6 +95,7 @@ class GroupSummary extends Equatable {
     id,
     name,
     description,
+    visibility,
     memberCount,
     avatarUrl,
     createdAt,

@@ -99,3 +99,80 @@ class GroupMembershipRepository(ABC):
     @abstractmethod
     def get_membership(self, group_id: UUID, user_id: UUID) -> Optional[Any]:
         ...
+
+
+class GroupInviteRepository(ABC):
+    """Repository interface for secure group invite codes."""
+
+    @abstractmethod
+    def create_invite(
+        self,
+        *,
+        group_id: UUID,
+        token: str,
+        created_by_user_id: UUID,
+        expires_at,
+        max_uses: int | None,
+    ) -> Any:
+        ...
+
+    @abstractmethod
+    def token_exists(self, token: str) -> bool:
+        ...
+
+    @abstractmethod
+    def find_by_token(self, token: str, *, for_update: bool = False) -> Optional[Any]:
+        ...
+
+    @abstractmethod
+    def find_by_id(self, invite_id: UUID) -> Optional[Any]:
+        ...
+
+    @abstractmethod
+    def list_for_group(self, group_id: UUID) -> Any:
+        ...
+
+    @abstractmethod
+    def increment_usage(self, invite_id: UUID) -> None:
+        ...
+
+    @abstractmethod
+    def revoke_invite(self, invite_id: UUID) -> bool:
+        ...
+
+    @abstractmethod
+    def validate_invite(self, invite: Any, *, now) -> tuple[bool, str | None]:
+        ...
+
+
+class GroupJoinRequestRepository(ABC):
+    """Repository interface for private-group invite approval requests."""
+
+    @abstractmethod
+    def create_or_refresh_request(
+        self,
+        *,
+        group_id: UUID,
+        user_id: UUID,
+        invite_id: UUID | None,
+    ) -> Any:
+        ...
+
+    @abstractmethod
+    def find_by_id(self, request_id: UUID, *, for_update: bool = False) -> Optional[Any]:
+        ...
+
+    @abstractmethod
+    def list_for_group(self, group_id: UUID, *, status: str | None = None) -> Any:
+        ...
+
+    @abstractmethod
+    def set_status(
+        self,
+        request_id: UUID,
+        *,
+        status: str,
+        reviewed_by_user_id: UUID,
+        reviewed_at,
+    ) -> Any:
+        ...

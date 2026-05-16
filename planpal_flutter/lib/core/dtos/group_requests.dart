@@ -1,17 +1,20 @@
 class CreateGroupRequest {
   final String name;
   final String description;
+  final String visibility;
   final List<String> initialMembers;
 
   CreateGroupRequest({
     required this.name,
     required this.description,
+    this.visibility = 'private',
     required this.initialMembers,
   });
 
   Map<String, dynamic> toJson() => {
     'name': name,
     'description': description,
+    'visibility': visibility,
     'initial_members': initialMembers,
   };
 }
@@ -19,13 +22,15 @@ class CreateGroupRequest {
 class UpdateGroupRequest {
   final String? name;
   final String? description;
+  final String? visibility;
 
-  UpdateGroupRequest({this.name, this.description});
+  UpdateGroupRequest({this.name, this.description, this.visibility});
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
     if (name != null) data['name'] = name;
     if (description != null) data['description'] = description;
+    if (visibility != null) data['visibility'] = visibility;
     return data;
   }
 }

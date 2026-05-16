@@ -27,6 +27,7 @@ import '../../../shared/widgets/widgets.dart';
 import 'plan_form_page.dart';
 import 'plan_details_page.dart';
 import 'group_form_page.dart';
+import 'group_invite_management_page.dart';
 import '../chat/chat_page.dart';
 
 class GroupDetailsPage extends ConsumerStatefulWidget {
@@ -509,7 +510,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               _buildPlansCard(g),
               const SizedBox(height: 16),
               AuditLogList(
-                title: 'Group Audit Log',
+                title: context.l10n.t('group_details.audit_log_title'),
                 resourceType: 'group',
                 resourceId: g.id,
                 refreshSignal: _auditRefreshSignal,
@@ -575,6 +576,18 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                 // NÃºt thÃªm thÃ nh viÃªn cho admin
                 if (isAdmin) ...[
                   const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _openInviteManagement,
+                    icon: const Icon(Icons.link),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primary.withAlpha(25),
+                      foregroundColor: AppColors.primary,
+                    ),
+                    tooltip: context.l10n.t(
+                      'group_details.invite_codes_tooltip',
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   IconButton(
                     onPressed: _showAddMemberDialog,
                     icon: const Icon(Icons.person_add),
@@ -1264,6 +1277,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             'id': group.id,
             'name': group.name,
             'description': group.description,
+            'visibility': group.visibility,
             'avatar_url': group.avatarUrl,
             'cover_image_url': group.coverImageUrl,
             'member_count': group.memberCount,
@@ -1282,6 +1296,27 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
       context,
       context.l10n.t('group_details.update_success'),
     );
+  }
+
+  Future<void> _openInviteManagement() async {
+    final group = groupData;
+    if (group == null) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GroupInviteManagementPage(
+          groupId: group.id,
+          groupName: group.name,
+          groupVisibility: group.visibility,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    await _loadGroupData(forceRefresh: true, showLoading: false);
+    if (mounted) {
+      setState(() => _auditRefreshSignal++);
+    }
   }
 
   Future<void> _confirmDeleteGroup(GroupModel group) async {

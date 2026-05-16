@@ -167,6 +167,9 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
   }
 
   Widget _buildFilters(Map<String, String> actorOptions) {
+    final actionItems = _buildActionDropdownItems();
+    final actorItems = _buildActorDropdownItems(actorOptions);
+
     return Wrap(
       spacing: 12,
       runSpacing: 12,
@@ -181,18 +184,7 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
               border: const OutlineInputBorder(),
               isDense: true,
             ),
-            items: [
-              DropdownMenuItem(
-                value: '',
-                child: Text(context.l10n.t('audit.all_actions')),
-              ),
-              ...AuditLogModel.actionOptions.map(
-                (option) => DropdownMenuItem(
-                  value: option.value,
-                  child: Text(option.label),
-                ),
-              ),
-            ],
+            items: actionItems,
             onChanged: (value) {
               setState(() {
                 _selectedAction = value ?? '';
@@ -210,18 +202,7 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
               border: const OutlineInputBorder(),
               isDense: true,
             ),
-            items: [
-              DropdownMenuItem(
-                value: '',
-                child: Text(context.l10n.t('audit.all_users')),
-              ),
-              ...actorOptions.entries.map(
-                (entry) => DropdownMenuItem(
-                  value: entry.key,
-                  child: Text(entry.value),
-                ),
-              ),
-            ],
+            items: actorItems,
             onChanged: (value) {
               setState(() {
                 _selectedUserId = value ?? '';
@@ -262,6 +243,54 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
     );
   }
 
+  List<DropdownMenuItem<String>> _buildActionDropdownItems() {
+    final items = <DropdownMenuItem<String>>[
+      DropdownMenuItem(
+        value: '',
+        child: Text(context.l10n.t('audit.all_actions')),
+      ),
+      ...AuditLogModel.actionOptions.map(
+        (option) => DropdownMenuItem(
+          value: option.value,
+          child: Text(context.l10n.auditActionLabel(option.value)),
+        ),
+      ),
+    ];
+
+    final hasSelectedAction =
+        _selectedAction.isEmpty ||
+        items.any((item) => item.value == _selectedAction);
+    if (!hasSelectedAction) {
+      items.add(
+        DropdownMenuItem(
+          value: _selectedAction,
+          child: Text(context.l10n.auditActionLabel(_selectedAction)),
+        ),
+      );
+    }
+
+    return items;
+  }
+
+  List<DropdownMenuItem<String>> _buildActorDropdownItems(
+    Map<String, String> actorOptions,
+  ) {
+    final entries = Map<String, String>.from(actorOptions);
+    if (_selectedUserId.isNotEmpty && !entries.containsKey(_selectedUserId)) {
+      entries[_selectedUserId] = context.l10n.t('audit.selected_user');
+    }
+
+    return [
+      DropdownMenuItem(
+        value: '',
+        child: Text(context.l10n.t('audit.all_users')),
+      ),
+      ...entries.entries.map(
+        (entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+      ),
+    ];
+  }
+
   Widget _buildListState(BuildContext context, AuditLogFeedState state) {
     if (state.items.isEmpty) {
       return Center(child: Text(context.l10n.t('audit.empty')));
@@ -290,6 +319,7 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
         }
 
         final log = state.items[index];
+        final l10n = context.l10n;
         final theme = Theme.of(context);
         final colorScheme = theme.colorScheme;
         return Container(
@@ -305,11 +335,11 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _ActionBadge(label: log.actionLabel),
+                  _ActionBadge(label: log.localizedActionLabel(l10n)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      log.metadataSummary,
+                      log.localizedMetadataSummary(l10n),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: colorScheme.onSurface,
@@ -320,7 +350,7 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
               ),
               const SizedBox(height: 8),
               Text(
-                log.actorDisplayName,
+                log.localizedActorDisplayName(l10n),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurface,
                 ),

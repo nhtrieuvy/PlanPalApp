@@ -11,7 +11,16 @@ from planpals.auth.presentation.views import (
 )
 from planpals.audit.presentation.views import AuditLogViewSet
 from planpals.plans.presentation.views import PlanViewSet, PlanActivityViewSet
-from planpals.groups.presentation.views import GroupViewSet
+from planpals.groups.presentation.views import (
+    GroupInviteListCreateView,
+    GroupInviteRevokeView,
+    GroupJoinRequestApproveView,
+    GroupJoinRequestListView,
+    GroupJoinRequestRejectView,
+    GroupViewSet,
+    JoinGroupByInviteCodeView,
+    JoinGroupViaInviteView,
+)
 from planpals.chat.presentation.views import ChatMessageViewSet, ConversationViewSet
 from planpals.notifications.presentation.views import NotificationViewSet
 from planpals.analytics.presentation.views import AnalyticsViewSet
@@ -58,6 +67,13 @@ urlpatterns = [
     path('plans/<uuid:plan_id>/expenses/', PlanExpenseListCreateView.as_view(), name='plan-expenses'),
     path('plans/<uuid:plan_id>/balances/', PlanBalancesView.as_view(), name='plan-balances'),
     path('settlements/', SettlementCreateView.as_view(), name='settlements'),
+    path('groups/<uuid:group_id>/invites/', GroupInviteListCreateView.as_view(), name='group-invites'),
+    path('groups/<uuid:group_id>/join-requests/', GroupJoinRequestListView.as_view(), name='group-join-requests'),
+    path('groups/invites/<uuid:invite_id>/', GroupInviteRevokeView.as_view(), name='group-invite-revoke'),
+    path('groups/join-requests/<uuid:request_id>/approve/', GroupJoinRequestApproveView.as_view(), name='group-join-request-approve'),
+    path('groups/join-requests/<uuid:request_id>/reject/', GroupJoinRequestRejectView.as_view(), name='group-join-request-reject'),
+    path('groups/join-code/', JoinGroupByInviteCodeView.as_view(), name='group-join-code'),
+    path('groups/join/<str:token>/', JoinGroupViaInviteView.as_view(), name='group-join-invite'),
     
     # API routes
     path('', include(router.urls)),

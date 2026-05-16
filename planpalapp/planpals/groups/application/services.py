@@ -17,6 +17,11 @@ from planpals.groups.application.commands import (
     PromoteMemberCommand,
     DemoteMemberCommand,
     SetMemberRoleCommand,
+    CreateGroupInviteCommand,
+    JoinGroupViaInviteCommand,
+    RevokeInviteCommand,
+    ApproveGroupJoinRequestCommand,
+    RejectGroupJoinRequestCommand,
 )
 from planpals.groups.application import factories as group_factories
 
@@ -39,6 +44,7 @@ class GroupService(BaseService):
         creator,
         name: str,
         description: str = "",
+        visibility: str = "private",
         initial_members=None,
         avatar=None,
         cover_image=None,
@@ -57,6 +63,7 @@ class GroupService(BaseService):
             admin_id=creator.id,
             name=name,
             description=description,
+            visibility=visibility,
             initial_member_ids=initial_member_ids,
             avatar=avatar,
             cover_image=cover_image,
@@ -95,6 +102,7 @@ class GroupService(BaseService):
             user_id=user.id,
             name=fields.get('name'),
             description=fields.get('description'),
+            visibility=fields.get('visibility'),
             avatar=fields.get('avatar'),
             cover_image=fields.get('cover_image'),
         )
@@ -133,6 +141,74 @@ class GroupService(BaseService):
             return True, "Joined group successfully", group
         except Exception as e:
             return False, str(e), None
+
+    @classmethod
+    def create_invite(
+        cls,
+        group,
+        user,
+        *,
+        expires_at=None,
+        max_uses: int | None = None,
+    ):
+        cmd = CreateGroupInviteCommand(
+            group_id=group.id,
+            user_id=user.id,
+            expires_at=expires_at,
+            max_uses=max_uses,
+        )
+        handler = group_factories.get_create_group_invite_handler()
+        return handler.handle(cmd)
+
+    @classmethod
+    def list_invites(cls, group, user):
+        membership_repo = group_factories.get_membership_repo()
+        if not membership_repo.is_admin(group.id, user.id):
+            from planpals.shared.domain_exceptions import NotGroupAdminException
+            raise NotGroupAdminException()
+        return group_factories.get_invite_repo().list_for_group(group.id)
+
+    @classmethod
+    def list_join_requests(cls, group, user, *, status: str | None = 'pending'):
+        membership_repo = group_factories.get_membership_repo()
+        if not membership_repo.is_admin(group.id, user.id):
+            from planpals.shared.domain_exceptions import NotGroupAdminException
+            raise NotGroupAdminException()
+        return group_factories.get_join_request_repo().list_for_group(
+            group.id,
+            status=status,
+        )
+
+    @classmethod
+    def revoke_invite(cls, invite_id, user) -> bool:
+        cmd = RevokeInviteCommand(invite_id=invite_id, user_id=user.id)
+        handler = group_factories.get_revoke_invite_handler()
+        return handler.handle(cmd)
+
+    @classmethod
+    def join_group_via_invite(cls, user, token: str):
+        cmd = JoinGroupViaInviteCommand(token=token, user_id=user.id)
+        handler = group_factories.get_join_group_via_invite_handler()
+        result = handler.handle(cmd)
+        group_repo = group_factories.get_group_repo()
+        group = group_repo.get_by_id_for_detail(result.group.id)
+        if result.status == 'joined':
+            cls._invalidate_group_cache(result.group.id)
+        return group, result.membership, result.join_request, result.status
+
+    @classmethod
+    def approve_join_request(cls, request_id, user):
+        cmd = ApproveGroupJoinRequestCommand(request_id=request_id, user_id=user.id)
+        handler = group_factories.get_approve_group_join_request_handler()
+        result = handler.handle(cmd)
+        cls._invalidate_group_cache(result.group.id)
+        return result
+
+    @classmethod
+    def reject_join_request(cls, request_id, user):
+        cmd = RejectGroupJoinRequestCommand(request_id=request_id, user_id=user.id)
+        handler = group_factories.get_reject_group_join_request_handler()
+        return handler.handle(cmd)
     
     @classmethod
     def leave_group(cls, group, user) -> Tuple[bool, str]:

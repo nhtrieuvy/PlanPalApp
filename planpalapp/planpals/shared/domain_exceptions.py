@@ -198,6 +198,41 @@ class NotFriendsException(ValidationException):
     default_code = 'not_friends'
 
 
+class GroupInviteNotFoundException(NotFoundException):
+    default_detail = 'Invite code is invalid or no longer available.'
+    default_code = 'group_invite_not_found'
+
+
+class GroupInviteExpiredException(ValidationException):
+    default_detail = 'This invite code has expired.'
+    default_code = 'group_invite_expired'
+
+
+class GroupInviteRevokedException(ValidationException):
+    default_detail = 'This invite code has been revoked.'
+    default_code = 'group_invite_revoked'
+
+
+class GroupInviteUsageLimitExceededException(ValidationException):
+    default_detail = 'This invite code has reached its usage limit.'
+    default_code = 'group_invite_usage_limit_exceeded'
+
+
+class GroupJoinRequestNotFoundException(NotFoundException):
+    default_detail = 'Khong tim thay yeu cau tham gia nhom.'
+    default_code = 'group_join_request_not_found'
+
+
+class GroupJoinRequestAlreadyPendingException(ValidationException):
+    default_detail = 'Yeu cau tham gia nhom cua ban dang cho quan tri vien duyet.'
+    default_code = 'group_join_request_pending'
+
+
+class GroupJoinRequestNotPendingException(ValidationException):
+    default_detail = 'Yeu cau tham gia nhom nay da duoc xu ly.'
+    default_code = 'group_join_request_not_pending'
+
+
 # ---------------------------------------------------------------------------
 # Concrete domain exceptions — Auth / Users
 # ---------------------------------------------------------------------------

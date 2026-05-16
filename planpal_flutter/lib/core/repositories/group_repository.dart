@@ -6,6 +6,7 @@ import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 
 import '../dtos/group_model.dart';
+import '../dtos/group_invite_model.dart';
 import '../dtos/group_requests.dart';
 import '../dtos/group_summary.dart';
 
@@ -209,6 +210,177 @@ class GroupRepository {
     } on DioException catch (e) {
       final r = e.response;
       if (r != null) _throwApiError(r);
+      rethrow;
+    }
+  }
+
+  Future<List<GroupInviteModel>> getGroupInvites(String groupId) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.groupInvites(groupId)),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        final raw = (res.data as Map)['results'];
+        if (raw is! List) return const <GroupInviteModel>[];
+        return raw
+            .whereType<Map>()
+            .map(
+              (item) =>
+                  GroupInviteModel.fromJson(Map<String, dynamic>.from(item)),
+            )
+            .toList();
+      }
+      return _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) return _throwApiError(r);
+      rethrow;
+    }
+  }
+
+  Future<GroupInviteModel> createGroupInvite(
+    String groupId,
+    CreateGroupInviteRequest request,
+  ) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) =>
+            c.dio.post(Endpoints.groupInvites(groupId), data: request.toJson()),
+      );
+      if (res.statusCode == 201 && res.data is Map) {
+        return GroupInviteModel.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+      }
+      return _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) return _throwApiError(r);
+      rethrow;
+    }
+  }
+
+  Future<void> revokeGroupInvite(String inviteId) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.delete(Endpoints.groupInviteRevoke(inviteId)),
+      );
+      if (res.statusCode == 204 || res.statusCode == 200) return;
+      _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) _throwApiError(r);
+      rethrow;
+    }
+  }
+
+  Future<List<GroupJoinRequestModel>> getGroupJoinRequests(
+    String groupId,
+  ) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.groupJoinRequests(groupId)),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        final raw = (res.data as Map)['results'];
+        if (raw is! List) return const <GroupJoinRequestModel>[];
+        return raw
+            .whereType<Map>()
+            .map(
+              (item) => GroupJoinRequestModel.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList();
+      }
+      return _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) return _throwApiError(r);
+      rethrow;
+    }
+  }
+
+  Future<JoinGroupInviteResult> approveGroupJoinRequest(
+    String requestId,
+  ) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(Endpoints.groupJoinRequestApprove(requestId)),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        clearCache();
+        return JoinGroupInviteResult.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+      }
+      return _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) return _throwApiError(r);
+      rethrow;
+    }
+  }
+
+  Future<GroupJoinRequestModel> rejectGroupJoinRequest(String requestId) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(Endpoints.groupJoinRequestReject(requestId)),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        final requestRaw = (res.data as Map)['join_request'];
+        if (requestRaw is Map) {
+          return GroupJoinRequestModel.fromJson(
+            Map<String, dynamic>.from(requestRaw),
+          );
+        }
+      }
+      return _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) return _throwApiError(r);
+      rethrow;
+    }
+  }
+
+  Future<JoinGroupInviteResult> joinGroupViaInvite(String token) async {
+    try {
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) => c.dio.post(Endpoints.groupJoinInvite(token)),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        final result = JoinGroupInviteResult.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+        clearCache();
+        return result;
+      }
+      return _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) return _throwApiError(r);
+      rethrow;
+    }
+  }
+
+  Future<JoinGroupInviteResult> joinGroupByInviteCode(String code) async {
+    try {
+      final normalizedCode = code.trim();
+      final Response res = await auth.requestWithAutoRefresh(
+        (c) =>
+            c.dio.post(Endpoints.groupJoinCode, data: {'code': normalizedCode}),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        final result = JoinGroupInviteResult.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+        clearCache();
+        return result;
+      }
+      return _throwApiError(res);
+    } on DioException catch (e) {
+      final r = e.response;
+      if (r != null) return _throwApiError(r);
       rethrow;
     }
   }
