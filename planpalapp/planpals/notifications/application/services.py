@@ -233,6 +233,19 @@ class NotificationService:
             return 'Group activity', f'{actor_name} joined "{group_name}".'
 
         if notification_type == NotificationType.GROUP_INVITE.value:
+            invite_event = str(data.get('invite_event') or 'direct').lower()
+            if invite_event == 'created':
+                return 'Group invite code', f'{actor_name} created an invite code for "{group_name}".'
+            if invite_event == 'revoked':
+                return 'Group invite revoked', f'{actor_name} revoked an invite code for "{group_name}".'
+            if invite_event == 'expired':
+                return 'Group invite expired', f'An invite code for "{group_name}" has expired.'
+            if invite_event == 'join_request':
+                return 'New join request', f'{actor_name} requested to join "{group_name}".'
+            if invite_event == 'join_request_approved':
+                return 'Join request approved', f'Your request to join "{group_name}" was approved.'
+            if invite_event == 'join_request_rejected':
+                return 'Join request rejected', f'Your request to join "{group_name}" was rejected.'
             return 'Group invite', f'{actor_name} invited you to join "{group_name}".'
 
         if notification_type == NotificationType.ROLE_CHANGED.value:

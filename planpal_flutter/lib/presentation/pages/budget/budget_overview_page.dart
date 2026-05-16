@@ -116,7 +116,7 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
         OutlinedButton.icon(
           onPressed: _openBalances,
           icon: const Icon(Icons.account_balance_rounded),
-          label: const Text('Balances'),
+          label: Text(context.l10n.t('budget.balances')),
         ),
         OutlinedButton.icon(
           onPressed: _openAddExpense,

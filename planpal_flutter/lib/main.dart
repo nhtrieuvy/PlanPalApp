@@ -51,6 +51,7 @@ class PlanPalApp extends ConsumerStatefulWidget {
 
 class _PlanPalAppState extends ConsumerState<PlanPalApp>
     with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late final Future<void> _bootstrapFuture;
 
   @override
@@ -97,6 +98,7 @@ class _PlanPalAppState extends ConsumerState<PlanPalApp>
             snapshot.connectionState != ConnectionState.done;
 
         return MaterialApp(
+          navigatorKey: _navigatorKey,
           onGenerateTitle: (context) => context.l10n.t('common.app_name'),
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,

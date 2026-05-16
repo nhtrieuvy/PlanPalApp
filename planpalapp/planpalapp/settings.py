@@ -51,6 +51,9 @@ ALLOWED_HOSTS = os.getenv(
     '10.0.2.2,localhost,127.0.0.1,192.168.1.41,planpal-backend.fly.dev'
 ).split(',')
 
+PLANPAL_DEEP_LINK_SCHEME = os.getenv('PLANPAL_DEEP_LINK_SCHEME', 'planpal')
+PLANPAL_WEB_BASE_URL = os.getenv('PLANPAL_WEB_BASE_URL', 'https://planpal.app')
+
 CSRF_TRUSTED_ORIGINS = [
     "https://planpal-backend.fly.dev",
     "http://planpal-backend.fly.dev",
@@ -617,6 +620,10 @@ CELERY_BEAT_SCHEDULE = {
     'dispatch-plan-reminders': {
         'task': 'planpals.notifications.infrastructure.tasks.dispatch_plan_reminders_task',
         'schedule': crontab(minute=0),  # Every hour
+    },
+    'expire-group-invites': {
+        'task': 'planpals.groups.infrastructure.tasks.expire_group_invites_task',
+        'schedule': crontab(minute=10),  # Every hour at minute 10
     },
 }
 

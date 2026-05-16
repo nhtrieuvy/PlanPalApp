@@ -88,7 +88,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Plan Audit Log'), findsOneWidget);
-    expect(find.text('Updated title'), findsOneWidget);
+    expect(find.text('Updated plan: title'), findsOneWidget);
     expect(find.text('Plan Owner'), findsOneWidget);
     expect(find.text('All actions'), findsOneWidget);
     expect(find.text('All users'), findsOneWidget);
@@ -150,6 +150,58 @@ void main() {
     expect(updated!.items.length, 2);
     expect(updated.hasMore, isFalse);
     expect(updated.items.last.action, 'DELETE_PLAN');
+  });
+
+  testWidgets('AuditLogList keeps selected user stable after empty refresh', (
+    tester,
+  ) async {
+    final repository = FakeAuditLogRepository(
+      emptyWhenUserFilter: true,
+      resourcePages: [
+        AuditLogsResponse(
+          logs: [
+            buildLog(
+              id: 'log-1',
+              action: 'UPDATE_PLAN',
+              metadata: {
+                'updated_fields': ['title'],
+              },
+            ),
+          ],
+          nextPageUrl: null,
+          hasMore: false,
+          pageSize: 20,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [auditLogRepositoryProvider.overrideWithValue(repository)],
+        child: buildLocalizedTestApp(
+          const Scaffold(
+            body: AuditLogList(
+              title: 'Plan Audit Log',
+              resourceType: 'plan',
+              resourceId: 'plan-1',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('All users'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Plan Owner').last);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Selected user'), findsOneWidget);
+    expect(
+      find.text('No audit activity matches the current filters.'),
+      findsOneWidget,
+    );
   });
 
   test('audit log model builds readable metadata summaries', () {
@@ -229,10 +281,12 @@ void main() {
 class FakeAuditLogRepository extends AuditLogRepository {
   final List<AuditLogsResponse> globalPages;
   final List<AuditLogsResponse> resourcePages;
+  final bool emptyWhenUserFilter;
 
   FakeAuditLogRepository({
     this.globalPages = const [],
     this.resourcePages = const [],
+    this.emptyWhenUserFilter = false,
   }) : super(AuthProvider());
 
   @override
@@ -250,6 +304,14 @@ class FakeAuditLogRepository extends AuditLogRepository {
     AuditLogFilter filters = const AuditLogFilter(),
     String? nextPageUrl,
   }) async {
+    if (emptyWhenUserFilter && filters.userId?.isNotEmpty == true) {
+      return const AuditLogsResponse(
+        logs: [],
+        nextPageUrl: null,
+        hasMore: false,
+        pageSize: 20,
+      );
+    }
     return _selectPage(resourcePages, nextPageUrl);
   }
 

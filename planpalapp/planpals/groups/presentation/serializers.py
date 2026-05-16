@@ -1,7 +1,14 @@
 from rest_framework import serializers
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
-from planpals.groups.infrastructure.models import Group, GroupMembership
+from planpals.groups.infrastructure.models import (
+    Group,
+    GroupInvite,
+    GroupJoinRequest,
+    GroupMembership,
+)
 from planpals.auth.presentation.serializers import UserSummarySerializer
 from planpals.models import User, Friendship
 
@@ -42,7 +49,7 @@ class GroupDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description',
+            'id', 'name', 'description', 'visibility',
             'avatar', 'avatar_url', 'has_avatar',
             'cover_image', 'cover_image_url', 'has_cover_image',
             'admin', 'memberships', 'member_count', 'plans_count', 'active_plans_count',
@@ -130,14 +137,15 @@ class GroupCreateSerializer(serializers.ModelSerializer):
     initial_members = serializers.ListField(
         child=serializers.UUIDField(),
         write_only=True,
-        required=True,
-        help_text="List of friend IDs to add to group (minimum 2 required)"
+        required=False,
+        default=list,
+        help_text="Deprecated. Invite codes should be used for scalable onboarding."
     )
     
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description',
+            'id', 'name', 'description', 'visibility',
             'avatar', 'avatar_url', 'has_avatar',
             'cover_image', 'cover_image_url', 'has_cover_image',
             'initial_members',
@@ -164,11 +172,15 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         if len(value.strip()) < 3:
             raise serializers.ValidationError("Group name must be at least 3 characters")
         return value.strip()
+
+    def validate_visibility(self, value):
+        normalized = (value or Group.PRIVATE).strip().lower()
+        if normalized not in {Group.PUBLIC, Group.PRIVATE}:
+            raise serializers.ValidationError("Visibility must be public or private")
+        return normalized
     
     def validate_initial_members(self, value):
-        if len(value) < 2:
-            raise serializers.ValidationError("At least 2 friends are required to create a group")
-        
+        value = value or []
         if len(value) != len(set(value)):
             raise serializers.ValidationError("Cannot add the same person multiple times")
         
@@ -195,7 +207,7 @@ class GroupCreateSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         request = self.context.get('request')
-        initial_members = validated_data.pop('initial_members')
+        initial_members = validated_data.pop('initial_members', [])
         validated_data['admin'] = request.user
         
         group = super().create(validated_data)
@@ -218,7 +230,8 @@ class GroupSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description', 'member_count', 'avatar_url', 'has_avatar', 'created_at'
+            'id', 'name', 'description', 'visibility',
+            'member_count', 'avatar_url', 'has_avatar', 'created_at'
         ]
     
     def to_representation(self, instance):
@@ -241,3 +254,91 @@ class GroupSummarySerializer(serializers.ModelSerializer):
             return (parts[0][0] + parts[1][0]).upper()
         
         return instance.name[:2].upper()
+
+
+class GroupInviteCreateSerializer(serializers.Serializer):
+    expires_at = serializers.DateTimeField(required=False, allow_null=True)
+    max_uses = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+
+
+class GroupInviteSerializer(serializers.ModelSerializer):
+    created_by = UserSummarySerializer(read_only=True)
+    group_visibility = serializers.CharField(source='group.visibility', read_only=True)
+    invite_code = serializers.CharField(source='token', read_only=True)
+    remaining_uses = serializers.SerializerMethodField()
+    is_expired = serializers.SerializerMethodField()
+    deep_link = serializers.SerializerMethodField()
+    web_link = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GroupInvite
+        fields = [
+            'id',
+            'group',
+            'group_visibility',
+            'token',
+            'invite_code',
+            'created_by',
+            'expires_at',
+            'max_uses',
+            'current_uses',
+            'remaining_uses',
+            'is_active',
+            'is_expired',
+            'deep_link',
+            'web_link',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = fields
+
+    def get_remaining_uses(self, obj):
+        if obj.max_uses is None:
+            return None
+        return max(obj.max_uses - obj.current_uses, 0)
+
+    def get_is_expired(self, obj):
+        return bool(obj.expires_at and obj.expires_at <= timezone.now())
+
+    def get_deep_link(self, obj):
+        scheme = getattr(settings, 'PLANPAL_DEEP_LINK_SCHEME', 'planpal')
+        return f'{scheme}://groups/join/{obj.token}'
+
+    def get_web_link(self, obj):
+        base_url = getattr(settings, 'PLANPAL_WEB_BASE_URL', 'https://planpal.app').rstrip('/')
+        return f'{base_url}/groups/join/{obj.token}'
+
+
+class GroupInviteCodeJoinSerializer(serializers.Serializer):
+    code = serializers.RegexField(
+        regex=r'^\d{6}$',
+        max_length=6,
+        min_length=6,
+        trim_whitespace=True,
+        error_messages={
+            'invalid': 'Invite code must contain exactly 6 digits.',
+            'blank': 'Invite code is required.',
+        },
+    )
+
+
+class GroupJoinRequestSerializer(serializers.ModelSerializer):
+    user = UserSummarySerializer(read_only=True)
+    reviewed_by = UserSummarySerializer(read_only=True)
+    invite_token = serializers.CharField(source='invite.token', read_only=True)
+
+    class Meta:
+        model = GroupJoinRequest
+        fields = [
+            'id',
+            'group',
+            'invite',
+            'invite_token',
+            'user',
+            'status',
+            'reviewed_by',
+            'reviewed_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = fields

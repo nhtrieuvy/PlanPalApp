@@ -15,6 +15,7 @@ class GroupModel extends Equatable {
   final String id;
   final String name;
   final String? description;
+  final String visibility;
   final String? avatar;
   final String? coverImage;
   final String avatarUrl;
@@ -40,6 +41,7 @@ class GroupModel extends Equatable {
     required this.id,
     required this.name,
     this.description,
+    this.visibility = 'private',
     this.avatar,
     this.coverImage,
     required this.avatarUrl,
@@ -85,6 +87,7 @@ class GroupModel extends Equatable {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       description: json['description']?.toString(),
+      visibility: json['visibility']?.toString() ?? 'private',
       avatar: json['avatar']?.toString(),
       coverImage: json['cover_image']?.toString(),
       avatarUrl: validatedAvatarUrl,
@@ -113,6 +116,7 @@ class GroupModel extends Equatable {
       'id': id,
       'name': name,
       'description': description,
+      'visibility': visibility,
       'avatar': avatar,
       'cover_image': coverImage,
       'avatar_url': avatarUrl,
@@ -140,6 +144,7 @@ class GroupModel extends Equatable {
     String? id,
     String? name,
     String? description,
+    String? visibility,
     String? avatar,
     String? coverImage,
     String? avatarUrl,
@@ -165,6 +170,7 @@ class GroupModel extends Equatable {
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
+      visibility: visibility ?? this.visibility,
       avatar: avatar ?? this.avatar,
       coverImage: coverImage ?? this.coverImage,
       avatarUrl: avatarUrl ?? this.avatarUrl,
@@ -194,6 +200,7 @@ class GroupModel extends Equatable {
       coverImageUrl.isNotEmpty ? coverImageUrl : '';
   bool get isAdmin => userRole == 'admin';
   bool get isPlanCreator => userRole == 'plan_creator';
+  bool get isPublic => visibility == 'public';
   String get memberCountText =>
       '$memberCount ${memberCount == 1 ? 'member' : 'members'}';
   String get plansCountText =>
@@ -224,6 +231,7 @@ class GroupModel extends Equatable {
     id,
     name,
     description,
+    visibility,
     avatar,
     coverImage,
     avatarUrl,

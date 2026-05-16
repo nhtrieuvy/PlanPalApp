@@ -9,11 +9,18 @@ from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError as DRFValidationError, PermissionDenied as DRFPermissionDenied, NotFound
 
 from planpals.groups.infrastructure.models import Group, GroupMembership
 from planpals.groups.presentation.serializers import (
-    GroupDetailSerializer, GroupCreateSerializer, GroupSummarySerializer
+    GroupDetailSerializer,
+    GroupCreateSerializer,
+    GroupInviteCodeJoinSerializer,
+    GroupInviteCreateSerializer,
+    GroupInviteSerializer,
+    GroupJoinRequestSerializer,
+    GroupSummarySerializer,
 )
 from planpals.groups.presentation.permissions import (
     GroupPermission, IsGroupMember, IsGroupAdmin
@@ -87,6 +94,7 @@ class GroupViewSet(viewsets.GenericViewSet,
             creator=self.request.user,
             name=data.get('name', ''),
             description=data.get('description', ''),
+            visibility=data.get('visibility', 'private'),
             initial_members=data.get('initial_members', []),
             avatar=data.get('avatar'),
             cover_image=data.get('cover_image'),
@@ -100,6 +108,7 @@ class GroupViewSet(viewsets.GenericViewSet,
             self.request.user,
             name=data.get('name'),
             description=data.get('description'),
+            visibility=data.get('visibility'),
             avatar=data.get('avatar'),
             cover_image=data.get('cover_image'),
         )
@@ -126,29 +135,13 @@ class GroupViewSet(viewsets.GenericViewSet,
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def join(self, request, pk=None):
-        try:
-            success, message, group = GroupService.join_group(
-                user=request.user,
-                group_id=pk,
-            )
-            
-            if not success:
-                if 'not found' in message.lower():
-                    return Response({'error': message}, status=status.HTTP_404_NOT_FOUND)
-                if 'permission' in message.lower():
-                    return Response({'error': message}, status=status.HTTP_403_FORBIDDEN)
-                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
-
-            return Response(GroupDetailSerializer(group, context={'request': request}).data)
-        except DRFValidationError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except DRFPermissionDenied as e:
-            return Response({'error': str(e)}, status=status.HTTP_403_FORBIDDEN)
-        except NotFound as e:
-            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
-        except Exception:
-            logger.exception("Unexpected error while joining group %s", pk)
-            return Response({'error': 'Internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {
+                'error': 'Groups are private. Please join through a valid invite code.',
+                'error_code': 'invite_required',
+            },
+            status=status.HTTP_410_GONE,
+        )
     
     @action(detail=False, methods=['get'])
     def my_groups(self, request):
@@ -427,3 +420,180 @@ class EnhancedGroupViewSet(GroupViewSet):
                 {'error': str(e)}, 
                 status=status.HTTP_403_FORBIDDEN
             )
+
+
+class GroupInviteListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, group_id):
+        group = get_object_or_404(Group, id=group_id)
+        invites = GroupService.list_invites(group, request.user)
+        serializer = GroupInviteSerializer(invites, many=True, context={'request': request})
+        return Response(
+            {
+                'count': len(serializer.data),
+                'results': serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request, group_id):
+        serializer = GroupInviteCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        group = get_object_or_404(Group, id=group_id)
+        invite = GroupService.create_invite(
+            group,
+            request.user,
+            expires_at=serializer.validated_data.get('expires_at'),
+            max_uses=serializer.validated_data.get('max_uses'),
+        )
+        return Response(
+            GroupInviteSerializer(invite, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class GroupJoinRequestListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, group_id):
+        group = get_object_or_404(Group, id=group_id)
+        status_filter = request.query_params.get('status', 'pending')
+        if status_filter == 'all':
+            status_filter = None
+        join_requests = GroupService.list_join_requests(
+            group,
+            request.user,
+            status=status_filter,
+        )
+        serializer = GroupJoinRequestSerializer(
+            join_requests,
+            many=True,
+            context={'request': request},
+        )
+        return Response(
+            {
+                'count': len(serializer.data),
+                'results': serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class GroupJoinRequestApproveView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, request_id):
+        result = GroupService.approve_join_request(request_id, request.user)
+        return Response(
+            {
+                'message': 'Join request approved',
+                'status': result.status,
+                'group_summary': GroupSummarySerializer(
+                    result.group,
+                    context={'request': request},
+                ).data,
+                'membership_role': result.membership.role,
+                'join_request': GroupJoinRequestSerializer(
+                    result.join_request,
+                    context={'request': request},
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class GroupJoinRequestRejectView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, request_id):
+        result = GroupService.reject_join_request(request_id, request.user)
+        return Response(
+            {
+                'message': 'Join request rejected',
+                'status': result.status,
+                'join_request': GroupJoinRequestSerializer(
+                    result.join_request,
+                    context={'request': request},
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class GroupInviteRevokeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, invite_id):
+        GroupService.revoke_invite(invite_id, request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class JoinGroupViaInviteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, token):
+        group, membership, join_request, join_status = GroupService.join_group_via_invite(
+            request.user,
+            token,
+        )
+        return Response(
+            {
+                'message': (
+                    'Joined group successfully'
+                    if join_status == 'joined'
+                    else 'Join request sent and is waiting for admin approval'
+                ),
+                'status': join_status,
+                'group_summary': GroupSummarySerializer(
+                    group,
+                    context={'request': request},
+                ).data,
+                'membership_role': membership.role if membership else None,
+                'join_request': (
+                    GroupJoinRequestSerializer(
+                        join_request,
+                        context={'request': request},
+                    ).data
+                    if join_request is not None
+                    else None
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class JoinGroupByInviteCodeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = GroupInviteCodeJoinSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        group, membership, join_request, join_status = GroupService.join_group_via_invite(
+            request.user,
+            serializer.validated_data['code'],
+        )
+        return Response(
+            {
+                'message': (
+                    'Joined group successfully'
+                    if join_status == 'joined'
+                    else 'Join request sent and is waiting for admin approval'
+                ),
+                'status': join_status,
+                'group_summary': GroupSummarySerializer(
+                    group,
+                    context={'request': request},
+                ).data,
+                'membership_role': membership.role if membership else None,
+                'join_request': (
+                    GroupJoinRequestSerializer(
+                        join_request,
+                        context={'request': request},
+                    ).data
+                    if join_request is not None
+                    else None
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )

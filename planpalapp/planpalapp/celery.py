@@ -22,6 +22,7 @@ app.autodiscover_tasks()
 app.autodiscover_tasks([
     'planpals.shared',
     'planpals.chat.infrastructure',
+    'planpals.groups.infrastructure',
 ])
 
 

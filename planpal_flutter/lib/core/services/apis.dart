@@ -61,6 +61,18 @@ class Endpoints {
 
   static String groupDetails(String groupId) => _v1('/groups/$groupId/');
   static String groupJoin(String groupId) => _v1('/groups/$groupId/join/');
+  static String groupInvites(String groupId) =>
+      _v1('/groups/$groupId/invites/');
+  static String groupInviteRevoke(String inviteId) =>
+      _v1('/groups/invites/$inviteId/');
+  static String groupJoinRequests(String groupId) =>
+      _v1('/groups/$groupId/join-requests/');
+  static String groupJoinRequestApprove(String requestId) =>
+      _v1('/groups/join-requests/$requestId/approve/');
+  static String groupJoinRequestReject(String requestId) =>
+      _v1('/groups/join-requests/$requestId/reject/');
+  static String get groupJoinCode => _v1('/groups/join-code/');
+  static String groupJoinInvite(String token) => _v1('/groups/join/$token/');
   static String groupPlans(String groupId) => _v1('/groups/$groupId/plans/');
   static String groupAddMember(String groupId) =>
       _v1('/groups/$groupId/add_member/');

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:planpal_flutter/core/dtos/user_summary.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/utils/server_datetime.dart';
 
 class AuditActionOption extends Equatable {
@@ -44,11 +45,35 @@ class AuditLogModel extends Equatable {
     AuditActionOption(value: 'UPDATE_ACTIVITY', label: 'Update Activity'),
     AuditActionOption(value: 'UPDATE_BUDGET', label: 'Update Budget'),
     AuditActionOption(value: 'CREATE_EXPENSE', label: 'Create Expense'),
+    AuditActionOption(value: 'UPDATE_EXPENSE', label: 'Update Expense'),
+    AuditActionOption(
+      value: 'SETTLEMENT_COMPLETED',
+      label: 'Settlement Completed',
+    ),
     AuditActionOption(value: 'JOIN_GROUP', label: 'Join Group'),
     AuditActionOption(value: 'LEAVE_GROUP', label: 'Leave Group'),
     AuditActionOption(value: 'ADD_MEMBER', label: 'Add Member'),
     AuditActionOption(value: 'REMOVE_MEMBER', label: 'Remove Member'),
     AuditActionOption(value: 'CHANGE_ROLE', label: 'Change Role'),
+    AuditActionOption(value: 'GROUP_INVITE_CREATED', label: 'Invite Created'),
+    AuditActionOption(value: 'GROUP_INVITE_REVOKED', label: 'Invite Revoked'),
+    AuditActionOption(
+      value: 'GROUP_JOINED_VIA_INVITE',
+      label: 'Joined Via Invite',
+    ),
+    AuditActionOption(value: 'GROUP_INVITE_FAILED', label: 'Invite Failed'),
+    AuditActionOption(
+      value: 'GROUP_JOIN_REQUESTED',
+      label: 'Join Request Sent',
+    ),
+    AuditActionOption(
+      value: 'GROUP_JOIN_REQUEST_APPROVED',
+      label: 'Join Request Approved',
+    ),
+    AuditActionOption(
+      value: 'GROUP_JOIN_REQUEST_REJECTED',
+      label: 'Join Request Rejected',
+    ),
     AuditActionOption(value: 'DELETE_GROUP', label: 'Delete Group'),
     AuditActionOption(
       value: 'NOTIFICATION_OPENED',
@@ -83,11 +108,257 @@ class AuditLogModel extends Equatable {
     return 'Unknown user';
   }
 
+  String localizedActorDisplayName(AppLocalizations l10n) {
+    if (user == null) return l10n.t('audit.unknown_user');
+    if (user!.fullName.isNotEmpty) return user!.fullName;
+    if (user!.username.isNotEmpty) return user!.username;
+    return l10n.t('audit.unknown_user');
+  }
+
   String get actionLabel {
     for (final option in actionOptions) {
       if (option.value == action) return option.label;
     }
     return action.replaceAll('_', ' ');
+  }
+
+  String localizedActionLabel(AppLocalizations l10n) {
+    return l10n.auditActionLabel(action);
+  }
+
+  String localizedMetadataSummary(AppLocalizations l10n) {
+    final title = _metadataString('title');
+    final groupName = _metadataString('group_name');
+    final planTitle = _metadataString('plan_title');
+    final activityTitle = title.isNotEmpty
+        ? title
+        : _metadataString('activity_title');
+    final newRole = _metadataString('new_role');
+    final changedFields = _metadataList('updated_fields').isNotEmpty
+        ? _metadataList('updated_fields')
+        : _metadataList('changed_fields');
+    final changedFieldSummary = _humanFieldList(changedFields, l10n: l10n);
+
+    switch (action) {
+      case 'CREATE_GROUP':
+        return groupName.isNotEmpty
+            ? l10n.t('audit.summary.created_named', params: {'name': groupName})
+            : l10n.t('audit.summary.created_group');
+      case 'UPDATE_GROUP':
+        if (changedFieldSummary.isNotEmpty) {
+          return groupName.isNotEmpty
+              ? l10n.t(
+                  'audit.summary.updated_named_fields',
+                  params: {'name': groupName, 'fields': changedFieldSummary},
+                )
+              : l10n.t(
+                  'audit.summary.updated_group_fields',
+                  params: {'fields': changedFieldSummary},
+                );
+        }
+        return groupName.isNotEmpty
+            ? l10n.t('audit.summary.updated_named', params: {'name': groupName})
+            : l10n.t('audit.action.UPDATE_GROUP');
+      case 'CREATE_PLAN':
+        return title.isNotEmpty
+            ? l10n.t('audit.summary.created_named', params: {'name': title})
+            : l10n.t('audit.summary.created_plan');
+      case 'UPDATE_PLAN':
+        if (changedFieldSummary.isNotEmpty) {
+          return title.isNotEmpty
+              ? l10n.t(
+                  'audit.summary.updated_named_fields',
+                  params: {'name': title, 'fields': changedFieldSummary},
+                )
+              : l10n.t(
+                  'audit.summary.updated_plan_fields',
+                  params: {'fields': changedFieldSummary},
+                );
+        }
+        return title.isNotEmpty
+            ? l10n.t('audit.summary.updated_named', params: {'name': title})
+            : l10n.t('audit.action.UPDATE_PLAN');
+      case 'DELETE_PLAN':
+        return title.isNotEmpty
+            ? l10n.t('audit.summary.deleted_named', params: {'name': title})
+            : l10n.t('audit.summary.deleted_plan');
+      case 'COMPLETE_PLAN':
+        return title.isNotEmpty
+            ? l10n.t('audit.summary.completed_named', params: {'name': title})
+            : l10n.t('audit.summary.completed_plan');
+      case 'CREATE_ACTIVITY':
+        return activityTitle.isNotEmpty
+            ? l10n.t(
+                'audit.summary.created_activity_named',
+                params: {'activity': activityTitle},
+              )
+            : l10n.t('audit.summary.created_activity');
+      case 'UPDATE_ACTIVITY':
+        if (changedFieldSummary.isNotEmpty) {
+          return activityTitle.isNotEmpty
+              ? l10n.t(
+                  'audit.summary.updated_activity_named_fields',
+                  params: {
+                    'activity': activityTitle,
+                    'fields': changedFieldSummary,
+                  },
+                )
+              : l10n.t(
+                  'audit.summary.updated_activity_fields',
+                  params: {'fields': changedFieldSummary},
+                );
+        }
+        return activityTitle.isNotEmpty
+            ? l10n.t(
+                'audit.summary.updated_activity_named',
+                params: {'activity': activityTitle},
+              )
+            : l10n.t('audit.summary.updated_activity');
+      case 'UPDATE_BUDGET':
+        final totalBudget = _metadataString('total_budget');
+        final currency = _metadataString('currency');
+        final amountText = _formatMoney(totalBudget, currency);
+        if (amountText.isNotEmpty) {
+          return planTitle.isNotEmpty
+              ? l10n.t(
+                  'audit.summary.updated_budget_plan_amount',
+                  params: {'plan': planTitle, 'amount': amountText},
+                )
+              : l10n.t(
+                  'audit.summary.updated_budget_amount',
+                  params: {'amount': amountText},
+                );
+        }
+        return planTitle.isNotEmpty
+            ? l10n.t(
+                'audit.summary.updated_budget_plan',
+                params: {'plan': planTitle},
+              )
+            : l10n.t('audit.summary.updated_budget');
+      case 'CREATE_EXPENSE':
+      case 'UPDATE_EXPENSE':
+        final amount = _metadataString('amount');
+        final currency = _metadataString('currency');
+        final category = _metadataString('category');
+        final description = _metadataString('description');
+        final amountText = _formatMoney(amount, currency);
+        final detail = [
+          if (amountText.isNotEmpty) amountText,
+          if (category.isNotEmpty) l10n.auditFieldLabel(category),
+          if (description.isNotEmpty) '"$description"',
+        ].join(' - ');
+        if (detail.isNotEmpty) {
+          return planTitle.isNotEmpty
+              ? l10n.t(
+                  'audit.summary.added_expense_plan',
+                  params: {'plan': planTitle, 'detail': detail},
+                )
+              : l10n.t(
+                  'audit.summary.added_expense',
+                  params: {'detail': detail},
+                );
+        }
+        return l10n.t('audit.action.$action');
+      case 'SETTLEMENT_COMPLETED':
+        final amountText = _formatMoney(
+          _metadataString('amount'),
+          _metadataString('currency'),
+        );
+        return l10n.t(
+          'audit.summary.settlement_completed',
+          params: {'amount': amountText},
+        );
+      case 'JOIN_GROUP':
+        return groupName.isNotEmpty
+            ? l10n.t('audit.summary.joined_group', params: {'group': groupName})
+            : l10n.t('audit.action.JOIN_GROUP');
+      case 'LEAVE_GROUP':
+        return groupName.isNotEmpty
+            ? l10n.t('audit.summary.left_group', params: {'group': groupName})
+            : l10n.t('audit.action.LEAVE_GROUP');
+      case 'ADD_MEMBER':
+        return groupName.isNotEmpty
+            ? l10n.t(
+                'audit.summary.added_member_group',
+                params: {'group': groupName},
+              )
+            : l10n.t('audit.action.ADD_MEMBER');
+      case 'REMOVE_MEMBER':
+        return groupName.isNotEmpty
+            ? l10n.t(
+                'audit.summary.removed_member_group',
+                params: {'group': groupName},
+              )
+            : l10n.t('audit.action.REMOVE_MEMBER');
+      case 'CHANGE_ROLE':
+        return newRole.isNotEmpty
+            ? l10n.t(
+                'audit.summary.changed_role',
+                params: {'role': newRole.toUpperCase()},
+              )
+            : l10n.t('audit.action.CHANGE_ROLE');
+      case 'DELETE_GROUP':
+        return groupName.isNotEmpty
+            ? l10n.t(
+                'audit.summary.deleted_group',
+                params: {'group': groupName},
+              )
+            : l10n.t('audit.action.DELETE_GROUP');
+      case 'NOTIFICATION_OPENED':
+        return l10n.t(
+          'audit.summary.opened_notifications',
+          params: {'count': '${metadata['notification_count'] ?? 1}'},
+        );
+      case 'GROUP_INVITE_CREATED':
+        return groupName.isNotEmpty
+            ? l10n.t(
+                'audit.summary.invite_created',
+                params: {'group': groupName},
+              )
+            : l10n.t('audit.action.GROUP_INVITE_CREATED');
+      case 'GROUP_INVITE_REVOKED':
+        return groupName.isNotEmpty
+            ? l10n.t(
+                'audit.summary.invite_revoked',
+                params: {'group': groupName},
+              )
+            : l10n.t('audit.action.GROUP_INVITE_REVOKED');
+      case 'GROUP_JOINED_VIA_INVITE':
+        return groupName.isNotEmpty
+            ? l10n.t(
+                'audit.summary.joined_via_invite',
+                params: {'group': groupName},
+              )
+            : l10n.t('audit.action.GROUP_JOINED_VIA_INVITE');
+      case 'GROUP_INVITE_FAILED':
+        return l10n.t(
+          'audit.summary.invite_failed',
+          params: {'reason': _metadataString('failure_reason')},
+        );
+      case 'GROUP_JOIN_REQUESTED':
+        return groupName.isNotEmpty
+            ? l10n.t(
+                'audit.summary.join_requested',
+                params: {'group': groupName},
+              )
+            : l10n.t('audit.action.GROUP_JOIN_REQUESTED');
+      case 'GROUP_JOIN_REQUEST_APPROVED':
+        return groupName.isNotEmpty
+            ? l10n.t(
+                'audit.summary.join_approved',
+                params: {'group': groupName},
+              )
+            : l10n.t('audit.action.GROUP_JOIN_REQUEST_APPROVED');
+      case 'GROUP_JOIN_REQUEST_REJECTED':
+        return groupName.isNotEmpty
+            ? l10n.t(
+                'audit.summary.join_rejected',
+                params: {'group': groupName},
+              )
+            : l10n.t('audit.action.GROUP_JOIN_REQUEST_REJECTED');
+      default:
+        return _fallbackSummary(l10n: l10n);
+    }
   }
 
   String get metadataSummary {
@@ -211,17 +482,18 @@ class AuditLogModel extends Equatable {
     return const <String>[];
   }
 
-  String _humanFieldList(List<String> fields) {
+  String _humanFieldList(List<String> fields, {AppLocalizations? l10n}) {
     final labels = fields
         .where((field) => !_isInternalField(field))
-        .map(_fieldLabel)
+        .map((field) => l10n?.auditFieldLabel(field) ?? _fieldLabel(field))
         .where((label) => label.isNotEmpty)
         .toSet()
         .toList();
     if (labels.isEmpty) return '';
     if (labels.length == 1) return labels.first;
-    if (labels.length == 2) return '${labels[0]} and ${labels[1]}';
-    return '${labels.take(labels.length - 1).join(', ')}, and ${labels.last}';
+    final andText = l10n?.t('audit.and') ?? 'and';
+    if (labels.length == 2) return '${labels[0]} $andText ${labels[1]}';
+    return '${labels.take(labels.length - 1).join(', ')}, $andText ${labels.last}';
   }
 
   bool _isInternalField(String field) {
@@ -281,16 +553,20 @@ class AuditLogModel extends Equatable {
         : normalizedAmount;
   }
 
-  String _fallbackSummary() {
+  String _fallbackSummary({AppLocalizations? l10n}) {
     if (metadata.isEmpty) return actionLabel;
     final preview = metadata.entries
         .where((entry) => !_isInternalField(entry.key))
         .take(3)
         .map((entry) {
-          return '${_fieldLabel(entry.key)}: ${entry.value}';
+          final label =
+              l10n?.auditFieldLabel(entry.key) ?? _fieldLabel(entry.key);
+          return '$label: ${entry.value}';
         })
         .join(' | ');
-    return preview.isNotEmpty ? preview : actionLabel;
+    return preview.isNotEmpty
+        ? preview
+        : (l10n?.auditActionLabel(action) ?? actionLabel);
   }
 
   @override

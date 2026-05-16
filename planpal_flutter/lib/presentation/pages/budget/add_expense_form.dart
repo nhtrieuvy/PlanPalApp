@@ -173,6 +173,7 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
 
   Widget _buildSharingSection(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
     final selectedCount = _selectedParticipantIds.length;
     final equalPreview = selectedCount == 0 ? 0 : amount / selectedCount;
@@ -187,7 +188,7 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Expense sharing',
+            l10n.t('budget.expense_sharing'),
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
             ),
@@ -195,9 +196,9 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             initialValue: _paidByUserId,
-            decoration: const InputDecoration(
-              labelText: 'Paid by',
-              prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+            decoration: InputDecoration(
+              labelText: l10n.t('budget.paid_by'),
+              prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
             ),
             items: widget.members
                 .map(
@@ -211,10 +212,19 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
           ),
           const SizedBox(height: 12),
           SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'equal', label: Text('Equal')),
-              ButtonSegment(value: 'percentage', label: Text('%')),
-              ButtonSegment(value: 'exact', label: Text('Exact')),
+            segments: [
+              ButtonSegment(
+                value: 'equal',
+                label: Text(l10n.t('budget.split_equal')),
+              ),
+              ButtonSegment(
+                value: 'percentage',
+                label: Text(l10n.t('budget.split_percentage')),
+              ),
+              ButtonSegment(
+                value: 'exact',
+                label: Text(l10n.t('budget.split_exact')),
+              ),
             ],
             selected: {_splitStrategy},
             onSelectionChanged: (values) {
@@ -255,8 +265,8 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
                         ),
                         decoration: InputDecoration(
                           labelText: _splitStrategy == 'percentage'
-                              ? 'Percent'
-                              : 'Amount',
+                              ? l10n.t('budget.percent')
+                              : l10n.t('budget.amount'),
                         ),
                         validator: (_) => _validateSplitInputs(),
                       ),
@@ -267,7 +277,7 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
           }),
           if (selectedCount == 0)
             Text(
-              'Select at least one participant.',
+              l10n.t('budget.validation_participant_required'),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.error,
               ),
@@ -332,10 +342,10 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
   String? _validateSplitInputs() {
     if (widget.members.isEmpty) return null;
     if (_selectedParticipantIds.isEmpty) {
-      return 'Select at least one participant.';
+      return context.l10n.t('budget.validation_participant_required');
     }
     if (_paidByUserId == null || _paidByUserId!.isEmpty) {
-      return 'Select who paid this expense.';
+      return context.l10n.t('budget.validation_payer_required');
     }
     if (_splitStrategy == 'equal') return null;
 
@@ -345,17 +355,17 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
       final value = double.tryParse(raw);
       if (value == null || value < 0) {
         return _splitStrategy == 'percentage'
-            ? 'Enter a valid percentage for each participant.'
-            : 'Enter a valid amount for each participant.';
+            ? context.l10n.t('budget.validation_percentage_each')
+            : context.l10n.t('budget.validation_amount_each');
       }
       total += value;
     }
     if (_splitStrategy == 'percentage' && (total - 100).abs() > 0.01) {
-      return 'Percentages must add up to 100%.';
+      return context.l10n.t('budget.validation_percentage_total');
     }
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
     if (_splitStrategy == 'exact' && (total - amount).abs() > 0.01) {
-      return 'Exact split amounts must add up to the expense amount.';
+      return context.l10n.t('budget.validation_exact_total');
     }
     return null;
   }

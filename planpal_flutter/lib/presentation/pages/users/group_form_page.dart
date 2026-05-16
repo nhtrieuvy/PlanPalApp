@@ -30,6 +30,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
   bool _submitting = false;
   File? _avatarFile;
   File? _coverFile;
+  String _visibility = 'private';
   List<UserSummary> _availableFriends = [];
   final Set<UserSummary> _selectedMembers = {};
   bool _loadingFriends = false;
@@ -46,6 +47,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
     _descCtrl = TextEditingController(
       text: widget.initial?['description']?.toString() ?? '',
     );
+    _visibility = widget.initial?['visibility']?.toString() ?? 'private';
 
     if (widget.initial == null) {
       _loadFriends();
@@ -94,6 +96,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
         final request = CreateGroupRequest(
           name: _nameCtrl.text.trim(),
           description: _descCtrl.text.trim(),
+          visibility: _visibility,
           initialMembers: _selectedMembers.map((member) => member.id).toList(),
         );
         result = await _repo.createGroup(
@@ -109,6 +112,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
             'id': result.id,
             'name': result.name,
             'description': result.description,
+            'visibility': result.visibility,
             'avatar_thumb': result.avatarUrl,
             'cover_image_url': result.coverImageUrl,
             'member_count': result.memberCount,
@@ -118,6 +122,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
         final request = UpdateGroupRequest(
           name: _nameCtrl.text.trim(),
           description: _descCtrl.text.trim(),
+          visibility: _visibility,
         );
         result = await _repo.updateGroup(
           widget.initial!['id'] as String,
@@ -133,6 +138,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
             'id': result.id,
             'name': result.name,
             'description': result.description,
+            'visibility': result.visibility,
             'avatar_thumb': result.avatarUrl,
             'cover_image_url': result.coverImageUrl,
             'member_count': result.memberCount,
@@ -182,7 +188,10 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
             children: [
               Text(
                 l10n.t('group_form.avatar_title'),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
               Center(child: _buildAvatarPicker(isEdit)),
@@ -218,6 +227,8 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
                 ),
                 maxLines: 3,
               ),
+              const SizedBox(height: 16),
+              _buildVisibilitySelector(),
               const SizedBox(height: 16),
               if (!isEdit) ...[
                 _buildMemberSelection(),
@@ -275,38 +286,28 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
                 ),
               )
             : (isEdit && widget.initial != null)
-                  ? (() {
-                      final url =
-                          (widget.initial!['avatar_url'] ??
-                                  widget.initial!['avatar_thumb'])
-                              ?.toString();
-                      if (url != null && url.isNotEmpty) {
-                        return ClipOval(
-                          child: CachedNetworkImage(
-                            imageUrl: url,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => const Icon(
-                              Icons.group,
-                              size: 40,
-                              color: Colors.grey,
-                            ),
-                            errorWidget: (context, url, error) => const Icon(
-                              Icons.group,
-                              size: 40,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        );
-                      }
-                      return const Icon(
-                        Icons.group,
-                        size: 40,
-                        color: Colors.grey,
-                      );
-                    })()
-                  : const Icon(Icons.group, size: 40, color: Colors.grey),
+            ? (() {
+                final url =
+                    (widget.initial!['avatar_url'] ??
+                            widget.initial!['avatar_thumb'])
+                        ?.toString();
+                if (url != null && url.isNotEmpty) {
+                  return ClipOval(
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          const Icon(Icons.group, size: 40, color: Colors.grey),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.group, size: 40, color: Colors.grey),
+                    ),
+                  );
+                }
+                return const Icon(Icons.group, size: 40, color: Colors.grey);
+              })()
+            : const Icon(Icons.group, size: 40, color: Colors.grey),
       ),
     );
   }
@@ -341,45 +342,24 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
                 child: Image.file(_coverFile!, fit: BoxFit.cover),
               )
             : (widget.initial?['cover_image_url'] != null &&
-                    widget.initial!['cover_image_url'].toString().isNotEmpty)
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: CachedNetworkImage(
-                      imageUrl: widget.initial!['cover_image_url'],
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.landscape,
-                            size: 40,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            l10n.t('group_form.cover_loading'),
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                        ],
+                  widget.initial!['cover_image_url'].toString().isNotEmpty)
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                  imageUrl: widget.initial!['cover_image_url'],
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.landscape, size: 40, color: Colors.grey),
+                      const SizedBox(height: 8),
+                      Text(
+                        l10n.t('group_form.cover_loading'),
+                        style: const TextStyle(color: Colors.grey),
                       ),
-                      errorWidget: (context, url, error) => Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.landscape,
-                            size: 40,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            l10n.t('group_form.cover_pick'),
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : Column(
+                    ],
+                  ),
+                  errorWidget: (context, url, error) => Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.landscape, size: 40, color: Colors.grey),
@@ -390,6 +370,70 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
                       ),
                     ],
                   ),
+                ),
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.landscape, size: 40, color: Colors.grey),
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.t('group_form.cover_pick'),
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildVisibilitySelector() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.t('group_form.access_title'),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: [
+              ButtonSegment(
+                value: 'private',
+                icon: const Icon(Icons.lock_outline),
+                label: Text(l10n.t('plan.private')),
+              ),
+              ButtonSegment(
+                value: 'public',
+                icon: const Icon(Icons.public),
+                label: Text(l10n.t('plan.public')),
+              ),
+            ],
+            selected: {_visibility},
+            onSelectionChanged: (value) {
+              setState(() => _visibility = value.first);
+            },
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _visibility == 'public'
+                ? l10n.t('group_form.public_join_description')
+                : l10n.t('group_form.private_join_description'),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

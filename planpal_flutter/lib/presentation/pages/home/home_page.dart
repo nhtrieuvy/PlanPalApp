@@ -13,6 +13,7 @@ import 'package:planpal_flutter/presentation/pages/friends/friend_search_page.da
 import 'package:planpal_flutter/presentation/pages/location/current_location_map_page.dart';
 import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
+import 'package:planpal_flutter/presentation/pages/users/group_invite_code_join_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 import 'package:planpal_flutter/presentation/widgets/common/refreshable_page_wrapper.dart';
@@ -492,7 +493,13 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             const SizedBox(width: 12),
             Expanded(
               child: GestureDetector(
-                onTap: () => Navigator.of(context).pushNamed('/group'),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const GroupInviteCodeJoinPage(),
+                    ),
+                  );
+                },
                 child: _buildQuickActionCard(
                   color: AppColors.secondary,
                   icon: Icons.group_add,

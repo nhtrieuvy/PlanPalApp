@@ -49,7 +49,6 @@ password: 12345678
 
 ## NOTE: The app is NOT available from 09:00 PM to 07:00 AM. ⏲️
 
-
 ## Quick Start
 
 ### Backend Local Setup

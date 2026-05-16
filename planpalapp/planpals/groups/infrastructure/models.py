@@ -75,6 +75,13 @@ class GroupQuerySet(models.QuerySet['Group']):
 
 
 class Group(BaseModel):
+    PUBLIC = 'public'
+    PRIVATE = 'private'
+
+    VISIBILITY_CHOICES = [
+        (PUBLIC, 'Public'),
+        (PRIVATE, 'Private'),
+    ]
 
     name = models.CharField(
         max_length=100,
@@ -84,6 +91,14 @@ class Group(BaseModel):
     description = models.TextField(
         blank=True,
         help_text="Group description"
+    )
+
+    visibility = models.CharField(
+        max_length=16,
+        choices=VISIBILITY_CHOICES,
+        default=PRIVATE,
+        db_index=True,
+        help_text="Controls whether invite links auto-join or require admin approval",
     )
     
     avatar = CloudinaryField(
@@ -140,6 +155,7 @@ class Group(BaseModel):
             *BaseModel.Meta.indexes,
             models.Index(fields=['admin', 'is_active']),
             models.Index(fields=['is_active', 'created_at']),
+            models.Index(fields=['visibility', 'is_active', 'created_at']),
         ]
 
     def __str__(self) -> str:
@@ -297,6 +313,10 @@ class Group(BaseModel):
     def get_recent_messages(self, limit: int = 50) -> QuerySet:
         return self.messages.active().select_related('sender').order_by('-created_at')
 
+    @property
+    def is_public(self) -> bool:
+        return self.visibility == self.PUBLIC
+
 
 class GroupMembershipQuerySet(models.QuerySet['GroupMembership']):
     def admins(self) -> 'GroupMembershipQuerySet':
@@ -392,3 +412,158 @@ class GroupMembership(BaseModel):
 
         self.clean()
         super().save(*args, **kwargs)
+
+
+class GroupInviteQuerySet(models.QuerySet['GroupInvite']):
+    def active(self) -> 'GroupInviteQuerySet':
+        return self.filter(is_active=True)
+
+    def for_group(self, group_id) -> 'GroupInviteQuerySet':
+        return self.filter(group_id=group_id)
+
+
+class GroupInvite(BaseModel):
+    group = models.ForeignKey(
+        Group,
+        on_delete=models.CASCADE,
+        related_name='invites',
+        help_text='Group this invite allows users to join',
+    )
+    token = models.CharField(
+        max_length=128,
+        unique=True,
+        db_index=True,
+        help_text='Cryptographically secure URL-safe invite token',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_group_invites',
+        help_text='Admin who generated this invite',
+    )
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Invite expiration time. Null means no explicit expiration.',
+    )
+    max_uses = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text='Maximum accepted joins. Null means unlimited.',
+    )
+    current_uses = models.PositiveIntegerField(
+        default=0,
+        help_text='Accepted join count for this invite.',
+    )
+
+    objects = GroupInviteQuerySet.as_manager()
+
+    class Meta:
+        app_label = 'planpals'
+        db_table = 'planpal_group_invites'
+        ordering = ['-created_at', '-id']
+        indexes = [
+            *BaseModel.Meta.indexes,
+            models.Index(fields=['group', 'is_active'], name='group_invite_group_active_idx'),
+            models.Index(fields=['expires_at'], name='group_invite_expires_idx'),
+            models.Index(fields=['created_by'], name='group_invite_creator_idx'),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=Q(max_uses__isnull=True) | Q(max_uses__gt=0),
+                name='group_invite_max_uses_positive',
+            ),
+            models.CheckConstraint(
+                check=Q(current_uses__gte=0),
+                name='group_invite_current_uses_non_negative',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f'Invite<{self.group_id}:{self.current_uses}/{self.max_uses or "unlimited"}>'
+
+    def clean(self) -> None:
+        super().clean()
+        if self.max_uses is not None and self.max_uses <= 0:
+            raise ValidationError('max_uses must be greater than zero')
+        if self.current_uses < 0:
+            raise ValidationError('current_uses cannot be negative')
+
+
+class GroupJoinRequestQuerySet(models.QuerySet['GroupJoinRequest']):
+    def pending(self) -> 'GroupJoinRequestQuerySet':
+        return self.filter(status=GroupJoinRequest.PENDING)
+
+    def for_group(self, group_id) -> 'GroupJoinRequestQuerySet':
+        return self.filter(group_id=group_id)
+
+
+class GroupJoinRequest(BaseModel):
+    PENDING = 'pending'
+    APPROVED = 'approved'
+    REJECTED = 'rejected'
+
+    STATUS_CHOICES = [
+        (PENDING, 'Pending'),
+        (APPROVED, 'Approved'),
+        (REJECTED, 'Rejected'),
+    ]
+
+    group = models.ForeignKey(
+        Group,
+        on_delete=models.CASCADE,
+        related_name='join_requests',
+        help_text='Group the user requested to join',
+    )
+    invite = models.ForeignKey(
+        GroupInvite,
+        on_delete=models.SET_NULL,
+        related_name='join_requests',
+        null=True,
+        blank=True,
+        help_text='Invite link that produced the request',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='group_join_requests',
+        help_text='User requesting access to the group',
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=STATUS_CHOICES,
+        default=PENDING,
+        db_index=True,
+        help_text='Review state for this join request',
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='reviewed_group_join_requests',
+        null=True,
+        blank=True,
+        help_text='Admin who approved or rejected this request',
+    )
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When the request was reviewed',
+    )
+
+    objects = GroupJoinRequestQuerySet.as_manager()
+
+    class Meta:
+        app_label = 'planpals'
+        db_table = 'planpal_group_join_requests'
+        unique_together = ('group', 'user')
+        ordering = ['-created_at', '-id']
+        indexes = [
+            *BaseModel.Meta.indexes,
+            models.Index(fields=['group', 'status'], name='grp_join_req_group_stat_idx'),
+            models.Index(fields=['user', 'status'], name='group_join_req_user_status_idx'),
+            models.Index(fields=['invite', 'status'], name='grp_join_req_inv_stat_idx'),
+        ]
+
+    def __str__(self) -> str:
+        return f'JoinRequest<{self.group_id}:{self.user_id}:{self.status}>'

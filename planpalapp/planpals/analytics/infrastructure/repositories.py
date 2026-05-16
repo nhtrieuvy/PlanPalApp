@@ -44,7 +44,12 @@ class DjangoAnalyticsRepository(AnalyticsRepository):
         expense_logs = audit_logs.filter(action=AuditAction.CREATE_EXPENSE.value)
         expenses_created = expense_logs.count()
         expense_total_amount = self._sum_expense_amount(expense_logs)
-        group_joins = audit_logs.filter(action=AuditAction.JOIN_GROUP.value).count()
+        group_joins = audit_logs.filter(
+            action__in=[
+                AuditAction.JOIN_GROUP.value,
+                AuditAction.GROUP_JOINED_VIA_INVITE.value,
+            ]
+        ).count()
         notifications_opened = self._sum_notification_opens(
             audit_logs.filter(action=AuditAction.NOTIFICATION_OPENED.value)
         )

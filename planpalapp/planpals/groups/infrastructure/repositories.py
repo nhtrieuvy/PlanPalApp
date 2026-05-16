@@ -5,10 +5,21 @@ import logging
 from typing import Optional, Any, List
 from uuid import UUID
 
-from django.db.models import Q
+from django.db.models import F, Q
+from django.utils import timezone
 
-from planpals.groups.domain.repositories import GroupRepository, GroupMembershipRepository
-from planpals.groups.infrastructure.models import Group, GroupMembership
+from planpals.groups.domain.repositories import (
+    GroupInviteRepository,
+    GroupJoinRequestRepository,
+    GroupMembershipRepository,
+    GroupRepository,
+)
+from planpals.groups.infrastructure.models import (
+    Group,
+    GroupInvite,
+    GroupJoinRequest,
+    GroupMembership,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +61,7 @@ class DjangoGroupRepository(GroupRepository):
         group = Group(
             name=command.name,
             description=command.description,
+            visibility=command.visibility,
             admin_id=command.admin_id,
             avatar=command.avatar,
             cover_image=command.cover_image,
@@ -176,3 +188,141 @@ class DjangoGroupMembershipRepository(GroupMembershipRepository):
             )
         except GroupMembership.DoesNotExist:
             return None
+
+
+class DjangoGroupInviteRepository(GroupInviteRepository):
+    """Django ORM implementation for secure group invite codes."""
+
+    def create_invite(
+        self,
+        *,
+        group_id: UUID,
+        token: str,
+        created_by_user_id: UUID,
+        expires_at,
+        max_uses: int | None,
+    ) -> GroupInvite:
+        invite = GroupInvite(
+            group_id=group_id,
+            token=token,
+            created_by_id=created_by_user_id,
+            expires_at=expires_at,
+            max_uses=max_uses,
+        )
+        invite.full_clean()
+        invite.save()
+        return invite
+
+    def token_exists(self, token: str) -> bool:
+        return GroupInvite.objects.filter(token=token).exists()
+
+    def find_by_token(self, token: str, *, for_update: bool = False) -> Optional[GroupInvite]:
+        queryset = GroupInvite.objects.select_related('group', 'created_by')
+        if for_update:
+            queryset = queryset.select_for_update()
+        return queryset.filter(token=token).first()
+
+    def find_by_id(self, invite_id: UUID) -> Optional[GroupInvite]:
+        return (
+            GroupInvite.objects
+            .select_related('group', 'created_by')
+            .filter(id=invite_id)
+            .first()
+        )
+
+    def list_for_group(self, group_id: UUID):
+        return (
+            GroupInvite.objects
+            .filter(group_id=group_id)
+            .select_related('created_by', 'group')
+            .order_by('-created_at', '-id')
+        )
+
+    def increment_usage(self, invite_id: UUID) -> None:
+        GroupInvite.objects.filter(id=invite_id).update(
+            current_uses=F('current_uses') + 1,
+        )
+
+    def revoke_invite(self, invite_id: UUID) -> bool:
+        updated = GroupInvite.objects.filter(id=invite_id, is_active=True).update(
+            is_active=False,
+        )
+        return updated > 0
+
+    def validate_invite(self, invite: GroupInvite, *, now=None) -> tuple[bool, str | None]:
+        now = now or timezone.now()
+        if not invite.is_active:
+            return False, 'revoked'
+        if invite.expires_at and invite.expires_at <= now:
+            return False, 'expired'
+        if invite.max_uses is not None and invite.current_uses >= invite.max_uses:
+            return False, 'usage_limit'
+        return True, None
+
+
+class DjangoGroupJoinRequestRepository(GroupJoinRequestRepository):
+    """Django ORM implementation for private-group join approval requests."""
+
+    def create_or_refresh_request(
+        self,
+        *,
+        group_id: UUID,
+        user_id: UUID,
+        invite_id: UUID | None,
+    ) -> GroupJoinRequest:
+        request, _created = GroupJoinRequest.objects.update_or_create(
+            group_id=group_id,
+            user_id=user_id,
+            defaults={
+                'invite_id': invite_id,
+                'status': GroupJoinRequest.PENDING,
+                'reviewed_by_id': None,
+                'reviewed_at': None,
+                'is_active': True,
+            },
+        )
+        return request
+
+    def find_by_id(
+        self,
+        request_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> Optional[GroupJoinRequest]:
+        queryset = GroupJoinRequest.objects.select_related(
+            'group',
+            'invite',
+            'user',
+            'reviewed_by',
+        )
+        if for_update:
+            queryset = queryset.select_for_update()
+        return queryset.filter(id=request_id).first()
+
+    def list_for_group(self, group_id: UUID, *, status: str | None = None):
+        queryset = (
+            GroupJoinRequest.objects
+            .filter(group_id=group_id)
+            .select_related('user', 'invite', 'reviewed_by')
+            .order_by('-created_at', '-id')
+        )
+        if status:
+            queryset = queryset.filter(status=status)
+        return queryset
+
+    def set_status(
+        self,
+        request_id: UUID,
+        *,
+        status: str,
+        reviewed_by_user_id: UUID,
+        reviewed_at,
+    ) -> Optional[GroupJoinRequest]:
+        updated = GroupJoinRequest.objects.filter(id=request_id).update(
+            status=status,
+            reviewed_by_id=reviewed_by_user_id,
+            reviewed_at=reviewed_at,
+        )
+        if not updated:
+            return None
+        return self.find_by_id(request_id)

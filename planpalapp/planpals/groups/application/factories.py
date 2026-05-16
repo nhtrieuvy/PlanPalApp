@@ -5,6 +5,8 @@ from planpals.audit.application.factories import get_audit_log_service
 from planpals.shared.infrastructure import ChannelsDomainEventPublisher
 from planpals.groups.infrastructure.repositories import (
     DjangoGroupRepository,
+    DjangoGroupInviteRepository,
+    DjangoGroupJoinRequestRepository,
     DjangoGroupMembershipRepository,
 )
 from planpals.groups.application.handlers import (
@@ -18,6 +20,11 @@ from planpals.groups.application.handlers import (
     PromoteMemberHandler,
     DemoteMemberHandler,
     SetMemberRoleHandler,
+    CreateGroupInviteHandler,
+    JoinGroupViaInviteHandler,
+    RevokeInviteHandler,
+    ApproveGroupJoinRequestHandler,
+    RejectGroupJoinRequestHandler,
 )
 
 
@@ -27,6 +34,14 @@ def _group_repo():
 
 def _membership_repo():
     return DjangoGroupMembershipRepository()
+
+
+def _invite_repo():
+    return DjangoGroupInviteRepository()
+
+
+def _join_request_repo():
+    return DjangoGroupJoinRequestRepository()
 
 
 def _event_publisher():
@@ -152,6 +167,57 @@ def get_set_member_role_handler() -> SetMemberRoleHandler:
     )
 
 
+def get_create_group_invite_handler() -> CreateGroupInviteHandler:
+    return CreateGroupInviteHandler(
+        group_repo=_group_repo(),
+        membership_repo=_membership_repo(),
+        invite_repo=_invite_repo(),
+        audit_service=get_audit_log_service(),
+    )
+
+
+def get_join_group_via_invite_handler() -> JoinGroupViaInviteHandler:
+    return JoinGroupViaInviteHandler(
+        group_repo=_group_repo(),
+        membership_repo=_membership_repo(),
+        invite_repo=_invite_repo(),
+        join_request_repo=_join_request_repo(),
+        event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
+        group_cache_invalidator=_group_cache_invalidator(),
+    )
+
+
+def get_revoke_invite_handler() -> RevokeInviteHandler:
+    return RevokeInviteHandler(
+        group_repo=_group_repo(),
+        membership_repo=_membership_repo(),
+        invite_repo=_invite_repo(),
+        audit_service=get_audit_log_service(),
+    )
+
+
+def get_approve_group_join_request_handler() -> ApproveGroupJoinRequestHandler:
+    return ApproveGroupJoinRequestHandler(
+        group_repo=_group_repo(),
+        membership_repo=_membership_repo(),
+        invite_repo=_invite_repo(),
+        join_request_repo=_join_request_repo(),
+        event_publisher=_event_publisher(),
+        audit_service=get_audit_log_service(),
+        group_cache_invalidator=_group_cache_invalidator(),
+    )
+
+
+def get_reject_group_join_request_handler() -> RejectGroupJoinRequestHandler:
+    return RejectGroupJoinRequestHandler(
+        group_repo=_group_repo(),
+        membership_repo=_membership_repo(),
+        join_request_repo=_join_request_repo(),
+        audit_service=get_audit_log_service(),
+    )
+
+
 # --- Repo factories for service layer ---
 
 def get_group_repo():
@@ -160,6 +226,14 @@ def get_group_repo():
 
 def get_membership_repo():
     return DjangoGroupMembershipRepository()
+
+
+def get_invite_repo():
+    return DjangoGroupInviteRepository()
+
+
+def get_join_request_repo():
+    return DjangoGroupJoinRequestRepository()
 
 
 def get_user_repo():

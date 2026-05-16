@@ -114,7 +114,10 @@ def process_audit_log_notification_task(self, audit_log_id: str):
     notification_type: str | None = None
     data: dict = {'actor_name': actor_name}
 
-    if audit_log.action == AuditAction.JOIN_GROUP.value:
+    if audit_log.action in {
+        AuditAction.JOIN_GROUP.value,
+        AuditAction.GROUP_JOINED_VIA_INVITE.value,
+    }:
         recipients = list(
             GroupMembership.objects.filter(
                 group_id=audit_log.resource_id,
@@ -129,8 +132,87 @@ def process_audit_log_notification_task(self, audit_log_id: str):
                 'group_id': str(audit_log.resource_id),
                 'group_name': metadata.get('group_name') or _get_group_name(audit_log.resource_id),
                 'membership_event': 'join',
+                'invite_id': str(metadata.get('invite_id') or ''),
             }
         )
+
+    elif audit_log.action == AuditAction.GROUP_INVITE_CREATED.value:
+        recipients = list(
+            GroupMembership.objects.filter(
+                group_id=audit_log.resource_id,
+                role=GroupMembership.ADMIN,
+            )
+            .exclude(user_id=audit_log.user_id)
+            .values_list('user_id', flat=True)
+        )
+        notification_type = NotificationType.GROUP_INVITE.value
+        data.update(
+            {
+                'group_id': str(audit_log.resource_id),
+                'group_name': metadata.get('group_name') or _get_group_name(audit_log.resource_id),
+                'invite_event': 'created',
+                'expires_at': metadata.get('expires_at'),
+                'max_uses': metadata.get('max_uses'),
+            }
+        )
+
+    elif audit_log.action == AuditAction.GROUP_INVITE_REVOKED.value:
+        recipients = list(
+            GroupMembership.objects.filter(
+                group_id=audit_log.resource_id,
+                role=GroupMembership.ADMIN,
+            )
+            .exclude(user_id=audit_log.user_id)
+            .values_list('user_id', flat=True)
+        )
+        notification_type = NotificationType.GROUP_INVITE.value
+        data.update(
+            {
+                'group_id': str(audit_log.resource_id),
+                'group_name': metadata.get('group_name') or _get_group_name(audit_log.resource_id),
+                'invite_event': 'revoked',
+            }
+        )
+
+    elif audit_log.action == AuditAction.GROUP_JOIN_REQUESTED.value:
+        recipients = list(
+            GroupMembership.objects.filter(
+                group_id=audit_log.resource_id,
+                role=GroupMembership.ADMIN,
+            )
+            .exclude(user_id=audit_log.user_id)
+            .values_list('user_id', flat=True)
+        )
+        notification_type = NotificationType.GROUP_INVITE.value
+        data.update(
+            {
+                'group_id': str(audit_log.resource_id),
+                'group_name': metadata.get('group_name') or _get_group_name(audit_log.resource_id),
+                'invite_event': 'join_request',
+                'join_request_id': str(metadata.get('join_request_id') or ''),
+            }
+        )
+
+    elif audit_log.action in {
+        AuditAction.GROUP_JOIN_REQUEST_APPROVED.value,
+        AuditAction.GROUP_JOIN_REQUEST_REJECTED.value,
+    }:
+        target_user_id = metadata.get('target_user_id')
+        if target_user_id:
+            recipients = [str(target_user_id)]
+            notification_type = NotificationType.GROUP_INVITE.value
+            data.update(
+                {
+                    'group_id': str(audit_log.resource_id),
+                    'group_name': metadata.get('group_name') or _get_group_name(audit_log.resource_id),
+                    'invite_event': (
+                        'join_request_approved'
+                        if audit_log.action == AuditAction.GROUP_JOIN_REQUEST_APPROVED.value
+                        else 'join_request_rejected'
+                    ),
+                    'join_request_id': str(metadata.get('join_request_id') or ''),
+                }
+            )
 
     elif audit_log.action == AuditAction.LEAVE_GROUP.value:
         recipients = list(
