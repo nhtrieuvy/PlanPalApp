@@ -6,6 +6,7 @@ import 'package:getwidget/getwidget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/presentation/pages/auth/email_verification_page.dart';
 
@@ -105,14 +106,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n.t('auth.register_failed', params: {'error': '$e'}),
-          ),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      ErrorDisplayService.handleError(context, e);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
