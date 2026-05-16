@@ -1,9 +1,11 @@
 import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/auth/auth_session.dart';
-import '../services/apis.dart';
+
 import '../dtos/user_model.dart';
 import '../services/api_error.dart';
+import '../services/apis.dart';
 import '../utils/server_datetime.dart';
 
 class UserRepository {
@@ -41,7 +43,7 @@ class UserRepository {
     File? avatar,
   }) async {
     try {
-      FormData formData = FormData.fromMap({
+      final formData = FormData.fromMap({
         if (firstName != null) 'first_name': firstName,
         if (lastName != null) 'last_name': lastName,
         if (email != null) 'email': email,
@@ -60,7 +62,7 @@ class UserRepository {
         final updatedUser = UserModel.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
-        auth.setUser(updatedUser); // Update cached user in auth provider
+        auth.setUser(updatedUser);
         return updatedUser;
       }
       return _throwApiError(res);
@@ -104,7 +106,6 @@ class UserRepository {
     }
   }
 
-  // Register remains public (no auth required)
   Future<void> register({
     required String username,
     required String email,
@@ -116,7 +117,7 @@ class UserRepository {
     File? avatar,
   }) async {
     final apiClient = ApiClient();
-    FormData formData = FormData.fromMap({
+    final formData = FormData.fromMap({
       'username': username,
       'email': email,
       'password': password,
@@ -131,39 +132,34 @@ class UserRepository {
           filename: 'avatar.jpg',
         ),
     });
-    final response = await apiClient.dio.post(
-      Endpoints.register,
-      data: formData,
-    );
-    if (response.statusCode == 201) return;
 
-    if (response.data is Map<String, dynamic>) {
-      final errorData = response.data as Map<String, dynamic>;
-      String errorMessage = 'Đăng ký thất bại';
-      if (errorData.containsKey('username')) {
-        errorMessage = errorData['username'][0];
-      } else if (errorData.containsKey('email')) {
-        errorMessage = errorData['email'][0];
-      } else if (errorData.containsKey('password')) {
-        errorMessage = errorData['password'][0];
-      } else if (errorData.containsKey('non_field_errors')) {
-        errorMessage = errorData['non_field_errors'][0];
-      }
-      throw Exception(errorMessage);
+    try {
+      final response = await apiClient.dio.post(
+        Endpoints.register,
+        data: formData,
+      );
+      if (response.statusCode == 201) return;
+      _throwApiError(response);
+    } on DioException catch (e) {
+      if (e.response != null) _throwApiError(e.response!);
+      rethrow;
     }
-
-    throw Exception('Đăng ký thất bại');
   }
 
   Future<void> resendEmailVerification({required String email}) async {
     final apiClient = ApiClient();
-    final response = await apiClient.dio.post(
-      Endpoints.resendEmailVerification,
-      data: {'email': email},
-    );
+    try {
+      final response = await apiClient.dio.post(
+        Endpoints.resendEmailVerification,
+        data: {'email': email},
+      );
 
-    if (response.statusCode == 200) return;
-    _throwApiError(response);
+      if (response.statusCode == 200) return;
+      _throwApiError(response);
+    } on DioException catch (e) {
+      if (e.response != null) _throwApiError(e.response!);
+      rethrow;
+    }
   }
 
   Future<void> verifyEmailCode({
@@ -171,12 +167,17 @@ class UserRepository {
     required String code,
   }) async {
     final apiClient = ApiClient();
-    final response = await apiClient.dio.post(
-      Endpoints.verifyEmail,
-      data: {'email': email.trim(), 'code': code.trim()},
-    );
+    try {
+      final response = await apiClient.dio.post(
+        Endpoints.verifyEmail,
+        data: {'email': email.trim(), 'code': code.trim()},
+      );
 
-    if (response.statusCode == 200) return;
-    _throwApiError(response);
+      if (response.statusCode == 200) return;
+      _throwApiError(response);
+    } on DioException catch (e) {
+      if (e.response != null) _throwApiError(e.response!);
+      rethrow;
+    }
   }
 }

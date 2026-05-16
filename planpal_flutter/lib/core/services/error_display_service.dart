@@ -1,15 +1,22 @@
-import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 
-/// Service to display user-friendly error messages
+import '../localization/app_locale.dart';
+import '../localization/app_localizations.dart';
+import 'api_error.dart';
+
+/// Centralized service for production-safe, user-friendly error messages.
+///
+/// UI code should pass raw exceptions here instead of interpolating `$error`.
+/// Technical details stay in logs; users receive localized, actionable text.
 class ErrorDisplayService {
-  /// Show error dialog with user-friendly message
   static void showErrorDialog(
     BuildContext context, {
     required String title,
     required String message,
     VoidCallback? onRetry,
   }) {
+    final l10n = context.l10n;
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -37,12 +44,12 @@ class ErrorDisplayService {
                   Navigator.of(context).pop();
                   onRetry();
                 },
-                child: const Text('Thử lại'),
+                child: Text(l10n.t('common.retry')),
               ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
-              child: const Text('Đóng'),
+              child: Text(l10n.t('common.close')),
             ),
           ],
         );
@@ -50,7 +57,6 @@ class ErrorDisplayService {
     );
   }
 
-  /// Show error snackbar with user-friendly message
   static void showErrorSnackbar(
     BuildContext context,
     String message, {
@@ -76,7 +82,6 @@ class ErrorDisplayService {
     );
   }
 
-  /// Show warning snackbar
   static void showWarningSnackbar(
     BuildContext context,
     String message, {
@@ -100,7 +105,6 @@ class ErrorDisplayService {
     );
   }
 
-  /// Show success snackbar
   static void showSuccessSnackbar(
     BuildContext context,
     String message, {
@@ -124,125 +128,75 @@ class ErrorDisplayService {
     );
   }
 
-  /// Parse error from API response and return user-friendly message
   static String parseApiError(dynamic error) {
-    if (error is DioException) {
-      final response = error.response;
-
-      // Handle network errors
-      if (error.type == DioExceptionType.connectionTimeout ||
-          error.type == DioExceptionType.receiveTimeout) {
-        return 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
-      }
-
-      if (error.type == DioExceptionType.connectionError) {
-        return 'Lỗi kết nối. Vui lòng kiểm tra kết nối mạng và thử lại.';
-      }
-
-      // Handle response errors
-      if (response != null && response.data != null) {
-        final data = response.data;
-
-        // Check for our custom error format
-        if (data is Map<String, dynamic>) {
-          // Backend custom error format
-          if (data.containsKey('error')) {
-            return data['error'] as String;
-          }
-
-          // DRF validation errors
-          if (data.containsKey('detail')) {
-            return data['detail'] as String;
-          }
-
-          // Field-specific errors
-          final errorMessages = <String>[];
-          for (final entry in data.entries) {
-            if (entry.value is List) {
-              for (final msg in entry.value as List) {
-                errorMessages.add('${_fieldNameToVietnamese(entry.key)}: $msg');
-              }
-            } else if (entry.value is String) {
-              errorMessages.add(
-                '${_fieldNameToVietnamese(entry.key)}: ${entry.value}',
-              );
-            }
-          }
-
-          if (errorMessages.isNotEmpty) {
-            return errorMessages.join('\n');
-          }
-        }
-
-        // Handle status codes
-        switch (response.statusCode) {
-          case 400:
-            return 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.';
-          case 401:
-            return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
-          case 403:
-            return 'Bạn không có quyền thực hiện hành động này.';
-          case 404:
-            return 'Không tìm thấy dữ liệu yêu cầu.';
-          case 409:
-            return 'Dữ liệu bị xung đột. Vui lòng thử lại.';
-          case 429:
-            return 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng đợi một chút.';
-          case 500:
-          case 502:
-          case 503:
-            return 'Lỗi máy chủ. Vui lòng thử lại sau.';
-        }
-      }
+    if (error is ApiException) {
+      return error.message;
     }
 
-    // Generic error message
-    return error.toString().contains('Exception: ')
-        ? error.toString().replaceFirst('Exception: ', '')
-        : 'Đã xảy ra lỗi không mong đợi. Vui lòng thử lại.';
-  }
-
-  static String getUserFriendlyMessage(dynamic error) {
-    return parseApiError(error);
-  }
-
-  /// Get error title based on error type
-  static String getErrorTitle(dynamic error) {
     if (error is DioException) {
       final response = error.response;
-
-      if (error.type == DioExceptionType.connectionTimeout ||
-          error.type == DioExceptionType.receiveTimeout ||
-          error.type == DioExceptionType.connectionError) {
-        return 'Lỗi Kết Nối';
-      }
-
       if (response != null) {
-        switch (response.statusCode) {
-          case 400:
-            return 'Dữ Liệu Không Hợp Lệ';
-          case 401:
-            return 'Phiên Hết Hạn';
-          case 403:
-            return 'Không Có Quyền';
-          case 404:
-            return 'Không Tìm Thấy';
-          case 409:
-            return 'Xung Đột Dữ Liệu';
-          case 429:
-            return 'Quá Nhiều Yêu Cầu';
-          case 500:
-          case 502:
-          case 503:
-            return 'Lỗi Máy Chủ';
-        }
+        return buildApiException(response).message;
       }
+      return _networkMessage(error);
     }
 
-    return 'Có Lỗi Xảy Ra';
+    if (error is FormatException) {
+      return _localized(
+        en: 'The server returned unexpected data. Please try again.',
+        vi: 'Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại.',
+      );
+    }
+
+    final raw = _cleanPlainException(error);
+    if (raw != null) return raw;
+
+    return _localized(
+      en: 'Something went wrong. Please try again.',
+      vi: 'Đã xảy ra lỗi không mong đợi. Vui lòng thử lại.',
+    );
   }
 
-  /// Handle error and show appropriate UI feedback
+  static String getUserFriendlyMessage(dynamic error) => parseApiError(error);
+
+  static String getErrorTitle(dynamic error) {
+    final statusCode = error is ApiException
+        ? error.statusCode
+        : error is DioException
+        ? error.response?.statusCode
+        : null;
+
+    if (error is DioException && error.response == null) {
+      return _localized(en: 'Connection Error', vi: 'Lỗi kết nối');
+    }
+
+    switch (statusCode) {
+      case 400:
+        return _localized(
+          en: 'Invalid Information',
+          vi: 'Thông tin chưa hợp lệ',
+        );
+      case 401:
+        return _localized(en: 'Session Expired', vi: 'Phiên đã hết hạn');
+      case 403:
+        return _localized(en: 'Permission Denied', vi: 'Không có quyền');
+      case 404:
+        return _localized(en: 'Not Found', vi: 'Không tìm thấy');
+      case 409:
+        return _localized(en: 'Data Conflict', vi: 'Xung đột dữ liệu');
+      case 413:
+        return _localized(en: 'File Too Large', vi: 'Tệp quá lớn');
+      case 429:
+        return _localized(en: 'Too Many Requests', vi: 'Quá nhiều yêu cầu');
+      case 500:
+      case 502:
+      case 503:
+        return _localized(en: 'Server Error', vi: 'Lỗi máy chủ');
+      default:
+        return _localized(en: 'Something Went Wrong', vi: 'Có lỗi xảy ra');
+    }
+  }
+
   static void handleError(
     BuildContext context,
     dynamic error, {
@@ -265,7 +219,7 @@ class ErrorDisplayService {
         message,
         action: onRetry != null
             ? SnackBarAction(
-                label: 'Thử lại',
+                label: context.l10n.t('common.retry'),
                 textColor: Colors.white,
                 onPressed: onRetry,
               )
@@ -274,27 +228,108 @@ class ErrorDisplayService {
     }
   }
 
-  /// Convert English field names to Vietnamese
-  static String _fieldNameToVietnamese(String field) {
-    const fieldMap = {
-      'title': 'Tiêu đề',
-      'description': 'Mô tả',
-      'start_date': 'Ngày bắt đầu',
-      'end_date': 'Ngày kết thúc',
-      'start_time': 'Thời gian bắt đầu',
-      'end_time': 'Thời gian kết thúc',
-      'name': 'Tên',
-      'email': 'Email',
-      'password': 'Mật khẩu',
-      'username': 'Tên đăng nhập',
-      'phone_number': 'Số điện thoại',
-      'location_name': 'Tên địa điểm',
-      'location_address': 'Địa chỉ',
-      'estimated_cost': 'Chi phí dự kiến',
-      'activity_type': 'Loại hoạt động',
-      'non_field_errors': 'Lỗi chung',
-    };
+  static String _localized({required String en, required String vi}) {
+    return AppLocaleStore.currentLanguageCode == 'en' ? en : vi;
+  }
 
-    return fieldMap[field] ?? field;
+  static String _networkMessage(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return _localized(
+          en: 'Connection timed out. Please check your network and try again.',
+          vi: 'Kết nối quá hạn. Vui lòng kiểm tra mạng và thử lại.',
+        );
+      case DioExceptionType.connectionError:
+      case DioExceptionType.unknown:
+        return _localized(
+          en: 'Cannot connect to the server. Please check your network.',
+          vi: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng.',
+        );
+      case DioExceptionType.cancel:
+        return _localized(
+          en: 'Request was cancelled.',
+          vi: 'Yêu cầu đã bị hủy.',
+        );
+      case DioExceptionType.badCertificate:
+        return _localized(
+          en: 'Secure connection failed. Please try again later.',
+          vi: 'Kết nối bảo mật thất bại. Vui lòng thử lại sau.',
+        );
+      case DioExceptionType.badResponse:
+        return _localized(
+          en: 'Request failed. Please try again.',
+          vi: 'Yêu cầu thất bại. Vui lòng thử lại.',
+        );
+    }
+  }
+
+  static String? _cleanPlainException(dynamic error) {
+    if (error == null) return null;
+    var text = error.toString().trim();
+    if (text.isEmpty) return null;
+
+    text = text
+        .replaceFirst(RegExp(r'^Exception:\s*'), '')
+        .replaceFirst(RegExp(r'^ApiException:\s*'), '')
+        .trim();
+
+    if (text.isEmpty) return null;
+    final normalized = text.toLowerCase();
+    if (_looksCorrupted(text)) {
+      if (normalized.contains('sai')) {
+        return _localized(
+          en: 'Incorrect username or password.',
+          vi: 'Sai tên đăng nhập hoặc mật khẩu.',
+        );
+      }
+      if (normalized.contains('email')) {
+        return _localized(
+          en: 'Your email is not verified. Please enter the verification code before signing in.',
+          vi: 'Email chưa được xác thực. Vui lòng nhập mã xác thực trước khi đăng nhập.',
+        );
+      }
+      if (normalized.contains('oauth') || normalized.contains('client')) {
+        return _localized(
+          en: 'The app login configuration is invalid.',
+          vi: 'Cấu hình đăng nhập của ứng dụng không hợp lệ.',
+        );
+      }
+      if (normalized.contains('kết') || normalized.contains('kh')) {
+        return _localized(
+          en: 'Cannot connect to the server. Please check your network.',
+          vi: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng.',
+        );
+      }
+      return null;
+    }
+    if (_looksTechnical(text)) return null;
+    return text;
+  }
+
+  static bool _looksCorrupted(String text) {
+    return text.contains('Ã') ||
+        text.contains('Ä') ||
+        text.contains('Â') ||
+        text.contains('áº') ||
+        text.contains('á»') ||
+        text.contains('Æ');
+  }
+
+  static bool _looksTechnical(String text) {
+    final lower = text.toLowerCase();
+    return lower.contains('dioexception') ||
+        lower.contains('socketexception') ||
+        lower.contains('httpexception') ||
+        lower.contains('status code') ||
+        lower.contains('bad response') ||
+        lower.contains('<!doctype html') ||
+        lower.contains('<html') ||
+        lower.contains('traceback') ||
+        lower.contains('null check operator') ||
+        lower.contains('typeerror') ||
+        lower.contains('os error') ||
+        lower.contains('errno');
   }
 }

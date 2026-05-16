@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:getwidget/getwidget.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class EmailVerificationPage extends ConsumerStatefulWidget {
@@ -48,12 +49,7 @@ class _EmailVerificationPageState extends ConsumerState<EmailVerificationPage> {
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.t('auth.verify_email_failed')),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      ErrorDisplayService.handleError(context, e);
     } finally {
       if (mounted) setState(() => _isVerifying = false);
     }
@@ -77,12 +73,7 @@ class _EmailVerificationPageState extends ConsumerState<EmailVerificationPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.t('auth.verify_email_resend_failed')),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      ErrorDisplayService.handleError(context, e);
     } finally {
       if (mounted) setState(() => _isResending = false);
     }
