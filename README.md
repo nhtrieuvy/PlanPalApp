@@ -46,7 +46,8 @@ password: 12345678
 
 > Demo accounts depend on the target deployment database. For local development, create users through Django Admin, fixtures, or the mobile registration flow.
 
----
+
+## NOTE: The app is NOT available from 09:00 PM to 07:00 AM. ⏲️
 
 ## Quick Start
 
