@@ -35,7 +35,7 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
-        authNotifierProvider.overrideWithValue(authProvider),
+        authNotifierProvider.overrideWith((ref) => authProvider),
       ],
       child: const PlanPalApp(),
     ),

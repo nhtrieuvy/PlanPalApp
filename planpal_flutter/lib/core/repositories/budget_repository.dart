@@ -55,6 +55,7 @@ class BudgetRepository {
     String currency = 'VND',
     String splitStrategy = 'equal',
     List<ExpenseParticipantInput> participants = const [],
+    List<ExpensePaymentInput> payments = const [],
   }) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(
@@ -72,6 +73,8 @@ class BudgetRepository {
               'participants': participants
                   .map((item) => item.toJson())
                   .toList(),
+            if (payments.isNotEmpty)
+              'payments': payments.map((item) => item.toJson()).toList(),
           },
         ),
       );

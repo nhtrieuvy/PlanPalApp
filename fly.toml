@@ -6,6 +6,8 @@ primary_region = "sin"
 [env]
   PORT = "8000"
   DJANGO_SETTINGS_MODULE = "planpalapp.settings"
+  ENABLE_API_DOCS = "true"
+  API_DOCS_REQUIRE_AUTH = "false"
 
 [http_service]
   internal_port = 8000
@@ -16,5 +18,5 @@ primary_region = "sin"
 
 [[vm]]
   cpu_kind = "shared"
-  cpus = 1
+  cpus = 2
   memory_mb = 512

@@ -45,6 +45,18 @@ from planpals.shared.presence import (
 )
 
 
+class ApiVersioningTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_versioned_api_prefix_is_the_only_public_rest_contract(self):
+        versioned_response = self.client.get('/api/v1/plans/')
+        legacy_response = self.client.get('/plans/')
+
+        self.assertNotEqual(versioned_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(legacy_response.status_code, status.HTTP_404_NOT_FOUND)
+
+
 @override_settings(
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
     DEFAULT_FROM_EMAIL='noreply@planpal.test',
@@ -1629,6 +1641,32 @@ class SystemRegressionTests(TestCase):
         self.friend_a.refresh_from_db()
         self.assertEqual(self.friend_a.last_seen, original_last_seen)
         self.assertEqual(self.friend_a.online_status, 'offline')
+
+    def test_profile_update_accepts_full_name_from_profile_form(self):
+        updated_user, success = DjangoUserRepository().update_profile(
+            self.friend_a.id,
+            {'full_name': 'Updated Person'},
+        )
+
+        self.assertTrue(success)
+        self.assertEqual(updated_user.first_name, 'Updated')
+        self.assertEqual(updated_user.last_name, 'Person')
+
+    def test_profile_read_returns_fresh_data_after_profile_update(self):
+        self.client.force_authenticate(self.friend_a)
+        initial_response = self.client.get('/api/v1/users/profile/')
+        self.assertEqual(initial_response.status_code, status.HTTP_200_OK)
+
+        update_response = self.client.patch(
+            '/api/v1/users/update_profile/',
+            {'full_name': 'Fresh Profile'},
+            format='json',
+        )
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+
+        refreshed_response = self.client.get('/api/v1/users/profile/')
+        self.assertEqual(refreshed_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(refreshed_response.data['full_name'], 'Fresh Profile')
 
     def test_request_data_too_big_is_translated_to_413_response(self):
         response = custom_exception_handler(RequestDataTooBig('too large'), {})

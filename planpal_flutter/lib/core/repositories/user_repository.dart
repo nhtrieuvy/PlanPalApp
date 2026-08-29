@@ -35,6 +35,7 @@ class UserRepository {
   }
 
   Future<UserModel> updateProfile({
+    String? fullName,
     String? firstName,
     String? lastName,
     String? email,
@@ -44,6 +45,7 @@ class UserRepository {
   }) async {
     try {
       final formData = FormData.fromMap({
+        if (fullName != null) 'full_name': fullName,
         if (firstName != null) 'first_name': firstName,
         if (lastName != null) 'last_name': lastName,
         if (email != null) 'email': email,

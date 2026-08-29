@@ -80,6 +80,7 @@ class Expense:
     created_at: datetime
     updated_at: datetime | None = None
     participants: tuple['ExpenseParticipant', ...] = ()
+    payments: tuple['ExpensePayment', ...] = ()
 
 
 @dataclass(frozen=True)
@@ -91,6 +92,17 @@ class ExpenseParticipant:
     owed_amount: Decimal
     settled_amount: Decimal
     balance: Decimal
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class ExpensePayment:
+    id: UUID
+    expense_id: UUID
+    user_id: UUID
+    user: ExpenseUser | None
+    amount: Decimal
     created_at: datetime
     updated_at: datetime | None = None
 

@@ -11,7 +11,7 @@ import '../dtos/user_model.dart';
 import '../repositories/user_repository.dart';
 
 // Central auth/session service used by repositories and Riverpod providers.
-class AuthProvider {
+class AuthProvider extends ChangeNotifier {
   static const String _kAccessTokenKey = 'access_token';
   static const String _kRefreshTokenKey = 'refresh_token';
   static const String _kCachedUserKey = 'cached_user';
@@ -100,11 +100,13 @@ class AuthProvider {
       await prefs.remove(_kCachedUserKey);
     } catch (_) {}
     await _clearTokens();
+    notifyListeners();
   }
 
   void setUser(UserModel userData) {
     if (_user == userData) return;
     _user = userData;
+    notifyListeners();
     // Persist cached user asynchronously (don't block callers).
     SharedPreferences.getInstance().then((prefs) {
       try {

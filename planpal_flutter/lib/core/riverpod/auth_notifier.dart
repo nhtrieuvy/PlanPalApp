@@ -12,12 +12,12 @@ import '../auth/auth_session.dart';
 /// ```dart
 /// ProviderScope(
 ///   overrides: [
-///     authNotifierProvider.overrideWithValue(authProvider),
+///     authNotifierProvider.overrideWith((ref) => authProvider),
 ///   ],
 ///   child: ...
 /// )
 /// ```
-final authNotifierProvider = Provider<AuthProvider>((ref) {
+final authNotifierProvider = ChangeNotifierProvider<AuthProvider>((ref) {
   throw UnimplementedError(
     'authNotifierProvider must be overridden with the pre-initialized AuthProvider',
   );

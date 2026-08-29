@@ -154,6 +154,48 @@ class ExpenseParticipant(models.Model):
         return super().save(*args, **kwargs)
 
 
+class ExpensePayment(models.Model):
+    """A concrete contribution towards an expense, independent of its split."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    expense = models.ForeignKey(
+        Expense,
+        on_delete=models.CASCADE,
+        related_name='payments',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='expense_payments',
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'planpals'
+        db_table = 'planpal_expense_payments'
+        ordering = ['expense_id', 'user_id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['expense', 'user'],
+                name='unique_expense_payment_user',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['expense', 'user'], name='expense_payment_user_idx'),
+            models.Index(fields=['user'], name='expense_payment_user_idx2'),
+        ]
+
+    def clean(self) -> None:
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError('amount must be greater than zero')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class Settlement(models.Model):
     STATUS_PENDING = 'pending'
     STATUS_COMPLETED = 'completed'

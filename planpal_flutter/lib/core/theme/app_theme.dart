@@ -25,6 +25,7 @@ class AppTheme {
         onSecondary: Colors.white,
         onSurface: AppColors.lightOnSurface,
       ),
+      scaffoldBackgroundColor: AppColors.lightBackground,
 
       // Typography
       textTheme: _buildTextTheme(Brightness.light),
@@ -118,6 +119,7 @@ class AppTheme {
         onSecondary: AppColors.darkBackground,
         onSurface: AppColors.darkOnSurface,
       ),
+      scaffoldBackgroundColor: AppColors.darkBackground,
 
       // Typography
       textTheme: _buildTextTheme(Brightness.dark),
@@ -344,9 +346,25 @@ class AppTheme {
     return InputDecorationTheme(
       filled: true,
       fillColor: fillColor,
+      floatingLabelBehavior: FloatingLabelBehavior.auto,
+      labelStyle: GoogleFonts.inter(
+        color: hintColor,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: brightness == Brightness.light
+            ? AppColors.lightSurfaceVariant
+            : AppColors.darkSurfaceVariant),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: brightness == Brightness.light
+              ? AppColors.lightSurfaceVariant
+              : AppColors.darkSurfaceVariant,
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

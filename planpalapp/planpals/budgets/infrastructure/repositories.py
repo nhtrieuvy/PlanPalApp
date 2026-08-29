@@ -27,10 +27,17 @@ from planpals.budgets.domain.entities import (
     BudgetTrendPoint,
     Expense as ExpenseEntity,
     ExpenseParticipant as ExpenseParticipantEntity,
+    ExpensePayment as ExpensePaymentEntity,
     ExpenseUser,
     Settlement as SettlementEntity,
 )
-from planpals.budgets.infrastructure.models import Budget, Expense, ExpenseParticipant, Settlement
+from planpals.budgets.infrastructure.models import (
+    Budget,
+    Expense,
+    ExpenseParticipant,
+    ExpensePayment,
+    Settlement,
+)
 
 
 class DjangoBudgetRepository(BudgetRepository):
@@ -95,10 +102,22 @@ class DjangoExpenseRepository(ExpenseRepository):
                 ],
                 batch_size=500,
             )
+        if data.payments:
+            ExpensePayment.objects.bulk_create(
+                [
+                    ExpensePayment(
+                        expense=row,
+                        user_id=payment.user_id,
+                        amount=payment.amount,
+                    )
+                    for payment in data.payments
+                ],
+                batch_size=500,
+            )
         row = (
             Expense.objects
             .select_related('user', 'paid_by_user')
-            .prefetch_related('participants__user')
+            .prefetch_related('participants__user', 'payments__user')
             .get(id=row.id)
         )
         return self._to_entity(row)
@@ -108,7 +127,7 @@ class DjangoExpenseRepository(ExpenseRepository):
             Expense.objects
             .filter(plan_id=plan_id)
             .select_related('user', 'paid_by_user')
-            .prefetch_related('participants__user')
+            .prefetch_related('participants__user', 'payments__user')
         )
         if filters.category:
             queryset = queryset.filter(category__iexact=filters.category)
@@ -150,27 +169,27 @@ class DjangoExpenseRepository(ExpenseRepository):
 
     def get_breakdown(self, plan_id: UUID) -> Sequence[BudgetBreakdownItem]:
         rows = (
-            Expense.objects.filter(plan_id=plan_id)
-            .values('paid_by_user_id', 'paid_by_user__username')
+            ExpensePayment.objects.filter(expense__plan_id=plan_id)
+            .values('user_id', 'user__username')
             .annotate(
                 amount=Coalesce(
-                    Sum('amount'),
+                Sum('amount'),
                     Value(Decimal('0.00')),
                     output_field=self.AMOUNT_FIELD,
                 ),
                 full_name=Concat(
-                    Coalesce(F('paid_by_user__first_name'), Value('')),
+                    Coalesce(F('user__first_name'), Value('')),
                     Value(' '),
-                    Coalesce(F('paid_by_user__last_name'), Value('')),
+                    Coalesce(F('user__last_name'), Value('')),
                 ),
             )
-            .order_by('-amount', 'paid_by_user__username')
+            .order_by('-amount', 'user__username')
         )
         return [
             BudgetBreakdownItem(
-                user_id=row['paid_by_user_id'],
-                username=row['paid_by_user__username'],
-                full_name=str(row['full_name']).strip() or row['paid_by_user__username'],
+                user_id=row['user_id'],
+                username=row['user__username'],
+                full_name=str(row['full_name']).strip() or row['user__username'],
                 amount=row['amount'],
             )
             for row in rows
@@ -209,7 +228,7 @@ class DjangoExpenseRepository(ExpenseRepository):
         row = (
             Expense.objects
             .select_related('user', 'paid_by_user', 'plan')
-            .prefetch_related('participants__user')
+            .prefetch_related('participants__user', 'payments__user')
             .filter(id=expense_id)
             .first()
         )
@@ -220,7 +239,7 @@ class DjangoExpenseRepository(ExpenseRepository):
             Expense.objects
             .filter(plan_id=plan_id)
             .select_related('user', 'paid_by_user')
-            .prefetch_related('participants__user')
+            .prefetch_related('participants__user', 'payments__user')
             .order_by('created_at', 'id')
         )
         return [self._to_entity(row) for row in rows]
@@ -238,6 +257,10 @@ class DjangoExpenseRepository(ExpenseRepository):
         participants = tuple(
             DjangoExpenseRepository._participant_to_entity(participant)
             for participant in getattr(row, 'participants', []).all()
+        )
+        payments = tuple(
+            DjangoExpenseRepository._payment_to_entity(payment)
+            for payment in getattr(row, 'payments', []).all()
         )
         return ExpenseEntity(
             id=row.id,
@@ -258,6 +281,7 @@ class DjangoExpenseRepository(ExpenseRepository):
             created_at=row.created_at,
             updated_at=row.updated_at,
             participants=participants,
+            payments=payments,
         )
 
     @staticmethod
@@ -271,6 +295,19 @@ class DjangoExpenseRepository(ExpenseRepository):
             owed_amount=row.owed_amount,
             settled_amount=row.settled_amount,
             balance=row.balance,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+    @staticmethod
+    def _payment_to_entity(row: ExpensePayment) -> ExpensePaymentEntity:
+        user = getattr(row, 'user', None)
+        return ExpensePaymentEntity(
+            id=row.id,
+            expense_id=row.expense_id,
+            user_id=row.user_id,
+            user=DjangoExpenseRepository._to_user_entity(user) if user is not None else None,
+            amount=row.amount,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )

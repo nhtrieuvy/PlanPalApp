@@ -97,7 +97,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authNotifierProvider.overrideWithValue(auth),
+          authNotifierProvider.overrideWith((ref) => auth),
           friendRepositoryProvider.overrideWithValue(repository),
         ],
         child: buildLocalizedTestApp(UserProfilePage(user: profileUser)),
@@ -132,7 +132,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            authNotifierProvider.overrideWithValue(auth),
+            authNotifierProvider.overrideWith((ref) => auth),
             friendRepositoryProvider.overrideWithValue(repository),
           ],
           child: buildLocalizedTestApp(UserProfilePage(user: profileUser)),

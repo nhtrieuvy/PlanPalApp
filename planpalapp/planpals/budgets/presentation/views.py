@@ -85,6 +85,7 @@ class PlanExpenseListCreateView(APIView):
             currency=serializer.validated_data.get('currency', 'VND'),
             split_strategy=serializer.validated_data.get('split_strategy', 'equal'),
             participants=serializer.validated_data.get('participants') or None,
+            payments=serializer.validated_data.get('payments') or None,
         )
         return Response(
             ExpenseCreateResponseSerializer.from_result(result),

@@ -169,6 +169,7 @@ class ExpenseModel extends Equatable {
   final String description;
   final String splitStrategy;
   final List<ExpenseParticipantModel> participants;
+  final List<ExpensePaymentModel> payments;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -185,6 +186,7 @@ class ExpenseModel extends Equatable {
     required this.description,
     required this.splitStrategy,
     required this.participants,
+    required this.payments,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -200,6 +202,7 @@ class ExpenseModel extends Equatable {
     final paidByUserJson = Map<String, dynamic>.from(rawPaidByUser);
     final rawParticipants =
         json['participants'] as List<dynamic>? ?? const <dynamic>[];
+    final rawPayments = json['payments'] as List<dynamic>? ?? const <dynamic>[];
     return ExpenseModel(
       id: json['id']?.toString() ?? '',
       planId: json['plan_id']?.toString() ?? '',
@@ -219,6 +222,14 @@ class ExpenseModel extends Equatable {
           .whereType<Map>()
           .map(
             (item) => ExpenseParticipantModel.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
+          )
+          .toList(),
+      payments: rawPayments
+          .whereType<Map>()
+          .map(
+            (item) => ExpensePaymentModel.fromJson(
               Map<String, dynamic>.from(item),
             ),
           )
@@ -254,6 +265,7 @@ class ExpenseModel extends Equatable {
     description,
     splitStrategy,
     participants,
+    payments,
     createdAt,
     updatedAt,
   ];
@@ -304,6 +316,42 @@ class ExpenseParticipantModel extends Equatable {
     settledAmount,
     balance,
   ];
+}
+
+class ExpensePaymentModel extends Equatable {
+  final String id;
+  final String expenseId;
+  final String userId;
+  final UserSummary user;
+  final double amount;
+  final DateTime createdAt;
+
+  const ExpensePaymentModel({
+    required this.id,
+    required this.expenseId,
+    required this.userId,
+    required this.user,
+    required this.amount,
+    required this.createdAt,
+  });
+
+  factory ExpensePaymentModel.fromJson(Map<String, dynamic> json) {
+    return ExpensePaymentModel(
+      id: json['id']?.toString() ?? '',
+      expenseId: json['expense_id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      user: UserSummary.fromJson(
+        Map<String, dynamic>.from(
+          json['user'] as Map? ?? const <String, dynamic>{},
+        ),
+      ),
+      amount: _asDouble(json['amount']),
+      createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, expenseId, userId, user, amount, createdAt];
 }
 
 class ExpenseWarningModel extends Equatable {
@@ -393,6 +441,18 @@ class ExpenseParticipantInput extends Equatable {
 
   @override
   List<Object?> get props => [userId, amount, percentage];
+}
+
+class ExpensePaymentInput extends Equatable {
+  final String userId;
+  final double amount;
+
+  const ExpensePaymentInput({required this.userId, required this.amount});
+
+  Map<String, dynamic> toJson() => {'user_id': userId, 'amount': amount};
+
+  @override
+  List<Object?> get props => [userId, amount];
 }
 
 class BalanceUser extends Equatable {

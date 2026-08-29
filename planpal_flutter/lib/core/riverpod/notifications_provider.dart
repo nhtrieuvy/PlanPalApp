@@ -66,7 +66,7 @@ class NotificationsNotifier
   Future<NotificationFeedState> build() async {
     _repo = ref.watch(notificationRepositoryProvider);
     _service = ref.watch(notificationWebSocketServiceProvider);
-    _auth = ref.watch(authNotifierProvider);
+    _auth = ref.read(authNotifierProvider);
     _configureRealtime();
     return _loadInitial();
   }
@@ -322,7 +322,7 @@ class UnreadCountNotifier extends AutoDisposeAsyncNotifier<int> {
   Future<int> build() async {
     _repo = ref.watch(notificationRepositoryProvider);
     _service = ref.watch(notificationWebSocketServiceProvider);
-    _auth = ref.watch(authNotifierProvider);
+    _auth = ref.read(authNotifierProvider);
     _configureRealtime();
     _startPolling();
     return _repo.getUnreadCount();

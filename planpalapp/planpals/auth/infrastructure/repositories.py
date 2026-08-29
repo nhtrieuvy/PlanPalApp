@@ -54,6 +54,16 @@ class DjangoUserRepository(UserRepository):
         try:
             user = User.objects.get(id=user_id)
             update_data = {k: v for k, v in data.items() if k in self.PROFILE_FIELDS}
+
+            # The mobile profile form exposes one full-name field while the
+            # Django user model stores the existing first/last name fields.
+            # Keep the legacy field inputs supported for API compatibility.
+            if 'full_name' in data:
+                full_name = str(data.get('full_name') or '').strip()
+                name_parts = full_name.split()
+                update_data['first_name'] = name_parts[0] if name_parts else ''
+                update_data['last_name'] = ' '.join(name_parts[1:])
+
             if not update_data:
                 return user, False
             with transaction.atomic():

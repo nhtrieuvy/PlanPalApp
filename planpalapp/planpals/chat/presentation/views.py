@@ -30,7 +30,13 @@ class ChatMessageViewSet(viewsets.GenericViewSet,
     pagination_class = ChatMessageCursorPagination
     
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return ChatMessage.objects.none()
+
         user = self.request.user
+        if not user or not user.is_authenticated:
+            return ChatMessage.objects.none()
+
         return ChatMessage.objects.filter(
             Q(conversation__group__members=user) |
             Q(conversation__user_a=user) |
@@ -214,7 +220,14 @@ class ConversationViewSet(viewsets.GenericViewSet,
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return ConversationService.get_user_conversations(self.request.user)
+        if getattr(self, 'swagger_fake_view', False):
+            return Conversation.objects.none()
+
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return Conversation.objects.none()
+
+        return ConversationService.get_user_conversations(user)
     
     def list(self, request, *args, **kwargs):
         """List all conversations for current user with optional search"""

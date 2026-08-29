@@ -56,8 +56,17 @@ class PlanQuerySet(models.QuerySet['Plan']):
         )
     
     def with_total_cost(self) -> 'PlanQuerySet':
+        from django.db.models import Subquery, OuterRef
+        from planpals.models import PlanActivity
+        
+        cost_sq = PlanActivity.objects.filter(
+            plan=OuterRef('pk')
+        ).values('plan').annotate(
+            total=Sum('estimated_cost')
+        ).values('total')
+
         return self.annotate(
-            total_cost_annotated=Sum('activities__estimated_cost')
+            total_cost_annotated=Subquery(cost_sq)
         )
     
     def with_stats(self) -> 'PlanQuerySet':

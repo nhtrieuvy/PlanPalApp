@@ -101,7 +101,7 @@ class PlanActivitiesNotifier
   Future<PlanActivitiesState> build(String arg) async {
     _planId = arg;
     _repo = ref.watch(planRepositoryProvider);
-    _auth = ref.watch(authNotifierProvider);
+    _auth = ref.read(authNotifierProvider);
 
     ref.onDispose(() {
       _pollingTimer?.cancel();

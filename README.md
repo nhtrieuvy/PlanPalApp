@@ -59,11 +59,16 @@ cd PlanPalApp/planpalapp
 
 python -m venv ..\.venv
 ..\.venv\Scripts\activate
-pip install -r requirements.txt
+..\.venv\Scripts\python.exe -m pip install -r requirements.txt
 
-python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
+..\.venv\Scripts\python.exe manage.py migrate
+# Run ASGI directly so Channels always uses the dependencies pinned in .venv.
+..\.venv\Scripts\python.exe -m daphne -b 0.0.0.0 -p 8000 planpalapp.asgi:application
 ```
+
+Do not start Django with a global `python` installation. In particular, a
+different global `redis` package can cause WebSocket channel-layer timeouts
+that do not reproduce in the project virtual environment.
 
 ### Redis, Celery Worker, and Celery Beat
 
@@ -310,6 +315,10 @@ Base path:
 /api/v1/
 ```
 
+Unprefixed REST routes such as `/plans/`, `/groups/`, and `/activities/`
+are intentionally not exposed. Use the versioned `/api/v1/...` contract for
+all REST clients.
+
 Main REST resources:
 
 | Feature | Endpoints |
@@ -338,12 +347,17 @@ WebSocket endpoints:
 | User private notifications | `/ws/user/` |
 | System notifications | `/ws/notifications/` |
 
-Swagger and Redoc are exposed in `DEBUG=True`:
+Swagger and Redoc are exposed in `DEBUG=True` or when `ENABLE_API_DOCS=True`.
+Production can keep Django `DEBUG=False` and enable docs explicitly:
 
 ```text
 /swagger/
 /redoc/
 ```
+
+For public demo docs set `API_DOCS_REQUIRE_AUTH=False`. For restricted
+production docs set `API_DOCS_REQUIRE_AUTH=True` and sign in with an admin
+account or provide a valid OAuth token.
 
 ---
 
@@ -421,7 +435,11 @@ CLIENT_SECRET=your_oauth_client_secret
 CELERY_BROKER_URL=redis://127.0.0.1:6379/0
 CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/0
 CACHE_REDIS_URL=redis://127.0.0.1:6379/1
-CHANNEL_REDIS_URL=redis://127.0.0.1:6379/0
+# Keep long-lived WebSocket receives isolated from Celery queues.
+CHANNEL_REDIS_URL=redis://127.0.0.1:6379/2
+CHANNEL_REDIS_SOCKET_TIMEOUT=15
+CHANNEL_REDIS_CONNECT_TIMEOUT=5
+CHANNEL_REDIS_HEALTH_CHECK_INTERVAL=30
 USE_REDIS_CACHE=True
 USE_REDIS_CHANNELS=True
 

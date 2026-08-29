@@ -60,7 +60,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authNotifierProvider.overrideWithValue(AuthProvider()),
+          authNotifierProvider.overrideWith((ref) => AuthProvider()),
           notificationRepositoryProvider.overrideWithValue(repository),
         ],
         child: buildLocalizedTestApp(const NotificationListPage()),
@@ -112,7 +112,7 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
-        authNotifierProvider.overrideWithValue(AuthProvider()),
+        authNotifierProvider.overrideWith((ref) => AuthProvider()),
         notificationRepositoryProvider.overrideWithValue(repository),
       ],
     );
@@ -134,7 +134,7 @@ void main() {
     final repository = FakeNotificationRepository(unreadCount: 5);
     final container = ProviderContainer(
       overrides: [
-        authNotifierProvider.overrideWithValue(AuthProvider()),
+        authNotifierProvider.overrideWith((ref) => AuthProvider()),
         notificationRepositoryProvider.overrideWithValue(repository),
       ],
     );

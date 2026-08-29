@@ -86,6 +86,7 @@ void main() {
       description: 'Expense $id',
       splitStrategy: 'equal',
       participants: const [],
+      payments: const [],
       createdAt: DateTime(2026, 4, 5, 10),
       updatedAt: null,
     );
@@ -111,7 +112,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authNotifierProvider.overrideWithValue(AuthProvider()),
+          authNotifierProvider.overrideWith((ref) => AuthProvider()),
           budgetRepositoryProvider.overrideWithValue(repository),
         ],
         child: buildLocalizedTestApp(
@@ -164,7 +165,7 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
-        authNotifierProvider.overrideWithValue(AuthProvider()),
+        authNotifierProvider.overrideWith((ref) => AuthProvider()),
         budgetRepositoryProvider.overrideWithValue(repository),
       ],
     );
@@ -228,6 +229,7 @@ class FakeBudgetRepository extends BudgetRepository {
     String currency = 'VND',
     String splitStrategy = 'equal',
     List<ExpenseParticipantInput> participants = const [],
+    List<ExpensePaymentInput> payments = const [],
   }) async {
     return ExpenseCreateResult(
       expense: buildFakeExpense(
@@ -330,6 +332,7 @@ class FakeBudgetRepository extends BudgetRepository {
       description: 'Expense $id',
       splitStrategy: 'equal',
       participants: const [],
+      payments: const [],
       createdAt: DateTime(2026, 4, 5, 10),
       updatedAt: null,
     );

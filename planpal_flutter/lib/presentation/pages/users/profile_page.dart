@@ -34,6 +34,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   UserRepository get _repo => ref.read(userRepositoryProvider);
 
+  Future<bool> _refreshProfile({bool showError = true}) async {
+    try {
+      await _repo.getProfile();
+      return true;
+    } catch (_) {
+      if (showError && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.l10n.t('profile.refresh_error')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -45,21 +62,27 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       appBar: AppBar(title: Text(l10n.t('profile.title')), centerTitle: true),
       body: user == null
           ? AppLoading(message: l10n.t('profile.loading'))
-          : SingleChildScrollView(
-              padding: _pagePadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Center(child: _buildAvatarSection(user, colorScheme)),
-                  const SizedBox(height: 24),
-                  ..._buildStatisticsCards(context, user, colorScheme),
-                  const SizedBox(height: 24),
-                  _buildUserNameSection(user, theme, colorScheme),
-                  const SizedBox(height: 24),
-                  _buildPersonalInfoCard(context, user, theme, colorScheme),
-                  const SizedBox(height: 32),
-                  _buildLogoutButton(context),
-                ],
+          : RefreshIndicator(
+              onRefresh: () async {
+                await _refreshProfile();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: _pagePadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Center(child: _buildAvatarSection(user, colorScheme)),
+                    const SizedBox(height: 24),
+                    ..._buildStatisticsCards(context, user, colorScheme),
+                    const SizedBox(height: 24),
+                    _buildUserNameSection(user, theme, colorScheme),
+                    const SizedBox(height: 24),
+                    _buildPersonalInfoCard(context, user, theme, colorScheme),
+                    const SizedBox(height: 32),
+                    _buildLogoutButton(context),
+                  ],
+                ),
               ),
             ),
     );
@@ -298,148 +321,203 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     UserModel user,
   ) async {
     final l10n = pageContext.l10n;
-    final firstNameController = TextEditingController(text: user.firstName);
-    final lastNameController = TextEditingController(text: user.lastName);
-    final emailController = TextEditingController(text: user.email ?? '');
-    final phoneController = TextEditingController(text: user.phoneNumber ?? '');
-    final bioController = TextEditingController(text: user.bio ?? '');
-
-    File? selectedImage;
-    final picker = ImagePicker();
     final scaffoldMessenger = ScaffoldMessenger.of(pageContext);
-    final pageNavigator = Navigator.of(pageContext);
     final authProvider = ref.read(authNotifierProvider);
 
-    await showDialog(
+    final updated = await showDialog<UserModel>(
       context: pageContext,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setState) => AlertDialog(
-          title: Text(l10n.t('profile.edit_info')),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  onTap: () async {
-                    final image = await picker.pickImage(
-                      source: ImageSource.gallery,
-                      maxWidth: 800,
-                      maxHeight: 800,
-                      imageQuality: 85,
-                    );
-                    if (image != null) {
-                      setState(() {
-                        selectedImage = File(image.path);
-                      });
-                    }
-                  },
-                  child: CircleAvatar(
-                    radius: 40,
-                    backgroundColor:
-                        Theme.of(dialogContext).colorScheme.surfaceContainerHighest,
-                    child: selectedImage != null
-                        ? ClipOval(
-                            child: Image.file(
-                              selectedImage!,
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : (user.avatarUrl != null && user.avatarUrl!.isNotEmpty
-                              ? ClipOval(
-                                  child: CachedNetworkImage(
-                                    imageUrl: user.avatarUrl!,
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) =>
-                                        const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        ),
-                                    errorWidget: (context, url, error) =>
-                                        const Icon(Icons.error),
-                                  ),
-                                )
-                              : const Icon(Icons.camera_alt, size: 30)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: emailController,
-                  decoration: InputDecoration(
-                    labelText: l10n.t('auth.email'),
-                    border: const OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: phoneController,
-                  decoration: InputDecoration(
-                    labelText: l10n.t('profile.phone'),
-                    border: const OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: bioController,
-                  decoration: InputDecoration(
-                    labelText: l10n.t('profile.bio_hint'),
-                    border: const OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(l10n.t('common.cancel')),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  final updated = await _repo.updateProfile(
-                    firstName: firstNameController.text.trim(),
-                    lastName: lastNameController.text.trim(),
-                    email: emailController.text.trim(),
-                    phoneNumber: phoneController.text.trim(),
-                    bio: bioController.text.trim(),
-                    avatar: selectedImage,
-                  );
+      builder: (_) => _EditProfileDialog(
+        user: user,
+        repository: _repo,
+      ),
+    );
 
-                  if (!mounted) return;
-                  authProvider.setUser(updated);
-                  pageNavigator.pop();
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(l10n.t('profile.updated_success')),
-                      backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                } catch (_) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(l10n.t('profile.updated_error')),
-                      backgroundColor: Colors.red,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                }
-              },
-              child: Text(l10n.t('common.save')),
+    if (!mounted || updated == null) return;
+    authProvider.setUser(updated);
+    await _refreshProfile(showError: false);
+    if (!mounted) return;
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        content: Text(l10n.t('profile.updated_success')),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+class _EditProfileDialog extends StatefulWidget {
+  const _EditProfileDialog({
+    required this.user,
+    required this.repository,
+  });
+
+  final UserModel user;
+  final UserRepository repository;
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  late final TextEditingController _fullNameController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _bioController;
+  final ImagePicker _picker = ImagePicker();
+
+  File? _selectedImage;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fullNameController = TextEditingController(text: widget.user.fullName);
+    _phoneController = TextEditingController(
+      text: widget.user.phoneNumber ?? '',
+    );
+    _bioController = TextEditingController(text: widget.user.bio ?? '');
+  }
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _phoneController.dispose();
+    _bioController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickAvatar() async {
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 85,
+    );
+    if (!mounted || image == null) return;
+    setState(() => _selectedImage = File(image.path));
+  }
+
+  Future<void> _save() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final updated = await widget.repository.updateProfile(
+        fullName: _fullNameController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        bio: _bioController.text.trim(),
+        avatar: _selectedImage,
+      );
+      if (mounted) Navigator.of(context).pop(updated);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.t('profile.updated_error')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      title: Text(l10n.t('profile.edit_info')),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: _isSaving ? null : _pickAvatar,
+              child: CircleAvatar(
+                radius: 40,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+                child: _selectedImage != null
+                    ? ClipOval(
+                        child: Image.file(
+                          _selectedImage!,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : (widget.user.avatarUrl != null &&
+                              widget.user.avatarUrl!.isNotEmpty
+                          ? ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: widget.user.avatarUrl!,
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) =>
+                                    const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                errorWidget: (context, url, error) =>
+                                    const Icon(Icons.error),
+                              ),
+                            )
+                          : const Icon(Icons.camera_alt, size: 30)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _fullNameController,
+              enabled: !_isSaving,
+              decoration: InputDecoration(
+                labelText: l10n.t('profile.full_name'),
+                border: const OutlineInputBorder(),
+              ),
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _phoneController,
+              enabled: !_isSaving,
+              decoration: InputDecoration(
+                labelText: l10n.t('profile.phone'),
+                border: const OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _bioController,
+              enabled: !_isSaving,
+              decoration: InputDecoration(
+                labelText: l10n.t('profile.bio_hint'),
+                border: const OutlineInputBorder(),
+              ),
+              maxLines: 3,
             ),
           ],
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+          child: Text(l10n.t('common.cancel')),
+        ),
+        ElevatedButton(
+          onPressed: _isSaving ? null : _save,
+          child: _isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(l10n.t('common.save')),
+        ),
+      ],
     );
   }
 }

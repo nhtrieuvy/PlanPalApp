@@ -12,7 +12,7 @@ import 'package:planpal_flutter/core/repositories/friend_repository.dart';
 import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
-import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/presentation/widgets/forms/form_wizard_scaffold.dart';
 
 class GroupFormPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initial;
@@ -24,7 +24,7 @@ class GroupFormPage extends ConsumerStatefulWidget {
 }
 
 class _GroupFormPageState extends ConsumerState<GroupFormPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _basicStepKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
   bool _submitting = false;
@@ -34,6 +34,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
   List<UserSummary> _availableFriends = [];
   final Set<UserSummary> _selectedMembers = {};
   bool _loadingFriends = false;
+  int _currentStep = 0;
 
   GroupRepository get _repo => ref.read(groupRepositoryProvider);
   FriendRepository get _friendRepo => ref.read(friendRepositoryProvider);
@@ -78,16 +79,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
   }
 
   Future<void> _submit() async {
-    final l10n = context.l10n;
-    if (!_formKey.currentState!.validate()) return;
-
-    if (widget.initial == null && _selectedMembers.length < 2) {
-      ErrorDisplayService.showWarningSnackbar(
-        context,
-        l10n.t('group_form.members_requirement'),
-      );
-      return;
-    }
+    if (!_validateBeforeSubmit()) return;
 
     setState(() => _submitting = true);
     try {
@@ -171,94 +163,208 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
     final l10n = context.l10n;
     final isEdit = widget.initial != null;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          isEdit
-              ? l10n.t('group_form.title_edit')
-              : l10n.t('group_form.title_create'),
-        ),
-        centerTitle: true,
+    return FormWizardScaffold(
+      title: isEdit
+          ? l10n.t('group_form.title_edit')
+          : l10n.t('group_form.title_create'),
+      steps: _buildWizardSteps(context),
+      currentStep: _currentStep,
+      isSubmitting: _submitting,
+      onBack: _handleBack,
+      onNext: _handleNext,
+      onFinish: _submit,
+    );
+  }
+
+  List<FormWizardStep> _buildWizardSteps(BuildContext context) {
+    final l10n = context.l10n;
+    final isEdit = widget.initial != null;
+    return [
+      FormWizardStep(
+        title: l10n.t('wizard.basic_info'),
+        icon: Icons.groups_outlined,
+        child: Form(key: _basicStepKey, child: _buildBasicStep(context)),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              Text(
-                l10n.t('group_form.avatar_title'),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Center(child: _buildAvatarPicker(isEdit)),
-              const SizedBox(height: 16),
-              if (isEdit) ...[
-                Text(
-                  l10n.t('group_form.cover_title'),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildCoverPicker(),
-                const SizedBox(height: 16),
-              ],
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: InputDecoration(
-                  labelText: l10n.t('group_form.name_label'),
-                  border: const OutlineInputBorder(),
-                ),
-                validator: (value) => (value == null || value.trim().isEmpty)
-                    ? l10n.t('group_form.name_required')
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _descCtrl,
-                decoration: InputDecoration(
-                  labelText: l10n.t('group_form.description_label'),
-                  border: const OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              _buildVisibilitySelector(),
-              const SizedBox(height: 16),
-              if (!isEdit) ...[
-                _buildMemberSelection(),
-                const SizedBox(height: 16),
-              ],
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _submitting ? null : _submit,
-                  icon: const Icon(Icons.save),
-                  label: Text(
-                    isEdit
-                        ? l10n.t('plan_form.save_changes')
-                        : l10n.t('group_form.title_create'),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
+      FormWizardStep(
+        title: l10n.t('wizard.media'),
+        icon: Icons.photo_library_outlined,
+        child: _buildMediaStep(context),
+      ),
+      FormWizardStep(
+        title: l10n.t('group_form.access_title'),
+        icon: Icons.shield_outlined,
+        child: _buildAccessStep(context, isEdit: isEdit),
+      ),
+      FormWizardStep(
+        title: l10n.t('wizard.review'),
+        icon: Icons.fact_check_outlined,
+        subtitle: l10n.t('wizard.review_subtitle'),
+        child: _buildReviewStep(context, isEdit: isEdit),
+      ),
+    ];
+  }
+
+  void _handleBack() {
+    if (_currentStep == 0) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    setState(() => _currentStep -= 1);
+  }
+
+  void _handleNext() {
+    if (!_validateCurrentStep()) return;
+    setState(() => _currentStep += 1);
+  }
+
+  bool _validateCurrentStep() {
+    if (_currentStep == 0) {
+      return _basicStepKey.currentState?.validate() ?? _validateBasicDraft();
+    }
+    if (_currentStep == 2 &&
+        widget.initial == null &&
+        _selectedMembers.length < 2) {
+      ErrorDisplayService.showWarningSnackbar(
+        context,
+        context.l10n.t('group_form.members_requirement'),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  String? _validateName(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return context.l10n.t('group_form.name_required');
+    }
+    return null;
+  }
+
+  bool _validateBasicDraft({bool redirectToStep = false}) {
+    final error = _validateName(_nameCtrl.text);
+    if (error == null) return true;
+
+    if (redirectToStep && _currentStep != 0) {
+      setState(() => _currentStep = 0);
+    }
+    ErrorDisplayService.showErrorSnackbar(context, error);
+    return false;
+  }
+
+  bool _validateBeforeSubmit() {
+    if (!_validateBasicDraft(redirectToStep: true)) {
+      return false;
+    }
+    if (widget.initial == null && _selectedMembers.length < 2) {
+      setState(() => _currentStep = 2);
+      ErrorDisplayService.showWarningSnackbar(
+        context,
+        context.l10n.t('group_form.members_requirement'),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  Widget _buildBasicStep(BuildContext context) {
+    final l10n = context.l10n;
+    return Column(
+      children: [
+        TextFormField(
+          controller: _nameCtrl,
+          decoration: InputDecoration(
+            labelText: l10n.t('group_form.name_label'),
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.group_outlined),
           ),
+          validator: _validateName,
         ),
-      ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _descCtrl,
+          decoration: InputDecoration(
+            labelText: l10n.t('group_form.description_label'),
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.notes_outlined),
+          ),
+          maxLines: 4,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMediaStep(BuildContext context) {
+    final l10n = context.l10n;
+    final isEdit = widget.initial != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.t('group_form.avatar_title'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        Center(child: _buildAvatarPicker(isEdit)),
+        if (isEdit) ...[
+          const SizedBox(height: 24),
+          Text(
+            l10n.t('group_form.cover_title'),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          _buildCoverPicker(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildAccessStep(BuildContext context, {required bool isEdit}) {
+    return Column(
+      children: [
+        _buildVisibilitySelector(),
+        if (!isEdit) ...[const SizedBox(height: 20), _buildMemberSelection()],
+      ],
+    );
+  }
+
+  Widget _buildReviewStep(BuildContext context, {required bool isEdit}) {
+    final l10n = context.l10n;
+    return Column(
+      children: [
+        ReviewSection(
+          title: l10n.t('wizard.basic_info'),
+          items: [
+            ReviewItem(l10n.t('group_form.name_label'), _nameCtrl.text),
+            ReviewItem(l10n.t('group_form.description_label'), _descCtrl.text),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ReviewSection(
+          title: l10n.t('group_form.access_title'),
+          items: [
+            ReviewItem(
+              l10n.t('group_form.access_title'),
+              _visibility == 'public'
+                  ? l10n.t('plan.public')
+                  : l10n.t('plan.private'),
+            ),
+            if (!isEdit)
+              ReviewItem(
+                l10n.t('group_form.members_title'),
+                '${_selectedMembers.length}',
+              ),
+          ],
+        ),
+      ],
     );
   }
 
   Widget _buildAvatarPicker(bool isEdit) {
+    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () async {
         final picked = await ImagePicker().pickImage(
@@ -275,7 +381,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
       },
       child: CircleAvatar(
         radius: 40,
-        backgroundColor: Colors.grey[200],
+        backgroundColor: colorScheme.surfaceContainerHighest,
         child: _avatarFile != null
             ? ClipOval(
                 child: Image.file(
@@ -299,21 +405,38 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
                       height: 80,
                       fit: BoxFit.cover,
                       placeholder: (context, url) =>
-                          const Icon(Icons.group, size: 40, color: Colors.grey),
+                          Icon(
+                            Icons.group,
+                            size: 40,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
                       errorWidget: (context, url, error) =>
-                          const Icon(Icons.group, size: 40, color: Colors.grey),
+                          Icon(
+                            Icons.group,
+                            size: 40,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
                     ),
                   );
                 }
-                return const Icon(Icons.group, size: 40, color: Colors.grey);
+                return Icon(
+                  Icons.group,
+                  size: 40,
+                  color: colorScheme.onSurfaceVariant,
+                );
               })()
-            : const Icon(Icons.group, size: 40, color: Colors.grey),
+            : Icon(
+                Icons.group,
+                size: 40,
+                color: colorScheme.onSurfaceVariant,
+              ),
       ),
     );
   }
 
   Widget _buildCoverPicker() {
     final l10n = context.l10n;
+    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () async {
         final picked = await ImagePicker().pickImage(
@@ -332,9 +455,9 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
         width: double.infinity,
         height: 120,
         decoration: BoxDecoration(
-          color: Colors.grey[200],
+          color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: colorScheme.outlineVariant),
         ),
         child: _coverFile != null
             ? ClipRRect(
@@ -351,22 +474,30 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
                   placeholder: (context, url) => Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.landscape, size: 40, color: Colors.grey),
+                      Icon(
+                        Icons.landscape,
+                        size: 40,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         l10n.t('group_form.cover_loading'),
-                        style: const TextStyle(color: Colors.grey),
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
                   errorWidget: (context, url, error) => Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.landscape, size: 40, color: Colors.grey),
+                      Icon(
+                        Icons.landscape,
+                        size: 40,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         l10n.t('group_form.cover_pick'),
-                        style: const TextStyle(color: Colors.grey),
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -375,11 +506,15 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.landscape, size: 40, color: Colors.grey),
+                  Icon(
+                    Icons.landscape,
+                    size: 40,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     l10n.t('group_form.cover_pick'),
-                    style: const TextStyle(color: Colors.grey),
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -440,6 +575,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
 
   Widget _buildMemberSelection() {
     final l10n = context.l10n;
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -454,13 +590,13 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: _selectedMembers.length < 2
-                    ? Colors.red.shade100
-                    : Colors.green.shade100,
+                    ? colorScheme.errorContainer
+                    : colorScheme.tertiaryContainer,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _selectedMembers.length < 2
-                      ? Colors.red.shade300
-                      : Colors.green.shade300,
+                      ? colorScheme.error
+                      : colorScheme.tertiary,
                 ),
               ),
               child: Text(
@@ -469,8 +605,8 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: _selectedMembers.length < 2
-                      ? Colors.red.shade700
-                      : Colors.green.shade700,
+                      ? colorScheme.onErrorContainer
+                      : colorScheme.onTertiaryContainer,
                 ),
               ),
             ),
@@ -479,7 +615,9 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
         const SizedBox(height: 8),
         Text(
           l10n.t('group_form.members_requirement'),
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 12),
         if (_loadingFriends)
@@ -488,9 +626,9 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: colorScheme.outlineVariant),
             ),
             child: Center(child: Text(l10n.t('group_form.no_friends'))),
           )
@@ -498,7 +636,8 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
           Container(
             constraints: const BoxConstraints(maxHeight: 200),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              color: colorScheme.surfaceContainerLowest,
+              border: Border.all(color: colorScheme.outlineVariant),
               borderRadius: BorderRadius.circular(8),
             ),
             child: ListView.builder(

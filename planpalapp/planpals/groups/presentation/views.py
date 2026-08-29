@@ -53,8 +53,15 @@ class GroupViewSet(viewsets.GenericViewSet,
         return self.serializer_class
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Group.objects.none()
+
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return Group.objects.none()
+
         return Group.objects.filter(
-            members=self.request.user
+            members=user
         ).select_related(
             'admin'
         ).prefetch_related(
