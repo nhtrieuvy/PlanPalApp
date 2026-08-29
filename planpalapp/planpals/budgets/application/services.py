@@ -13,6 +13,7 @@ from planpals.budgets.application.repositories import (
     BudgetUpsertData,
     ExpenseCreateData,
     ExpenseFilters,
+    ExpensePaymentCreateData,
     ExpenseParticipantCreateData,
     ExpenseRepository,
     SettlementCreateData,
@@ -131,6 +132,7 @@ class BudgetService:
         currency: str | None = None,
         split_strategy: str = SplitStrategy.EQUAL.value,
         participants: Iterable[dict[str, Any]] | None = None,
+        payments: Iterable[dict[str, Any]] | None = None,
     ) -> ExpenseCreationResult:
         plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
         actor_id = self._normalize_required_uuid(user, 'user')
@@ -144,15 +146,16 @@ class BudgetService:
         normalized_currency = self._normalize_currency(currency or budget.currency)
         normalized_category = self._normalize_category(category)
         normalized_description = (description or '').strip()
-        paid_by_id = self._normalize_required_uuid(
-            paid_by_user_id or actor_id,
-            'paid_by_user_id',
+        payment_items, paid_by_id = self._calculate_payments(
+            plan=plan,
+            amount=expense_amount,
+            paid_by_user_id=paid_by_user_id or actor_id,
+            raw_payments=list(payments or []),
         )
-        self._validate_plan_member_ids(plan, [paid_by_id], field_name='paid_by_user_id')
         normalized_strategy = self._normalize_split_strategy(split_strategy)
         participant_items = self._calculate_participants(
             plan=plan,
-            paid_by_user_id=paid_by_id,
+            payment_amounts={item.user_id: item.amount for item in payment_items},
             amount=expense_amount,
             split_strategy=normalized_strategy,
             raw_participants=list(participants or []),
@@ -169,6 +172,7 @@ class BudgetService:
                 description=normalized_description,
                 split_strategy=normalized_strategy,
                 participants=participant_items,
+                payments=payment_items,
             )
         )
         summary = self._build_summary(plan_uuid, budget)
@@ -186,6 +190,10 @@ class BudgetService:
                     'plan_id': plan_uuid,
                     'plan_title': getattr(plan, 'title', 'Plan'),
                     'paid_by_user_id': paid_by_id,
+                    'payments': [
+                        {'user_id': item.user_id, 'amount': item.amount}
+                        for item in payment_items
+                    ],
                     'amount': expense.amount,
                     'currency': normalized_currency,
                     'category': expense.category,
@@ -266,9 +274,13 @@ class BudgetService:
 
         total_expenses = Decimal('0.00')
         for expense in expenses:
-            paid_by = expense.paid_by_user_id
-            totals.setdefault(paid_by, self._empty_balance_totals())
-            totals[paid_by]['paid'] += expense.amount
+            payments = expense.payments or ()
+            if not payments:
+                totals.setdefault(expense.paid_by_user_id, self._empty_balance_totals())
+                totals[expense.paid_by_user_id]['paid'] += expense.amount
+            for payment in payments:
+                totals.setdefault(payment.user_id, self._empty_balance_totals())
+                totals[payment.user_id]['paid'] += payment.amount
             total_expenses += expense.amount
             for participant in expense.participants:
                 totals.setdefault(participant.user_id, self._empty_balance_totals())
@@ -532,7 +544,7 @@ class BudgetService:
         self,
         *,
         plan,
-        paid_by_user_id: UUID,
+        payment_amounts: dict[UUID, Decimal],
         amount: Decimal,
         split_strategy: str,
         raw_participants: list[dict[str, Any]],
@@ -582,10 +594,47 @@ class BudgetService:
                 user_id=user_id,
                 owed_amount=owed,
                 settled_amount=Decimal('0.00'),
-                balance=(amount - owed if user_id == paid_by_user_id else -owed).quantize(Decimal('0.01')),
+                balance=(payment_amounts.get(user_id, Decimal('0.00')) - owed).quantize(Decimal('0.01')),
             )
             for user_id, owed in zip(participant_ids, owed_amounts)
         )
+
+    def _calculate_payments(
+        self,
+        *,
+        plan,
+        amount: Decimal,
+        paid_by_user_id,
+        raw_payments: list[dict[str, Any]],
+    ) -> tuple[tuple[ExpensePaymentCreateData, ...], UUID]:
+        """Validate cash contributions and retain one primary payer for legacy clients."""
+        if not raw_payments:
+            payer_id = self._normalize_required_uuid(paid_by_user_id, 'paid_by_user_id')
+            self._validate_plan_member_ids(plan, [payer_id], field_name='paid_by_user_id')
+            return (ExpensePaymentCreateData(user_id=payer_id, amount=amount),), payer_id
+
+        normalized: list[ExpensePaymentCreateData] = []
+        payer_ids: list[UUID] = []
+        for item in raw_payments:
+            payer_id = self._normalize_required_uuid(item.get('user_id'), 'payments.user_id')
+            payer_ids.append(payer_id)
+            normalized.append(
+                ExpensePaymentCreateData(
+                    user_id=payer_id,
+                    amount=self._normalize_positive_amount(item.get('amount'), 'payments.amount'),
+                )
+            )
+
+        if len(payer_ids) != len(set(payer_ids)):
+            raise ValidationError({'payments': 'Each payer can only have one contribution'})
+        self._validate_plan_member_ids(plan, payer_ids, field_name='payments')
+        if sum((item.amount for item in normalized), Decimal('0.00')) != amount:
+            raise ValidationError({'payments': 'Payment contributions must equal the expense amount'})
+
+        # The legacy payer field remains populated for older clients. The largest
+        # contribution is stable and gives an intuitive primary payer.
+        primary = max(normalized, key=lambda item: (item.amount, str(item.user_id)))
+        return tuple(normalized), primary.user_id
 
     @staticmethod
     def _split_equal(amount: Decimal, count: int) -> list[Decimal]:

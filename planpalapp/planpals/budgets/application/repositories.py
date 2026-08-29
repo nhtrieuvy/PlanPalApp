@@ -34,6 +34,7 @@ class ExpenseCreateData:
     description: str = ''
     split_strategy: str = 'equal'
     participants: Sequence['ExpenseParticipantCreateData'] = ()
+    payments: Sequence['ExpensePaymentCreateData'] = ()
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,12 @@ class ExpenseParticipantCreateData:
     owed_amount: Decimal
     settled_amount: Decimal = Decimal('0.00')
     balance: Decimal = Decimal('0.00')
+
+
+@dataclass(frozen=True)
+class ExpensePaymentCreateData:
+    user_id: UUID
+    amount: Decimal
 
 
 @dataclass(frozen=True)

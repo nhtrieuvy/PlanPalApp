@@ -20,8 +20,16 @@ from django.conf import settings
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 
 from planpals.auth.presentation.views import EmailAwareTokenView
+
+api_docs_permission_classes = (
+    (permissions.IsAdminUser,)
+    if settings.API_DOCS_REQUIRE_AUTH
+    else (permissions.AllowAny,)
+)
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -32,13 +40,17 @@ schema_view = get_schema_view(
         contact=openapi.Contact(email="2251052146vy@ou.edu.vn"),
         license=openapi.License(name="@Copyright 2025 PlanPal"),
     ),
-    public=settings.DEBUG,
-    permission_classes=(permissions.AllowAny,) if settings.DEBUG else (permissions.IsAuthenticated,),
+    public=True,
+    authentication_classes=(
+        SessionAuthentication,
+        BasicAuthentication,
+        OAuth2Authentication,
+    ),
+    permission_classes=api_docs_permission_classes,
 )
 
 urlpatterns = [
     path('api/v1/', include('planpals.urls')),
-    path('', include('planpals.urls')),
     path('admin/', admin.site.urls),
     path('o/token/', EmailAwareTokenView.as_view(), name='oauth2_token'),
     path('o/', include('oauth2_provider.urls',
@@ -47,16 +59,16 @@ urlpatterns = [
     re_path(r'^ckeditor/', include('ckeditor_uploader.urls')),
 ]
 
-# Only expose API docs in DEBUG mode
-if settings.DEBUG:
+# API docs are available in DEBUG or when explicitly enabled in production.
+if settings.ENABLE_API_DOCS:
     urlpatterns += [
         re_path(r'^swagger(?P<format>\.json|\.yaml)$',
                 schema_view.without_ui(cache_timeout=0),
                 name='schema-json'),
-        re_path(r'^swagger/$',
+        re_path(r'^swagger/?$',
                 schema_view.with_ui('swagger', cache_timeout=0),
                 name='schema-swagger-ui'),
-        re_path(r'^redoc/$',
+        re_path(r'^redoc/?$',
                 schema_view.with_ui('redoc', cache_timeout=0),
                 name='schema-redoc'),
     ]

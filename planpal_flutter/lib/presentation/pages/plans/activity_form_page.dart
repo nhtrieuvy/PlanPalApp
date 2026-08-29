@@ -6,13 +6,14 @@ import 'package:planpal_flutter/core/dtos/plan_activity.dart';
 import 'package:planpal_flutter/core/dtos/plan_activity_requests.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/presentation/widgets/forms/app_select_field.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
-import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/presentation/pages/location/location_picker_page.dart';
+import 'package:planpal_flutter/presentation/widgets/forms/form_wizard_scaffold.dart';
 
 class ActivityFormPage extends ConsumerStatefulWidget {
   final String planId;
@@ -33,7 +34,7 @@ class ActivityFormPage extends ConsumerStatefulWidget {
 }
 
 class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
-  final _formKey = GlobalKey<FormState>();
+  final _basicStepKey = GlobalKey<FormState>();
   PlanRepository get _repo => ref.read(planRepositoryProvider);
 
   late final TextEditingController _titleCtrl;
@@ -52,6 +53,7 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
   String _activityType = 'eating';
   bool _isSubmitting = false;
   late int _baseVersion;
+  int _currentStep = 0;
 
   @override
   void initState() {
@@ -86,50 +88,189 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.isEdit
-              ? context.l10n.t('activity_form.title_edit')
-              : context.l10n.t('activity_form.title_create'),
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+    final l10n = context.l10n;
+    return FormWizardScaffold(
+      title: widget.isEdit
+          ? l10n.t('activity_form.title_edit')
+          : l10n.t('activity_form.title_create'),
+      steps: _buildWizardSteps(context),
+      currentStep: _currentStep,
+      isSubmitting: _isSubmitting,
+      onBack: _handleBack,
+      onNext: _handleNext,
+      onFinish: _submitForm,
+    );
+  }
+
+  List<FormWizardStep> _buildWizardSteps(BuildContext context) {
+    final l10n = context.l10n;
+    return [
+      FormWizardStep(
+        title: l10n.t('wizard.basic_info'),
+        icon: Icons.event_note_outlined,
+        child: Form(key: _basicStepKey, child: _buildBasicStep(context)),
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildPlanInfoCard(context),
-              const SizedBox(height: 24),
-              _buildTitleField(context),
-              const SizedBox(height: 16),
-              _buildActivityTypeDropdown(context),
-              const SizedBox(height: 16),
-              _buildDescriptionField(context),
-              const SizedBox(height: 16),
-              _buildTimeSection(context),
-              const SizedBox(height: 16),
-              _buildLocationSection(context),
-              const SizedBox(height: 16),
-              _buildEstimatedCostField(context),
-              const SizedBox(height: 16),
-              _buildNotesField(context),
-              const SizedBox(height: 16),
-              _buildVersionChip(context),
-              const SizedBox(height: 32),
-              _buildSubmitButton(context),
-            ],
-          ),
-        ),
+      FormWizardStep(
+        title: l10n.t('activity_form.section_time'),
+        icon: Icons.schedule_outlined,
+        child: _buildTimeSection(context),
       ),
+      FormWizardStep(
+        title: l10n.t('activity_form.section_location'),
+        icon: Icons.location_on_outlined,
+        child: _buildLocationSection(context),
+      ),
+      FormWizardStep(
+        title: l10n.t('wizard.optional_details'),
+        icon: Icons.notes_outlined,
+        child: _buildOptionalDetailsStep(context),
+      ),
+      FormWizardStep(
+        title: l10n.t('wizard.review'),
+        icon: Icons.fact_check_outlined,
+        subtitle: l10n.t('wizard.review_subtitle'),
+        child: _buildReviewStep(context),
+      ),
+    ];
+  }
+
+  void _handleBack() {
+    if (_currentStep == 0) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    setState(() => _currentStep -= 1);
+  }
+
+  void _handleNext() {
+    if (!_validateCurrentStep()) return;
+    setState(() => _currentStep += 1);
+  }
+
+  bool _validateCurrentStep() {
+    if (_currentStep == 0) {
+      return _basicStepKey.currentState?.validate() ?? _validateBasicDraft();
+    }
+    if (_currentStep == 1) {
+      return _validateTimeStep();
+    }
+    return true;
+  }
+
+  String? _validateTitle(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return context.l10n.t('activity_form.validation_title_required');
+    }
+    return null;
+  }
+
+  bool _validateBasicDraft({bool redirectToStep = false}) {
+    final error = _validateTitle(_titleCtrl.text);
+    if (error == null) return true;
+
+    if (redirectToStep && _currentStep != 0) {
+      setState(() => _currentStep = 0);
+    }
+    ErrorDisplayService.showErrorSnackbar(context, error);
+    return false;
+  }
+
+  Widget _buildBasicStep(BuildContext context) {
+    return Column(
+      children: [
+        _buildPlanInfoCard(context),
+        const SizedBox(height: 20),
+        _buildTitleField(context),
+        const SizedBox(height: 16),
+        _buildActivityTypeDropdown(context),
+        const SizedBox(height: 16),
+        _buildDescriptionField(context),
+      ],
+    );
+  }
+
+  Widget _buildOptionalDetailsStep(BuildContext context) {
+    return Column(
+      children: [
+        _buildEstimatedCostField(context),
+        const SizedBox(height: 16),
+        _buildNotesField(context),
+        if (widget.isEdit) ...[
+          const SizedBox(height: 16),
+          _buildVersionChip(context),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildReviewStep(BuildContext context) {
+    final l10n = context.l10n;
+    return Column(
+      children: [
+        ReviewSection(
+          title: l10n.t('wizard.basic_info'),
+          items: [
+            ReviewItem(l10n.t('activity_form.field_title'), _titleCtrl.text),
+            ReviewItem(
+              l10n.t('activity_form.field_type'),
+              l10n.activityTypeLabel(_activityType),
+            ),
+            ReviewItem(
+              l10n.t('activity_form.field_description'),
+              _descriptionCtrl.text,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ReviewSection(
+          title: l10n.t('activity_form.section_time'),
+          items: [
+            ReviewItem(
+              l10n.t('plan.start'),
+              _startTime == null
+                  ? '-'
+                  : AppFormatters.fullDateTime(context, _startTime!),
+            ),
+            ReviewItem(
+              l10n.t('plan.end'),
+              _endTime == null
+                  ? '-'
+                  : AppFormatters.fullDateTime(context, _endTime!),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ReviewSection(
+          title: l10n.t('activity_form.section_location'),
+          items: [
+            ReviewItem(
+              l10n.t('activity_form.selected_location'),
+              _locationName ?? _locationAddress ?? '-',
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ReviewSection(
+          title: l10n.t('wizard.optional_details'),
+          items: [
+            ReviewItem(
+              l10n.t('activity_form.field_cost'),
+              _estimatedCostCtrl.text,
+            ),
+            ReviewItem(l10n.t('activity_form.field_notes'), _notesCtrl.text),
+            if (widget.isEdit)
+              ReviewItem(
+                l10n.t('activity_collab.version_label'),
+                'v$_baseVersion',
+              ),
+          ],
+        ),
+      ],
     );
   }
 
   Widget _buildPlanInfoCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -137,7 +278,7 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.event_note, color: AppColors.primary, size: 24),
+            Icon(Icons.event_note, color: colorScheme.primary, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -145,7 +286,9 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
                 children: [
                   Text(
                     context.l10n.t('activity_form.plan_label'),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   Text(
                     widget.planTitle,
@@ -171,27 +314,24 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
         border: const OutlineInputBorder(),
         prefixIcon: const Icon(Icons.title),
       ),
-      validator: (value) => value?.trim().isEmpty == true
-          ? context.l10n.t('activity_form.validation_title_required')
-          : null,
+      validator: _validateTitle,
     );
   }
 
   Widget _buildActivityTypeDropdown(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: _activityType,
-      decoration: InputDecoration(
-        labelText: context.l10n.t('activity_form.field_type'),
-        border: const OutlineInputBorder(),
-        prefixIcon: const Icon(Icons.category),
-      ),
-      items: ActivityTypeChoices.values.map((value) {
-        return DropdownMenuItem(
-          value: value,
-          child: Text(context.l10n.activityTypeLabel(value)),
-        );
-      }).toList(),
-      onChanged: (value) => setState(() => _activityType = value!),
+    return AppSelectField<String>(
+      label: context.l10n.t('activity_form.field_type'),
+      value: _activityType,
+      prefixIcon: Icons.category_outlined,
+      options: ActivityTypeChoices.values
+          .map(
+            (value) => AppSelectOption(
+              value: value,
+              label: context.l10n.activityTypeLabel(value),
+            ),
+          )
+          .toList(),
+      onChanged: (value) => setState(() => _activityType = value),
     );
   }
 
@@ -247,18 +387,25 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
     DateTime? time,
     VoidCallback onTap,
   ) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
+          color: colorScheme.surfaceContainerHighest,
+          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(
               time != null
@@ -266,7 +413,9 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
                   : context.l10n.t('activity_form.select_time'),
               style: TextStyle(
                 fontSize: 16,
-                color: time != null ? Colors.black : Colors.grey,
+                color: time != null
+                    ? colorScheme.onSurface
+                    : colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -276,6 +425,7 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
   }
 
   Widget _buildLocationSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -288,7 +438,7 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
           height: 200,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: colorScheme.outlineVariant),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
@@ -305,8 +455,11 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
                             markerId: const MarkerId('selected_location'),
                             position: LatLng(_latitude!, _longitude!),
                             infoWindow: InfoWindow(
-                              title: _locationName ??
-                                  context.l10n.t('activity_form.selected_location'),
+                              title:
+                                  _locationName ??
+                                  context.l10n.t(
+                                    'activity_form.selected_location',
+                                  ),
                               snippet: _locationAddress,
                             ),
                           ),
@@ -327,7 +480,7 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withAlpha(225),
+                            color: colorScheme.surface.withValues(alpha: 0.92),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(
@@ -336,21 +489,23 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
                             children: [
                               Text(
                                 _locationName ??
-                                    context.l10n.t('activity_form.selected_location'),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                    context.l10n.t(
+                                      'activity_form.selected_location',
+                                    ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               if (_locationAddress != null)
                                 Text(
                                   _locationAddress!,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -361,7 +516,7 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
                     ],
                   )
                 : Material(
-                    color: Colors.grey.shade100,
+                    color: colorScheme.surfaceContainerHighest,
                     child: InkWell(
                       onTap: _showLocationPicker,
                       child: Center(
@@ -371,16 +526,18 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
                             Icon(
                               Icons.add_location_alt,
                               size: 48,
-                              color: Colors.grey.shade400,
+                              color: colorScheme.primary,
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              context.l10n.t('activity_form.tap_select_location'),
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                              context.l10n.t(
+                                'activity_form.tap_select_location',
                               ),
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                             ),
                           ],
                         ),
@@ -432,43 +589,6 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
     );
   }
 
-  Widget _buildSubmitButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isSubmitting ? null : _submitForm,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        child: _isSubmitting
-            ? Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(context.l10n.t('budget.saving')),
-                ],
-              )
-            : Text(
-                widget.isEdit
-                    ? context.l10n.t('activity_collab.save_changes')
-                    : context.l10n.t('activity_form.submit_create'),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-      ),
-    );
-  }
-
   Future<void> _pickStartTime() async {
     final date = await showDatePicker(
       context: context,
@@ -483,11 +603,30 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
       initialTime: _startTime != null
           ? TimeOfDay.fromDateTime(_startTime!)
           : TimeOfDay.now(),
+      cancelText: context.l10n.t('common.cancel'),
+      confirmText: 'OK',
+      helpText: context.l10n.t('activity_form.select_time'),
+      builder: (BuildContext context, Widget? child) {
+        return Localizations.override(
+          context: context,
+          locale: const Locale('en', 'US'),
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+            child: child!,
+          ),
+        );
+      },
     );
     if (time == null || !mounted) return;
 
     setState(() {
-      _startTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _startTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
     });
   }
 
@@ -505,13 +644,34 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
       initialTime: _endTime != null
           ? TimeOfDay.fromDateTime(_endTime!)
           : (_startTime != null
-                ? TimeOfDay.fromDateTime(_startTime!.add(const Duration(hours: 1)))
+                ? TimeOfDay.fromDateTime(
+                    _startTime!.add(const Duration(hours: 1)),
+                  )
                 : TimeOfDay.now()),
+      cancelText: context.l10n.t('common.cancel'),
+      confirmText: 'OK',
+      helpText: context.l10n.t('activity_form.select_time'),
+      builder: (BuildContext context, Widget? child) {
+        return Localizations.override(
+          context: context,
+          locale: const Locale('en', 'US'),
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+            child: child!,
+          ),
+        );
+      },
     );
     if (time == null || !mounted) return;
 
     setState(() {
-      _endTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _endTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
     });
   }
 
@@ -532,13 +692,14 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
       _locationName =
           result['location_name']?.toString() ?? result['address']?.toString();
       _locationAddress =
-          result['location_address']?.toString() ?? result['address']?.toString();
+          result['location_address']?.toString() ??
+          result['address']?.toString();
       _goongPlaceId = result['goong_place_id']?.toString();
     });
   }
 
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_validateBeforeSubmit()) return;
 
     final authProvider = ref.read(authNotifierProvider);
     if (!authProvider.isLoggedIn) {
@@ -582,9 +743,14 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
           estimatedCost: _estimatedCostCtrl.text.trim().isNotEmpty
               ? double.tryParse(_estimatedCostCtrl.text.trim())
               : null,
-          notes: _notesCtrl.text.trim().isNotEmpty ? _notesCtrl.text.trim() : '',
+          notes: _notesCtrl.text.trim().isNotEmpty
+              ? _notesCtrl.text.trim()
+              : '',
         );
-        final response = await _repo.updateActivity(widget.initialActivity!.id, request);
+        final response = await _repo.updateActivity(
+          widget.initialActivity!.id,
+          request,
+        );
         await _handleSuccessResponse(response);
       } else {
         final request = CreatePlanActivityRequest(
@@ -602,7 +768,9 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
           estimatedCost: _estimatedCostCtrl.text.trim().isNotEmpty
               ? double.tryParse(_estimatedCostCtrl.text.trim())
               : null,
-          notes: _notesCtrl.text.trim().isNotEmpty ? _notesCtrl.text.trim() : null,
+          notes: _notesCtrl.text.trim().isNotEmpty
+              ? _notesCtrl.text.trim()
+              : null,
         );
         await _repo.createActivity(request);
         if (!mounted) return;
@@ -640,10 +808,41 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
     }
   }
 
+  bool _validateBeforeSubmit() {
+    if (!_validateBasicDraft(redirectToStep: true)) {
+      return false;
+    }
+    if (!_validateTimeStep()) {
+      setState(() => _currentStep = 1);
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateTimeStep() {
+    if (_startTime == null || _endTime == null) {
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        context.l10n.t('activity_form.select_time'),
+      );
+      return false;
+    }
+    if (_endTime!.isBefore(_startTime!)) {
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        context.l10n.t('plan_form.validation_end_after_start'),
+      );
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _handleSuccessResponse(Map<String, dynamic> response) async {
     final activityJson = response['activity'];
     if (activityJson is Map) {
-      final updated = PlanActivity.fromJson(Map<String, dynamic>.from(activityJson));
+      final updated = PlanActivity.fromJson(
+        Map<String, dynamic>.from(activityJson),
+      );
       _baseVersion = updated.version;
     } else {
       _baseVersion += 1;
@@ -708,7 +907,8 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
     setState(() {
       _titleCtrl.text = activity.title;
       _descriptionCtrl.text = activity.description ?? '';
-      _estimatedCostCtrl.text = activity.estimatedCost?.toStringAsFixed(0) ?? '';
+      _estimatedCostCtrl.text =
+          activity.estimatedCost?.toStringAsFixed(0) ?? '';
       _notesCtrl.text = activity.notes ?? '';
       _activityType = activity.activityType;
       _startTime = activity.startTime;

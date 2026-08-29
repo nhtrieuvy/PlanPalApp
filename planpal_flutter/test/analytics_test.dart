@@ -145,7 +145,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authNotifierProvider.overrideWithValue(buildStaffAuthProvider()),
+          authNotifierProvider.overrideWith(
+            (ref) => buildStaffAuthProvider(),
+          ),
           analyticsRepositoryProvider.overrideWithValue(repository),
         ],
         child: buildLocalizedTestApp(const AnalyticsDashboardPage()),
@@ -188,7 +190,9 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
-        authNotifierProvider.overrideWithValue(buildStaffAuthProvider()),
+        authNotifierProvider.overrideWith(
+          (ref) => buildStaffAuthProvider(),
+        ),
         analyticsRepositoryProvider.overrideWithValue(repository),
       ],
     );

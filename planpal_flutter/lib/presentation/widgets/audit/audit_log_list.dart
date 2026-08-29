@@ -6,6 +6,7 @@ import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/audit_logs_provider.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/presentation/widgets/forms/app_select_field.dart';
 
 class AuditLogList extends ConsumerStatefulWidget {
   final String title;
@@ -167,8 +168,8 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
   }
 
   Widget _buildFilters(Map<String, String> actorOptions) {
-    final actionItems = _buildActionDropdownItems();
-    final actorItems = _buildActorDropdownItems(actorOptions);
+    final actionItems = _buildActionSelectOptions();
+    final actorItems = _buildActorSelectOptions(actorOptions);
 
     return Wrap(
       spacing: 12,
@@ -176,36 +177,28 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
       children: [
         SizedBox(
           width: 180,
-          child: DropdownButtonFormField<String>(
-            initialValue: _selectedAction,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: context.l10n.t('audit.action'),
-              border: const OutlineInputBorder(),
-              isDense: true,
-            ),
-            items: actionItems,
+          child: AppSelectField<String>(
+            label: context.l10n.t('audit.action'),
+            value: _selectedAction,
+            prefixIcon: Icons.filter_alt_outlined,
+            options: actionItems,
             onChanged: (value) {
               setState(() {
-                _selectedAction = value ?? '';
+                _selectedAction = value;
               });
             },
           ),
         ),
         SizedBox(
           width: 180,
-          child: DropdownButtonFormField<String>(
-            initialValue: _selectedUserId,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: context.l10n.t('audit.user'),
-              border: const OutlineInputBorder(),
-              isDense: true,
-            ),
-            items: actorItems,
+          child: AppSelectField<String>(
+            label: context.l10n.t('audit.user'),
+            value: _selectedUserId,
+            prefixIcon: Icons.person_outline,
+            options: actorItems,
             onChanged: (value) {
               setState(() {
-                _selectedUserId = value ?? '';
+                _selectedUserId = value;
               });
             },
           ),
@@ -243,16 +236,13 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
     );
   }
 
-  List<DropdownMenuItem<String>> _buildActionDropdownItems() {
-    final items = <DropdownMenuItem<String>>[
-      DropdownMenuItem(
-        value: '',
-        child: Text(context.l10n.t('audit.all_actions')),
-      ),
+  List<AppSelectOption<String>> _buildActionSelectOptions() {
+    final items = <AppSelectOption<String>>[
+      AppSelectOption(value: '', label: context.l10n.t('audit.all_actions')),
       ...AuditLogModel.actionOptions.map(
-        (option) => DropdownMenuItem(
+        (option) => AppSelectOption(
           value: option.value,
-          child: Text(context.l10n.auditActionLabel(option.value)),
+          label: context.l10n.auditActionLabel(option.value),
         ),
       ),
     ];
@@ -262,9 +252,9 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
         items.any((item) => item.value == _selectedAction);
     if (!hasSelectedAction) {
       items.add(
-        DropdownMenuItem(
+        AppSelectOption(
           value: _selectedAction,
-          child: Text(context.l10n.auditActionLabel(_selectedAction)),
+          label: context.l10n.auditActionLabel(_selectedAction),
         ),
       );
     }
@@ -272,7 +262,7 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
     return items;
   }
 
-  List<DropdownMenuItem<String>> _buildActorDropdownItems(
+  List<AppSelectOption<String>> _buildActorSelectOptions(
     Map<String, String> actorOptions,
   ) {
     final entries = Map<String, String>.from(actorOptions);
@@ -281,12 +271,9 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
     }
 
     return [
-      DropdownMenuItem(
-        value: '',
-        child: Text(context.l10n.t('audit.all_users')),
-      ),
+      AppSelectOption(value: '', label: context.l10n.t('audit.all_users')),
       ...entries.entries.map(
-        (entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+        (entry) => AppSelectOption(value: entry.key, label: entry.value),
       ),
     ];
   }

@@ -70,6 +70,22 @@ class AppLocalizations {
       'common.share': 'Share',
       'common.revoke': 'Revoke',
       'common.done': 'Done',
+      'wizard.step_counter': 'Step {current} / {total}',
+      'wizard.next': 'Continue',
+      'wizard.back': 'Back',
+      'wizard.finish': 'Finish',
+      'wizard.review': 'Review',
+      'wizard.review_subtitle':
+          'Check the details before saving. You can go back to adjust anything.',
+      'wizard.basic_info': 'Basic information',
+      'wizard.time': 'Time',
+      'wizard.settings': 'Settings',
+      'wizard.media': 'Media',
+      'wizard.members': 'Members',
+      'wizard.details': 'Details',
+      'wizard.sharing': 'Sharing',
+      'wizard.optional_details': 'Optional details',
+      'wizard.required_step': 'Please complete this step before continuing.',
       'activity_collab.polling_fallback':
           'Realtime is unavailable. The schedule is syncing periodically.',
       'activity_collab.realtime_connecting': 'Connecting realtime updates...',
@@ -191,6 +207,7 @@ class AppLocalizations {
       'profile.bio_hint': 'About you',
       'profile.updated_success': 'Profile updated successfully',
       'profile.updated_error': 'Something went wrong. Please try again.',
+      'profile.refresh_error': 'Could not refresh your profile. Please try again.',
 
       'plans.title': 'Your plans',
       'plans.group_title': '{group} - Plans',
@@ -529,6 +546,19 @@ class AppLocalizations {
       'budget.paid_owes': 'Paid {paid} - owes {owed}',
       'budget.expense_detail': 'Expense detail',
       'budget.paid_by': 'Paid by',
+      'budget.select_payer': 'Choose payer',
+      'budget.multiple_payers': 'More than one person paid',
+      'budget.multiple_payers_description':
+          'Record each person\'s actual contribution to this bill.',
+      'budget.payment_contributions': 'Payment contributions',
+      'budget.payment_contributions_hint':
+          'Enter only the amounts actually paid. Their total must match the bill.',
+      'budget.payment_total_preview': 'Paid {total} of {amount}',
+      'budget.validation_payment_required': 'Enter at least one payment contribution.',
+      'budget.validation_payment_amount':
+          'Each payment contribution must be greater than zero.',
+      'budget.validation_payment_total':
+          'Payment contributions must equal the expense amount.',
       'budget.paid_by_name': 'Paid by {name}',
       'budget.split_strategy': 'Split strategy',
       'budget.participants': 'Participants',
@@ -849,6 +879,22 @@ class AppLocalizations {
       'common.share': 'Chia sẻ',
       'common.revoke': 'Thu hồi',
       'common.done': 'Xong',
+      'wizard.step_counter': 'Bước {current} / {total}',
+      'wizard.next': 'Tiếp tục',
+      'wizard.back': 'Quay lại',
+      'wizard.finish': 'Hoàn thành',
+      'wizard.review': 'Xem lại',
+      'wizard.review_subtitle':
+          'Kiểm tra thông tin trước khi lưu. Bạn có thể quay lại để chỉnh sửa.',
+      'wizard.basic_info': 'Thông tin cơ bản',
+      'wizard.time': 'Thời gian',
+      'wizard.settings': 'Cài đặt',
+      'wizard.media': 'Hình ảnh',
+      'wizard.members': 'Thành viên',
+      'wizard.details': 'Chi tiết',
+      'wizard.sharing': 'Chia sẻ chi phí',
+      'wizard.optional_details': 'Thông tin bổ sung',
+      'wizard.required_step': 'Vui lòng hoàn tất bước này trước khi tiếp tục.',
       'activity_collab.polling_fallback':
           'Realtime tạm thời không khả dụng. Lịch đang được đồng bộ theo chu kỳ.',
       'activity_collab.realtime_connecting':
@@ -957,7 +1003,7 @@ class AppLocalizations {
       'profile.stats.friends': 'Bạn bè',
       'profile.personal_info': 'Thông tin cá nhân',
       'profile.username': 'Tên đăng nhập',
-      'profile.full_name': 'Họ tên',
+      'profile.full_name': 'Họ và tên',
       'profile.phone': 'Số điện thoại',
       'profile.birth_date': 'Ngày sinh',
       'profile.bio': 'Giới thiệu',
@@ -967,6 +1013,7 @@ class AppLocalizations {
       'profile.bio_hint': 'Giới thiệu bản thân',
       'profile.updated_success': 'Cập nhật thông tin thành công',
       'profile.updated_error': 'Đã xảy ra lỗi. Vui lòng thử lại.',
+      'profile.refresh_error': 'Không thể làm mới hồ sơ. Vui lòng thử lại.',
 
       'plans.title': 'Kế hoạch của bạn',
       'plans.group_title': '{group} - Kế hoạch',
@@ -1305,6 +1352,19 @@ class AppLocalizations {
       'budget.paid_owes': 'Đã trả {paid} - nợ {owed}',
       'budget.expense_detail': 'Chi tiết khoản chi',
       'budget.paid_by': 'Người trả',
+      'budget.select_payer': 'Chọn người trả',
+      'budget.multiple_payers': 'Có nhiều người cùng trả',
+      'budget.multiple_payers_description':
+          'Ghi nhận chính xác khoản tiền mỗi người đã trả cho hóa đơn này.',
+      'budget.payment_contributions': 'Các khoản đã trả',
+      'budget.payment_contributions_hint':
+          'Chỉ nhập số tiền đã thực trả. Tổng phải bằng giá trị hóa đơn.',
+      'budget.payment_total_preview': 'Đã trả {total} trên {amount}',
+      'budget.validation_payment_required': 'Hãy nhập ít nhất một khoản đã trả.',
+      'budget.validation_payment_amount':
+          'Mỗi khoản đã trả phải lớn hơn 0.',
+      'budget.validation_payment_total':
+          'Tổng các khoản đã trả phải bằng tổng giá trị khoản chi.',
       'budget.paid_by_name': 'Người trả: {name}',
       'budget.split_strategy': 'Cách chia',
       'budget.participants': 'Người tham gia',

@@ -6,14 +6,20 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.test import APIClient
 
 from planpals.analytics.application.factories import get_analytics_service
 from planpals.audit.domain.entities import AuditAction, AuditResourceType
 from planpals.audit.infrastructure.models import AuditLog
 from planpals.budgets.application.factories import get_budget_service
-from planpals.budgets.infrastructure.models import Budget, Expense, ExpenseParticipant, Settlement
+from planpals.budgets.infrastructure.models import (
+    Budget,
+    Expense,
+    ExpenseParticipant,
+    ExpensePayment,
+    Settlement,
+)
 from planpals.groups.infrastructure.models import Group, GroupMembership
 from planpals.notifications.domain.entities import NotificationType
 from planpals.notifications.infrastructure.models import Notification
@@ -240,6 +246,76 @@ class BudgetTrackingTests(TestCase):
         self.assertEqual(suggestion.from_user_id, self.member.id)
         self.assertEqual(suggestion.to_user_id, self.owner.id)
         self.assertEqual(suggestion.amount, Decimal('600000.00'))
+
+    def test_multiple_payment_contributions_calculate_balances_correctly(self):
+        result = self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='600.00',
+            category='Food',
+            split_strategy='equal',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+            payments=[
+                {'user_id': str(self.owner.id), 'amount': '500.00'},
+                {'user_id': str(self.member.id), 'amount': '100.00'},
+            ],
+        )
+
+        payments = ExpensePayment.objects.filter(expense_id=result.expense.id)
+        self.assertEqual(payments.count(), 2)
+        self.assertTrue(payments.filter(user=self.owner, amount=Decimal('500.00')).exists())
+        self.assertTrue(payments.filter(user=self.member, amount=Decimal('100.00')).exists())
+
+        balances = self.budget_service.get_balances(self.plan.id, self.owner)
+        by_user = {item.user_id: item for item in balances.balances}
+        self.assertEqual(by_user[self.owner.id].total_paid, Decimal('500.00'))
+        self.assertEqual(by_user[self.member.id].total_paid, Decimal('100.00'))
+        self.assertEqual(by_user[self.owner.id].net_balance, Decimal('200.00'))
+        self.assertEqual(by_user[self.member.id].net_balance, Decimal('-200.00'))
+        self.assertEqual(len(balances.settlement_suggestions), 1)
+        self.assertEqual(balances.settlement_suggestions[0].amount, Decimal('200.00'))
+
+    def test_multiple_payment_contributions_must_equal_expense_amount(self):
+        with self.assertRaises(ValidationError):
+            self.budget_service.add_expense(
+                self.plan.id,
+                self.owner,
+                amount='600.00',
+                category='Food',
+                payments=[
+                    {'user_id': str(self.owner.id), 'amount': '500.00'},
+                    {'user_id': str(self.member.id), 'amount': '50.00'},
+                ],
+            )
+
+    def test_expense_api_returns_multiple_payment_contributions(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(
+            reverse('plan-expenses', kwargs={'plan_id': self.plan.id}),
+            {
+                'amount': '600.00',
+                'category': 'Food',
+                'participants': [
+                    {'user_id': str(self.owner.id)},
+                    {'user_id': str(self.member.id)},
+                ],
+                'payments': [
+                    {'user_id': str(self.owner.id), 'amount': '500.00'},
+                    {'user_id': str(self.member.id), 'amount': '100.00'},
+                ],
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(response.data['expense']['payments']), 2)
+        self.assertEqual(
+            sum(Decimal(item['amount']) for item in response.data['expense']['payments']),
+            Decimal('600.00'),
+        )
 
     def test_percentage_and_exact_splits_are_validated(self):
         percentage_result = self.budget_service.add_expense(

@@ -46,6 +46,21 @@ def _env_flag(name: str, default: bool = False) -> bool:
         return default
     return value.lower() in ('true', '1', 'yes', 'on')
 
+
+def _env_positive_float(name: str, default: float) -> float:
+    """Read a positive timeout without making startup depend on a valid env value."""
+    try:
+        value = float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+# API documentation should not depend on DEBUG in production. Keep it behind
+# an explicit feature flag so Fly can expose Swagger without weakening Django.
+ENABLE_API_DOCS = _env_flag('ENABLE_API_DOCS', DEBUG)
+API_DOCS_REQUIRE_AUTH = _env_flag('API_DOCS_REQUIRE_AUTH', default=not DEBUG)
+
 ALLOWED_HOSTS = os.getenv(
     'ALLOWED_HOSTS',
     '10.0.2.2,localhost,127.0.0.1,192.168.1.41,planpal-backend.fly.dev'
@@ -448,6 +463,7 @@ CLIENT_ID = os.getenv('CLIENT_ID')
 IS_TEST_ENV = any(arg in {'test', 'pytest'} for arg in sys.argv)
 DEFAULT_LOCAL_CELERY_REDIS_URL = 'redis://127.0.0.1:6379/0'
 DEFAULT_LOCAL_CACHE_REDIS_URL = 'redis://127.0.0.1:6379/1'
+DEFAULT_LOCAL_CHANNEL_REDIS_URL = 'redis://127.0.0.1:6379/2'
 USE_LOCAL_REDIS_DEFAULTS = _env_flag(
     'PLANPAL_USE_LOCAL_REDIS_DEFAULTS',
     default=not DEBUG and not IS_TEST_ENV,
@@ -461,7 +477,21 @@ CELERY_REDIS_URL = os.getenv('CELERY_REDIS_URL') or (
 CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL') or (
     DEFAULT_LOCAL_CACHE_REDIS_URL if USE_LOCAL_REDIS_DEFAULTS else None
 )
-CHANNEL_REDIS_URL = os.getenv('CHANNEL_REDIS_URL') or CELERY_REDIS_URL
+CHANNEL_REDIS_URL = os.getenv('CHANNEL_REDIS_URL') or (
+    DEFAULT_LOCAL_CHANNEL_REDIS_URL if USE_LOCAL_REDIS_DEFAULTS else CELERY_REDIS_URL
+)
+CHANNEL_REDIS_SOCKET_TIMEOUT = _env_positive_float(
+    'CHANNEL_REDIS_SOCKET_TIMEOUT',
+    default=15.0,
+)
+CHANNEL_REDIS_CONNECT_TIMEOUT = _env_positive_float(
+    'CHANNEL_REDIS_CONNECT_TIMEOUT',
+    default=5.0,
+)
+CHANNEL_REDIS_HEALTH_CHECK_INTERVAL = _env_positive_float(
+    'CHANNEL_REDIS_HEALTH_CHECK_INTERVAL',
+    default=30.0,
+)
 USE_REDIS_CACHE = _env_flag(
     'USE_REDIS_CACHE',
     default=bool(CACHE_REDIS_URL) and not IS_TEST_ENV,
@@ -637,7 +667,14 @@ CHANNEL_LAYERS = {
         {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                'hosts': [CHANNEL_REDIS_URL],
+                # Long-lived receives need health checks and bounded recovery.
+                'hosts': [{
+                    'address': CHANNEL_REDIS_URL,
+                    'socket_timeout': CHANNEL_REDIS_SOCKET_TIMEOUT,
+                    'socket_connect_timeout': CHANNEL_REDIS_CONNECT_TIMEOUT,
+                    'health_check_interval': CHANNEL_REDIS_HEALTH_CHECK_INTERVAL,
+                    'retry_on_timeout': True,
+                }],
                 'capacity': 1500,
                 'expiry': 60,
                 'symmetric_encryption_keys': [SECRET_KEY],

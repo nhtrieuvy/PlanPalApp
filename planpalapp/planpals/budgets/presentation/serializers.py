@@ -40,6 +40,11 @@ class ExpenseCreateSerializer(serializers.Serializer):
         required=False,
         allow_empty=False,
     )
+    payments = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_empty=False,
+    )
 
 
 class SettlementCreateSerializer(serializers.Serializer):
@@ -106,6 +111,7 @@ class ExpenseSerializer(serializers.Serializer):
     description = serializers.CharField()
     split_strategy = serializers.CharField()
     participants = serializers.ListField()
+    payments = serializers.ListField()
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField(allow_null=True)
 
@@ -135,6 +141,18 @@ class ExpenseSerializer(serializers.Serializer):
                     'balance': participant.balance,
                 }
                 for participant in expense.participants
+            ],
+            'payments': [
+                {
+                    'id': payment.id,
+                    'expense_id': payment.expense_id,
+                    'user_id': payment.user_id,
+                    'user': cls._user_to_dict(payment.user),
+                    'amount': payment.amount,
+                    'created_at': payment.created_at,
+                    'updated_at': payment.updated_at,
+                }
+                for payment in expense.payments
             ],
             'created_at': expense.created_at,
             'updated_at': expense.updated_at,

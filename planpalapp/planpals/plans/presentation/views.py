@@ -46,7 +46,13 @@ class PlanViewSet(viewsets.ModelViewSet):
         return self.serializer_class
     
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Plan.objects.none()
+
         user = self.request.user
+        if not user or not user.is_authenticated:
+            return Plan.objects.none()
+
         base_qs = Plan.objects.filter(
             models.Q(group__members=user) |
             models.Q(creator=user)
@@ -346,9 +352,16 @@ class PlanActivityViewSet(viewsets.GenericViewSet,
         return PlanActivitySerializer
     
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return PlanActivity.objects.none()
+
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return PlanActivity.objects.none()
+
         return PlanActivity.objects.filter(
-            models.Q(plan__group__members=self.request.user) |
-            models.Q(plan__creator=self.request.user)
+            models.Q(plan__group__members=user) |
+            models.Q(plan__creator=user)
         ).select_related('plan', 'plan__group', 'plan__creator').distinct()
     
     def create(self, request, *args, **kwargs):

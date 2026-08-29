@@ -137,7 +137,8 @@ Budget
 
 Expense
  ├── belongs to -> Plan
- └── belongs to -> User
+ ├── records -> ExpenseParticipant (who shares the cost)
+ └── records -> ExpensePayment (who actually paid each contribution)
 
 Conversation
  ├── direct: has -> user_a, user_b
@@ -350,7 +351,7 @@ User
  -> PlanExpenseListCreateView.post()
  -> BudgetService.add_expense()
  -> ExpenseRepository.create_expense()
- -> DB insert Expense
+ -> DB insert Expense + ExpenseParticipant + ExpensePayment
  -> Budget summary recomputed
  -> AuditLogService.log_action(CREATE_EXPENSE, resource=plan, entity_type=expense)
  -> Celery process_expense_notifications_task.delay()
@@ -527,6 +528,11 @@ Write operations update DB first, then invalidate or version-bump cache.
 
 Base path: `/api/v1`
 
+Versioning rule: REST endpoints are exposed only through the versioned
+`/api/v1/...` contract. Unprefixed legacy REST routes such as `/plans/`,
+`/groups/`, and `/activities/` are intentionally disabled to keep Swagger,
+client contracts, and future `/api/v2` migration paths clean.
+
 Pagination styles:
 
 - Standard DRF lists: `count`, `next`, `previous`, `results`
@@ -702,7 +708,7 @@ Summary payload keys:
 | `GET /api/v1/plans/{plan_id}/budget/` | none | `BudgetSummary` | creator or group member |
 | `POST /api/v1/plans/{plan_id}/budget/` | `total_budget`, `currency` | updated `BudgetSummary` | creator or group admin |
 | `GET /api/v1/plans/{plan_id}/expenses/` | `category`, `user_id`, `sort_by`, `sort_direction`, `page`, `page_size` | `{count, total_pages, current_page, page_size, next, previous, results}` | page-number pagination |
-| `POST /api/v1/plans/{plan_id}/expenses/` | `amount`, `category`, `description` | `{expense, summary, warnings}` | creator or group member |
+| `POST /api/v1/plans/{plan_id}/expenses/` | `amount`, `category`, `description`, optional `participants`, optional `payments` | `{expense, summary, warnings}` | creator or group member |
 
 Budget summary shape:
 
@@ -784,7 +790,7 @@ Action to role map:
 
 Special permission notes:
 
-- `GET /groups/{id}/` explicitly checks object permissions before serving cached detail.
+- `GET /api/v1/groups/{id}/` explicitly checks object permissions before serving cached detail.
 - Audit log access is resource-aware, not global admin-only.
 - Analytics is intentionally staff-only on backend and hidden in Flutter for non-staff users.
 
@@ -1155,6 +1161,8 @@ These invariants must never be violated.
 - Every `Expense` belongs to an existing `Plan`.
 - Every `Expense` belongs to an existing `User`.
 - `Expense.amount > 0`.
+- Every `ExpensePayment.amount > 0`; payment contributors must be plan members and their total must exactly equal `Expense.amount`.
+- Expense participants and payment contributors are independent: participants owe the split amount, while payment contributors receive credit for the cash they paid.
 - Only plan creator or group admin can update budget.
 - Only plan creator or group member can add expenses.
 - Budget summary is derived from stored budget + expense rows, never manually edited.
