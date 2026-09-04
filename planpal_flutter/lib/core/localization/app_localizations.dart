@@ -207,7 +207,8 @@ class AppLocalizations {
       'profile.bio_hint': 'About you',
       'profile.updated_success': 'Profile updated successfully',
       'profile.updated_error': 'Something went wrong. Please try again.',
-      'profile.refresh_error': 'Could not refresh your profile. Please try again.',
+      'profile.refresh_error':
+          'Could not refresh your profile. Please try again.',
 
       'plans.title': 'Your plans',
       'plans.group_title': '{group} - Plans',
@@ -487,7 +488,7 @@ class AppLocalizations {
       'budget.track_description':
           'Track budget health, per-user contributions, and recent spending.',
       'budget.view_expenses': 'View expenses',
-      'budget.balances': 'Balances',
+      'budget.balances': 'Plan balances',
       'budget.add_expense': 'Add expense',
       'budget.update_budget': 'Update budget',
       'budget.set_budget': 'Set budget',
@@ -535,6 +536,14 @@ class AppLocalizations {
       'budget.chart_title': 'Spending Trend',
       'budget.chart_empty': 'No spending trend data yet.',
       'budget.total_shared_expenses': 'Total shared expenses: {amount}',
+      'budget.balances_description':
+          'Combined balances across every shared expense in this plan.',
+      'budget.total_to_receive': 'Total to receive',
+      'budget.total_to_pay': 'Total to pay',
+      'budget.remaining_balance': 'Remaining balance',
+      'budget.total_paid': 'Total paid',
+      'budget.total_owed': 'Total share',
+      'budget.settlements': 'Settlements',
       'budget.who_owes_whom': 'Who owes whom',
       'budget.all_balances_settled': 'All balances are settled.',
       'budget.member_balances': 'Member balances',
@@ -554,7 +563,8 @@ class AppLocalizations {
       'budget.payment_contributions_hint':
           'Enter only the amounts actually paid. Their total must match the bill.',
       'budget.payment_total_preview': 'Paid {total} of {amount}',
-      'budget.validation_payment_required': 'Enter at least one payment contribution.',
+      'budget.validation_payment_required':
+          'Enter at least one payment contribution.',
       'budget.validation_payment_amount':
           'Each payment contribution must be greater than zero.',
       'budget.validation_payment_total':
@@ -563,6 +573,8 @@ class AppLocalizations {
       'budget.split_strategy': 'Split strategy',
       'budget.participants': 'Participants',
       'budget.owes_amount': 'Owes {amount}',
+      'budget.receives_amount': 'Receives {amount}',
+      'budget.settled': 'Settled',
       'budget.expense_sharing': 'Expense sharing',
       'budget.split_equal': 'Equal',
       'budget.split_percentage': 'Percentage',
@@ -1294,7 +1306,7 @@ class AppLocalizations {
       'budget.track_description':
           'Theo dõi sức khỏe ngân sách, đóng góp theo người dùng và chi tiêu gần đây.',
       'budget.view_expenses': 'Xem chi phí',
-      'budget.balances': 'Số dư',
+      'budget.balances': 'Công nợ kế hoạch',
       'budget.add_expense': 'Thêm chi phí',
       'budget.update_budget': 'Cập nhật ngân sách',
       'budget.set_budget': 'Thiết lập ngân sách',
@@ -1341,6 +1353,14 @@ class AppLocalizations {
       'budget.chart_title': 'Xu hướng chi tiêu',
       'budget.chart_empty': 'Chưa có dữ liệu xu hướng chi tiêu.',
       'budget.total_shared_expenses': 'Tổng chi phí chung: {amount}',
+      'budget.balances_description':
+          'Tổng hợp công nợ từ mọi khoản chi chung trong kế hoạch.',
+      'budget.total_to_receive': 'Tổng cần nhận',
+      'budget.total_to_pay': 'Tổng cần trả',
+      'budget.remaining_balance': 'Số dư còn lại',
+      'budget.total_paid': 'Tổng đã trả',
+      'budget.total_owed': 'Tổng phần chia',
+      'budget.settlements': 'Các khoản tất toán',
       'budget.who_owes_whom': 'Ai nợ ai',
       'budget.all_balances_settled': 'Tất cả số dư đã được thanh toán.',
       'budget.member_balances': 'Số dư thành viên',
@@ -1360,15 +1380,17 @@ class AppLocalizations {
       'budget.payment_contributions_hint':
           'Chỉ nhập số tiền đã thực trả. Tổng phải bằng giá trị hóa đơn.',
       'budget.payment_total_preview': 'Đã trả {total} trên {amount}',
-      'budget.validation_payment_required': 'Hãy nhập ít nhất một khoản đã trả.',
-      'budget.validation_payment_amount':
-          'Mỗi khoản đã trả phải lớn hơn 0.',
+      'budget.validation_payment_required':
+          'Hãy nhập ít nhất một khoản đã trả.',
+      'budget.validation_payment_amount': 'Mỗi khoản đã trả phải lớn hơn 0.',
       'budget.validation_payment_total':
           'Tổng các khoản đã trả phải bằng tổng giá trị khoản chi.',
       'budget.paid_by_name': 'Người trả: {name}',
       'budget.split_strategy': 'Cách chia',
       'budget.participants': 'Người tham gia',
       'budget.owes_amount': 'Nợ {amount}',
+      'budget.receives_amount': 'Nhận {amount}',
+      'budget.settled': 'Đã thanh toán',
       'budget.expense_sharing': 'Chia khoản chi',
       'budget.split_equal': 'Chia đều',
       'budget.split_percentage': 'Theo phần trăm',

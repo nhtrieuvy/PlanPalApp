@@ -1,17 +1,12 @@
 import 'package:dio/dio.dart';
+import 'package:planpal_flutter/config/app_config.dart';
 
 import 'package:planpal_flutter/core/localization/app_locale.dart';
 
-const String baseUrl = String.fromEnvironment(
-  'PLANPAL_BASE_URL',
-  defaultValue: 'http://10.0.2.2:8000',
-);
+// Use AppConfig to get URL based on build mode (production/development)
+final String baseUrl = AppConfig.getBaseUrl();
 
-String get baseWsUrl {
-  final uri = Uri.parse(baseUrl);
-  final wsScheme = uri.scheme == 'https' ? 'wss' : 'ws';
-  return '$wsScheme://${uri.authority}';
-}
+String get baseWsUrl => AppConfig.getWebSocketUrl();
 
 class Endpoints {
   static const String _apiV1 = '/api/v1';

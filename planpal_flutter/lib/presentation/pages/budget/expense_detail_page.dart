@@ -139,7 +139,10 @@ class _HeroSummary extends StatelessWidget {
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [colorScheme.primaryContainer, colorScheme.secondaryContainer],
+          colors: [
+            colorScheme.primaryContainer,
+            colorScheme.secondaryContainer,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -154,7 +157,10 @@ class _HeroSummary extends StatelessWidget {
               color: colorScheme.surface.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(Icons.receipt_long_outlined, color: colorScheme.primary),
+            child: Icon(
+              Icons.receipt_long_outlined,
+              color: colorScheme.primary,
+            ),
           ),
           const SizedBox(height: 20),
           Text(
@@ -306,10 +312,41 @@ class _ParticipantRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+
     final name = participant.user.fullName.trim().isNotEmpty
         ? participant.user.fullName
         : participant.user.username;
+
     final balance = participant.balance;
+    final amount = balance.abs();
+
+    final String statusText;
+    if (balance < 0) {
+      statusText = context.l10n.t(
+        'budget.owes_amount',
+        params: {
+          'amount': AppFormatters.currency(
+            context,
+            amount: amount,
+            currencyCode: currency,
+          ),
+        },
+      );
+    } else if (balance > 0) {
+      statusText = context.l10n.t(
+        'budget.receives_amount',
+        params: {
+          'amount': AppFormatters.currency(
+            context,
+            amount: amount,
+            currencyCode: currency,
+          ),
+        },
+      );
+    } else {
+      statusText = context.l10n.t('budget.settled');
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -322,29 +359,30 @@ class _ParticipantRow extends StatelessWidget {
           CircleAvatar(
             backgroundColor: colorScheme.secondaryContainer,
             foregroundColor: colorScheme.onSecondaryContainer,
-            child: Text(participant.user.initials.isEmpty ? '?' : participant.user.initials),
+            child: Text(
+              participant.user.initials.isEmpty
+                  ? '?'
+                  : participant.user.initials,
+            ),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  context.l10n.t(
-                    'budget.owes_amount',
-                    params: {
-                      'amount': AppFormatters.currency(
-                        context,
-                        amount: participant.owedAmount,
-                        currencyCode: currency,
-                      ),
-                    },
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
+                ),
+
+                const SizedBox(height: 2),
+
+                Text(
+                  statusText,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -352,15 +390,20 @@ class _ParticipantRow extends StatelessWidget {
               ],
             ),
           ),
+
           Text(
             AppFormatters.currency(
               context,
-              amount: balance.abs(),
+              amount: amount,
               currencyCode: currency,
             ),
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w800,
-              color: balance > 0 ? colorScheme.primary : colorScheme.error,
+              color: balance > 0
+                  ? colorScheme.primary
+                  : balance < 0
+                  ? colorScheme.error
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ],
