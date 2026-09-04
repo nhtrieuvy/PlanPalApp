@@ -10,6 +10,7 @@ import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/presentation/pages/budget/budget_overview_page.dart';
+import 'package:planpal_flutter/presentation/pages/budget/balances_page.dart';
 import 'test_app.dart';
 
 void main() {
@@ -183,13 +184,90 @@ void main() {
     expect(updated.hasMore, isFalse);
     expect(updated.items.last.category, 'Taxi');
   });
+
+  testWidgets('BalancesPage shows the cumulative plan ledger', (tester) async {
+    const balances = BalanceSummaryModel(
+      planId: 'plan-1',
+      currency: 'VND',
+      totalExpenses: 1000000,
+      balances: [
+        UserBalanceModel(
+          user: BalanceUser(
+            id: 'user-1',
+            username: 'owner',
+            fullName: 'Plan Owner',
+          ),
+          totalPaid: 600000,
+          totalOwed: 500000,
+          settlementPaid: 0,
+          settlementReceived: 0,
+          netBalance: 100000,
+        ),
+        UserBalanceModel(
+          user: BalanceUser(
+            id: 'user-2',
+            username: 'member',
+            fullName: 'Group Member',
+          ),
+          totalPaid: 400000,
+          totalOwed: 500000,
+          settlementPaid: 0,
+          settlementReceived: 0,
+          netBalance: -100000,
+        ),
+      ],
+      settlementSuggestions: [
+        DebtSuggestionModel(
+          fromUser: BalanceUser(
+            id: 'user-2',
+            username: 'member',
+            fullName: 'Group Member',
+          ),
+          toUser: BalanceUser(
+            id: 'user-1',
+            username: 'owner',
+            fullName: 'Plan Owner',
+          ),
+          amount: 100000,
+        ),
+      ],
+    );
+    final repository = FakeBudgetRepository(
+      summary: summary,
+      balanceSummary: balances,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith((ref) => AuthProvider()),
+          budgetRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: buildLocalizedTestApp(
+          const BalancesPage(planId: 'plan-1', planTitle: 'Da Nang Trip'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Plan balances'), findsOneWidget);
+    expect(find.text('Total to receive'), findsOneWidget);
+    expect(find.text('Total to pay'), findsOneWidget);
+    expect(find.text('Plan Owner'), findsWidgets);
+    expect(find.text('Group Member'), findsWidgets);
+  });
 }
 
 class FakeBudgetRepository extends BudgetRepository {
   final BudgetModel summary;
   final List<ExpensePageResponse> pages;
+  final BalanceSummaryModel? balanceSummary;
 
-  FakeBudgetRepository({required this.summary, this.pages = const []})
+  FakeBudgetRepository({
+    required this.summary,
+    this.pages = const [],
+    this.balanceSummary,
+  })
     : super(AuthProvider());
 
   @override
@@ -244,7 +322,7 @@ class FakeBudgetRepository extends BudgetRepository {
 
   @override
   Future<BalanceSummaryModel> getBalances(String planId) async {
-    return const BalanceSummaryModel(
+    return balanceSummary ?? const BalanceSummaryModel(
       planId: 'plan-1',
       currency: 'VND',
       totalExpenses: 0,

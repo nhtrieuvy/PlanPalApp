@@ -172,6 +172,7 @@ Important logical relationships:
 - Every `Plan` must have exactly one `Budget`.
 - `Expense` is always scoped to a `Plan`.
 - `BudgetSummary` is derived, not stored.
+- `BalanceSummary` is a plan-scoped ledger: it aggregates all `ExpensePayment`, `ExpenseParticipant`, and completed `Settlement` records. It is distinct from a single expense detail.
 - `Plan` audit history logically includes direct plan logs and legacy `budget` / `expense` logs via `metadata.plan_id`.
 
 ---
@@ -951,8 +952,9 @@ Key provider groups:
   - `analyticsTimeSeriesProvider`
   - `analyticsTopEntitiesProvider`
 - budgets
-  - `budgetProvider(planId)`
-  - `expensesProvider(ExpenseListQuery)`
+- `budgetProvider(planId)`
+- `expensesProvider(ExpenseListQuery)`
+- `balancesProvider(planId)`
 
 Provider behavior notes:
 

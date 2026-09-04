@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:convert';
 import '../dtos/user_model.dart';
 import '../repositories/user_repository.dart';
+import 'package:planpal_flutter/config/app_config.dart';
 
 // Central auth/session service used by repositories and Riverpod providers.
 class AuthProvider extends ChangeNotifier {
@@ -27,10 +28,11 @@ class AuthProvider extends ChangeNotifier {
   String? get refreshToken => _refreshToken;
   bool get isLoggedIn => _user != null && _token != null;
 
-  final String _clientId = dotenv.env['CLIENT_ID'] ?? '';
-
   // Dùng để tránh nhiều refresh token chạy song song
   Completer<bool>? _refreshCompleter;
+
+  // Getter để lấy CLIENT_ID từ AppConfig (gọi khi cần, không cache)
+  String get _clientId => AppConfig.getClientId();
 
   // Khởi tạo provider, khôi phục token nếu có và fetch profile
   Future<void> init() async {
@@ -204,6 +206,13 @@ class AuthProvider extends ChangeNotifier {
         'password': password.trim(),
         'client_id': _clientId,
       };
+
+      // DEBUG: Log the values being sent
+      debugPrint('🔐 LOGIN ATTEMPT:');
+      debugPrint('  BASE_URL: ${AppConfig.getBaseUrl()}');
+      debugPrint('  CLIENT_ID: ${_clientId}');
+      debugPrint('  USERNAME: ${username.trim()}');
+      debugPrint('  ENDPOINT: ${baseUrl}${Endpoints.token}');
 
       final response = await apiClient.dio.post(Endpoints.token, data: form);
 

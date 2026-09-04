@@ -278,6 +278,44 @@ class BudgetTrackingTests(TestCase):
         self.assertEqual(len(balances.settlement_suggestions), 1)
         self.assertEqual(balances.settlement_suggestions[0].amount, Decimal('200.00'))
 
+    def test_plan_balances_aggregate_multiple_expenses(self):
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='600.00',
+            category='Food',
+            split_strategy='equal',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+            payments=[{'user_id': str(self.owner.id), 'amount': '600.00'}],
+        )
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.member,
+            amount='400.00',
+            category='Transport',
+            split_strategy='equal',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+            payments=[{'user_id': str(self.member.id), 'amount': '400.00'}],
+        )
+
+        balances = self.budget_service.get_balances(self.plan.id, self.owner)
+        by_user = {item.user_id: item for item in balances.balances}
+        self.assertEqual(balances.total_expenses, Decimal('1000.00'))
+        self.assertEqual(by_user[self.owner.id].total_paid, Decimal('600.00'))
+        self.assertEqual(by_user[self.owner.id].total_owed, Decimal('500.00'))
+        self.assertEqual(by_user[self.owner.id].net_balance, Decimal('100.00'))
+        self.assertEqual(by_user[self.member.id].total_paid, Decimal('400.00'))
+        self.assertEqual(by_user[self.member.id].total_owed, Decimal('500.00'))
+        self.assertEqual(by_user[self.member.id].net_balance, Decimal('-100.00'))
+        self.assertEqual(len(balances.settlement_suggestions), 1)
+        self.assertEqual(balances.settlement_suggestions[0].amount, Decimal('100.00'))
+
     def test_multiple_payment_contributions_must_equal_expense_amount(self):
         with self.assertRaises(ValidationError):
             self.budget_service.add_expense(
