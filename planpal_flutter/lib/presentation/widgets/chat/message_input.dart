@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../core/localization/app_localizations.dart';
 import '../../pages/location/location_picker_page.dart';
 
 class MessageInput extends StatefulWidget {
@@ -92,6 +93,7 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    final failureMessage = context.l10n.t('chat.pick_image_failed');
     try {
       final XFile? image = await _imagePicker.pickImage(
         source: source,
@@ -108,12 +110,13 @@ class _MessageInputState extends State<MessageInput> {
       if (mounted) {
         setState(() => _showAttachmentOptions = false);
       }
-    } catch (e) {
-      _showError('Khong the chon anh: $e');
+    } catch (_) {
+      _showError(failureMessage);
     }
   }
 
   Future<void> _pickFile() async {
+    final failureMessage = context.l10n.t('chat.pick_file_failed');
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: false,
@@ -130,12 +133,14 @@ class _MessageInputState extends State<MessageInput> {
       if (mounted) {
         setState(() => _showAttachmentOptions = false);
       }
-    } catch (e) {
-      _showError('Khong the chon file: $e');
+    } catch (_) {
+      _showError(failureMessage);
     }
   }
 
   Future<void> _shareLocation() async {
+    final invalidLocationMessage = context.l10n.t('chat.invalid_location');
+    final failureMessage = context.l10n.t('chat.share_location_failed');
     try {
       final result = await Navigator.of(context).push<Map<String, dynamic>>(
         MaterialPageRoute(builder: (_) => const LocationPickerPage()),
@@ -153,7 +158,7 @@ class _MessageInputState extends State<MessageInput> {
           result['location_address']?.toString();
 
       if (lat == null || lng == null) {
-        _showError('Khong lay duoc toa do hop le.');
+        _showError(invalidLocationMessage);
         return;
       }
 
@@ -161,8 +166,8 @@ class _MessageInputState extends State<MessageInput> {
       if (mounted) {
         setState(() => _showAttachmentOptions = false);
       }
-    } catch (e) {
-      _showError('Khong the chia se vi tri: $e');
+    } catch (_) {
+      _showError(failureMessage);
     }
   }
 

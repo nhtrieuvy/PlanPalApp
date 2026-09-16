@@ -8,6 +8,7 @@ import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
+import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class UserProfilePage extends ConsumerStatefulWidget {
@@ -68,10 +69,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
     } catch (error) {
       if (!mounted) return;
 
-      final is403Error = error is DioException
-          ? error.response?.statusCode == 403
-          : error.toString().contains('403') ||
-                error.toString().toLowerCase().contains('forbidden');
+      final is403Error =
+          (error is DioException && error.response?.statusCode == 403) ||
+          (error is ApiException && error.statusCode == 403);
 
       if (is403Error) {
         setState(() {
@@ -89,7 +89,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
             content: Text(
               l10n.t(
                 'user_profile.load_error',
-                params: {'error': error.toString()},
+                params: {
+                  'error': ErrorDisplayService.getUserFriendlyMessage(error),
+                },
               ),
             ),
           ),
@@ -183,24 +185,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
   }
 
   String _extractErrorMessage(Object error) {
-    if (error is ApiException) {
-      return error.message;
-    }
-
-    if (error is DioException) {
-      final data = error.response?.data;
-      if (data is Map) {
-        final detail = data['detail'] ?? data['message'] ?? data['error'];
-        if (detail != null) {
-          return detail.toString();
-        }
-      }
-      if (error.message != null && error.message!.trim().isNotEmpty) {
-        return error.message!.trim();
-      }
-    }
-
-    return error.toString();
+    return ErrorDisplayService.getUserFriendlyMessage(error);
   }
 
   bool _isAlreadyFriendsError(Object error) {
@@ -292,7 +277,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            l10n.t('user_profile.error', params: {'error': error.toString()}),
+            l10n.t(
+              'user_profile.error',
+              params: {
+                'error': ErrorDisplayService.getUserFriendlyMessage(error),
+              },
+            ),
           ),
         ),
       );
@@ -325,7 +315,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            l10n.t('user_profile.error', params: {'error': error.toString()}),
+            l10n.t(
+              'user_profile.error',
+              params: {
+                'error': ErrorDisplayService.getUserFriendlyMessage(error),
+              },
+            ),
           ),
         ),
       );
@@ -377,7 +372,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            l10n.t('user_profile.error', params: {'error': error.toString()}),
+            l10n.t(
+              'user_profile.error',
+              params: {
+                'error': ErrorDisplayService.getUserFriendlyMessage(error),
+              },
+            ),
           ),
         ),
       );
@@ -429,7 +429,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            l10n.t('user_profile.error', params: {'error': error.toString()}),
+            l10n.t(
+              'user_profile.error',
+              params: {
+                'error': ErrorDisplayService.getUserFriendlyMessage(error),
+              },
+            ),
           ),
         ),
       );
@@ -480,7 +485,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            l10n.t('user_profile.error', params: {'error': error.toString()}),
+            l10n.t(
+              'user_profile.error',
+              params: {
+                'error': ErrorDisplayService.getUserFriendlyMessage(error),
+              },
+            ),
           ),
         ),
       );
@@ -958,9 +968,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                     _user.isOnline
                         ? l10n.t('user_profile.online')
                         : l10n.t('friends.offline'),
-                    valueColor: _user.isOnline
-                        ? Colors.green
-                        : Colors.grey,
+                    valueColor: _user.isOnline ? Colors.green : Colors.grey,
                   ),
                   const Divider(),
                   _buildInfoRow(

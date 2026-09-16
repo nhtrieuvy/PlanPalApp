@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -11,6 +12,7 @@ import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/repositories/friend_repository.dart';
 import 'package:planpal_flutter/core/repositories/group_repository.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/riverpod/storage_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/presentation/widgets/forms/form_wizard_scaffold.dart';
 
@@ -35,6 +37,11 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
   final Set<UserSummary> _selectedMembers = {};
   bool _loadingFriends = false;
   int _currentStep = 0;
+  bool _submitted = false;
+  final Set<String> _draftMemberIds = {};
+
+  String get _draftScope =>
+      'group_form:${widget.initial?['id']?.toString() ?? 'new'}';
 
   GroupRepository get _repo => ref.read(groupRepositoryProvider);
   FriendRepository get _friendRepo => ref.read(friendRepositoryProvider);
@@ -49,6 +56,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
       text: widget.initial?['description']?.toString() ?? '',
     );
     _visibility = widget.initial?['visibility']?.toString() ?? 'private';
+    _restoreDraft();
 
     if (widget.initial == null) {
       _loadFriends();
@@ -57,9 +65,34 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
 
   @override
   void dispose() {
+    if (!_submitted) unawaited(_saveDraft());
     _nameCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
+  }
+
+  void _restoreDraft() {
+    final draft = ref.read(offlineSyncProvider).loadDraft(_draftScope);
+    if (draft == null) return;
+    _nameCtrl.text = draft['name']?.toString() ?? _nameCtrl.text;
+    _descCtrl.text = draft['description']?.toString() ?? _descCtrl.text;
+    _visibility = draft['visibility']?.toString() ?? _visibility;
+    _draftMemberIds.addAll(
+      (draft['member_ids'] as List? ?? const []).map((item) => item.toString()),
+    );
+  }
+
+  Future<void> _saveDraft() =>
+      ref.read(offlineSyncProvider).saveDraft(_draftScope, {
+        'name': _nameCtrl.text,
+        'description': _descCtrl.text,
+        'visibility': _visibility,
+        'member_ids': _selectedMembers.map((item) => item.id).toList(),
+      });
+
+  Future<void> _clearDraft() async {
+    _submitted = true;
+    await ref.read(offlineSyncProvider).clearDraft(_draftScope);
   }
 
   Future<void> _loadFriends() async {
@@ -68,6 +101,9 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
       final friends = await _friendRepo.getFriends();
       setState(() {
         _availableFriends = friends;
+        _selectedMembers.addAll(
+          friends.where((friend) => _draftMemberIds.contains(friend.id)),
+        );
         _loadingFriends = false;
       });
     } catch (error) {
@@ -97,6 +133,8 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
           coverImage: _coverFile,
         );
         if (!mounted) return;
+        await _clearDraft();
+        if (!mounted) return;
         _evictGroupImages(result);
         Navigator.of(context).pop({
           'action': 'created',
@@ -122,6 +160,8 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
           avatar: _avatarFile,
           coverImage: _coverFile,
         );
+        if (!mounted) return;
+        await _clearDraft();
         if (!mounted) return;
         _evictGroupImages(result);
         Navigator.of(context).pop({
@@ -404,18 +444,16 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
                       width: 80,
                       height: 80,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) =>
-                          Icon(
-                            Icons.group,
-                            size: 40,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                      errorWidget: (context, url, error) =>
-                          Icon(
-                            Icons.group,
-                            size: 40,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                      placeholder: (context, url) => Icon(
+                        Icons.group,
+                        size: 40,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      errorWidget: (context, url, error) => Icon(
+                        Icons.group,
+                        size: 40,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   );
                 }
@@ -425,11 +463,7 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
                   color: colorScheme.onSurfaceVariant,
                 );
               })()
-            : Icon(
-                Icons.group,
-                size: 40,
-                color: colorScheme.onSurfaceVariant,
-              ),
+            : Icon(Icons.group, size: 40, color: colorScheme.onSurfaceVariant),
       ),
     );
   }
@@ -615,9 +649,9 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
         const SizedBox(height: 8),
         Text(
           l10n.t('group_form.members_requirement'),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 12),
         if (_loadingFriends)

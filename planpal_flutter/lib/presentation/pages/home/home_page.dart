@@ -7,10 +7,12 @@ import 'package:planpal_flutter/core/dtos/plan_summary.dart';
 import 'package:planpal_flutter/core/localization/app_locale.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/providers.dart';
+import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/presentation/pages/chat/conversation_list_page.dart';
 import 'package:planpal_flutter/presentation/pages/friends/friend_search_page.dart';
 import 'package:planpal_flutter/presentation/pages/location/current_location_map_page.dart';
+import 'package:planpal_flutter/presentation/pages/experience/global_search_page.dart';
 import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_invite_code_join_page.dart';
@@ -68,6 +70,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     final plansAsync = ref.watch(plansNotifierProvider);
     final groupsAsync = ref.watch(groupsNotifierProvider);
     final l10n = context.l10n;
+    final offlineSync = ref.watch(offlineSyncProvider);
 
     final isLoading = plansAsync.isLoading || groupsAsync.isLoading;
     final error = plansAsync.error ?? groupsAsync.error;
@@ -91,7 +94,9 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                       )
                     : error != null && recentPlans.isEmpty
                     ? AppError(
-                        message: 'Error: $error',
+                        message: ErrorDisplayService.getUserFriendlyMessage(
+                          error,
+                        ),
                         onRetry: () async => onRefresh(),
                         retryLabel: l10n.t('common.retry'),
                       )
@@ -99,6 +104,38 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildGreetingSection(context),
+                          if (offlineSync.pendingCount > 0) ...[
+                            const SizedBox(height: 12),
+                            Card(
+                              child: ListTile(
+                                leading: offlineSync.isSyncing
+                                    ? const SizedBox.square(
+                                        dimension: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.cloud_off_outlined),
+                                title: Text(
+                                  l10n.t(
+                                    'offline.pending_title',
+                                    params: {
+                                      'count': offlineSync.pendingCount
+                                          .toString(),
+                                    },
+                                  ),
+                                ),
+                                subtitle: Text(l10n.t('offline.pending_hint')),
+                                trailing: IconButton(
+                                  tooltip: l10n.t('common.retry'),
+                                  onPressed: offlineSync.isSyncing
+                                      ? null
+                                      : offlineSync.flush,
+                                  icon: const Icon(Icons.sync),
+                                ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 24),
                           _buildQuickActions(context),
                           const SizedBox(height: 24),
@@ -144,6 +181,13 @@ class _HomeContentState extends ConsumerState<_HomeContent>
         ),
       ),
       actions: [
+        IconButton(
+          tooltip: context.l10n.t('search.title'),
+          icon: const Icon(Icons.search, color: Colors.white),
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const GlobalSearchPage())),
+        ),
         Consumer(
           builder: (context, ref, child) {
             final unreadCount = ref.watch(unreadCountProvider).valueOrNull ?? 0;

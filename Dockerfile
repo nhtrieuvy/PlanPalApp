@@ -5,11 +5,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Cài đặt Redis, Supervisor và các dependencies
+# Keep the low-cost deployment self-contained: Supervisor runs Daphne, one
+# Celery worker and one Beat scheduler. Redis remains an external durable
+# dependency for Channels, cache and Celery.
 RUN apt-get update && apt-get install -y \
-    gcc default-libmysqlclient-dev pkg-config curl \
-    redis-server \
-    supervisor \
+    gcc default-libmysqlclient-dev pkg-config curl supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 COPY planpalapp/requirements.txt .
@@ -20,9 +20,10 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN mkdir -p /app/staticfiles /app/logs
 
-RUN python manage.py collectstatic --noinput || true
+RUN REQUIRE_EXTERNAL_REDIS=false \
+    SECRET_KEY=build-only-not-used-at-runtime \
+    python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
-CMD python manage.py migrate --noinput && \
-    /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

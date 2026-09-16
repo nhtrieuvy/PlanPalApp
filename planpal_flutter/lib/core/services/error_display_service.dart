@@ -148,8 +148,8 @@ class ErrorDisplayService {
       );
     }
 
-    final raw = _cleanPlainException(error);
-    if (raw != null) return raw;
+    final mapped = _cleanPlainException(error);
+    if (mapped != null) return mapped;
 
     return _localized(
       en: 'Something went wrong. Please try again.',
@@ -305,7 +305,7 @@ class ErrorDisplayService {
       return null;
     }
     if (_looksTechnical(text)) return null;
-    return text;
+    return null;
   }
 
   static bool _looksCorrupted(String text) {

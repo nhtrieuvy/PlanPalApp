@@ -272,7 +272,9 @@ class _CurrentLocationMapPageState
                                   const AppSkeleton.list(itemCount: 5),
                               error: (error, _) => AppError(
                                 message:
-                                    '${context.l10n.t('map.load_conversations_failed')}\n$error',
+                                    ErrorDisplayService.getUserFriendlyMessage(
+                                      error,
+                                    ),
                                 onRetry: () => ref
                                     .read(conversationListProvider.notifier)
                                     .refresh(),

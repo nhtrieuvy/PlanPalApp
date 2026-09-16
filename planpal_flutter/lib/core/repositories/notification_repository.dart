@@ -81,4 +81,37 @@ class NotificationRepository {
       rethrow;
     }
   }
+
+  Future<NotificationPreferenceModel> getPreferences() async {
+    try {
+      final response = await _auth.requestWithAutoRefresh(
+        (client) => client.dio.get(Endpoints.notificationPreferences),
+      );
+      return NotificationPreferenceModel.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+    } on DioException catch (error) {
+      if (error.response != null) throw buildApiException(error.response!);
+      rethrow;
+    }
+  }
+
+  Future<NotificationPreferenceModel> updatePreferences(
+    NotificationPreferenceModel preferences,
+  ) async {
+    try {
+      final response = await _auth.requestWithAutoRefresh(
+        (client) => client.dio.patch(
+          Endpoints.notificationPreferences,
+          data: preferences.toJson(),
+        ),
+      );
+      return NotificationPreferenceModel.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+    } on DioException catch (error) {
+      if (error.response != null) throw buildApiException(error.response!);
+      rethrow;
+    }
+  }
 }

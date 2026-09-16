@@ -40,6 +40,17 @@ from planpals.plans.infrastructure.models import (  # noqa: F401
     PlanActivity,
 )
 
+# Collaboration infrastructure models (ORM)
+from planpals.collaboration.infrastructure.models import (  # noqa: F401
+    AvailabilityPoll,
+    AvailabilityOption,
+    AvailabilityVote,
+    PlanWorkItem,
+    PlanComment,
+    CommentMention,
+    CommentReaction,
+)
+
 # Chat infrastructure models (ORM)
 from planpals.chat.infrastructure.models import (  # noqa: F401
     ConversationQuerySet,
@@ -55,6 +66,7 @@ from planpals.audit.infrastructure.models import AuditLog  # noqa: F401
 # Notification infrastructure models (ORM)
 from planpals.notifications.infrastructure.models import (  # noqa: F401
     Notification,
+    NotificationPreference,
     UserDeviceToken,
 )
 
@@ -62,7 +74,22 @@ from planpals.notifications.infrastructure.models import (  # noqa: F401
 from planpals.analytics.infrastructure.models import DailyMetric  # noqa: F401
 
 # Budget infrastructure models (ORM)
-from planpals.budgets.infrastructure.models import Budget, Expense  # noqa: F401
+from planpals.budgets.infrastructure.models import (  # noqa: F401
+    Budget,
+    Expense,
+    ExpenseParticipant,
+    ExpensePayment,
+    RecurringExpense,
+    Settlement,
+)
+
+# Sprint 5 experience models (ORM)
+from planpals.experience.infrastructure.models import (  # noqa: F401
+    GroupPoll,
+    GroupPollOption,
+    GroupPollVote,
+    LiveLocationShare,
+)
 
 __all__ = [
     'BaseModel',
@@ -70,9 +97,13 @@ __all__ = [
     'FriendshipQuerySet', 'FriendshipRejection', 'Friendship',
     'GroupQuerySet', 'Group', 'GroupMembershipQuerySet', 'GroupMembership',
     'PlanQuerySet', 'Plan', 'PlanActivity',
+    'AvailabilityPoll', 'AvailabilityOption', 'AvailabilityVote',
+    'PlanWorkItem', 'PlanComment', 'CommentMention', 'CommentReaction',
     'ConversationQuerySet', 'Conversation', 'ChatMessageQuerySet', 'ChatMessage', 'MessageReadStatus',
     'AuditLog',
-    'Notification', 'UserDeviceToken',
+    'Notification', 'NotificationPreference', 'UserDeviceToken',
     'DailyMetric',
-    'Budget', 'Expense',
+    'Budget', 'Expense', 'ExpenseParticipant', 'ExpensePayment',
+    'RecurringExpense', 'Settlement',
+    'GroupPoll', 'GroupPollOption', 'GroupPollVote', 'LiveLocationShare',
 ]

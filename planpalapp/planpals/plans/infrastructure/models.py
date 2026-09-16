@@ -20,6 +20,16 @@ from django.core.exceptions import ValidationError
 from planpals.shared.base_models import BaseModel
 
 
+def local_date_bounds(target_date: date) -> tuple[datetime, datetime]:
+    """Return an index-friendly half-open range for a local calendar day."""
+    current_timezone = timezone.get_current_timezone()
+    start = timezone.make_aware(
+        datetime.combine(target_date, datetime.min.time()),
+        current_timezone,
+    )
+    return start, start + timedelta(days=1)
+
+
 class PlanQuerySet(models.QuerySet['Plan']):
     
     def personal(self) -> 'PlanQuerySet':
@@ -82,7 +92,7 @@ class PlanQuerySet(models.QuerySet['Plan']):
     
     def plans_need_status_update(self) -> 'PlanQuerySet':
         now = timezone.now()
-        return self.filter(
+        return self.filter(is_template=False).filter(
             Q(
                 status='upcoming',
                 start_date__lte=now
@@ -161,6 +171,12 @@ class Plan(BaseModel):
         default='upcoming',
         db_index=True,
         help_text="Current status of the plan"
+    )
+
+    is_template = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether this plan is a reusable template",
     )
 
     scheduled_start_task_id = models.CharField(
@@ -274,14 +290,16 @@ class Plan(BaseModel):
         result = defaultdict(list)
         
         for activity in activities:
-            date_key = activity.start_time.date()
+            date_key = timezone.localtime(activity.start_time).date()
             result[date_key].append(activity)
         
         return dict(result)
 
     def get_activities_by_date(self, date: date) -> QuerySet['PlanActivity']:
+        day_start, next_day_start = local_date_bounds(date)
         return self.activities.filter(
-            start_time__date=date
+            start_time__gte=day_start,
+            start_time__lt=next_day_start,
         ).order_by('start_time')
 
     def check_activity_overlap(self, start_time: datetime, end_time: datetime, exclude_id: Optional[str] = None) -> Optional['PlanActivity']:

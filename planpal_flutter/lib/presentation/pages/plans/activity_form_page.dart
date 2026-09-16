@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -9,6 +11,7 @@ import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/presentation/widgets/forms/app_select_field.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/riverpod/storage_providers.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
@@ -54,6 +57,10 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
   bool _isSubmitting = false;
   late int _baseVersion;
   int _currentStep = 0;
+  bool _submitted = false;
+
+  String get _draftScope =>
+      'activity_form:${widget.initialActivity?.id ?? '${widget.planId}:new'}';
 
   @override
   void initState() {
@@ -75,10 +82,55 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
     _endTime = initial?.endTime;
     _activityType = initial?.activityType ?? 'eating';
     _baseVersion = initial?.version ?? 1;
+    _restoreDraft();
+  }
+
+  void _restoreDraft() {
+    final draft = ref.read(offlineSyncProvider).loadDraft(_draftScope);
+    if (draft == null) return;
+    _titleCtrl.text = draft['title']?.toString() ?? _titleCtrl.text;
+    _descriptionCtrl.text =
+        draft['description']?.toString() ?? _descriptionCtrl.text;
+    _estimatedCostCtrl.text =
+        draft['estimated_cost']?.toString() ?? _estimatedCostCtrl.text;
+    _notesCtrl.text = draft['notes']?.toString() ?? _notesCtrl.text;
+    _latitude = (draft['latitude'] as num?)?.toDouble() ?? _latitude;
+    _longitude = (draft['longitude'] as num?)?.toDouble() ?? _longitude;
+    _locationName = draft['location_name']?.toString() ?? _locationName;
+    _locationAddress =
+        draft['location_address']?.toString() ?? _locationAddress;
+    _goongPlaceId = draft['goong_place_id']?.toString() ?? _goongPlaceId;
+    _startTime =
+        DateTime.tryParse(draft['start_time']?.toString() ?? '') ?? _startTime;
+    _endTime =
+        DateTime.tryParse(draft['end_time']?.toString() ?? '') ?? _endTime;
+    _activityType = draft['activity_type']?.toString() ?? _activityType;
+  }
+
+  Future<void> _saveDraft() =>
+      ref.read(offlineSyncProvider).saveDraft(_draftScope, {
+        'title': _titleCtrl.text,
+        'description': _descriptionCtrl.text,
+        'estimated_cost': _estimatedCostCtrl.text,
+        'notes': _notesCtrl.text,
+        'latitude': _latitude,
+        'longitude': _longitude,
+        'location_name': _locationName,
+        'location_address': _locationAddress,
+        'goong_place_id': _goongPlaceId,
+        'start_time': _startTime?.toIso8601String(),
+        'end_time': _endTime?.toIso8601String(),
+        'activity_type': _activityType,
+      });
+
+  Future<void> _clearDraft() async {
+    _submitted = true;
+    await ref.read(offlineSyncProvider).clearDraft(_draftScope);
   }
 
   @override
   void dispose() {
+    if (!_submitted) unawaited(_saveDraft());
     _titleCtrl.dispose();
     _descriptionCtrl.dispose();
     _estimatedCostCtrl.dispose();
@@ -492,9 +544,7 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
                                     context.l10n.t(
                                       'activity_form.selected_location',
                                     ),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
+                                style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(fontWeight: FontWeight.w700),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -774,6 +824,8 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
         );
         await _repo.createActivity(request);
         if (!mounted) return;
+        await _clearDraft();
+        if (!mounted) return;
         ErrorDisplayService.showSuccessSnackbar(
           context,
           context.l10n.t('activity_form.submit_create'),
@@ -848,6 +900,8 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
       _baseVersion += 1;
     }
 
+    if (!mounted) return;
+    await _clearDraft();
     if (!mounted) return;
     ErrorDisplayService.showSuccessSnackbar(
       context,

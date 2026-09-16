@@ -59,6 +59,7 @@ class _PlanPalAppState extends ConsumerState<PlanPalApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _bootstrapFuture = _bootstrap();
+    ref.read(offlineSyncProvider).start();
   }
 
   @override
@@ -73,6 +74,7 @@ class _PlanPalAppState extends ConsumerState<PlanPalApp>
     final authProvider = ref.read(authNotifierProvider);
     if (authProvider.isLoggedIn) {
       unawaited(authProvider.markOnline());
+      unawaited(ref.read(offlineSyncProvider).onAppResumed());
     }
   }
 

@@ -147,7 +147,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       if (silent) return;
       setState(() {
         _loadingFriends = false;
-        _friendsError = error.toString();
+        _friendsError = ErrorDisplayService.getUserFriendlyMessage(error);
       });
     }
   }
@@ -168,7 +168,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       if (!mounted) return;
       setState(() {
         _loadingRequests = false;
-        _requestsError = error.toString();
+        _requestsError = ErrorDisplayService.getUserFriendlyMessage(error);
       });
     }
   }

@@ -3,12 +3,24 @@ primary_region = "sin"
 
 [build]
 
+[deploy]
+  release_command = "python manage.py migrate --noinput"
+
 [env]
   PORT = "8000"
+  PLANPAL_ENV = "production"
   DJANGO_SETTINGS_MODULE = "planpalapp.settings"
+  ALLOWED_HOSTS = "planpal-backend.fly.dev"
+  CORS_ALLOW_ALL_ORIGINS = "false"
+  CORS_ALLOWED_ORIGINS = "https://planpal-backend.fly.dev"
+  CSRF_TRUSTED_ORIGINS = "https://planpal-backend.fly.dev"
   ENABLE_API_DOCS = "true"
   API_DOCS_REQUIRE_AUTH = "false"
-  PLANPAL_USE_LOCAL_REDIS_DEFAULTS = "true"
+  REQUIRE_EXTERNAL_REDIS = "true"
+  USE_REDIS_CACHE = "true"
+  USE_REDIS_CHANNELS = "true"
+  LOG_LEVEL = "INFO"
+  LOG_TO_FILE = "false"
 
 [http_service]
   internal_port = 8000
@@ -16,6 +28,12 @@ primary_region = "sin"
   auto_stop_machines = false
   auto_start_machines = true
   min_machines_running = 1
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "30s"
+    method = "GET"
+    path = "/health/ready"
+    timeout = "5s"
 
 [[vm]]
   cpu_kind = "shared"

@@ -14,7 +14,7 @@ from django.db.models import Q, Sum, Count, Avg, F
 from django.utils import timezone
 
 from planpals.plans.domain.repositories import PlanRepository, PlanActivityRepository
-from planpals.plans.infrastructure.models import Plan, PlanActivity
+from planpals.plans.infrastructure.models import Plan, PlanActivity, local_date_bounds
 
 logger = logging.getLogger(__name__)
 
@@ -228,9 +228,14 @@ class DjangoPlanActivityRepository(PlanActivityRepository):
         )
 
     def get_activities_by_date(self, plan_id: UUID, target_date: date) -> Any:
+        day_start, next_day_start = local_date_bounds(target_date)
         return (
             PlanActivity.objects
-            .filter(plan_id=plan_id, start_time__date=target_date)
+            .filter(
+                plan_id=plan_id,
+                start_time__gte=day_start,
+                start_time__lt=next_day_start,
+            )
             .select_related('plan')
             .order_by('start_time')
         )
@@ -238,12 +243,14 @@ class DjangoPlanActivityRepository(PlanActivityRepository):
     def get_activities_by_date_range(
         self, plan_id: UUID, start_date: date, end_date: date
     ) -> Any:
+        range_start, _ = local_date_bounds(start_date)
+        _, range_end = local_date_bounds(end_date)
         return (
             PlanActivity.objects
             .filter(
                 plan_id=plan_id,
-                start_time__date__gte=start_date,
-                start_time__date__lte=end_date,
+                start_time__gte=range_start,
+                start_time__lt=range_end,
             )
             .select_related('plan')
             .order_by('start_time')

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from math import ceil
 from decimal import Decimal
 from typing import Sequence
@@ -18,6 +18,8 @@ from planpals.budgets.application.repositories import (
     ExpensePage,
     ExpenseParticipantCreateData,
     ExpenseRepository,
+    RecurringExpenseCreateData,
+    RecurringExpenseRepository,
     SettlementCreateData,
     SettlementRepository,
 )
@@ -29,6 +31,7 @@ from planpals.budgets.domain.entities import (
     ExpenseParticipant as ExpenseParticipantEntity,
     ExpensePayment as ExpensePaymentEntity,
     ExpenseUser,
+    RecurringExpense as RecurringExpenseEntity,
     Settlement as SettlementEntity,
 )
 from planpals.budgets.infrastructure.models import (
@@ -36,6 +39,7 @@ from planpals.budgets.infrastructure.models import (
     Expense,
     ExpenseParticipant,
     ExpensePayment,
+    RecurringExpense,
     Settlement,
 )
 
@@ -77,7 +81,21 @@ class DjangoBudgetRepository(BudgetRepository):
 class DjangoExpenseRepository(ExpenseRepository):
     AMOUNT_FIELD = DecimalField(max_digits=14, decimal_places=2)
 
+    @staticmethod
+    def _effective_queryset():
+        # A correction is a complete replacement entry. Only leaf entries affect
+        # totals; ancestors remain immutable for audit and rollback inspection.
+        return Expense.objects.filter(corrections__isnull=True)
+
     def create_expense(self, data: ExpenseCreateData) -> ExpenseEntity:
+        receipt = data.receipt
+        if receipt is None and data.copy_receipt_from_expense_id is not None:
+            receipt = (
+                Expense.objects
+                .filter(id=data.copy_receipt_from_expense_id)
+                .values_list('receipt', flat=True)
+                .first()
+            )
         row = Expense.objects.create(
             plan_id=data.plan_id,
             user_id=data.user_id,
@@ -86,7 +104,14 @@ class DjangoExpenseRepository(ExpenseRepository):
             currency=data.currency,
             category=data.category,
             description=data.description,
+            payment_note=data.payment_note,
+            receipt=receipt,
             split_strategy=data.split_strategy,
+            entry_type=data.entry_type,
+            corrects_expense_id=data.corrects_expense_id,
+            correction_reason=data.correction_reason,
+            recurrence_id=data.recurrence_id,
+            occurrence_at=data.occurrence_at,
         )
         if data.participants:
             ExpenseParticipant.objects.bulk_create(
@@ -115,7 +140,7 @@ class DjangoExpenseRepository(ExpenseRepository):
                 batch_size=500,
             )
         row = (
-            Expense.objects
+            self._effective_queryset()
             .select_related('user', 'paid_by_user')
             .prefetch_related('participants__user', 'payments__user')
             .get(id=row.id)
@@ -156,7 +181,7 @@ class DjangoExpenseRepository(ExpenseRepository):
         )
 
     def get_total_expense(self, plan_id: UUID):
-        return Expense.objects.filter(plan_id=plan_id).aggregate(
+        return self._effective_queryset().filter(plan_id=plan_id).aggregate(
             total=Coalesce(
                 Sum('amount'),
                 Value(Decimal('0.00')),
@@ -165,11 +190,14 @@ class DjangoExpenseRepository(ExpenseRepository):
         )['total']
 
     def count_expenses(self, plan_id: UUID) -> int:
-        return Expense.objects.filter(plan_id=plan_id).count()
+        return self._effective_queryset().filter(plan_id=plan_id).count()
 
     def get_breakdown(self, plan_id: UUID) -> Sequence[BudgetBreakdownItem]:
         rows = (
-            ExpensePayment.objects.filter(expense__plan_id=plan_id)
+            ExpensePayment.objects.filter(
+                expense__plan_id=plan_id,
+                expense__corrections__isnull=True,
+            )
             .values('user_id', 'user__username')
             .annotate(
                 amount=Coalesce(
@@ -202,7 +230,7 @@ class DjangoExpenseRepository(ExpenseRepository):
     ) -> Sequence[BudgetTrendPoint]:
         start_date = timezone.localdate() - timedelta(days=max(days - 1, 0))
         rows = (
-            Expense.objects.filter(
+            self._effective_queryset().filter(
                 plan_id=plan_id,
                 created_at__date__gte=start_date,
             )
@@ -226,7 +254,7 @@ class DjangoExpenseRepository(ExpenseRepository):
 
     def get_by_id(self, expense_id: UUID) -> ExpenseEntity | None:
         row = (
-            Expense.objects
+            self._effective_queryset()
             .select_related('user', 'paid_by_user', 'plan')
             .prefetch_related('participants__user', 'payments__user')
             .filter(id=expense_id)
@@ -249,6 +277,39 @@ class DjangoExpenseRepository(ExpenseRepository):
             ExpenseParticipant.objects.filter(expense_id=expense_id)
             .values_list('user_id', flat=True)
         )
+
+    def get_effective_expense(
+        self,
+        expense_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> ExpenseEntity | None:
+        queryset = self._effective_queryset()
+        if for_update:
+            queryset = queryset.select_for_update()
+        row = (
+            queryset.select_related('user', 'paid_by_user')
+            .prefetch_related('participants__user', 'payments__user')
+            .filter(id=expense_id)
+            .first()
+        )
+        return self._to_entity(row) if row else None
+
+    def get_category_totals(self, plan_id: UUID) -> Sequence[tuple[str, Decimal]]:
+        rows = (
+            self._effective_queryset()
+            .filter(plan_id=plan_id)
+            .values('category')
+            .annotate(
+                total=Coalesce(
+                    Sum('amount'),
+                    Value(Decimal('0.00')),
+                    output_field=self.AMOUNT_FIELD,
+                )
+            )
+            .order_by('-total', 'category')
+        )
+        return [(row['category'], row['total']) for row in rows]
 
     @staticmethod
     def _to_entity(row: Expense) -> ExpenseEntity:
@@ -277,7 +338,14 @@ class DjangoExpenseRepository(ExpenseRepository):
             currency=row.currency,
             category=row.category,
             description=row.description,
+            payment_note=row.payment_note,
             split_strategy=row.split_strategy,
+            receipt_url=row.receipt_url,
+            entry_type=row.entry_type,
+            corrects_expense_id=row.corrects_expense_id,
+            correction_reason=row.correction_reason,
+            recurrence_id=row.recurrence_id,
+            occurrence_at=row.occurrence_at,
             created_at=row.created_at,
             updated_at=row.updated_at,
             participants=participants,
@@ -340,6 +408,11 @@ class DjangoExpenseRepository(ExpenseRepository):
 
 
 class DjangoSettlementRepository(SettlementRepository):
+    def lock_plan_ledger(self, plan_id: UUID) -> None:
+        # Every plan has one budget row, making it a stable mutex for all
+        # settlement checks without coupling the application layer to ORM.
+        Budget.objects.select_for_update().get(plan_id=plan_id)
+
     def create_settlement(self, data: SettlementCreateData) -> SettlementEntity:
         row = Settlement.objects.create(
             plan_id=data.plan_id,
@@ -349,6 +422,9 @@ class DjangoSettlementRepository(SettlementRepository):
             currency=data.currency,
             status=data.status,
             note=data.note,
+            payment_note=data.payment_note,
+            receipt=data.receipt,
+            requested_by_id=data.requested_by_user_id,
             settled_at=timezone.now() if data.status == Settlement.STATUS_COMPLETED else None,
         )
         row = (
@@ -364,6 +440,54 @@ class DjangoSettlementRepository(SettlementRepository):
             .filter(plan_id=plan_id)
             .select_related('from_user', 'to_user')
             .order_by('created_at', 'id')
+        )
+        return [self._to_entity(row) for row in rows]
+
+    def get_by_id(
+        self,
+        settlement_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> SettlementEntity | None:
+        queryset = Settlement.objects
+        if for_update:
+            queryset = queryset.select_for_update()
+        row = (
+            queryset.select_related('from_user', 'to_user')
+            .filter(id=settlement_id)
+            .first()
+        )
+        return self._to_entity(row) if row else None
+
+    def transition(
+        self,
+        settlement_id: UUID,
+        *,
+        status: str,
+        rejection_reason: str = '',
+    ) -> SettlementEntity:
+        now = timezone.now()
+        updates = {
+            'status': status,
+            'responded_at': now,
+            'rejection_reason': rejection_reason,
+            'settled_at': now if status == Settlement.STATUS_COMPLETED else None,
+        }
+        Settlement.objects.filter(id=settlement_id).update(**updates)
+        return self.get_by_id(settlement_id)
+
+    def list_pending_before(
+        self,
+        cutoff: datetime,
+        limit: int = 500,
+    ) -> Sequence[SettlementEntity]:
+        rows = (
+            Settlement.objects.filter(
+                status=Settlement.STATUS_PENDING,
+                created_at__lte=cutoff,
+            )
+            .select_related('from_user', 'to_user')
+            .order_by('created_at', 'id')[:limit]
         )
         return [self._to_entity(row) for row in rows]
 
@@ -388,7 +512,111 @@ class DjangoSettlementRepository(SettlementRepository):
             currency=row.currency,
             status=row.status,
             note=row.note,
+            payment_note=row.payment_note,
+            receipt_url=row.receipt_url,
+            requested_by_user_id=row.requested_by_id,
+            rejection_reason=row.rejection_reason,
             settled_at=row.settled_at,
+            responded_at=row.responded_at,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+
+class DjangoRecurringExpenseRepository(RecurringExpenseRepository):
+    def create(self, data: RecurringExpenseCreateData) -> RecurringExpenseEntity:
+        row = RecurringExpense.objects.create(
+            plan_id=data.plan_id,
+            created_by_id=data.created_by_user_id,
+            amount=data.amount,
+            currency=data.currency,
+            category=data.category,
+            description=data.description,
+            payment_note=data.payment_note,
+            split_strategy=data.split_strategy,
+            participants=list(data.participants),
+            payments=list(data.payments),
+            frequency=data.frequency,
+            interval=data.interval,
+            next_run_at=data.next_run_at,
+            end_at=data.end_at,
+        )
+        return self._to_entity(row)
+
+    def list_due(self, now: datetime, limit: int = 100) -> Sequence[RecurringExpenseEntity]:
+        rows = (
+            RecurringExpense.objects.select_for_update(skip_locked=True)
+            .filter(is_active=True, next_run_at__lte=now)
+            .order_by('next_run_at', 'id')[:limit]
+        )
+        return [self._to_entity(row) for row in rows]
+
+    def list_for_plan(self, plan_id: UUID) -> Sequence[RecurringExpenseEntity]:
+        rows = RecurringExpense.objects.filter(plan_id=plan_id).order_by(
+            '-is_active', 'next_run_at', 'id'
+        )
+        return [self._to_entity(row) for row in rows]
+
+    def get_by_id(
+        self,
+        recurring_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> RecurringExpenseEntity | None:
+        queryset = RecurringExpense.objects
+        if for_update:
+            queryset = queryset.select_for_update()
+        row = queryset.filter(id=recurring_id).first()
+        return self._to_entity(row) if row else None
+
+    def advance(
+        self,
+        recurring_id: UUID,
+        *,
+        last_run_at: datetime,
+        next_run_at: datetime,
+        is_active: bool,
+    ) -> RecurringExpenseEntity:
+        RecurringExpense.objects.filter(id=recurring_id).update(
+            last_run_at=last_run_at,
+            next_run_at=next_run_at,
+            is_active=is_active,
+        )
+        return self._to_entity(RecurringExpense.objects.get(id=recurring_id))
+
+    def set_active(
+        self,
+        recurring_id: UUID,
+        *,
+        is_active: bool,
+        next_run_at: datetime | None = None,
+    ) -> RecurringExpenseEntity:
+        updates = {'is_active': is_active}
+        if next_run_at is not None:
+            updates['next_run_at'] = next_run_at
+        RecurringExpense.objects.filter(id=recurring_id).update(**updates)
+        return self._to_entity(RecurringExpense.objects.get(id=recurring_id))
+
+    @staticmethod
+    def _to_entity(row: RecurringExpense) -> RecurringExpenseEntity:
+        return RecurringExpenseEntity(
+            id=row.id,
+            plan_id=row.plan_id,
+            created_by_user_id=row.created_by_id,
+            amount=row.amount,
+            currency=row.currency,
+            category=row.category,
+            description=row.description,
+            payment_note=row.payment_note,
+            split_strategy=row.split_strategy,
+            participants=tuple(row.participants or ()),
+            payments=tuple(row.payments or ()),
+            frequency=row.frequency,
+            interval=row.interval,
+            next_run_at=row.next_run_at,
+            end_at=row.end_at,
+            last_run_at=row.last_run_at,
+            is_active=row.is_active,
             created_at=row.created_at,
             updated_at=row.updated_at,
         )

@@ -184,11 +184,20 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
         final expense = data.items[index];
         return InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ExpenseDetailPage(expense: expense),
-            ),
-          ),
+          onTap: () async {
+            final result = await Navigator.of(context)
+                .push<ExpenseCreateResult>(
+                  MaterialPageRoute(
+                    builder: (_) => ExpenseDetailPage(expense: expense),
+                  ),
+                );
+            if (result != null && mounted) {
+              await ref.read(expensesProvider(_query).notifier).refresh();
+              ref.invalidate(budgetProvider(widget.planId));
+              ref.invalidate(financeInsightsProvider(widget.planId));
+              ref.invalidate(balancesProvider(widget.planId));
+            }
+          },
           child: ExpenseItem(expense: expense, currency: currency),
         );
       },

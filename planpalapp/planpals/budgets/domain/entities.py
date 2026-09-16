@@ -30,6 +30,7 @@ class SplitStrategy(str, Enum):
 class SettlementStatus(str, Enum):
     PENDING = 'pending'
     COMPLETED = 'completed'
+    REJECTED = 'rejected'
     CANCELLED = 'cancelled'
 
     @classmethod
@@ -76,7 +77,14 @@ class Expense:
     currency: str
     category: str
     description: str
+    payment_note: str
     split_strategy: str
+    receipt_url: str | None
+    entry_type: str
+    corrects_expense_id: UUID | None
+    correction_reason: str
+    recurrence_id: UUID | None
+    occurrence_at: datetime | None
     created_at: datetime
     updated_at: datetime | None = None
     participants: tuple['ExpenseParticipant', ...] = ()
@@ -119,8 +127,36 @@ class Settlement:
     currency: str
     status: str
     note: str
+    payment_note: str
+    receipt_url: str | None
+    requested_by_user_id: UUID | None
+    rejection_reason: str
     created_at: datetime
     settled_at: datetime | None = None
+    responded_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class RecurringExpense:
+    id: UUID
+    plan_id: UUID
+    created_by_user_id: UUID
+    amount: Decimal
+    currency: str
+    category: str
+    description: str
+    payment_note: str
+    split_strategy: str
+    participants: tuple[dict[str, Any], ...]
+    payments: tuple[dict[str, Any], ...]
+    frequency: str
+    interval: int
+    next_run_at: datetime
+    end_at: datetime | None
+    last_run_at: datetime | None
+    is_active: bool
+    created_at: datetime
     updated_at: datetime | None = None
 
 
@@ -210,6 +246,33 @@ class BudgetSummary:
             self.budget.total_budget > Decimal('0')
             and self.total_spent > self.budget.total_budget
         )
+
+
+@dataclass(frozen=True)
+class CategorySpending:
+    category: str
+    amount: Decimal
+    percentage: float
+
+
+@dataclass(frozen=True)
+class BudgetForecast:
+    daily_average: Decimal
+    projected_total: Decimal
+    projected_remaining: Decimal
+    projected_over_budget: bool
+    forecast_date: date
+
+
+@dataclass(frozen=True)
+class FinanceInsights:
+    plan_id: UUID
+    currency: str
+    total_spent: Decimal
+    categories: tuple[CategorySpending, ...]
+    forecast: BudgetForecast
+    pending_settlement_count: int
+    pending_settlement_amount: Decimal
 
 
 @dataclass(frozen=True)

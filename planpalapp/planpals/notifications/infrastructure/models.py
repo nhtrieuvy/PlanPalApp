@@ -79,3 +79,31 @@ class UserDeviceToken(models.Model):
 
     def __str__(self) -> str:
         return f'{self.user_id} - {self.platform}'
+
+
+class NotificationPreference(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notification_preference',
+        primary_key=True,
+    )
+    push_enabled = models.BooleanField(default=True)
+    quiet_hours_enabled = models.BooleanField(default=False)
+    quiet_hours_start = models.TimeField(null=True, blank=True)
+    quiet_hours_end = models.TimeField(null=True, blank=True)
+    timezone = models.CharField(max_length=64, default='Asia/Ho_Chi_Minh')
+    daily_digest_enabled = models.BooleanField(default=False, db_index=True)
+    daily_digest_hour = models.PositiveSmallIntegerField(default=8)
+    last_digest_sent_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'planpals'
+        db_table = 'planpal_notification_preferences'
+        indexes = [
+            models.Index(
+                fields=['daily_digest_enabled', 'daily_digest_hour'],
+                name='notif_digest_schedule_idx',
+            )
+        ]

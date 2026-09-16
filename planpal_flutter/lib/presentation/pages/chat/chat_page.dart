@@ -20,6 +20,7 @@ import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/message_input.dart';
 import '../../widgets/chat/typing_indicator.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../experience/live_location_page.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
   final Conversation conversation;
@@ -496,6 +497,21 @@ class _ChatPageState extends ConsumerState<ChatPage>
         ],
       ),
       actions: [
+        IconButton(
+          tooltip: context.l10n.t('live_location.title'),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => LiveLocationPage(
+                conversationId: _conversation.id,
+                conversationName: _conversation.displayName,
+              ),
+            ),
+          ),
+          icon: Icon(
+            Icons.location_on_outlined,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
         if (_conversation.isDirect)
           IconButton(
             onPressed: _showUserProfile,

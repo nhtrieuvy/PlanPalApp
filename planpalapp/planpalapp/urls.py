@@ -24,6 +24,7 @@ from rest_framework.authentication import BasicAuthentication, SessionAuthentica
 from oauth2_provider.contrib.rest_framework import OAuth2Authentication
 
 from planpals.auth.presentation.views import EmailAwareTokenView
+from planpals.shared.health import live, ready
 
 api_docs_permission_classes = (
     (permissions.IsAdminUser,)
@@ -51,6 +52,8 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('api/v1/', include('planpals.urls')),
+    re_path(r'^health/live/?$', live, name='health-live'),
+    re_path(r'^health/ready/?$', ready, name='health-ready'),
     path('admin/', admin.site.urls),
     path('o/token/', EmailAwareTokenView.as_view(), name='oauth2_token'),
     path('o/', include('oauth2_provider.urls',

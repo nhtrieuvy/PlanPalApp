@@ -364,6 +364,14 @@ def dispatch_plan_reminders_task(self):
     return {'status': 'sent', 'count': notifications_created}
 
 
+@shared_task(
+    name='planpals.notifications.infrastructure.tasks.dispatch_daily_digests_task',
+    acks_late=True,
+)
+def dispatch_daily_digests_task():
+    return notification_factories.get_notification_service().dispatch_daily_digests()
+
+
 def _get_group_name(group_id) -> str:
     from planpals.groups.infrastructure.models import Group
 

@@ -52,7 +52,47 @@ class Endpoints {
   static String planBudget(String planId) => _v1('/plans/$planId/budget/');
   static String planExpenses(String planId) => _v1('/plans/$planId/expenses/');
   static String planBalances(String planId) => _v1('/plans/$planId/balances/');
+  static String planFinanceInsights(String planId) =>
+      _v1('/plans/$planId/finance-insights/');
+  static String planRecurringExpenses(String planId) =>
+      _v1('/plans/$planId/recurring-expenses/');
+  static String planRecurringExpense(String planId, String recurringId) =>
+      _v1('/plans/$planId/recurring-expenses/$recurringId/');
+  static String expenseCorrections(String planId, String expenseId) =>
+      _v1('/plans/$planId/expenses/$expenseId/corrections/');
+  static String groupAvailabilityPolls(String groupId) =>
+      _v1('/groups/$groupId/availability-polls/');
+  static String availabilityPollVote(String pollId) =>
+      _v1('/availability-polls/$pollId/vote/');
+  static String groupPolls(String groupId) =>
+      _v1('/groups/$groupId/polls/');
+  static String groupPollVote(String pollId) =>
+      _v1('/group-polls/$pollId/vote/');
+  static String groupPollClose(String pollId) =>
+      _v1('/group-polls/$pollId/close/');
+  static String conversationLiveLocations(String conversationId) =>
+      _v1('/conversations/$conversationId/live-locations/');
+  static String liveLocation(String shareId) =>
+      _v1('/live-locations/$shareId/');
+  static String get globalSearch => _v1('/search/');
+  static String planWorkItems(String planId) =>
+      _v1('/plans/$planId/work-items/');
+  static String planWorkItem(String itemId) => _v1('/plan-work-items/$itemId/');
+  static String planComments(String planId) => _v1('/plans/$planId/comments/');
+  static String planComment(String commentId) =>
+      _v1('/plan-comments/$commentId/');
+  static String planCommentReaction(String commentId) =>
+      _v1('/plan-comments/$commentId/react/');
+  static String planCommentPin(String commentId) =>
+      _v1('/plan-comments/$commentId/pin/');
+  static String planClone(String planId) => _v1('/plans/$planId/clone/');
+  static String planExportIcs(String planId) =>
+      _v1('/plans/$planId/export.ics');
+  static String planCalendarLinks(String planId) =>
+      _v1('/plans/$planId/calendar-links/');
   static String get settlements => _v1('/settlements/');
+  static String settlementAction(String settlementId, String action) =>
+      _v1('/settlements/$settlementId/$action/');
 
   static String groupDetails(String groupId) => _v1('/groups/$groupId/');
   static String groupJoin(String groupId) => _v1('/groups/$groupId/join/');
@@ -83,6 +123,8 @@ class Endpoints {
   static String get notificationsReadAll => _v1('/notifications/read-all/');
   static String get notificationsUnreadCount =>
       _v1('/notifications/unread-count/');
+  static String get notificationPreferences =>
+      _v1('/notifications/preferences/');
 
   static String activityDetails(String activityId) =>
       _v1('/activities/$activityId/');

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:planpal_flutter/core/services/apis.dart';
+import 'package:planpal_flutter/core/services/reconnect_policy.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import 'package:flutter/foundation.dart';
@@ -91,9 +92,6 @@ class ChatWebSocketService {
   // Reconnection
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
-  static const int maxReconnectAttempts = 5;
-  static const Duration baseReconnectDelay = Duration(seconds: 2);
-  static const Duration maxReconnectDelay = Duration(seconds: 30);
   final Random _reconnectJitter = Random();
 
   // Typing indicator
@@ -245,7 +243,8 @@ class ChatWebSocketService {
   }
 
   void _scheduleReconnect() {
-    if (_reconnectAttempts >= maxReconnectAttempts ||
+    if (_reconnectTimer?.isActive ?? false) return;
+    if (!defaultReconnectPolicy.canRetry(_reconnectAttempts) ||
         _conversationId == null ||
         _token == null) {
       debugPrint('Max reconnect attempts reached or no conversation/token');
@@ -264,10 +263,12 @@ class ChatWebSocketService {
   }
 
   Duration _nextReconnectDelay() {
-    final exponent = (_reconnectAttempts - 1).clamp(0, 4).toInt();
-    final baseMs = baseReconnectDelay.inMilliseconds * (1 << exponent);
-    final cappedMs = min(baseMs, maxReconnectDelay.inMilliseconds);
-    return Duration(milliseconds: cappedMs + _reconnectJitter.nextInt(500));
+    return defaultReconnectPolicy.delayForAttempt(
+      _reconnectAttempts,
+      jitterMilliseconds: _reconnectJitter.nextInt(
+        defaultReconnectPolicy.maxJitter.inMilliseconds,
+      ),
+    );
   }
 
   /// Dispose resources

@@ -3,7 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional, Sequence
+from datetime import datetime
+from typing import Any, Optional, Sequence
 from uuid import UUID
 
 from planpals.budgets.domain.entities import (
@@ -12,6 +13,7 @@ from planpals.budgets.domain.entities import (
     BudgetTrendPoint,
     Expense,
     ExpenseParticipant,
+    RecurringExpense,
     Settlement,
 )
 
@@ -32,9 +34,17 @@ class ExpenseCreateData:
     currency: str
     category: str
     description: str = ''
+    payment_note: str = ''
+    receipt: Any = None
+    copy_receipt_from_expense_id: UUID | None = None
     split_strategy: str = 'equal'
     participants: Sequence['ExpenseParticipantCreateData'] = ()
     payments: Sequence['ExpensePaymentCreateData'] = ()
+    entry_type: str = 'original'
+    corrects_expense_id: UUID | None = None
+    correction_reason: str = ''
+    recurrence_id: UUID | None = None
+    occurrence_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -58,8 +68,29 @@ class SettlementCreateData:
     to_user_id: UUID
     amount: Decimal
     currency: str
-    status: str = 'completed'
+    requested_by_user_id: UUID
+    status: str = 'pending'
     note: str = ''
+    payment_note: str = ''
+    receipt: Any = None
+
+
+@dataclass(frozen=True)
+class RecurringExpenseCreateData:
+    plan_id: UUID
+    created_by_user_id: UUID
+    amount: Decimal
+    currency: str
+    category: str
+    description: str
+    payment_note: str
+    split_strategy: str
+    participants: Sequence[dict[str, Any]]
+    payments: Sequence[dict[str, Any]]
+    frequency: str
+    interval: int
+    next_run_at: datetime
+    end_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -137,12 +168,69 @@ class ExpenseRepository(ABC):
     def get_participant_user_ids(self, expense_id: UUID) -> Sequence[UUID]:
         ...
 
+    @abstractmethod
+    def get_effective_expense(self, expense_id: UUID, *, for_update: bool = False) -> Expense | None:
+        ...
+
+    @abstractmethod
+    def get_category_totals(self, plan_id: UUID) -> Sequence[tuple[str, Decimal]]:
+        ...
+
 
 class SettlementRepository(ABC):
+    @abstractmethod
+    def lock_plan_ledger(self, plan_id: UUID) -> None:
+        """Serialize settlement balance checks for one plan transaction."""
+        ...
+
     @abstractmethod
     def create_settlement(self, data: SettlementCreateData) -> Settlement:
         ...
 
     @abstractmethod
     def list_settlements(self, plan_id: UUID) -> Sequence[Settlement]:
+        ...
+
+    @abstractmethod
+    def get_by_id(self, settlement_id: UUID, *, for_update: bool = False) -> Settlement | None:
+        ...
+
+    @abstractmethod
+    def transition(self, settlement_id: UUID, *, status: str, rejection_reason: str = '') -> Settlement:
+        ...
+
+    @abstractmethod
+    def list_pending_before(self, cutoff: datetime, limit: int = 500) -> Sequence[Settlement]:
+        ...
+
+
+class RecurringExpenseRepository(ABC):
+    @abstractmethod
+    def create(self, data: RecurringExpenseCreateData) -> RecurringExpense:
+        ...
+
+    @abstractmethod
+    def list_due(self, now: datetime, limit: int = 100) -> Sequence[RecurringExpense]:
+        ...
+
+    @abstractmethod
+    def list_for_plan(self, plan_id: UUID) -> Sequence[RecurringExpense]:
+        ...
+
+    @abstractmethod
+    def get_by_id(self, recurring_id: UUID, *, for_update: bool = False) -> RecurringExpense | None:
+        ...
+
+    @abstractmethod
+    def advance(self, recurring_id: UUID, *, last_run_at: datetime, next_run_at: datetime, is_active: bool) -> RecurringExpense:
+        ...
+
+    @abstractmethod
+    def set_active(
+        self,
+        recurring_id: UUID,
+        *,
+        is_active: bool,
+        next_run_at: datetime | None = None,
+    ) -> RecurringExpense:
         ...

@@ -1,0 +1,71 @@
+name: PlanPal Staging Performance
+
+on:
+  schedule:
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    env:
+      PLANPAL_BASE_URL: ${{ secrets.PLANPAL_PERF_HOST }}
+      PLANPAL_USERNAME: ${{ secrets.PLANPAL_PERF_USERNAME }}
+      PLANPAL_PASSWORD: ${{ secrets.PLANPAL_PERF_PASSWORD }}
+      PLANPAL_CLIENT_ID: ${{ secrets.PLANPAL_PERF_CLIENT_ID }}
+      PLANPAL_CLIENT_SECRET: ${{ secrets.PLANPAL_PERF_CLIENT_SECRET }}
+      PLANPAL_WS_CONVERSATION_ID: ${{ secrets.PLANPAL_PERF_CONVERSATION_ID }}
+      PLANPAL_ENABLE_WRITE_SCENARIOS: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: performance_tests/requirements-performance.txt
+      - name: Check staging configuration
+        id: config
+        shell: bash
+        run: |
+          if [[ -n "$PLANPAL_BASE_URL" && -n "$PLANPAL_USERNAME" && -n "$PLANPAL_PASSWORD" && -n "$PLANPAL_CLIENT_ID" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Performance secrets are not configured; scheduled run is skipped."
+          fi
+      - name: Install benchmark dependencies
+        if: steps.config.outputs.configured == 'true'
+        run: python -m pip install -r performance_tests/requirements-performance.txt
+      - name: REST benchmark
+        if: steps.config.outputs.configured == 'true'
+        run: >-
+          python -m locust -f performance_tests/locustfile.py
+          --host="$PLANPAL_BASE_URL" --headless -u 20 -r 2 -t 2m
+          --csv=performance_tests/results/rest --csv-full-history
+      - name: Enforce REST thresholds
+        if: steps.config.outputs.configured == 'true'
+        run: python performance_tests/assert_performance.py performance_tests/results/rest_stats.csv
+      - name: WebSocket benchmark
+        if: steps.config.outputs.configured == 'true'
+        env:
+          PLANPAL_MAX_AVG_MS: "100"
+          PLANPAL_MAX_P95_MS: "200"
+        run: >-
+          python -m locust -f performance_tests/websocket_locustfile.py
+          --host="$PLANPAL_BASE_URL" --headless -u 20 -r 2 -t 2m
+          --csv=performance_tests/results/websocket --csv-full-history
+      - name: Enforce WebSocket thresholds
+        if: steps.config.outputs.configured == 'true'
+        env:
+          PLANPAL_MAX_AVG_MS: "100"
+          PLANPAL_MAX_P95_MS: "200"
+        run: python performance_tests/assert_performance.py performance_tests/results/websocket_stats.csv
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.config.outputs.configured == 'true'
+        with:
+          name: performance-results
+          path: performance_tests/results/
+          retention-days: 30

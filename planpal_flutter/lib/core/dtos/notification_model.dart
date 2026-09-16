@@ -157,3 +157,74 @@ class NotificationsResponse extends Equatable {
     unreadCount,
   ];
 }
+
+class NotificationPreferenceModel extends Equatable {
+  const NotificationPreferenceModel({
+    required this.pushEnabled,
+    required this.quietHoursEnabled,
+    required this.timezone,
+    required this.dailyDigestEnabled,
+    required this.dailyDigestHour,
+    this.quietHoursStart,
+    this.quietHoursEnd,
+  });
+
+  final bool pushEnabled;
+  final bool quietHoursEnabled;
+  final String? quietHoursStart;
+  final String? quietHoursEnd;
+  final String timezone;
+  final bool dailyDigestEnabled;
+  final int dailyDigestHour;
+
+  factory NotificationPreferenceModel.fromJson(Map<String, dynamic> json) =>
+      NotificationPreferenceModel(
+        pushEnabled: json['push_enabled'] != false,
+        quietHoursEnabled: json['quiet_hours_enabled'] == true,
+        quietHoursStart: json['quiet_hours_start']?.toString(),
+        quietHoursEnd: json['quiet_hours_end']?.toString(),
+        timezone: json['timezone']?.toString() ?? 'Asia/Ho_Chi_Minh',
+        dailyDigestEnabled: json['daily_digest_enabled'] == true,
+        dailyDigestHour:
+            int.tryParse(json['daily_digest_hour']?.toString() ?? '') ?? 8,
+      );
+
+  Map<String, dynamic> toJson() => {
+    'push_enabled': pushEnabled,
+    'quiet_hours_enabled': quietHoursEnabled,
+    'quiet_hours_start': quietHoursStart,
+    'quiet_hours_end': quietHoursEnd,
+    'timezone': timezone,
+    'daily_digest_enabled': dailyDigestEnabled,
+    'daily_digest_hour': dailyDigestHour,
+  };
+
+  NotificationPreferenceModel copyWith({
+    bool? pushEnabled,
+    bool? quietHoursEnabled,
+    String? quietHoursStart,
+    String? quietHoursEnd,
+    String? timezone,
+    bool? dailyDigestEnabled,
+    int? dailyDigestHour,
+  }) => NotificationPreferenceModel(
+    pushEnabled: pushEnabled ?? this.pushEnabled,
+    quietHoursEnabled: quietHoursEnabled ?? this.quietHoursEnabled,
+    quietHoursStart: quietHoursStart ?? this.quietHoursStart,
+    quietHoursEnd: quietHoursEnd ?? this.quietHoursEnd,
+    timezone: timezone ?? this.timezone,
+    dailyDigestEnabled: dailyDigestEnabled ?? this.dailyDigestEnabled,
+    dailyDigestHour: dailyDigestHour ?? this.dailyDigestHour,
+  );
+
+  @override
+  List<Object?> get props => [
+    pushEnabled,
+    quietHoursEnabled,
+    quietHoursStart,
+    quietHoursEnd,
+    timezone,
+    dailyDigestEnabled,
+    dailyDigestHour,
+  ];
+}

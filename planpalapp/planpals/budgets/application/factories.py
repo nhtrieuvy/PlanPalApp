@@ -4,6 +4,7 @@ from planpals.budgets.application.services import BudgetService
 from planpals.budgets.infrastructure.repositories import (
     DjangoBudgetRepository,
     DjangoExpenseRepository,
+    DjangoRecurringExpenseRepository,
     DjangoSettlementRepository,
 )
 
@@ -18,6 +19,10 @@ def get_expense_repo() -> DjangoExpenseRepository:
 
 def get_settlement_repo() -> DjangoSettlementRepository:
     return DjangoSettlementRepository()
+
+
+def get_recurring_expense_repo() -> DjangoRecurringExpenseRepository:
+    return DjangoRecurringExpenseRepository()
 
 
 def get_budget_service() -> BudgetService:
@@ -35,6 +40,8 @@ def get_budget_service() -> BudgetService:
         audit_service=get_audit_log_service(),
         notification_service=get_notification_service(),
         expense_notification_dispatcher=get_expense_notification_dispatcher(),
+        recurring_expense_repo=get_recurring_expense_repo(),
+        settlement_notification_dispatcher=get_settlement_notification_dispatcher(),
     )
 
 
@@ -50,5 +57,14 @@ def get_expense_notification_dispatcher():
 
     def dispatch(expense_id) -> None:
         process_expense_notifications_task.delay(str(expense_id))
+
+    return dispatch
+
+
+def get_settlement_notification_dispatcher():
+    from planpals.budgets.infrastructure.tasks import process_settlement_notification_task
+
+    def dispatch(settlement_id, event: str) -> None:
+        process_settlement_notification_task.delay(str(settlement_id), event)
 
     return dispatch

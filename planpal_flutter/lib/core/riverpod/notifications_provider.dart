@@ -400,3 +400,8 @@ final unreadCountProvider =
     AsyncNotifierProvider.autoDispose<UnreadCountNotifier, int>(
       UnreadCountNotifier.new,
     );
+
+final notificationPreferencesProvider =
+    FutureProvider.autoDispose<NotificationPreferenceModel>((ref) {
+      return ref.watch(notificationRepositoryProvider).getPreferences();
+    });

@@ -3,12 +3,14 @@ Notification application services.
 """
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Iterable
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from planpals.notifications.application.repositories import (
@@ -63,9 +65,12 @@ class NotificationService:
         unread_count = self.notification_repo.get_unread_count(normalized_user_id)
         self.publisher.publish_notification_created(notification, unread_count)
 
-        if send_push:
+        push_recipients = self.notification_repo.get_push_allowed_user_ids(
+            [normalized_user_id], timezone.now()
+        ) if send_push else []
+        if push_recipients:
             self.push_service.send_to_users(
-                [normalized_user_id],
+                push_recipients,
                 title=notification.title,
                 body=notification.message,
                 data=self._push_payload(notification),
@@ -107,9 +112,12 @@ class NotificationService:
                 unread_counts.get(notification.user_id, 0),
             )
 
-        if send_push:
+        push_recipients = self.notification_repo.get_push_allowed_user_ids(
+            recipient_ids, timezone.now()
+        ) if send_push else []
+        if push_recipients:
             self.push_service.send_to_users(
-                recipient_ids,
+                push_recipients,
                 title=payload['title'],
                 body=payload['message'],
                 data={
@@ -178,6 +186,56 @@ class NotificationService:
     def get_unread_count(self, user_id) -> int:
         normalized_user_id = self._normalize_required_uuid(user_id, 'user_id')
         return self.notification_repo.get_unread_count(normalized_user_id)
+
+    def get_preferences(self, user_id):
+        normalized_user_id = self._normalize_required_uuid(user_id, 'user_id')
+        return self.notification_repo.get_preferences(normalized_user_id)
+
+    def update_preferences(self, user_id, values):
+        normalized_user_id = self._normalize_required_uuid(user_id, 'user_id')
+        normalized = dict(values)
+        timezone_name = normalized.get('timezone')
+        if timezone_name:
+            try:
+                ZoneInfo(timezone_name)
+            except ZoneInfoNotFoundError as exc:
+                raise ValidationError({'timezone': 'Unknown timezone.'}) from exc
+        digest_hour = normalized.get('daily_digest_hour')
+        if digest_hour is not None and not 0 <= int(digest_hour) <= 23:
+            raise ValidationError({'daily_digest_hour': 'Hour must be from 0 to 23.'})
+        quiet_enabled = normalized.get('quiet_hours_enabled')
+        current = self.notification_repo.get_preferences(normalized_user_id)
+        start = normalized.get('quiet_hours_start', current.quiet_hours_start)
+        end = normalized.get('quiet_hours_end', current.quiet_hours_end)
+        if quiet_enabled is True and (start is None or end is None):
+            raise ValidationError({
+                'quiet_hours': 'Start and end times are required when quiet hours are enabled.'
+            })
+        return self.notification_repo.update_preferences(normalized_user_id, normalized)
+
+    def dispatch_daily_digests(self, current_time=None):
+        now = current_time or timezone.now()
+        sent = 0
+        for preference in self.notification_repo.list_digest_candidates(now):
+            summary = self.notification_repo.get_digest_summary(
+                preference.user_id,
+                now - timedelta(hours=24),
+            )
+            if summary['count'] == 0:
+                continue
+            preview = ', '.join(summary['titles'])
+            body = f"You have {summary['count']} unread updates"
+            if preview:
+                body = f'{body}: {preview}'
+            self.push_service.send_to_users(
+                [preference.user_id],
+                title='PlanPal daily digest',
+                body=body[:240],
+                data={'notification_type': 'DAILY_DIGEST'},
+            )
+            self.notification_repo.mark_digest_sent(preference.user_id, now)
+            sent += 1
+        return {'sent': sent}
 
     def register_device_token(self, user_id, token: str, platform: str) -> bool:
         normalized_user_id = self._normalize_required_uuid(user_id, 'user_id')
@@ -296,8 +354,23 @@ class NotificationService:
             amount = data.get('amount')
             currency = str(data.get('currency') or 'VND')
             if amount is not None:
-                return 'Settlement recorded', f'{actor_name} recorded a {amount} {currency} settlement.'
-            return 'Settlement recorded', f'{actor_name} recorded a settlement.'
+                return 'Payment confirmation', f'{actor_name} asks you to confirm {amount} {currency}.'
+            return 'Payment confirmation', f'{actor_name} asks you to confirm a payment.'
+
+        if notification_type == NotificationType.SETTLEMENT_COMPLETED.value:
+            amount = data.get('amount')
+            currency = str(data.get('currency') or 'VND')
+            return 'Payment confirmed', f'Your {amount} {currency} payment was confirmed.'
+
+        if notification_type == NotificationType.SETTLEMENT_REJECTED.value:
+            amount = data.get('amount')
+            currency = str(data.get('currency') or 'VND')
+            return 'Payment declined', f'Your {amount} {currency} payment was declined.'
+
+        if notification_type == NotificationType.SETTLEMENT_REMINDER.value:
+            amount = data.get('amount')
+            currency = str(data.get('currency') or 'VND')
+            return 'Payment reminder', f'Please review the pending {amount} {currency} payment.'
 
         raise ValidationError({'type': f'Unsupported notification type: {notification_type}'})
 

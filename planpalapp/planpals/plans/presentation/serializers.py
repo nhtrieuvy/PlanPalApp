@@ -259,7 +259,7 @@ class PlanDetailSerializer(serializers.ModelSerializer):
         model = Plan
         fields = [
             'id', 'title', 'description', 'start_date', 'end_date',
-            'is_public', 'status', 'plan_type', 'creator', 'group', 'group_id', 'group_name',
+            'is_public', 'is_template', 'status', 'plan_type', 'creator', 'group', 'group_id', 'group_name',
             'activities', 'duration_days', 'activities_count', 
             'total_estimated_cost', 'can_view', 'can_edit', 'collaborators',
             'created_at', 'updated_at'
@@ -468,7 +468,7 @@ class PlanSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Plan
         fields = [
-            'id', 'title', 'start_date', 'end_date', 'is_public', 'status',
+            'id', 'title', 'start_date', 'end_date', 'is_public', 'is_template', 'status',
             'plan_type', 'creator', 'group_name', 'duration_days', 'activities_count',
             'created_at'
         ]

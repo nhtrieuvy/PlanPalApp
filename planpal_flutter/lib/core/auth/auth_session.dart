@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../services/apis.dart';
+import '../services/api_error.dart';
 import '../services/firebase_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
@@ -207,13 +207,6 @@ class AuthProvider extends ChangeNotifier {
         'client_id': _clientId,
       };
 
-      // DEBUG: Log the values being sent
-      debugPrint('🔐 LOGIN ATTEMPT:');
-      debugPrint('  BASE_URL: ${AppConfig.getBaseUrl()}');
-      debugPrint('  CLIENT_ID: ${_clientId}');
-      debugPrint('  USERNAME: ${username.trim()}');
-      debugPrint('  ENDPOINT: ${baseUrl}${Endpoints.token}');
-
       final response = await apiClient.dio.post(Endpoints.token, data: form);
 
       if (response.statusCode == 200 && response.data['access_token'] != null) {
@@ -228,41 +221,15 @@ class AuthProvider extends ChangeNotifier {
           await markOnline();
 
           await _initializeFirebaseAfterLogin();
-        } catch (e) {
-          debugPrint('Login profile fetch failed: $e');
+        } catch (_) {
+          debugPrint('Login profile fetch failed');
         }
       } else {
-        throw Exception('Đăng nhập thất bại.');
+        throw buildApiException(response);
       }
     } on DioException catch (e) {
-      final res = e.response;
-      if (res != null) {
-        if (res.data is Map) {
-          final errorType = res.data['error'];
-          final errorDesc = res.data['error_description'];
-
-          if (errorType == 'email_not_verified') {
-            throw Exception(
-              'Email chưa được xác thực. Vui lòng kiểm tra hộp thư và xác thực email trước khi đăng nhập.',
-            );
-          } else if (errorType == 'invalid_grant') {
-            throw Exception('Sai tên đăng nhập hoặc mật khẩu.');
-          } else if (errorType == 'invalid_client') {
-            throw Exception(
-              'Client OAuth2 không hợp lệ. Kiểm tra cấu hình ứng dụng.',
-            );
-          } else if (errorType == 'unsupported_grant_type') {
-            throw Exception('Phương thức đăng nhập không được hỗ trợ.');
-          } else if (errorDesc != null) {
-            throw Exception(errorDesc.toString());
-          }
-        }
-      }
-      if (e.type == DioExceptionType.connectionError ||
-          e.type == DioExceptionType.unknown) {
-        throw Exception('Không có kết nối mạng.');
-      }
-      throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
     }
   }
 

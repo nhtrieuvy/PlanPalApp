@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -18,6 +20,10 @@ import '../plans/activity_form_page.dart';
 import '../plans/plan_schedule_page.dart';
 import '../budget/budget_overview_page.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
+import 'package:planpal_flutter/core/riverpod/collaboration_providers.dart';
+import 'package:planpal_flutter/presentation/pages/collaboration/plan_collaboration_page.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PlanDetailsPage extends ConsumerStatefulWidget {
   final String id;
@@ -154,9 +160,11 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
           foregroundColor: Colors.white,
         ),
         body: AppError(
-          message: _error?.toString() ?? context.l10n.t('plan.details_title'),
+          message: _error == null
+              ? context.l10n.t('plan.details_title')
+              : ErrorDisplayService.getUserFriendlyMessage(_error),
           onRetry: _load,
-          retryLabel: 'Thử lại',
+          retryLabel: context.l10n.t('common.retry'),
         ),
       );
     }
@@ -170,6 +178,37 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
             title: p.title,
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
+            actions: [
+              PopupMenuButton<String>(
+                onSelected: (value) => _handlePlanningAction(value, p),
+                itemBuilder: (context) => [
+                  if (p.canEdit)
+                    PopupMenuItem(
+                      value: 'clone',
+                      child: ListTile(
+                        leading: const Icon(Icons.copy_all_outlined),
+                        title: Text(context.l10n.t('collaboration.clone_plan')),
+                      ),
+                    ),
+                  PopupMenuItem(
+                    value: 'ics',
+                    child: ListTile(
+                      leading: const Icon(Icons.file_download_outlined),
+                      title: Text(context.l10n.t('collaboration.export_ics')),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'google',
+                    child: ListTile(
+                      leading: const Icon(Icons.event_outlined),
+                      title: Text(
+                        context.l10n.t('collaboration.google_calendar'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             background: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -356,6 +395,25 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                   const SizedBox(height: 16),
                   _buildActivitiesCard(theme: theme, activities: p.activities),
                 ],
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.groups_2_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: Text(context.l10n.t('collaboration.title')),
+                    subtitle: Text(
+                      context.l10n.t('collaboration.plan_subtitle'),
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PlanCollaborationPage(plan: p),
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 AuditLogList(
                   title: context.l10n.t('plan.audit_log_title'),
@@ -570,6 +628,179 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
         ),
       ),
     );
+  }
+
+  Future<void> _handlePlanningAction(String action, PlanModel plan) async {
+    if (action == 'clone') {
+      await _clonePlan(plan);
+    } else if (action == 'ics') {
+      await _shareIcs(plan);
+    } else if (action == 'google') {
+      await _showCalendarLinks(plan);
+    }
+  }
+
+  Future<void> _clonePlan(PlanModel plan) async {
+    final title = TextEditingController(
+      text: '${plan.title} - ${context.l10n.t('collaboration.copy')}',
+    );
+    DateTime start = (plan.startDate ?? DateTime.now()).add(
+      const Duration(days: 7),
+    );
+    var asTemplate = false;
+    final submit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(context.l10n.t('collaboration.clone_plan')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: title,
+                  decoration: InputDecoration(
+                    labelText: context.l10n.t('plan.title'),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.event),
+                  title: Text(AppFormatters.fullDateTime(context, start)),
+                  onTap: () async {
+                    final selected = await showDatePicker(
+                      context: context,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 1460)),
+                      initialDate: start,
+                    );
+                    if (selected != null) {
+                      setDialogState(
+                        () => start = DateTime(
+                          selected.year,
+                          selected.month,
+                          selected.day,
+                          start.hour,
+                          start.minute,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: asTemplate,
+                  onChanged: (value) =>
+                      setDialogState(() => asTemplate = value),
+                  title: Text(context.l10n.t('collaboration.save_as_template')),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(context.l10n.t('common.cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(context.l10n.t('collaboration.clone')),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (submit != true || title.text.trim().isEmpty || !mounted) {
+      title.dispose();
+      return;
+    }
+    try {
+      final cloned = await ref
+          .read(collaborationRepositoryProvider)
+          .clonePlan(
+            plan.id,
+            title: title.text.trim(),
+            startDate: start,
+            asTemplate: asTemplate,
+          );
+      if (!mounted) return;
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t('collaboration.clone_success'),
+      );
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => PlanDetailsPage(id: cloned.id)));
+    } catch (error) {
+      if (mounted) ErrorDisplayService.handleError(context, error);
+    } finally {
+      title.dispose();
+    }
+  }
+
+  Future<void> _shareIcs(PlanModel plan) async {
+    try {
+      final content = await ref
+          .read(collaborationRepositoryProvider)
+          .exportIcs(plan.id);
+      await Share.shareXFiles([
+        XFile.fromData(
+          Uint8List.fromList(utf8.encode(content)),
+          mimeType: 'text/calendar',
+          name: '${plan.title}.ics',
+        ),
+      ], subject: plan.title);
+    } catch (error) {
+      if (mounted) ErrorDisplayService.handleError(context, error);
+    }
+  }
+
+  Future<void> _showCalendarLinks(PlanModel plan) async {
+    try {
+      final links = await ref
+          .read(collaborationRepositoryProvider)
+          .getCalendarLinks(plan.id);
+      if (!mounted) return;
+      if (links.isEmpty) {
+        ErrorDisplayService.showErrorSnackbar(
+          context,
+          context.l10n.t('collaboration.no_calendar_events'),
+        );
+        return;
+      }
+      await showModalBottomSheet<void>(
+        context: context,
+        useSafeArea: true,
+        builder: (sheetContext) => ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              context.l10n.t('collaboration.google_calendar'),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            for (final link in links)
+              ListTile(
+                leading: const Icon(Icons.event_available),
+                title: Text(link['title']?.toString() ?? ''),
+                trailing: const Icon(Icons.open_in_new),
+                onTap: () async {
+                  final uri = Uri.tryParse(link['url']?.toString() ?? '');
+                  if (uri != null) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) ErrorDisplayService.handleError(context, error);
+    }
   }
 
   Widget _buildInfoCard({

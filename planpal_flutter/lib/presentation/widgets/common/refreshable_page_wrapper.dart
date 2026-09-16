@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/error_display_service.dart';
 import '../../../core/theme/app_colors.dart';
 
 /// Reusable wrapper widget that provides pull-to-refresh functionality
@@ -183,12 +184,12 @@ mixin RefreshablePage<T extends StatefulWidget> on State<T> {
 
     try {
       await refreshFunction();
-    } catch (e) {
+    } catch (error) {
       // Handle refresh errors gracefully
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Không thể làm mới: ${e.toString()}'),
+            content: Text(ErrorDisplayService.getUserFriendlyMessage(error)),
             backgroundColor: Colors.red.shade600,
           ),
         );
