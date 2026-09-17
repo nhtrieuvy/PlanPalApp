@@ -1,5 +1,5 @@
 from datetime import timedelta
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.db import transaction
 from django.utils import timezone
@@ -211,10 +211,20 @@ class ExperienceService:
     @staticmethod
     def _coordinates(data):
         try:
-            latitude = Decimal(str(data.get('latitude')))
-            longitude = Decimal(str(data.get('longitude')))
+            latitude = Decimal(str(data.get('latitude'))).quantize(
+                Decimal('0.000001'), rounding=ROUND_HALF_UP
+            )
+            longitude = Decimal(str(data.get('longitude'))).quantize(
+                Decimal('0.000001'), rounding=ROUND_HALF_UP
+            )
             accuracy = data.get('accuracy_meters')
-            accuracy = Decimal(str(accuracy)) if accuracy is not None else None
+            accuracy = (
+                Decimal(str(accuracy)).quantize(
+                    Decimal('0.01'), rounding=ROUND_HALF_UP
+                )
+                if accuracy is not None
+                else None
+            )
         except (InvalidOperation, TypeError, ValueError) as exc:
             raise ValidationError({'coordinates': 'Valid coordinates are required.'}) from exc
         if not Decimal('-90') <= latitude <= Decimal('90'):

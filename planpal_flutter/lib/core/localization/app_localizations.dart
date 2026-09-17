@@ -54,6 +54,7 @@ class AppLocalizations {
       'common.view_all': 'View all',
       'common.apply': 'Apply',
       'common.add': 'Add',
+      'common.manage': 'Manage',
       'common.quick_add': 'Quick add',
       'common.filter': 'Filter',
       'common.newest_first': 'Newest first',
@@ -646,6 +647,13 @@ class AppLocalizations {
       'budget.corrected_entry': 'Corrective entry',
 
       'chat.location_default_title': 'Location',
+      'chat.message_hint': 'Write a message...',
+      'chat.choose_image': 'Choose an image',
+      'chat.camera': 'Camera',
+      'chat.gallery': 'Photo library',
+      'chat.image': 'Image',
+      'chat.attach': 'Add attachment',
+      'chat.send': 'Send message',
       'chat.tap_to_open_map': 'Tap to open map',
       'chat.file_default_name': 'File',
       'chat.tap_to_open_file': 'Tap to open file',
@@ -684,6 +692,14 @@ class AppLocalizations {
       'location_picker.select_this_location': 'Use this location',
       'location_picker.selected_name': 'Selected location',
       'map.title': 'Map',
+      'map.current_location': 'Go to current location',
+      'map.configuration_title': 'Map setup required',
+      'map.configuration_message':
+          'Add your Goong map tiles key to show the interactive map.',
+      'map.load_failed_title': 'Could not load the map',
+      'map.load_failed_message':
+          'Check your network connection and Goong Map Tiles key, then try again.',
+      'map.retry_load': 'Try again',
       'map.selected_location': 'Current location',
       'map.send_location': 'Send location',
       'map.choose_conversation': 'Send to conversation',
@@ -879,6 +895,7 @@ class AppLocalizations {
           'End date must be after start date',
 
       'activity_form.title_create': 'Create new activity',
+      'activity_form.title_edit': 'Edit activity',
       'activity_form.plan_label': 'Plan:',
       'activity_form.field_title': 'Activity title *',
       'activity_form.validation_title_required':
@@ -980,6 +997,7 @@ class AppLocalizations {
       'live_location.consent_checkbox':
           'I understand and consent to sharing my location.',
       'live_location.duration': 'Sharing duration',
+      'live_location.minutes': '{count} minutes',
       'live_location.service_disabled': 'Location services are turned off.',
       'live_location.permission_denied': 'Location permission was not granted.',
       'offline.queued':
@@ -1060,6 +1078,7 @@ class AppLocalizations {
       'common.view_all': 'Xem tất cả',
       'common.apply': 'Áp dụng',
       'common.add': 'Thêm',
+      'common.manage': 'Quản lý',
       'common.quick_add': 'Thêm nhanh',
       'common.filter': 'Bộ lọc',
       'common.newest_first': 'Mới nhất trước',
@@ -1649,6 +1668,13 @@ class AppLocalizations {
       'budget.corrected_entry': 'Bút toán điều chỉnh',
 
       'chat.location_default_title': 'Vị trí',
+      'chat.message_hint': 'Nhập tin nhắn...',
+      'chat.choose_image': 'Chọn ảnh',
+      'chat.camera': 'Máy ảnh',
+      'chat.gallery': 'Thư viện ảnh',
+      'chat.image': 'Ảnh',
+      'chat.attach': 'Thêm tệp đính kèm',
+      'chat.send': 'Gửi tin nhắn',
       'chat.tap_to_open_map': 'Nhấn để mở bản đồ',
       'chat.file_default_name': 'Tệp',
       'chat.tap_to_open_file': 'Nhấn để mở tệp',
@@ -1686,6 +1712,14 @@ class AppLocalizations {
       'location_picker.select_this_location': 'Chọn vị trí này',
       'location_picker.selected_name': 'Vị trí đã chọn',
       'map.title': 'Bản đồ',
+      'map.current_location': 'Đi đến vị trí hiện tại',
+      'map.configuration_title': 'Cần cấu hình bản đồ',
+      'map.configuration_message':
+          'Thêm khóa Map Tiles của Goong để hiển thị bản đồ tương tác.',
+      'map.load_failed_title': 'Không thể tải bản đồ',
+      'map.load_failed_message':
+          'Kiểm tra kết nối mạng và khóa Map Tiles của Goong, sau đó thử lại.',
+      'map.retry_load': 'Thử lại',
       'map.selected_location': 'Vị trí hiện tại',
       'map.send_location': 'Gửi vị trí',
       'map.choose_conversation': 'Gửi vào cuộc hội thoại',
@@ -1886,6 +1920,7 @@ class AppLocalizations {
           'Ngày kết thúc phải sau ngày bắt đầu',
 
       'activity_form.title_create': 'Tạo hoạt động mới',
+      'activity_form.title_edit': 'Chỉnh sửa hoạt động',
       'activity_form.plan_label': 'Kế hoạch:',
       'activity_form.field_title': 'Tên hoạt động *',
       'activity_form.validation_title_required': 'Vui lòng nhập tên hoạt động',
@@ -1986,6 +2021,7 @@ class AppLocalizations {
       'live_location.consent_checkbox':
           'Tôi hiểu và đồng ý chia sẻ vị trí của mình.',
       'live_location.duration': 'Thời gian chia sẻ',
+      'live_location.minutes': '{count} phút',
       'live_location.service_disabled': 'Dịch vụ vị trí đang bị tắt.',
       'live_location.permission_denied': 'Bạn chưa cấp quyền truy cập vị trí.',
       'offline.queued':

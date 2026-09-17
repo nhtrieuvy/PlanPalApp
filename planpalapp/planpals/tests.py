@@ -36,6 +36,7 @@ from planpals.plans.infrastructure.repositories import DjangoPlanActivityReposit
 from planpals.chat.presentation.serializers import ChatMessageSerializer, ConversationSerializer
 from planpals.shared.exception_handler import custom_exception_handler
 from planpals.plans.presentation.views import PlanViewSet
+from planpals.plans.presentation.serializers import PlanActivitySerializer
 from planpals.shared.domain_exceptions import ActivityVersionConflictException
 from planpals.shared.analytics_tasks import cleanup_invalid_fcm_tokens_task
 from planpals.shared.presence import (
@@ -55,6 +56,33 @@ class ApiVersioningTests(TestCase):
 
         self.assertNotEqual(versioned_response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(legacy_response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class MapProviderContractTests(TestCase):
+    def test_activity_map_url_opens_planpal_goong_map(self):
+        activity = SimpleNamespace(
+            has_location=True,
+            latitude=10.762622,
+            longitude=106.660172,
+            location_name='Ho Chi Minh City',
+        )
+
+        url = PlanActivitySerializer()._get_maps_url(activity)
+
+        self.assertEqual(
+            url,
+            'planpal://map?latitude=10.762622&longitude=106.660172',
+        )
+        self.assertNotIn('google', url.lower())
+
+    def test_chat_location_url_is_provider_neutral(self):
+        message = ChatMessage(latitude=10.762622, longitude=106.660172)
+
+        self.assertEqual(
+            message.location_url,
+            'planpal://map?latitude=10.762622&longitude=106.660172',
+        )
+        self.assertNotIn('google', message.location_url.lower())
 
 
 @override_settings(

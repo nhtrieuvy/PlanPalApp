@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 
 /// A reusable card widget with consistent styling across the app
 class AppCard extends StatelessWidget {
@@ -22,7 +23,7 @@ class AppCard extends StatelessWidget {
     this.backgroundColor,
     this.borderRadius,
     this.border,
-    this.showShadow = true,
+    this.showShadow = false,
   });
 
   /// Creates a list item card with standard spacing
@@ -34,9 +35,9 @@ class AppCard extends StatelessWidget {
     this.backgroundColor,
     this.borderRadius,
     this.border,
-    this.showShadow = true,
-  }) : padding = const EdgeInsets.all(16),
-       margin = const EdgeInsets.only(bottom: 12);
+    this.showShadow = false,
+  }) : padding = const EdgeInsets.all(AppSpacing.md),
+       margin = const EdgeInsets.only(bottom: AppSpacing.sm);
 
   /// Creates a section card with more spacing
   const AppCard.section({
@@ -47,9 +48,9 @@ class AppCard extends StatelessWidget {
     this.backgroundColor,
     this.borderRadius,
     this.border,
-    this.showShadow = true,
-  }) : padding = const EdgeInsets.all(20),
-       margin = const EdgeInsets.symmetric(vertical: 8);
+    this.showShadow = false,
+  }) : padding = const EdgeInsets.all(AppSpacing.lg),
+       margin = const EdgeInsets.symmetric(vertical: AppSpacing.xs);
 
   /// Creates a compact card for small items
   const AppCard.compact({
@@ -60,17 +61,18 @@ class AppCard extends StatelessWidget {
     this.backgroundColor,
     this.borderRadius,
     this.border,
-    this.showShadow = true,
-  }) : padding = const EdgeInsets.all(12),
-       margin = const EdgeInsets.only(bottom: 8);
+    this.showShadow = false,
+  }) : padding = const EdgeInsets.all(AppSpacing.sm),
+       margin = const EdgeInsets.only(bottom: AppSpacing.xs);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final defaultBackgroundColor = backgroundColor ?? theme.cardColor;
     final defaultElevation = elevation ?? (showShadow ? 2.0 : 0.0);
-    final defaultBorderRadius = borderRadius ?? BorderRadius.circular(12);
-    final defaultPadding = padding ?? const EdgeInsets.all(16);
+    final defaultBorderRadius =
+        borderRadius ?? BorderRadius.circular(AppRadius.card);
+    final defaultPadding = padding ?? const EdgeInsets.all(AppSpacing.md);
     final defaultMargin = margin ?? EdgeInsets.zero;
 
     Widget card = Container(
@@ -78,13 +80,13 @@ class AppCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: defaultBackgroundColor,
         borderRadius: defaultBorderRadius,
-        border: border,
+        border: border ?? Border.all(color: theme.colorScheme.outlineVariant),
         boxShadow: showShadow && defaultElevation > 0
             ? [
-                const BoxShadow(
-                  color: Color.fromRGBO(0, 0, 0, 0.1),
-                  blurRadius: 4.0,
-                  offset: Offset(0, 2),
+                BoxShadow(
+                  color: theme.shadowColor.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ]
             : null,

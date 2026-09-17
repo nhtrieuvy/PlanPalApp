@@ -58,20 +58,22 @@ class GroupPollSerializer:
 
 
 class LiveLocationStartSerializer(serializers.Serializer):
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6)
-    accuracy_meters = serializers.DecimalField(
-        max_digits=8, decimal_places=2, required=False, allow_null=True, min_value=0
+    # Device GPS values commonly contain more precision than the database columns.
+    # Accept the wire-level number here and normalize it in the application service.
+    latitude = serializers.FloatField(min_value=-90, max_value=90)
+    longitude = serializers.FloatField(min_value=-180, max_value=180)
+    accuracy_meters = serializers.FloatField(
+        required=False, allow_null=True, min_value=0, max_value=999999.99
     )
     duration_minutes = serializers.IntegerField(min_value=5, max_value=480)
     consent = serializers.BooleanField()
 
 
 class LiveLocationUpdateSerializer(serializers.Serializer):
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6)
-    accuracy_meters = serializers.DecimalField(
-        max_digits=8, decimal_places=2, required=False, allow_null=True, min_value=0
+    latitude = serializers.FloatField(min_value=-90, max_value=90)
+    longitude = serializers.FloatField(min_value=-180, max_value=180)
+    accuracy_meters = serializers.FloatField(
+        required=False, allow_null=True, min_value=0, max_value=999999.99
     )
 
 

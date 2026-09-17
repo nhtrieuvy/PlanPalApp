@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:planpal_flutter/core/dtos/activity_conflict.dart';
 import 'package:planpal_flutter/core/dtos/plan_activity.dart';
 import 'package:planpal_flutter/core/dtos/plan_activity_requests.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/maps/planpal_map.dart';
 import 'package:planpal_flutter/presentation/widgets/forms/app_select_field.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
@@ -497,29 +497,24 @@ class _ActivityFormPageState extends ConsumerState<ActivityFormPage> {
             child: _latitude != null && _longitude != null
                 ? Stack(
                     children: [
-                      GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: LatLng(_latitude!, _longitude!),
+                      PlanPalMap(
+                        initialCameraPosition: MapCameraPosition(
+                          target: MapCoordinate(_latitude!, _longitude!),
                           zoom: 16,
                         ),
-                        markers: {
-                          Marker(
-                            markerId: const MarkerId('selected_location'),
-                            position: LatLng(_latitude!, _longitude!),
-                            infoWindow: InfoWindow(
-                              title:
-                                  _locationName ??
-                                  context.l10n.t(
-                                    'activity_form.selected_location',
-                                  ),
-                              snippet: _locationAddress,
-                            ),
+                        pins: {
+                          MapPin(
+                            id: 'selected_location',
+                            position: MapCoordinate(_latitude!, _longitude!),
+                            title:
+                                _locationName ??
+                                context.l10n.t(
+                                  'activity_form.selected_location',
+                                ),
+                            subtitle: _locationAddress,
                           ),
                         },
                         onTap: (_) => _showLocationPicker(),
-                        zoomControlsEnabled: false,
-                        mapToolbarEnabled: false,
-                        myLocationButtonEnabled: false,
                         scrollGesturesEnabled: false,
                         zoomGesturesEnabled: false,
                         tiltGesturesEnabled: false,

@@ -18,11 +18,16 @@ import 'package:planpal_flutter/presentation/pages/home/home_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/login_page.dart';
 import 'package:planpal_flutter/presentation/pages/auth/register_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' as maplibre;
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
+
+  // Must be configured before the first native map platform view is created.
+  // Android emulators can render the default Virtual Display as a black map.
+  maplibre.MapLibreMap.useHybridComposition = true;
 
   // Pre-initialize SharedPreferences for synchronous access
   final prefs = await SharedPreferences.getInstance();

@@ -1,59 +1,21 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
 }
 
-val localProperties = Properties().apply {
-    val propertiesFile = rootProject.file("local.properties")
-    if (propertiesFile.exists()) {
-        propertiesFile.inputStream().use(::load)
-    }
-}
-
-val dotenvProperties = Properties().apply {
-    val dotenvFile = rootProject.file("../.env")
-    if (dotenvFile.exists()) {
-        dotenvFile.inputStream().use(::load)
-    }
-}
-
-fun readConfigValue(primaryKey: String, fallbackKey: String? = null): String? =
-    sequenceOf(
-        project.findProperty(primaryKey) as String?,
-        localProperties.getProperty(primaryKey),
-        System.getenv(primaryKey),
-        dotenvProperties.getProperty(primaryKey),
-        fallbackKey?.let { project.findProperty(it) as String? },
-        fallbackKey?.let(localProperties::getProperty),
-        fallbackKey?.let { key -> System.getenv(key) },
-        fallbackKey?.let(dotenvProperties::getProperty),
-    ).firstOrNull { !it.isNullOrBlank() }?.trim()
-
-val googleMapsAndroidApiKey =
-    readConfigValue(
-        primaryKey = "GOOGLE_MAPS_ANDROID_API_KEY",
-        fallbackKey = "GOOGLE_API_KEY",
-    ) ?: ""
-
 android {
     namespace = "com.example.planpal_flutter"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
         // Enable core library desugaring for libraries that require newer Java APIs
         isCoreLibraryDesugaringEnabled = true
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
     defaultConfig {
@@ -61,13 +23,11 @@ android {
         applicationId = "com.example.planpal_flutter"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // MapLibre requires Android API 21 or newer.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders += mapOf(
-            "googleMapsApiKey" to googleMapsAndroidApiKey,
-        )
     }
 
     buildTypes {
@@ -76,6 +36,13 @@ android {
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+}
+
+// Kotlin 2.4 removes the legacy android.kotlinOptions.jvmTarget DSL.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
     }
 }
 

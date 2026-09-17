@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
@@ -117,9 +119,12 @@ class PlanActivitySerializer(serializers.ModelSerializer):
     
     def _get_maps_url(self, instance):
         if instance.has_location:
-            return f"https://www.google.com/maps?q={instance.latitude},{instance.longitude}"
+            return (
+                'planpal://map?'
+                f'latitude={instance.latitude}&longitude={instance.longitude}'
+            )
         elif instance.location_name:
-            return f"https://www.google.com/maps/search/{instance.location_name}"
+            return f"planpal://map?query={quote(instance.location_name)}"
         return None
     
     def validate(self, attrs):

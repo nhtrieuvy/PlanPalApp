@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:planpal_flutter/core/dtos/experience_models.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/maps/planpal_map.dart';
 import 'package:planpal_flutter/core/riverpod/experience_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
+import 'package:planpal_flutter/presentation/widgets/forms/app_select_field.dart';
 
 class LiveLocationPage extends ConsumerStatefulWidget {
   const LiveLocationPage({
@@ -24,8 +25,8 @@ class LiveLocationPage extends ConsumerStatefulWidget {
 }
 
 class _LiveLocationPageState extends ConsumerState<LiveLocationPage> {
-  static const _fallback = LatLng(10.762622, 106.660172);
-  GoogleMapController? _map;
+  static const _fallback = MapCoordinate(10.762622, 106.660172);
+  PlanPalMapController? _map;
   StreamSubscription<Position>? _positions;
   Timer? _refreshTimer;
   String? _myShareId;
@@ -60,18 +61,16 @@ class _LiveLocationPageState extends ConsumerState<LiveLocationPage> {
     final items = locations.valueOrNull ?? const <LiveLocationModel>[];
     final markers = {
       for (final item in items)
-        Marker(
-          markerId: MarkerId(item.id),
-          position: LatLng(item.latitude, item.longitude),
-          infoWindow: InfoWindow(
-            title: item.userName,
-            snippet: context.l10n.t('live_location.active'),
-          ),
+        MapPin(
+          id: item.id,
+          position: MapCoordinate(item.latitude, item.longitude),
+          title: item.userName,
+          subtitle: context.l10n.t('live_location.active'),
         ),
     };
     final initial = items.isEmpty
         ? _fallback
-        : LatLng(items.first.latitude, items.first.longitude);
+        : MapCoordinate(items.first.latitude, items.first.longitude);
 
     return Scaffold(
       appBar: AppBar(
@@ -86,11 +85,10 @@ class _LiveLocationPageState extends ConsumerState<LiveLocationPage> {
       ),
       body: Stack(
         children: [
-          GoogleMap(
-            initialCameraPosition: CameraPosition(target: initial, zoom: 14),
-            markers: markers,
+          PlanPalMap(
+            initialCameraPosition: MapCameraPosition(target: initial, zoom: 14),
+            pins: markers,
             myLocationEnabled: _myShareId != null,
-            myLocationButtonEnabled: true,
             onMapCreated: (controller) => _map = controller,
           ),
           Positioned(
@@ -177,9 +175,9 @@ class _LiveLocationPageState extends ConsumerState<LiveLocationPage> {
       final share = await ref
           .read(experienceRepositoryProvider)
           .startLiveLocation(widget.conversationId, {
-            'latitude': position.latitude,
-            'longitude': position.longitude,
-            'accuracy_meters': position.accuracy,
+            'latitude': position.latitude.toStringAsFixed(6),
+            'longitude': position.longitude.toStringAsFixed(6),
+            'accuracy_meters': position.accuracy.toStringAsFixed(2),
             'duration_minutes': duration,
             'consent': true,
           });
@@ -193,8 +191,8 @@ class _LiveLocationPageState extends ConsumerState<LiveLocationPage> {
       }
       setState(() => _myShareId = share.id);
       _map?.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(position.latitude, position.longitude),
+        MapCameraUpdate.newCoordinateZoom(
+          MapCoordinate(position.latitude, position.longitude),
           16,
         ),
       );
@@ -227,9 +225,9 @@ class _LiveLocationPageState extends ConsumerState<LiveLocationPage> {
     _lastSentAt = now;
     try {
       await ref.read(experienceRepositoryProvider).updateLiveLocation(shareId, {
-        'latitude': position.latitude,
-        'longitude': position.longitude,
-        'accuracy_meters': position.accuracy,
+        'latitude': position.latitude.toStringAsFixed(6),
+        'longitude': position.longitude.toStringAsFixed(6),
+        'accuracy_meters': position.accuracy.toStringAsFixed(2),
       });
       ref.invalidate(liveLocationsProvider(widget.conversationId));
     } catch (_) {
@@ -279,18 +277,21 @@ class _LiveLocationConsentDialogState
       children: [
         Text(context.l10n.t('live_location.consent_body')),
         const SizedBox(height: 12),
-        DropdownButtonFormField<int>(
-          initialValue: _duration,
-          decoration: InputDecoration(
-            labelText: context.l10n.t('live_location.duration'),
-          ),
-          items: const [15, 30, 60, 120, 480]
+        AppSelectField<int>(
+          label: context.l10n.t('live_location.duration'),
+          value: _duration,
+          options: const [15, 30, 60, 120, 480]
               .map(
-                (value) =>
-                    DropdownMenuItem(value: value, child: Text('$value min')),
+                (value) => AppSelectOption(
+                  value: value,
+                  label: context.l10n.t(
+                    'live_location.minutes',
+                    params: {'count': '$value'},
+                  ),
+                ),
               )
               .toList(),
-          onChanged: (value) => setState(() => _duration = value ?? 60),
+          onChanged: (value) => setState(() => _duration = value),
         ),
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,

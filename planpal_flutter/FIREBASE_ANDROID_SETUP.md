@@ -35,24 +35,21 @@ The following values must all refer to the same Firebase Android app:
 2. Verify `Firebase Cloud Messaging API` is enabled.
 3. Verify `Firebase Installations API` is enabled.
 4. Check API key restrictions for the Firebase Web API key from `google-services.json`.
-5. Do not reuse the Firebase Web API key as a Google Maps Android API key.
 
-## Google Maps key
+## Goong map setup
 
-This repo now expects a dedicated Google Maps Android key to be provided separately.
-
-Set one of the following before building Android:
-
-- `android/local.properties`
-- Gradle property `GOOGLE_MAPS_ANDROID_API_KEY`
-- Environment variable `GOOGLE_MAPS_ANDROID_API_KEY`
-
-Example in `android/local.properties`:
+Google Maps is not used by the mobile client. Create a **Map tiles key** in the
+Goong console and set it in `planpal_flutter/.env`:
 
 ```properties
-sdk.dir=C:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
-GOOGLE_MAPS_ANDROID_API_KEY=your-android-maps-key
+GOONG_MAPTILES_KEY=your_goong_maptiles_key
 ```
+
+This public client key renders Goong vector styles through MapLibre. It is
+different from the server-side `GOONG_API_KEY`, which is used for place search
+and reverse-geocoding and must remain on the backend.
+
+The MapLibre runtime requires JDK 21 for Android builds and iOS 13 or newer.
 
 ## Local debug run
 

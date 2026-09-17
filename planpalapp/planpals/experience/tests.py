@@ -140,6 +140,31 @@ class ExperienceApiTests(TestCase):
         self.assertEqual(first.json()['id'], second.json()['id'])
         self.assertEqual(LiveLocationShare.objects.count(), 1)
 
+    def test_live_location_normalizes_device_gps_precision(self):
+        url = reverse(
+            'conversation-live-locations',
+            kwargs={'conversation_id': self.conversation.id},
+        )
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.post(
+            url,
+            {
+                'latitude': 10.7626221234567,
+                'longitude': 106.6601729876543,
+                'accuracy_meters': 8.12789,
+                'duration_minutes': 30,
+                'consent': True,
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        share = LiveLocationShare.objects.get()
+        self.assertEqual(str(share.latitude), '10.762622')
+        self.assertEqual(str(share.longitude), '106.660173')
+        self.assertEqual(str(share.accuracy_meters), '8.13')
+
     def test_global_search_does_not_leak_private_groups(self):
         url = reverse('global-search')
         self.client.force_authenticate(self.member)

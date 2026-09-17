@@ -1024,18 +1024,12 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             ),
             const SizedBox(height: 16),
             if (canCreatePlan) ...[
-              ElevatedButton.icon(
-                onPressed: () => _navigateToCreatePlan(g),
-                icon: const Icon(Icons.add),
-                label: Text(context.l10n.t('group_details.create_plan')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 16,
-                  ),
-                  minimumSize: const Size(double.infinity, 44),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => _navigateToCreatePlan(g),
+                  icon: const Icon(Icons.add),
+                  label: Text(context.l10n.t('group_details.create_plan')),
                 ),
               ),
               const SizedBox(height: 16),
@@ -1305,9 +1299,8 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             child: OutlinedButton.icon(
               onPressed: () => _showLeaveGroupDialog(g),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.orange,
-                side: const BorderSide(color: Colors.orange),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                foregroundColor: Theme.of(context).colorScheme.error,
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
               ),
               icon: const Icon(Icons.exit_to_app),
               label: Text(context.l10n.t('group_details.leave_action')),
@@ -1319,13 +1312,14 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
       // ThÃ nh viÃªn thÆ°á»ng chá»‰ cÃ³ thá»ƒ rá»i nhÃ³m
       return SizedBox(
         width: double.infinity,
-        child: FloatingActionButton.extended(
+        child: OutlinedButton.icon(
           onPressed: () => _showLeaveGroupDialog(g),
-          backgroundColor: Colors.redAccent,
-          foregroundColor: Colors.white,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+            side: BorderSide(color: Theme.of(context).colorScheme.error),
+          ),
           icon: const Icon(Icons.exit_to_app),
           label: Text(context.l10n.t('group_details.leave_action')),
-          heroTag: 'leave_group',
         ),
       );
     }
@@ -1398,7 +1392,10 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             child: Text(context.l10n.t('common.cancel')),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: Text(context.l10n.t('common.delete')),
           ),
@@ -1502,7 +1499,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: Text(context.l10n.t('group_details.leave_action')),
           ),
         ],
@@ -1687,7 +1686,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: Text(context.l10n.t('common.delete')),
           ),
         ],

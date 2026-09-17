@@ -93,6 +93,9 @@ Environment rule:
   `production`) and optionally loads `.env.<environment>`.
 - Flutter uses the build-time `APP_ENV` selector and optional `API_BASE_URL` /
   `OAUTH_CLIENT_ID` overrides; no source edit is required to switch targets.
+- Flutter map rendering uses the shared `PlanPalMap` adapter backed by MapLibre
+  and Goong vector styles. Place search and reverse-geocoding continue through
+  the backend Goong adapter; Google Maps is not a runtime dependency.
 - Production process variables and secret stores override dotenv files.
 - The test environment always uses in-memory cache, channel layer, and Celery
   transport to prevent accidental dependency on or writes to production Redis.

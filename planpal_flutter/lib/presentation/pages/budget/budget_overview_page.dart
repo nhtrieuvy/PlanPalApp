@@ -8,7 +8,6 @@ import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
-import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/presentation/pages/budget/add_expense_form.dart';
 import 'package:planpal_flutter/presentation/pages/budget/balances_page.dart';
 import 'package:planpal_flutter/presentation/pages/budget/expense_list_page.dart';
@@ -50,13 +49,6 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddExpense,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: Text(l10n.t('budget.quick_add')),
       ),
       body: RefreshablePageWrapper(
         onRefresh: _refresh,
@@ -116,8 +108,8 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
                   ),
                 ),
         ),
-        const SizedBox(height: 16),
-        _buildActionRow(context, summary),
+        const SizedBox(height: 20),
+        _buildActions(context, summary),
         const SizedBox(height: 16),
         BudgetTrendChart(points: summary.trend),
         const SizedBox(height: 16),
@@ -129,37 +121,81 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
     );
   }
 
-  Widget _buildActionRow(BuildContext context, BudgetModel summary) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+  Widget _buildActions(BuildContext context, BudgetModel summary) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FilledButton.icon(
-          onPressed: _openExpenseList,
-          icon: const Icon(Icons.receipt_long_rounded),
-          label: Text(context.l10n.t('budget.view_expenses')),
-        ),
-        OutlinedButton.icon(
-          onPressed: _openBalances,
-          icon: const Icon(Icons.account_balance_rounded),
-          label: Text(context.l10n.t('budget.balances')),
-        ),
-        OutlinedButton.icon(
           onPressed: _openAddExpense,
           icon: const Icon(Icons.add_card_rounded),
           label: Text(context.l10n.t('budget.add_expense')),
         ),
-        if (widget.canManageBudget)
-          OutlinedButton.icon(
-            onPressed: () => _openBudgetDialog(summary),
-            icon: const Icon(Icons.edit_note_rounded),
-            label: Text(
-              summary.hasBudgetConfigured
-                  ? context.l10n.t('budget.update_budget')
-                  : context.l10n.t('budget.set_budget'),
-            ),
-          ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => _showBudgetActions(context, summary),
+          icon: const Icon(Icons.tune_rounded),
+          label: Text(context.l10n.t('common.manage')),
+        ),
       ],
+    );
+  }
+
+  Future<void> _showBudgetActions(
+    BuildContext context,
+    BudgetModel summary,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.l10n.t('common.manage'),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.receipt_long_rounded),
+                title: Text(context.l10n.t('budget.view_expenses')),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _openExpenseList();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.account_balance_rounded),
+                title: Text(context.l10n.t('budget.balances')),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _openBalances();
+                },
+              ),
+              if (widget.canManageBudget)
+                ListTile(
+                  leading: const Icon(Icons.edit_note_rounded),
+                  title: Text(
+                    summary.hasBudgetConfigured
+                        ? context.l10n.t('budget.update_budget')
+                        : context.l10n.t('budget.set_budget'),
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _openBudgetDialog(summary);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

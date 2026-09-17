@@ -165,7 +165,7 @@ rollback, and smoke-test checklists.
 | Cache/Queue | Redis, django-redis, Celery, Celery Beat |
 | File Storage | Cloudinary |
 | Push Notification | Firebase Cloud Messaging structure |
-| Maps/Location | Google Maps Flutter, Geolocator, backend location API |
+| Maps/Location | Goong vector maps via MapLibre, Geolocator, Goong location API |
 | Charts | fl_chart |
 | API Documentation | Swagger / Redoc via drf-yasg / OpenAPI |
 | Deployment | Docker, Supervisor single-machine runtime, managed Redis/MySQL |
@@ -511,6 +511,14 @@ FIREBASE_SERVICE_ACCOUNT_PATH=
 
 <details>
 <summary><b>Frontend environment selector</b></summary>
+
+Create `planpal_flutter/.env` from `planpal_flutter/.env.example` and set the
+Goong map tile key. This client-side key renders vector maps only; place search
+and reverse geocoding continue through the authenticated backend API.
+
+```env
+GOONG_MAPTILES_KEY=your_goong_maptiles_key
+```
 
 ```powershell
 # Android emulator -> local backend

@@ -166,7 +166,9 @@ class GroupInviteManagementPage extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: Text(context.l10n.t('common.revoke')),
           ),
         ],
@@ -490,7 +492,9 @@ class _InviteCard extends StatelessWidget {
                     onPressed: onRevoke,
                     icon: const Icon(Icons.block),
                     label: Text(l10n.t('common.revoke')),
-                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error,
+                    ),
                   ),
               ],
             ),

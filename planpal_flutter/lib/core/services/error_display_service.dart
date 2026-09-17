@@ -48,7 +48,9 @@ class ErrorDisplayService {
               ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               child: Text(l10n.t('common.close')),
             ),
           ],

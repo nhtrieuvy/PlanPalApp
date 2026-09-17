@@ -346,7 +346,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: Text(l10n.t('common.confirm')),
           ),
         ],
@@ -403,7 +405,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: Text(l10n.t('user_profile.block_action')),
           ),
         ],
@@ -556,28 +560,31 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
 
   Widget _buildAccessDeniedView() {
     final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.block, size: 80, color: Colors.red),
+            Icon(Icons.block, size: 72, color: colors.error),
             const SizedBox(height: 24),
             Text(
               _accessDeniedMessage ??
                   l10n.t('user_profile.access_denied_default'),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: Colors.red,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colors.error,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             Text(
               l10n.t('user_profile.access_denied_description'),
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -585,17 +592,6 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
               onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.arrow_back),
               label: Text(l10n.t('user_profile.back')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
             ),
           ],
         ),
@@ -720,6 +716,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
 
   Widget _buildActionButton() {
     final l10n = context.l10n;
+    final colors = Theme.of(context).colorScheme;
     if (_loading) {
       return const CircularProgressIndicator();
     }
@@ -767,7 +764,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
             ElevatedButton.icon(
               onPressed: _actionLoading ? null : _unfriend,
               icon: _actionLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
@@ -778,40 +775,23 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                   : const Icon(Icons.person_remove),
               label: Text(l10n.t('user_profile.unfriend')),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
+                backgroundColor: colors.error,
+                foregroundColor: colors.onError,
               ),
             ),
           ],
         );
       case 'pending_sent':
-        return ElevatedButton.icon(
+        return OutlinedButton.icon(
           onPressed: null,
           icon: const Icon(Icons.schedule),
           label: Text(l10n.t('user_profile.pending_sent')),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.orange,
-            disabledForegroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-          ),
         );
       case 'pending_received':
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: _actionLoading ? null : _acceptFriendRequest,
               icon: _actionLoading
                   ? const SizedBox(
@@ -824,64 +804,34 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                     )
                   : const Icon(Icons.check),
               label: Text(l10n.t('user_profile.pending_received')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
             ),
             const SizedBox(width: 12),
-            ElevatedButton.icon(
+            OutlinedButton.icon(
               onPressed: _actionLoading ? null : _declineFriendRequest,
               icon: _actionLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          colors.onSurfaceVariant,
+                        ),
                       ),
                     )
                   : const Icon(Icons.close),
               label: Text(l10n.t('user_profile.pending_decline')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
             ),
           ],
         );
       case 'blocked':
-        return ElevatedButton.icon(
+        return OutlinedButton.icon(
           onPressed: null,
           icon: const Icon(Icons.block),
           label: Text(l10n.t('user_profile.blocked')),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.grey,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.grey,
-            disabledForegroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-          ),
         );
       case 'none':
-        return ElevatedButton.icon(
+        return FilledButton.icon(
           onPressed: _actionLoading ? null : _sendFriendRequest,
           icon: _actionLoading
               ? const SizedBox(
@@ -894,14 +844,6 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                 )
               : const Icon(Icons.person_add),
           label: Text(l10n.t('user_profile.add_friend')),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-          ),
         );
       default:
         return OutlinedButton.icon(

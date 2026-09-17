@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:planpal_flutter/core/dtos/conversation.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/maps/planpal_map.dart';
 import 'package:planpal_flutter/core/repositories/location_repository.dart';
 import 'package:planpal_flutter/core/riverpod/conversation_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
@@ -23,16 +23,19 @@ class CurrentLocationMapPage extends ConsumerStatefulWidget {
 
 class _CurrentLocationMapPageState
     extends ConsumerState<CurrentLocationMapPage> {
-  static const LatLng _defaultPosition = LatLng(10.762622, 106.660172);
+  static const MapCoordinate _defaultPosition = MapCoordinate(
+    10.762622,
+    106.660172,
+  );
   static const Duration _locationServiceTimeout = Duration(seconds: 2);
   static const Duration _permissionTimeout = Duration(seconds: 5);
   static const Duration _gpsTimeout = Duration(seconds: 8);
   static const Duration _lastKnownTimeout = Duration(seconds: 2);
 
   late final LocationRepository _locationRepository;
-  GoogleMapController? _mapController;
+  PlanPalMapController? _mapController;
 
-  LatLng _selectedPosition = _defaultPosition;
+  MapCoordinate _selectedPosition = _defaultPosition;
   String _locationName = '';
   String _address = '';
   bool _isLoadingLocation = false;
@@ -57,7 +60,7 @@ class _CurrentLocationMapPageState
     super.dispose();
   }
 
-  Set<Marker> get _markers {
+  Set<MapPin> get _markers {
     final title = _locationName.isNotEmpty
         ? _locationName
         : context.l10n.t('map.selected_location');
@@ -66,10 +69,11 @@ class _CurrentLocationMapPageState
         : _formatCoordinates(_selectedPosition);
 
     return {
-      Marker(
-        markerId: const MarkerId('current_location'),
+      MapPin(
+        id: 'current_location',
         position: _selectedPosition,
-        infoWindow: InfoWindow(title: title, snippet: snippet),
+        title: title,
+        subtitle: snippet,
       ),
     };
   }
@@ -126,7 +130,7 @@ class _CurrentLocationMapPageState
       final position = await _getBestAvailablePosition();
       final nextPosition = position == null
           ? _selectedPosition
-          : LatLng(position.latitude, position.longitude);
+          : MapCoordinate(position.latitude, position.longitude);
 
       _applyLoadedPosition(nextPosition, hasPermission: true);
     } catch (_) {
@@ -162,7 +166,10 @@ class _CurrentLocationMapPageState
     }
   }
 
-  void _applyLoadedPosition(LatLng position, {required bool hasPermission}) {
+  void _applyLoadedPosition(
+    MapCoordinate position, {
+    required bool hasPermission,
+  }) {
     if (!mounted) return;
     setState(() {
       _selectedPosition = position;
@@ -174,7 +181,7 @@ class _CurrentLocationMapPageState
     unawaited(_resolveAddress(position));
   }
 
-  Future<void> _resolveAddress(LatLng position) async {
+  Future<void> _resolveAddress(MapCoordinate position) async {
     final selectedLocationName = context.l10n.t('map.selected_location');
     final requestId = ++_addressRequestId;
 
@@ -208,15 +215,27 @@ class _CurrentLocationMapPageState
     }
   }
 
-  Future<void> _animateTo(LatLng position, {double? zoom}) async {
+  Future<void> _animateTo(MapCoordinate position, {double? zoom}) async {
     final controller = _mapController;
     if (controller == null) return;
 
     await controller.animateCamera(
       zoom == null
-          ? CameraUpdate.newLatLng(position)
-          : CameraUpdate.newLatLngZoom(position, zoom),
+          ? MapCameraUpdate.newCoordinate(position)
+          : MapCameraUpdate.newCoordinateZoom(position, zoom),
     );
+  }
+
+  void _selectPositionOnMap(MapCoordinate position) {
+    setState(() {
+      _selectedPosition = position;
+      _locationName = '';
+      _address = _formatCoordinates(position);
+    });
+    // Re-center after selection so the selected pin remains unambiguous above
+    // the bottom sharing sheet, then resolve the friendly address in background.
+    unawaited(_animateTo(position, zoom: 16));
+    unawaited(_resolveAddress(position));
   }
 
   void _showSnackBar(String message) {
@@ -226,7 +245,7 @@ class _CurrentLocationMapPageState
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _formatCoordinates(LatLng position) =>
+  String _formatCoordinates(MapCoordinate position) =>
       '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
 
   Future<void> _showConversationPicker() async {
@@ -388,16 +407,12 @@ class _CurrentLocationMapPageState
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.t('map.title')),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: Text(context.l10n.t('map.title'))),
       body: Stack(
         children: [
           Positioned.fill(
-            child: GoogleMap(
-              initialCameraPosition: const CameraPosition(
+            child: PlanPalMap(
+              initialCameraPosition: const MapCameraPosition(
                 target: _defaultPosition,
                 zoom: 14,
               ),
@@ -405,11 +420,9 @@ class _CurrentLocationMapPageState
                 _mapController = controller;
                 await _animateTo(_selectedPosition, zoom: 16);
               },
-              markers: _markers,
+              pins: _markers,
+              onTap: _selectPositionOnMap,
               myLocationEnabled: _hasLocationPermission,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              mapToolbarEnabled: false,
               compassEnabled: true,
             ),
           ),
@@ -522,21 +535,10 @@ class _CurrentLocationMapPageState
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
+              child: FilledButton.icon(
                 onPressed: _showConversationPicker,
                 icon: const Icon(Icons.send_rounded),
                 label: Text(context.l10n.t('map.send_location')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor:
-                      theme.colorScheme.surfaceContainerHighest,
-                  disabledForegroundColor: theme.colorScheme.onSurfaceVariant,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
               ),
             ),
           ],

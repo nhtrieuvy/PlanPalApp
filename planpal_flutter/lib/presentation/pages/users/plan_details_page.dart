@@ -107,8 +107,8 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: Text(context.l10n.t('plan.cancel_plan')),
@@ -429,12 +429,8 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                       icon: const Icon(Icons.cancel_outlined),
                       label: Text(context.l10n.t('plan.cancel_plan')),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.redAccent,
-                        side: const BorderSide(color: Colors.redAccent),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        foregroundColor: theme.colorScheme.error,
+                        side: BorderSide(color: theme.colorScheme.error),
                       ),
                     ),
                   ),
@@ -484,16 +480,6 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                           },
                           icon: const Icon(Icons.edit_outlined),
                           label: Text(context.l10n.t('plan.edit')),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: BorderSide(
-                              color: AppColors.primary.withAlpha(75),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -522,7 +508,12 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                                   ),
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.redAccent,
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                      foregroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.onError,
                                     ),
                                     onPressed: () =>
                                         Navigator.pop(dialogContext, true),
@@ -556,12 +547,8 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                           icon: const Icon(Icons.delete_outline),
                           label: Text(context.l10n.t('plan.delete')),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.redAccent,
-                            side: const BorderSide(color: Colors.redAccent),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            foregroundColor: theme.colorScheme.error,
+                            side: BorderSide(color: theme.colorScheme.error),
                           ),
                         ),
                       ),
