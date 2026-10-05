@@ -87,6 +87,19 @@ Key design rule:
 - analytics dashboard reads only pre-aggregated `DailyMetric` rows
 - background work is delegated to Celery
 
+Environment rule:
+
+- Django uses one settings module selected by `PLANPAL_ENV` (`local`, `test`,
+  `production`) and optionally loads `.env.<environment>`.
+- Flutter uses the build-time `APP_ENV` selector and optional `API_BASE_URL` /
+  `OAUTH_CLIENT_ID` overrides; no source edit is required to switch targets.
+- Flutter map rendering uses the shared `PlanPalMap` adapter backed by MapLibre
+  and Goong vector styles. Place search and reverse-geocoding continue through
+  the backend Goong adapter; Google Maps is not a runtime dependency.
+- Production process variables and secret stores override dotenv files.
+- The test environment always uses in-memory cache, channel layer, and Celery
+  transport to prevent accidental dependency on or writes to production Redis.
+
 ---
 
 ## 2. Domain Model Graph
@@ -1188,6 +1201,51 @@ These invariants must never be violated.
 - Conversation access requires participation or group membership.
 - Message read mutation is explicit; fetching messages does not silently mark read.
 
+### 17.7 Planning Collaboration (Sprint 3)
+
+The `collaboration` bounded context extends planning without moving plan/group
+ownership rules into UI or serializers.
+
+- `AvailabilityPoll -> AvailabilityOption -> AvailabilityVote` is group-scoped
+  so members can RSVP before a plan exists. Admins and plan creators create
+  polls; every member can cast one upserted vote per option. Poll-row locking
+  serializes concurrent first votes and closing/expiry is enforced server-side.
+- `PlanWorkItem` represents both assignments and checklist entries through
+  `item_type`. Plan managers create/edit/delete; an assignee may update only
+  their own status. `completed_at` is derived from status transitions.
+- `PlanComment` may target a whole plan or one activity. Members comment and
+  react, authors edit, while plan managers pin or moderate. Mentions and
+  reactions use unique through rows to prevent duplicate state.
+- Clone creates a plan and budget atomically, shifts every activity by the
+  source-to-target start-date delta, and optionally marks the clone as a
+  template. Templates are excluded from automatic lifecycle transitions.
+- ICS is generated on demand in UTC and Google Calendar links are generated per
+  activity; no calendar artifact is persisted.
+- Assignment and mention notifications are queued through Celery. Mutations
+  publish compact events to the existing group or plan WebSocket channel and
+  write append-only audit events where behavioral traceability is required.
+  Flutter invalidates only the affected Riverpod family when these events
+  arrive; existing reconnect/backoff and pull-to-refresh provide recovery.
+  Realtime and notification delivery are best-effort after persistence, so a
+  temporary Redis outage is logged but cannot turn a successful mutation into
+  a misleading HTTP 500 response.
+
+Main API contract:
+
+```text
+GET/POST /api/v1/groups/{group_id}/availability-polls/
+POST     /api/v1/availability-polls/{poll_id}/vote/
+GET/POST /api/v1/plans/{plan_id}/work-items/
+PATCH/DELETE /api/v1/plan-work-items/{item_id}/
+GET/POST /api/v1/plans/{plan_id}/comments/
+PATCH/DELETE /api/v1/plan-comments/{comment_id}/
+POST     /api/v1/plan-comments/{comment_id}/react/
+POST     /api/v1/plan-comments/{comment_id}/pin/
+POST     /api/v1/plans/{plan_id}/clone/
+GET      /api/v1/plans/{plan_id}/export.ics
+GET      /api/v1/plans/{plan_id}/calendar-links/
+```
+
 ---
 
 ## 18. Extension Rules
@@ -1256,7 +1314,14 @@ Rules for safe modifications:
     "AuditLog",
     "Notification",
     "UserDeviceToken",
-    "DailyMetric"
+    "DailyMetric",
+    "AvailabilityPoll",
+    "AvailabilityOption",
+    "AvailabilityVote",
+    "PlanWorkItem",
+    "PlanComment",
+    "CommentMention",
+    "CommentReaction"
   ],
   "core_actions": [
     "register",
@@ -1277,7 +1342,14 @@ Rules for safe modifications:
     "send_message",
     "mark_notification_read",
     "update_budget",
-    "create_expense"
+    "create_expense",
+    "create_availability_poll",
+    "vote_availability",
+    "assign_work_item",
+    "comment_and_mention",
+    "react_and_pin",
+    "clone_plan",
+    "export_calendar"
   ],
   "audit_actions": [
     "CREATE_PLAN",
@@ -1390,11 +1462,17 @@ These runtime rules must be preserved when changing production behavior:
 
 - Audit logs are append-only at ORM level. Normal code may create audit records, but must not update or delete them.
 - Chat message creation updates the message row and conversation timestamp inside one transaction. Realtime and push side effects run only after commit.
-- Celery workers must consume `high_priority`, `default`, `plan_status`, and `low_priority`. Celery Beat must run as a singleton scheduler for analytics aggregation, cleanup, and plan reminders.
-- Production Redis should back Celery, cache, and Channels. Tests intentionally use in-memory backends to avoid external service coupling.
+- Celery workers must consume `high_priority`, `default`, `plan_status`, and `low_priority`. Celery Beat must run as exactly one singleton process per environment for analytics aggregation, cleanup, and plan reminders.
+- The budget production topology uses one application machine/container. Supervisor starts `web` (Daphne), one `worker`, and singleton `beat` together. This topology must remain at one machine; split Beat into its own singleton service before horizontal scaling. Redis is external and must never run inside the application container.
+- Production Redis backs Celery, cache, and Channels through password-authenticated TLS `rediss://` URLs. Startup fails fast when this contract is missing. Tests intentionally use in-memory backends to avoid external service coupling.
+- `/health/live` proves that the process is alive. `/health/ready` returns success only when database and required Redis dependencies are reachable, and is the deployment readiness probe.
+- Production logs are structured JSON. `X-Request-ID` is accepted or generated at the HTTP boundary, returned to the caller, and attached to log records. Credential-shaped values are redacted.
+- Optional Sentry integration is enabled only through `SENTRY_DSN`, does not send personally identifiable data, and supplements rather than replaces JSON logs.
 - Flutter WebSocket clients use bounded exponential reconnect with jitter. UI should tolerate temporary realtime loss and continue through polling or manual refresh.
 - Mobile auth tokens are stored in `flutter_secure_storage`. Debug logs must not include access tokens, refresh tokens, passwords, or raw auth response bodies.
-- User-facing mobile errors should be localized and friendly. Raw exception strings should stay in logs only.
+- User-facing mobile errors pass through the centralized API error mapper and must be localized and friendly. Unknown server or exception strings are not rendered to users.
+- CI runs Django system checks, migration-drift checks, backend tests, Flutter analysis, and Flutter tests. Scheduled staging benchmarks use read-only REST scenarios and a real WebSocket ping/pong load test.
+- Mutation services invalidate every affected read cache after commit. Regression tests cover budget, plan-summary, group-detail, and invite-related invalidation paths.
 
 ```json
 {
@@ -1403,12 +1481,109 @@ These runtime rules must be preserved when changing production behavior:
     "chat_side_effects": "transaction_on_commit",
     "celery_worker_queues": ["high_priority", "default", "plan_status", "low_priority"],
     "celery_beat": "singleton_required",
+    "runtime_topology": ["single_application_machine", "supervisor", "web", "worker", "beat", "external_redis"],
+    "redis_transport": "password_authenticated_rediss",
+    "health_endpoints": ["/health/live", "/health/ready"],
+    "logging": "json_with_request_id_and_redaction",
     "realtime_reconnect": "exponential_backoff_with_jitter",
     "mobile_token_storage": "flutter_secure_storage",
-    "client_error_policy": "friendly_localized_messages"
+    "client_error_policy": "friendly_localized_messages",
+    "continuous_verification": ["ci", "scheduled_locust", "websocket_load_test"]
   }
 }
 ```
+
+---
+
+## 19.6 Sprint 4 Finance Ledger
+
+PlanPal finance is an auditable plan-scoped ledger rather than a mutable list
+of totals. These rules are part of the production contract:
+
+- A settlement follows `pending -> completed | rejected`. Creating a request
+  never changes balances; only receiver/admin confirmation does.
+- A pending settlement cannot exceed the current debt after subtracting other
+  pending requests for the same debtor/creditor pair. The row is locked while
+  transitioning, so the same request cannot be confirmed twice.
+- Payment notes and JPG/PNG/WEBP/PDF proof files are optional and limited to
+  10 MB. Files use Cloudinary while metadata remains in MySQL.
+- Expense corrections append a complete replacement entry linked through
+  `corrects_expense`. Original entries are immutable; read models aggregate
+  only the latest leaf in each correction chain.
+- Recurring rules store a snapshot of payer contributions and participant
+  shares. Celery Beat scans due rules every 15 minutes; row locking plus the
+  `(recurrence_id, occurrence_at)` unique constraint makes generation
+  idempotent across workers.
+- Finance insights aggregate effective expenses by category and project the
+  plan-end total from elapsed daily spend. The UI labels the forecast as a
+  projection, not a guaranteed outcome.
+- A singleton Celery Beat queues settlement reminders daily. Settlement,
+  correction, and recurring-expense mutations invalidate budget and plan
+  summary caches after their transaction succeeds.
+
+Primary contracts:
+
+```text
+POST /api/v1/settlements/
+GET  /api/v1/settlements/?plan_id={plan_id}
+POST /api/v1/settlements/{settlement_id}/complete/
+POST /api/v1/settlements/{settlement_id}/reject/
+POST /api/v1/plans/{plan_id}/expenses/{expense_id}/corrections/
+GET  /api/v1/plans/{plan_id}/finance-insights/
+GET  /api/v1/plans/{plan_id}/recurring-expenses/
+PATCH /api/v1/plans/{plan_id}/recurring-expenses/{recurring_id}/
+```
+
+Flutter owns no finance business rules. `BudgetRepository` maps these stable
+contracts, Riverpod providers expose plan-scoped read state, and mutations
+invalidate balances, settlements, expense pages, summaries, and insights.
+
+---
+
+## 19.7 Sprint 5 Experience Layer
+
+Sprint 5 adds an `experience` bounded context without moving business rules
+into Flutter widgets. Its production contracts and invariants are:
+
+- Group polls are visible only to group members. A vote replaces that user's
+  previous selection atomically; single-choice polls reject multiple options.
+- Poll creation and live-location start accept `X-Client-Mutation-ID` and store
+  a unique nullable key. Offline retries therefore return the original object
+  instead of duplicating mutations or realtime events.
+- Live location requires explicit consent, is limited to 5-480 minutes, and is
+  visible only to conversation participants. Coordinates are never written to
+  audit metadata. The mobile implementation updates while its sharing screen
+  is active and stops on exit; the backend also expires abandoned shares every
+  five minutes through the singleton Celery Beat.
+- Global search applies object-level visibility before querying plans, groups,
+  conversations, or message text. Chat message matches are prefetched to avoid
+  per-result queries. Results are capped at 20 items per resource.
+- Notification preferences affect push delivery, not durable in-app records.
+  Quiet hours support daytime and overnight ranges in the user's IANA timezone.
+  Daily digest candidates are evaluated hourly and receive at most one run in
+  their configured local hour.
+- Flutter drafts and queued mutations are scoped by authenticated user in
+  `SharedPreferences`; OAuth tokens remain in `flutter_secure_storage`. Drafts
+  are cleared only after a successful API response. Network mutations are
+  replayed sequentially with their original mutation ID; non-retryable 4xx
+  responses move to a bounded dead-letter list.
+
+Primary contracts:
+
+```text
+GET/POST /api/v1/groups/{group_id}/polls/
+POST     /api/v1/group-polls/{poll_id}/vote/
+POST     /api/v1/group-polls/{poll_id}/close/
+GET/POST /api/v1/conversations/{conversation_id}/live-locations/
+PATCH/DELETE /api/v1/live-locations/{share_id}/
+GET      /api/v1/search/?q={query}
+GET/PATCH /api/v1/notifications/preferences/
+```
+
+`ExperienceRepository` owns the Flutter boundary. `groupPollsProvider` and
+`liveLocationsProvider` are plan/group-scoped read providers; mutation methods
+invalidate only the affected provider. The search UI debounces requests and
+discards stale responses by request version.
 
 ---
 

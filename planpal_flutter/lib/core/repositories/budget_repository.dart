@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/auth/auth_session.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
@@ -56,27 +58,40 @@ class BudgetRepository {
     String splitStrategy = 'equal',
     List<ExpenseParticipantInput> participants = const [],
     List<ExpensePaymentInput> payments = const [],
+    String paymentNote = '',
+    String? receiptPath,
+    RecurrenceInput? recurrence,
   }) async {
     try {
+      final payload = <String, dynamic>{
+        'amount': amount,
+        'category': category,
+        'description': description,
+        'payment_note': paymentNote,
+        'currency': currency,
+        'split_strategy': splitStrategy,
+        if (paidByUserId != null && paidByUserId.isNotEmpty)
+          'paid_by_user_id': paidByUserId,
+        if (participants.isNotEmpty)
+          'participants': participants.map((item) => item.toJson()).toList(),
+        if (payments.isNotEmpty)
+          'payments': payments.map((item) => item.toJson()).toList(),
+        if (recurrence != null) 'recurrence': recurrence.toJson(),
+      };
+      Object data = payload;
+      if (receiptPath != null && receiptPath.isNotEmpty) {
+        data = FormData.fromMap({
+          ...payload,
+          if (participants.isNotEmpty)
+            'participants': jsonEncode(payload['participants']),
+          if (payments.isNotEmpty) 'payments': jsonEncode(payload['payments']),
+          if (recurrence != null)
+            'recurrence': jsonEncode(payload['recurrence']),
+          'receipt': await MultipartFile.fromFile(receiptPath),
+        });
+      }
       final Response res = await _auth.requestWithAutoRefresh(
-        (c) => c.dio.post(
-          Endpoints.planExpenses(planId),
-          data: {
-            'amount': amount,
-            'category': category,
-            'description': description,
-            'currency': currency,
-            'split_strategy': splitStrategy,
-            if (paidByUserId != null && paidByUserId.isNotEmpty)
-              'paid_by_user_id': paidByUserId,
-            if (participants.isNotEmpty)
-              'participants': participants
-                  .map((item) => item.toJson())
-                  .toList(),
-            if (payments.isNotEmpty)
-              'payments': payments.map((item) => item.toJson()).toList(),
-          },
-        ),
+        (c) => c.dio.post(Endpoints.planExpenses(planId), data: data),
       );
       if (res.statusCode == 201 && res.data is Map) {
         return ExpenseCreateResult.fromJson(
@@ -113,26 +128,186 @@ class BudgetRepository {
     required String toUserId,
     required double amount,
     String currency = 'VND',
-    String status = 'completed',
     String note = '',
+    String paymentNote = '',
+    String? receiptPath,
+  }) async {
+    try {
+      final payload = <String, dynamic>{
+        'plan_id': planId,
+        'from_user_id': fromUserId,
+        'to_user_id': toUserId,
+        'amount': amount,
+        'currency': currency,
+        'note': note,
+        'payment_note': paymentNote,
+      };
+      final Object data = receiptPath == null || receiptPath.isEmpty
+          ? payload
+          : FormData.fromMap({
+              ...payload,
+              'receipt': await MultipartFile.fromFile(receiptPath),
+            });
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.post(Endpoints.settlements, data: data),
+      );
+      if (res.statusCode == 201 && res.data is Map) {
+        return SettlementModel.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<List<SettlementModel>> getSettlements(String planId) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(
+          Endpoints.settlements,
+          queryParameters: {'plan_id': planId},
+        ),
+      );
+      if (res.statusCode == 200 && res.data is List) {
+        return (res.data as List)
+            .whereType<Map>()
+            .map(
+              (item) =>
+                  SettlementModel.fromJson(Map<String, dynamic>.from(item)),
+            )
+            .toList();
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<SettlementModel> respondToSettlement(
+    String settlementId, {
+    required String action,
+    String rejectionReason = '',
   }) async {
     try {
       final Response res = await _auth.requestWithAutoRefresh(
         (c) => c.dio.post(
-          Endpoints.settlements,
-          data: {
-            'plan_id': planId,
-            'from_user_id': fromUserId,
-            'to_user_id': toUserId,
-            'amount': amount,
-            'currency': currency,
-            'status': status,
-            'note': note,
-          },
+          Endpoints.settlementAction(settlementId, action),
+          data: {'rejection_reason': rejectionReason},
+        ),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        return SettlementModel.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<FinanceInsightsModel> getFinanceInsights(String planId) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.planFinanceInsights(planId)),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        return FinanceInsightsModel.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<List<RecurringExpenseModel>> getRecurringExpenses(
+    String planId,
+  ) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.get(Endpoints.planRecurringExpenses(planId)),
+      );
+      if (res.statusCode == 200 && res.data is List) {
+        return (res.data as List)
+            .whereType<Map>()
+            .map(
+              (item) => RecurringExpenseModel.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList();
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<RecurringExpenseModel> setRecurringExpenseActive(
+    String planId,
+    String recurringId, {
+    required bool isActive,
+  }) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.patch(
+          Endpoints.planRecurringExpense(planId, recurringId),
+          data: {'is_active': isActive},
+        ),
+      );
+      if (res.statusCode == 200 && res.data is Map) {
+        return RecurringExpenseModel.fromJson(
+          Map<String, dynamic>.from(res.data as Map),
+        );
+      }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<ExpenseCreateResult> correctExpense(
+    String planId,
+    String expenseId, {
+    required double amount,
+    required String category,
+    required String reason,
+    String description = '',
+    String paymentNote = '',
+    String? receiptPath,
+  }) async {
+    try {
+      final payload = <String, dynamic>{
+        'amount': amount,
+        'category': category,
+        'description': description,
+        'payment_note': paymentNote,
+        'reason': reason,
+      };
+      final Object data = receiptPath == null || receiptPath.isEmpty
+          ? payload
+          : FormData.fromMap({
+              ...payload,
+              'receipt': await MultipartFile.fromFile(receiptPath),
+            });
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.post(
+          Endpoints.expenseCorrections(planId, expenseId),
+          data: data,
         ),
       );
       if (res.statusCode == 201 && res.data is Map) {
-        return SettlementModel.fromJson(
+        return ExpenseCreateResult.fromJson(
           Map<String, dynamic>.from(res.data as Map),
         );
       }

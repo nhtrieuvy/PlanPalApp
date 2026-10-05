@@ -30,3 +30,33 @@ def process_expense_notifications_task(self, expense_id: str):
             expense_id,
         )
         return {'status': 'timeout'}
+
+
+@shared_task(
+    bind=True,
+    name='planpals.budgets.infrastructure.tasks.process_settlement_notification_task',
+    max_retries=3,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    retry_backoff_max=120,
+    acks_late=True,
+)
+def process_settlement_notification_task(self, settlement_id: str, event: str):
+    return get_budget_service().process_settlement_notification(settlement_id, event)
+
+
+@shared_task(
+    name='planpals.budgets.infrastructure.tasks.generate_recurring_expenses_task',
+    acks_late=True,
+)
+def generate_recurring_expenses_task():
+    return get_budget_service().generate_due_recurring_expenses()
+
+
+@shared_task(
+    name='planpals.budgets.infrastructure.tasks.dispatch_settlement_reminders_task',
+    acks_late=True,
+)
+def dispatch_settlement_reminders_task():
+    return get_budget_service().dispatch_pending_settlement_reminders()

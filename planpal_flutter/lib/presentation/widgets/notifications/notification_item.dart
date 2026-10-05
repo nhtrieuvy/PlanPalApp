@@ -13,6 +13,7 @@ class NotificationItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = _styleForType(notification.type);
+    final content = _localizedContent(context);
 
     return Material(
       color: Colors.transparent,
@@ -52,7 +53,7 @@ class NotificationItem extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            notification.title,
+                            content.$1,
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   fontWeight: notification.isUnread
@@ -75,7 +76,7 @@ class NotificationItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      notification.message,
+                      content.$2,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -93,7 +94,9 @@ class NotificationItem extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            context.l10n.notificationTypeLabel(notification.type),
+                            context.l10n.notificationTypeLabel(
+                              notification.type,
+                            ),
                             style: Theme.of(context).textTheme.labelMedium
                                 ?.copyWith(
                                   color: style.color,
@@ -121,6 +124,33 @@ class NotificationItem extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  (String, String) _localizedContent(BuildContext context) {
+    final changeType = notification.data['change_type']?.toString();
+    if (notification.type == 'PLAN_UPDATED' && changeType == 'assignment') {
+      return (
+        context.l10n.t('notifications.assignment_title'),
+        context.l10n.t(
+          'notifications.assignment_message',
+          params: {
+            'title': notification.data['work_item_title']?.toString() ?? '',
+          },
+        ),
+      );
+    }
+    if (notification.type == 'PLAN_UPDATED' && changeType == 'mention') {
+      return (
+        context.l10n.t('notifications.mention_title'),
+        context.l10n.t(
+          'notifications.mention_message',
+          params: {
+            'message': notification.data['comment_excerpt']?.toString() ?? '',
+          },
+        ),
+      );
+    }
+    return (notification.title, notification.message);
   }
 
   String _formatTimestamp(BuildContext context, DateTime value) {

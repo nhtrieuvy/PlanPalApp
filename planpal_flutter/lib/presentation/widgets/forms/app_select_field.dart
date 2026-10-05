@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 
 /// A form-style selector that presents choices in a bottom sheet instead of
 /// overlaying the page with a dropdown menu.
@@ -46,23 +47,26 @@ class AppSelectField<T> extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: canSelect ? () => _showOptions(context) : null,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
-            constraints: const BoxConstraints(minHeight: 58),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            constraints: const BoxConstraints(minHeight: AppSize.controlHeight),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
             decoration: BoxDecoration(
               color: canSelect
                   ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.45)
                   : colorScheme.surfaceContainerHighest.withValues(alpha: 0.22),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               border: Border.all(color: colorScheme.outlineVariant),
             ),
             child: Row(
               children: [
                 if (prefixIcon != null) ...[
                   Icon(prefixIcon, color: colorScheme.primary),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.sm),
                 ],
                 Expanded(
                   child: Column(
@@ -75,7 +79,7 @@ class AppSelectField<T> extends StatelessWidget {
                           color: colorScheme.onSurfaceVariant,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppSpacing.xxs),
                       Text(
                         selected?.label ?? hintText ?? '',
                         maxLines: 1,
@@ -130,7 +134,12 @@ class AppSelectField<T> extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 4, 12, 12),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xl,
+                    AppSpacing.xxs,
+                    AppSpacing.sm,
+                    AppSpacing.sm,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -152,7 +161,12 @@ class AppSelectField<T> extends StatelessWidget {
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.sm,
+                      AppSpacing.xs,
+                      AppSpacing.sm,
+                      AppSpacing.lg,
+                    ),
                     itemCount: options.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 4),
                     itemBuilder: (context, index) {
@@ -160,14 +174,14 @@ class AppSelectField<T> extends StatelessWidget {
                       final isSelected = option.value == value;
                       return ListTile(
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.control,
+                          ),
                         ),
                         tileColor: isSelected
                             ? theme.colorScheme.primaryContainer
                             : null,
-                        leading: option.icon == null
-                            ? null
-                            : Icon(option.icon),
+                        leading: option.icon == null ? null : Icon(option.icon),
                         title: Text(option.label),
                         trailing: isSelected
                             ? Icon(
@@ -175,7 +189,8 @@ class AppSelectField<T> extends StatelessWidget {
                                 color: theme.colorScheme.primary,
                               )
                             : null,
-                        onTap: () => Navigator.of(sheetContext).pop(option.value),
+                        onTap: () =>
+                            Navigator.of(sheetContext).pop(option.value),
                       );
                     },
                   ),

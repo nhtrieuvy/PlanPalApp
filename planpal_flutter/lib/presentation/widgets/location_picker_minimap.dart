@@ -1,275 +1,244 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/maps/planpal_map.dart';
+import 'package:planpal_flutter/core/repositories/location_repository.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 
-class LocationPickerMinimap extends StatefulWidget {
-  final double? initialLatitude;
-  final double? initialLongitude;
-  final String? initialLocationName;
-  final Function(double lat, double lng, String address) onLocationSelected;
-  final double height;
-
+class LocationPickerMinimap extends ConsumerStatefulWidget {
   const LocationPickerMinimap({
     super.key,
     this.initialLatitude,
     this.initialLongitude,
     this.initialLocationName,
     required this.onLocationSelected,
-    this.height = 200,
+    this.height = 220,
   });
 
+  final double? initialLatitude;
+  final double? initialLongitude;
+  final String? initialLocationName;
+  final void Function(double lat, double lng, String address)
+  onLocationSelected;
+  final double height;
+
   @override
-  State<LocationPickerMinimap> createState() => _LocationPickerMinimapState();
+  ConsumerState<LocationPickerMinimap> createState() =>
+      _LocationPickerMinimapState();
 }
 
-class _LocationPickerMinimapState extends State<LocationPickerMinimap> {
-  late GoogleMapController _mapController;
-  LatLng _selectedPosition = const LatLng(
-    10.762622,
-    106.660172,
-  ); // Default: Ho Chi Minh City
-  Set<Marker> _markers = {};
-  bool _isLoading = true;
+class _LocationPickerMinimapState extends ConsumerState<LocationPickerMinimap> {
+  static const _fallback = MapCoordinate(10.762622, 106.660172);
+
+  late final LocationRepository _locationRepository;
+  PlanPalMapController? _mapController;
+  MapCoordinate _selectedPosition = _fallback;
   String _selectedAddress = '';
+  bool _isLoading = true;
+  bool _isResolving = false;
+  int _requestId = 0;
 
   @override
   void initState() {
     super.initState();
-    _initializeLocation();
+    _locationRepository = ref.read(locationRepositoryProvider);
+    unawaited(_initializeLocation());
   }
 
   Future<void> _initializeLocation() async {
-    // Use provided coordinates or get user's current location
     if (widget.initialLatitude != null && widget.initialLongitude != null) {
-      _selectedPosition = LatLng(
+      _selectedPosition = MapCoordinate(
         widget.initialLatitude!,
         widget.initialLongitude!,
       );
-      _selectedAddress = widget.initialLocationName ?? 'Selected Location';
-      _updateMarker(_selectedPosition);
+      _selectedAddress = widget.initialLocationName?.trim() ?? '';
+      if (_selectedAddress.isEmpty) await _reverseGeocode(_selectedPosition);
     } else {
       await _getCurrentLocation();
+      await _reverseGeocode(_selectedPosition);
     }
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _getCurrentLocation() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        // Location services are not enabled, use default location
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
+      if (!await Geolocator.isLocationServiceEnabled()) return;
+      var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          // Permissions are denied, use default location
-          return;
-        }
       }
-
-      if (permission == LocationPermission.deniedForever) {
-        // Permissions are permanently denied, use default location
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         return;
       }
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 8),
       );
-
-      _selectedPosition = LatLng(position.latitude, position.longitude);
-      _updateMarker(_selectedPosition);
-      _reverseGeocode(_selectedPosition);
-    } catch (e) {
-      // Error getting location, stick with default
-      debugPrint('Error getting current location: $e');
+      _selectedPosition = MapCoordinate(position.latitude, position.longitude);
+      await _mapController?.animateCamera(
+        MapCameraUpdate.newCoordinateZoom(_selectedPosition, 16),
+      );
+    } catch (_) {
+      // The map stays usable at the fallback location when GPS is unavailable.
     }
   }
 
-  void _updateMarker(LatLng position) {
+  Future<void> _selectPosition(MapCoordinate position) async {
+    if (!mounted) return;
     setState(() {
-      _markers = {
-        Marker(
-          markerId: const MarkerId('selected_location'),
-          position: position,
-          draggable: true,
-          onDragEnd: _onMarkerDragEnd,
-          infoWindow: InfoWindow(
-            title: 'Selected Location',
-            snippet: _selectedAddress,
-          ),
-        ),
-      };
+      _selectedPosition = position;
+      _selectedAddress = _formatCoordinates(position);
     });
+    await _reverseGeocode(position);
   }
 
-  void _onMarkerDragEnd(LatLng newPosition) {
-    _selectedPosition = newPosition;
-    _updateMarker(newPosition);
-    _reverseGeocode(newPosition);
-  }
-
-  void _onMapTap(LatLng position) {
-    _selectedPosition = position;
-    _updateMarker(position);
-    _reverseGeocode(position);
-  }
-
-  Future<void> _reverseGeocode(LatLng position) async {
+  Future<void> _reverseGeocode(MapCoordinate position) async {
+    final requestId = ++_requestId;
+    if (mounted) setState(() => _isResolving = true);
     try {
-      // In a real implementation, you would use a geocoding service
-      // For now, we'll generate a simple address format
-      _selectedAddress =
-          '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
-
-      // TODO: Integrate with backend Goong service for reverse geocoding
-      // You could call your backend API here to get the actual address
-
-      widget.onLocationSelected(
+      final result = await _locationRepository.reverseGeocode(
         position.latitude,
         position.longitude,
-        _selectedAddress,
       );
-
-      setState(() {
-        _markers = {
-          Marker(
-            markerId: const MarkerId('selected_location'),
-            position: position,
-            draggable: true,
-            onDragEnd: _onMarkerDragEnd,
-            infoWindow: InfoWindow(
-              title: 'Selected Location',
-              snippet: _selectedAddress,
-            ),
-          ),
-        };
-      });
-    } catch (e) {
-      debugPrint('Error reverse geocoding: $e');
+      if (!mounted || requestId != _requestId) return;
+      final address =
+          result?['formatted_address']?.toString().trim() ??
+          _formatCoordinates(position);
+      setState(() => _selectedAddress = address);
+      widget.onLocationSelected(position.latitude, position.longitude, address);
+    } finally {
+      if (mounted && requestId == _requestId) {
+        setState(() => _isResolving = false);
+      }
     }
   }
+
+  String _formatCoordinates(MapCoordinate position) =>
+      '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return Container(
       height: widget.height,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.outlineVariant),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Stack(
-                children: [
-                  GoogleMap(
-                    onMapCreated: (GoogleMapController controller) {
-                      _mapController = controller;
-                    },
-                    initialCameraPosition: CameraPosition(
+      clipBehavior: Clip.antiAlias,
+      child: _isLoading
+          ? ColoredBox(
+              color: colors.surfaceContainerLow,
+              child: const Center(child: CircularProgressIndicator()),
+            )
+          : Stack(
+              children: [
+                Positioned.fill(
+                  child: PlanPalMap(
+                    initialCameraPosition: MapCameraPosition(
                       target: _selectedPosition,
-                      zoom: 15.0,
+                      zoom: 15,
                     ),
-                    markers: _markers,
-                    onTap: _onMapTap,
+                    pins: {
+                      MapPin(
+                        id: 'selected_location',
+                        position: _selectedPosition,
+                        draggable: true,
+                        onDragEnd: _selectPosition,
+                      ),
+                    },
+                    onMapCreated: (controller) => _mapController = controller,
+                    onTap: _selectPosition,
                     myLocationEnabled: true,
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: false,
-                    mapToolbarEnabled: false,
                   ),
-                  // Custom controls overlay
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: _MapControl(
+                    tooltip: context.l10n.t('map.current_location'),
+                    icon: Icons.my_location_rounded,
+                    onPressed: () async {
+                      await _getCurrentLocation();
+                      await _reverseGeocode(_selectedPosition);
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                ),
+                if (_selectedAddress.isNotEmpty)
                   Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Column(
-                      children: [
-                        FloatingActionButton.small(
-                          heroTag: "zoom_in",
-                          onPressed: () {
-                            _mapController.animateCamera(CameraUpdate.zoomIn());
-                          },
-                          backgroundColor: Colors.white,
-                          child: const Icon(Icons.add, color: Colors.black54),
-                        ),
-                        const SizedBox(height: 4),
-                        FloatingActionButton.small(
-                          heroTag: "zoom_out",
-                          onPressed: () {
-                            _mapController.animateCamera(
-                              CameraUpdate.zoomOut(),
-                            );
-                          },
-                          backgroundColor: Colors.white,
-                          child: const Icon(
-                            Icons.remove,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        FloatingActionButton.small(
-                          heroTag: "my_location",
-                          onPressed: _getCurrentLocation,
-                          backgroundColor: Colors.white,
-                          child: const Icon(
-                            Icons.my_location,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Address display at bottom
-                  if (_selectedAddress.isNotEmpty)
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withAlpha(25),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
+                    left: 12,
+                    right: 12,
+                    bottom: 12,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.surface.withValues(alpha: 0.94),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: colors.outlineVariant),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
                         child: Row(
                           children: [
-                            const Icon(
-                              Icons.location_on,
-                              size: 16,
-                              color: Colors.red,
+                            Icon(
+                              Icons.place_rounded,
+                              size: 20,
+                              color: colors.primary,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 _selectedAddress,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.black87,
-                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colors.onSurface,
+                                ),
                               ),
                             ),
+                            if (_isResolving) ...[
+                              const SizedBox(width: 8),
+                              const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
                     ),
-                ],
-              ),
-      ),
+                  ),
+              ],
+            ),
     );
   }
+}
+
+class _MapControl extends StatelessWidget {
+  const _MapControl({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.94),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+    ),
+    child: IconButton(tooltip: tooltip, onPressed: onPressed, icon: Icon(icon)),
+  );
 }

@@ -7,6 +7,7 @@ import 'package:web_socket_channel/status.dart' as status;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'package:planpal_flutter/core/services/apis.dart';
+import 'package:planpal_flutter/core/services/reconnect_policy.dart';
 
 enum ActivitySocketConnectionState {
   disconnected,
@@ -28,6 +29,7 @@ enum ActivitySocketEventType {
 
 class ActivitySocketEvent {
   final ActivitySocketEventType type;
+  final String rawEventType;
   final String? eventId;
   final String? planId;
   final DateTime? timestamp;
@@ -35,6 +37,7 @@ class ActivitySocketEvent {
 
   const ActivitySocketEvent({
     required this.type,
+    required this.rawEventType,
     required this.data,
     this.eventId,
     this.planId,
@@ -54,6 +57,7 @@ class ActivitySocketEvent {
 
     return ActivitySocketEvent(
       type: eventType,
+      rawEventType: json['event_type']?.toString() ?? '',
       eventId: json['event_id']?.toString(),
       planId: json['plan_id']?.toString(),
       timestamp: DateTime.tryParse(json['timestamp']?.toString() ?? ''),
@@ -81,9 +85,6 @@ class ActivityWebSocketService {
       ActivitySocketConnectionState.disconnected;
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
-  static const int _maxReconnectAttempts = 5;
-  static const Duration _baseReconnectDelay = Duration(seconds: 2);
-  static const Duration _maxReconnectDelay = Duration(seconds: 30);
   final Random _reconnectJitter = Random();
 
   ActivitySocketConnectionState get connectionState => _connectionState;
@@ -167,7 +168,9 @@ class ActivityWebSocketService {
   }
 
   void _scheduleReconnect() {
-    if (_reconnectAttempts >= _maxReconnectAttempts || _token == null) {
+    if (_reconnectTimer?.isActive ?? false) return;
+    if (!defaultReconnectPolicy.canRetry(_reconnectAttempts) ||
+        _token == null) {
       return;
     }
     _reconnectAttempts += 1;
@@ -177,10 +180,12 @@ class ActivityWebSocketService {
   }
 
   Duration _nextReconnectDelay() {
-    final exponent = (_reconnectAttempts - 1).clamp(0, 4).toInt();
-    final baseMs = _baseReconnectDelay.inMilliseconds * (1 << exponent);
-    final cappedMs = min(baseMs, _maxReconnectDelay.inMilliseconds);
-    return Duration(milliseconds: cappedMs + _reconnectJitter.nextInt(500));
+    return defaultReconnectPolicy.delayForAttempt(
+      _reconnectAttempts,
+      jitterMilliseconds: _reconnectJitter.nextInt(
+        defaultReconnectPolicy.maxJitter.inMilliseconds,
+      ),
+    );
   }
 
   void _setConnectionState(ActivitySocketConnectionState next) {

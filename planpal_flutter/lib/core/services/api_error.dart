@@ -302,10 +302,38 @@ String? _localizedMessageForErrorCode(String? code, {required String lang}) {
       'This join request has already been handled.',
       'Yêu cầu tham gia này đã được xử lý.',
     ],
+    'invite_required': [
+      'Enter a valid invite code to join this group.',
+      'Vui lòng nhập mã mời hợp lệ để tham gia nhóm.',
+    ],
+    'invite_token_generation_failed': [
+      'Could not create an invite code. Please try again.',
+      'Không thể tạo mã mời. Vui lòng thử lại.',
+    ],
     'already_friends': ['You are already friends.', 'Hai bạn đã là bạn bè.'],
     'friend_request_already_sent': [
       'Friend request has already been sent.',
       'Lời mời kết bạn đã được gửi trước đó.',
+    ],
+    'request_already_sent': [
+      'Friend request has already been sent.',
+      'Lời mời kết bạn đã được gửi trước đó.',
+    ],
+    'user_not_found': [
+      'User could not be found.',
+      'Không tìm thấy người dùng.',
+    ],
+    'user_blocked': [
+      'This action is unavailable because the user is blocked.',
+      'Không thể thực hiện vì người dùng đang bị chặn.',
+    ],
+    'friend_request_not_found': [
+      'Friend request could not be found.',
+      'Không tìm thấy lời mời kết bạn.',
+    ],
+    'rejection_cooldown': [
+      'Please wait before sending another friend request.',
+      'Vui lòng chờ trước khi gửi lại lời mời kết bạn.',
     ],
     'cannot_send_to_self': [
       'You cannot perform this action with yourself.',
@@ -322,6 +350,63 @@ String? _localizedMessageForErrorCode(String? code, {required String lang}) {
     'invalid_time_range': [
       'End time must be after start time.',
       'Thời gian kết thúc phải sau thời gian bắt đầu.',
+    ],
+    'invalid_title': ['Please enter a title.', 'Vui lòng nhập tiêu đề.'],
+    'invalid_options': [
+      'Add at least two valid time options.',
+      'Vui lòng thêm ít nhất hai lựa chọn thời gian hợp lệ.',
+    ],
+    'invalid_closing_time': [
+      'The poll closing time must be in the future.',
+      'Thời gian đóng thăm dò phải ở tương lai.',
+    ],
+    'duplicate_options': [
+      'Time options must not overlap or repeat.',
+      'Các lựa chọn thời gian không được trùng hoặc lặp lại.',
+    ],
+    'invalid_status': [
+      'The selected status is not valid.',
+      'Trạng thái đã chọn không hợp lệ.',
+    ],
+    'poll_closed': [
+      'This availability poll is closed.',
+      'Cuộc thăm dò thời gian này đã đóng.',
+    ],
+    'invalid_item_type': [
+      'The selected work item type is not valid.',
+      'Loại công việc đã chọn không hợp lệ.',
+    ],
+    'invalid_assignee': [
+      'The assignee must be a member of this plan.',
+      'Người được giao phải là thành viên của kế hoạch.',
+    ],
+    'invalid_activity': [
+      'The selected activity does not belong to this plan.',
+      'Hoạt động đã chọn không thuộc kế hoạch này.',
+    ],
+    'empty_comment': [
+      'Please enter a comment.',
+      'Vui lòng nhập nội dung bình luận.',
+    ],
+    'comment_too_long': [
+      'The comment is too long.',
+      'Nội dung bình luận quá dài.',
+    ],
+    'invalid_mention': [
+      'You can only mention plan members.',
+      'Bạn chỉ có thể nhắc đến thành viên của kế hoạch.',
+    ],
+    'invalid_parent': [
+      'The reply target is no longer available.',
+      'Bình luận được trả lời không còn khả dụng.',
+    ],
+    'invalid_reaction': [
+      'This reaction is not supported.',
+      'Biểu cảm này chưa được hỗ trợ.',
+    ],
+    'start_date_required': [
+      'Choose a start date for the cloned plan.',
+      'Vui lòng chọn ngày bắt đầu cho kế hoạch được nhân bản.',
     ],
     'activity_outside_plan_date': [
       'Activity time must be within the plan date range.',
@@ -356,6 +441,22 @@ String? _localizedMessageForErrorCode(String? code, {required String lang}) {
       'Please reload the activity before saving changes.',
       'Vui lòng tải lại hoạt động trước khi lưu thay đổi.',
     ],
+    'activity_end_after_plan': [
+      'Activity cannot end after the plan end time.',
+      'Hoạt động không thể kết thúc sau thời gian của kế hoạch.',
+    ],
+    'activity_start_before_plan': [
+      'Activity cannot start before the plan start time.',
+      'Hoạt động không thể bắt đầu trước thời gian của kế hoạch.',
+    ],
+    'activity_duration_exceeded': [
+      'Activity duration is too long.',
+      'Thời lượng hoạt động vượt quá giới hạn cho phép.',
+    ],
+    'invalid_status_transition': [
+      'This status change is not allowed.',
+      'Không thể chuyển sang trạng thái này.',
+    ],
     'payload_too_large': [
       'The uploaded file is too large. Please choose a smaller file.',
       'Tệp tải lên quá lớn. Vui lòng chọn tệp nhỏ hơn.',
@@ -367,6 +468,22 @@ String? _localizedMessageForErrorCode(String? code, {required String lang}) {
     'file_size_too_large': [
       'The file is too large. Please choose a smaller file.',
       'Tệp quá lớn. Vui lòng chọn tệp nhỏ hơn.',
+    ],
+    'conversation_not_found': [
+      'Conversation could not be found.',
+      'Không tìm thấy cuộc hội thoại.',
+    ],
+    'not_conversation_participant': [
+      'You do not have access to this conversation.',
+      'Bạn không có quyền truy cập cuộc hội thoại này.',
+    ],
+    'message_edit_time_expired': [
+      'This message can no longer be edited.',
+      'Tin nhắn này đã hết thời gian chỉnh sửa.',
+    ],
+    'not_message_owner': [
+      'You can only modify your own messages.',
+      'Bạn chỉ có thể chỉnh sửa tin nhắn của mình.',
     ],
   };
 
@@ -410,6 +527,10 @@ String _localizedFieldLabel(String field, {required String lang}) {
     'currency': ['Currency', 'Đơn vị tiền'],
     'file': ['File', 'Tệp'],
     'attachment': ['Attachment', 'Tệp đính kèm'],
+    'content': ['Message', 'Nội dung tin nhắn'],
+    'latitude': ['Latitude', 'Vĩ độ'],
+    'longitude': ['Longitude', 'Kinh độ'],
+    'payments': ['Payments', 'Khoản thanh toán'],
     'non_field_errors': ['Error', 'Lỗi'],
   };
   final pair = labels[field];
@@ -456,14 +577,6 @@ String _localizedFieldMessage(
         : '${_localizedFieldLabel(field, lang: lang)} không hợp lệ.';
   }
 
-  final safeRaw = rawMessages.firstWhere(
-    (message) => !_looksCorrupted(message) && !_looksLikeHtml(message),
-    orElse: () => '',
-  );
-  if (safeRaw.isNotEmpty && safeRaw.length <= 160) {
-    return '${_localizedFieldLabel(field, lang: lang)}: $safeRaw';
-  }
-
   return en
       ? '${_localizedFieldLabel(field, lang: lang)} is invalid.'
       : '${_localizedFieldLabel(field, lang: lang)} chưa hợp lệ.';
@@ -506,7 +619,10 @@ String? _safeBackendMessage(String? raw, {required String lang}) {
       return lang == 'en' ? entry.value.first : entry.value.last;
     }
   }
-  return raw;
+  // Unknown backend text may be technical, untranslated, or contain private
+  // implementation details. Error codes and field names are the public UI
+  // contract; otherwise the caller falls back to the localized HTTP message.
+  return null;
 }
 
 /// Centralized helper to extract a meaningful error message from a [Response].

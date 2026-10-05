@@ -207,17 +207,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       height: 52,
                       child: ElevatedButton(
                         onPressed: _loading ? null : _login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                          textStyle: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
                         child: _loading
                             ? const SizedBox(
                                 width: 24,

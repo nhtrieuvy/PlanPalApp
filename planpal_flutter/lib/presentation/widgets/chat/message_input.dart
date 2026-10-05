@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import '../../../core/localization/app_localizations.dart';
 import '../../pages/location/location_picker_page.dart';
 
 class MessageInput extends StatefulWidget {
@@ -27,7 +28,7 @@ class MessageInput extends StatefulWidget {
     this.onStartTyping,
     this.onStopTyping,
     this.isEnabled = true,
-    this.placeholder = 'Nhap tin nhan...',
+    this.placeholder,
   });
 
   @override
@@ -92,6 +93,7 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    final failureMessage = context.l10n.t('chat.pick_image_failed');
     try {
       final XFile? image = await _imagePicker.pickImage(
         source: source,
@@ -108,12 +110,13 @@ class _MessageInputState extends State<MessageInput> {
       if (mounted) {
         setState(() => _showAttachmentOptions = false);
       }
-    } catch (e) {
-      _showError('Khong the chon anh: $e');
+    } catch (_) {
+      _showError(failureMessage);
     }
   }
 
   Future<void> _pickFile() async {
+    final failureMessage = context.l10n.t('chat.pick_file_failed');
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: false,
@@ -130,12 +133,14 @@ class _MessageInputState extends State<MessageInput> {
       if (mounted) {
         setState(() => _showAttachmentOptions = false);
       }
-    } catch (e) {
-      _showError('Khong the chon file: $e');
+    } catch (_) {
+      _showError(failureMessage);
     }
   }
 
   Future<void> _shareLocation() async {
+    final invalidLocationMessage = context.l10n.t('chat.invalid_location');
+    final failureMessage = context.l10n.t('chat.share_location_failed');
     try {
       final result = await Navigator.of(context).push<Map<String, dynamic>>(
         MaterialPageRoute(builder: (_) => const LocationPickerPage()),
@@ -153,7 +158,7 @@ class _MessageInputState extends State<MessageInput> {
           result['location_address']?.toString();
 
       if (lat == null || lng == null) {
-        _showError('Khong lay duoc toa do hop le.');
+        _showError(invalidLocationMessage);
         return;
       }
 
@@ -161,8 +166,8 @@ class _MessageInputState extends State<MessageInput> {
       if (mounted) {
         setState(() => _showAttachmentOptions = false);
       }
-    } catch (e) {
-      _showError('Khong the chia se vi tri: $e');
+    } catch (_) {
+      _showError(failureMessage);
     }
   }
 
@@ -214,7 +219,7 @@ class _MessageInputState extends State<MessageInput> {
           ),
           const SizedBox(height: 24),
           Text(
-            'Chon anh',
+            context.l10n.t('chat.choose_image'),
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -227,7 +232,7 @@ class _MessageInputState extends State<MessageInput> {
             children: [
               _buildPickerOption(
                 icon: PhosphorIcons.camera(),
-                label: 'Camera',
+                label: context.l10n.t('chat.camera'),
                 onTap: () {
                   Navigator.pop(context);
                   _pickImage(ImageSource.camera);
@@ -235,7 +240,7 @@ class _MessageInputState extends State<MessageInput> {
               ),
               _buildPickerOption(
                 icon: PhosphorIcons.images(),
-                label: 'Thu vien',
+                label: context.l10n.t('chat.gallery'),
                 onTap: () {
                   Navigator.pop(context);
                   _pickImage(ImageSource.gallery);
@@ -334,7 +339,9 @@ class _MessageInputState extends State<MessageInput> {
                         color: colorScheme.onSurface,
                       ),
                       decoration: InputDecoration(
-                        hintText: widget.placeholder,
+                        hintText:
+                            widget.placeholder ??
+                            context.l10n.t('chat.message_hint'),
                         hintStyle: GoogleFonts.inter(
                           fontSize: 16,
                           color: colorScheme.onSurfaceVariant.withAlpha(175),
@@ -361,21 +368,25 @@ class _MessageInputState extends State<MessageInput> {
   Widget _buildAttachmentButton() {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return GestureDetector(
-      onTap: _toggleAttachmentOptions,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: const Color(0xFF6366F1).withAlpha(25),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Icon(
-          PhosphorIcons.plus(),
-          size: 20,
-          color: widget.isEnabled
-              ? const Color(0xFF6366F1)
-              : colorScheme.onSurfaceVariant.withAlpha(125),
+    return Semantics(
+      button: true,
+      label: context.l10n.t('chat.attach'),
+      child: GestureDetector(
+        onTap: _toggleAttachmentOptions,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: colorScheme.primary.withAlpha(25),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Icon(
+            PhosphorIcons.plus(),
+            size: 20,
+            color: widget.isEnabled
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant.withAlpha(125),
+          ),
         ),
       ),
     );
@@ -386,22 +397,27 @@ class _MessageInputState extends State<MessageInput> {
     final hasText = _textController.text.trim().isNotEmpty;
     final canSend = hasText && widget.isEnabled;
 
-    return GestureDetector(
-      onTap: canSend ? _sendMessage : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: canSend
-              ? const Color(0xFF6366F1)
-              : colorScheme.onSurfaceVariant.withAlpha(75),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Icon(
-          PhosphorIcons.paperPlaneTilt(),
-          size: 20,
-          color: canSend ? Colors.white : colorScheme.onSurfaceVariant,
+    return Semantics(
+      button: true,
+      enabled: canSend,
+      label: context.l10n.t('chat.send'),
+      child: GestureDetector(
+        onTap: canSend ? _sendMessage : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: canSend
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant.withAlpha(75),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Icon(
+            PhosphorIcons.paperPlaneTilt(),
+            size: 20,
+            color: canSend ? Colors.white : colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
@@ -414,25 +430,25 @@ class _MessageInputState extends State<MessageInput> {
         children: [
           _buildAttachmentOption(
             icon: PhosphorIcons.camera(),
-            label: 'Camera',
+            label: context.l10n.t('chat.camera'),
             onTap: () => _pickImage(ImageSource.camera),
           ),
           const SizedBox(width: 16),
           _buildAttachmentOption(
             icon: PhosphorIcons.images(),
-            label: 'Anh',
+            label: context.l10n.t('chat.image'),
             onTap: _showImagePicker,
           ),
           const SizedBox(width: 16),
           _buildAttachmentOption(
             icon: PhosphorIcons.mapPin(),
-            label: 'Vi tri',
+            label: context.l10n.t('chat.location_default_title'),
             onTap: _shareLocation,
           ),
           const SizedBox(width: 16),
           _buildAttachmentOption(
             icon: PhosphorIcons.file(),
-            label: 'File',
+            label: context.l10n.t('chat.file_default_name'),
             onTap: _pickFile,
           ),
         ],
@@ -452,17 +468,17 @@ class _MessageInputState extends State<MessageInput> {
       child: Column(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withAlpha(25),
-              borderRadius: BorderRadius.circular(20),
+              color: colorScheme.primary.withAlpha(25),
+              borderRadius: BorderRadius.circular(22),
             ),
             child: Icon(
               icon,
               size: 20,
               color: widget.isEnabled
-                  ? const Color(0xFF6366F1)
+                  ? colorScheme.primary
                   : colorScheme.onSurfaceVariant.withAlpha(125),
             ),
           ),

@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
 import 'package:planpal_flutter/core/dtos/user_summary.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
-import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/presentation/pages/budget/add_expense_form.dart';
 import 'package:planpal_flutter/presentation/pages/budget/balances_page.dart';
 import 'package:planpal_flutter/presentation/pages/budget/expense_list_page.dart';
@@ -49,13 +50,6 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddExpense,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: Text(l10n.t('budget.quick_add')),
-      ),
       body: RefreshablePageWrapper(
         onRefresh: _refresh,
         child: budgetAsync.when(
@@ -72,6 +66,9 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
   }
 
   Widget _buildContent(BuildContext context, BudgetModel summary) {
+    final insightsAsync = ref.watch(financeInsightsProvider(widget.planId));
+    final recurringAsync = ref.watch(recurringExpensesProvider(widget.planId));
+    final currentUserId = ref.watch(authNotifierProvider).user?.id;
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -91,7 +88,28 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
         const SizedBox(height: 20),
         BudgetSummaryCard(summary: summary),
         const SizedBox(height: 16),
-        _buildActionRow(context, summary),
+        insightsAsync.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (insights) => _FinanceInsightsCard(insights: insights),
+        ),
+        recurringAsync.when(
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (items) => items.isEmpty
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: _RecurringExpensesCard(
+                    items: items,
+                    canManageBudget: widget.canManageBudget,
+                    currentUserId: currentUserId,
+                    onToggle: _toggleRecurringExpense,
+                  ),
+                ),
+        ),
+        const SizedBox(height: 20),
+        _buildActions(context, summary),
         const SizedBox(height: 16),
         BudgetTrendChart(points: summary.trend),
         const SizedBox(height: 16),
@@ -103,42 +121,116 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
     );
   }
 
-  Widget _buildActionRow(BuildContext context, BudgetModel summary) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+  Widget _buildActions(BuildContext context, BudgetModel summary) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FilledButton.icon(
-          onPressed: _openExpenseList,
-          icon: const Icon(Icons.receipt_long_rounded),
-          label: Text(context.l10n.t('budget.view_expenses')),
-        ),
-        OutlinedButton.icon(
-          onPressed: _openBalances,
-          icon: const Icon(Icons.account_balance_rounded),
-          label: Text(context.l10n.t('budget.balances')),
-        ),
-        OutlinedButton.icon(
           onPressed: _openAddExpense,
           icon: const Icon(Icons.add_card_rounded),
           label: Text(context.l10n.t('budget.add_expense')),
         ),
-        if (widget.canManageBudget)
-          OutlinedButton.icon(
-            onPressed: () => _openBudgetDialog(summary),
-            icon: const Icon(Icons.edit_note_rounded),
-            label: Text(
-              summary.hasBudgetConfigured
-                  ? context.l10n.t('budget.update_budget')
-                  : context.l10n.t('budget.set_budget'),
-            ),
-          ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => _showBudgetActions(context, summary),
+          icon: const Icon(Icons.tune_rounded),
+          label: Text(context.l10n.t('common.manage')),
+        ),
       ],
+    );
+  }
+
+  Future<void> _showBudgetActions(
+    BuildContext context,
+    BudgetModel summary,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.l10n.t('common.manage'),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.receipt_long_rounded),
+                title: Text(context.l10n.t('budget.view_expenses')),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _openExpenseList();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.account_balance_rounded),
+                title: Text(context.l10n.t('budget.balances')),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _openBalances();
+                },
+              ),
+              if (widget.canManageBudget)
+                ListTile(
+                  leading: const Icon(Icons.edit_note_rounded),
+                  title: Text(
+                    summary.hasBudgetConfigured
+                        ? context.l10n.t('budget.update_budget')
+                        : context.l10n.t('budget.set_budget'),
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _openBudgetDialog(summary);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
   Future<void> _refresh() async {
     await ref.read(budgetProvider(widget.planId).notifier).refresh();
+    ref.invalidate(financeInsightsProvider(widget.planId));
+    ref.invalidate(settlementsProvider(widget.planId));
+    ref.invalidate(recurringExpensesProvider(widget.planId));
+  }
+
+  Future<void> _toggleRecurringExpense(
+    RecurringExpenseModel item,
+    bool isActive,
+  ) async {
+    try {
+      await ref
+          .read(budgetRepositoryProvider)
+          .setRecurringExpenseActive(
+            widget.planId,
+            item.id,
+            isActive: isActive,
+          );
+      ref.invalidate(recurringExpensesProvider(widget.planId));
+      if (!mounted) return;
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t(
+          isActive ? 'budget.recurrence_resumed' : 'budget.recurrence_paused',
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ErrorDisplayService.handleError(context, error, showDialog: true);
+      }
+    }
   }
 
   Future<void> _openExpenseList() async {
@@ -301,5 +393,249 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
       if (!mounted) return;
       ErrorDisplayService.handleError(context, error, showDialog: true);
     }
+  }
+}
+
+class _FinanceInsightsCard extends StatelessWidget {
+  const _FinanceInsightsCard({required this.insights});
+
+  final FinanceInsightsModel insights;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final forecast = insights.forecast;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.insights_rounded, color: colors.primary),
+              const SizedBox(width: 10),
+              Text(
+                context.l10n.t('budget.finance_insights'),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _InsightMetric(
+                  label: context.l10n.t('budget.projected_total'),
+                  value: AppFormatters.currency(
+                    context,
+                    amount: forecast.projectedTotal,
+                    currencyCode: insights.currency,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _InsightMetric(
+                  label: context.l10n.t('budget.daily_average'),
+                  value: AppFormatters.currency(
+                    context,
+                    amount: forecast.dailyAverage,
+                    currencyCode: insights.currency,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: forecast.projectedOverBudget
+                  ? colors.errorContainer
+                  : colors.tertiaryContainer,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  forecast.projectedOverBudget
+                      ? Icons.warning_amber_rounded
+                      : Icons.check_circle_outline_rounded,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    context.l10n.t(
+                      forecast.projectedOverBudget
+                          ? 'budget.forecast_over'
+                          : 'budget.forecast_safe',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (insights.categories.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              context.l10n.t('budget.category_analysis'),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...insights.categories
+                .take(4)
+                .map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text(item.category)),
+                        Text('${item.percentage.toStringAsFixed(1)}%'),
+                        const SizedBox(width: 10),
+                        Text(
+                          AppFormatters.currency(
+                            context,
+                            amount: item.amount,
+                            currencyCode: insights.currency,
+                          ),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+          ],
+          if (insights.pendingSettlementCount > 0) ...[
+            const Divider(height: 24),
+            Text(
+              '${context.l10n.t('budget.pending_confirmations')}: '
+              '${insights.pendingSettlementCount}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RecurringExpensesCard extends StatelessWidget {
+  const _RecurringExpensesCard({
+    required this.items,
+    required this.canManageBudget,
+    required this.currentUserId,
+    required this.onToggle,
+  });
+
+  final List<RecurringExpenseModel> items;
+  final bool canManageBudget;
+  final String? currentUserId;
+  final Future<void> Function(RecurringExpenseModel item, bool isActive)
+  onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.event_repeat_rounded, color: colors.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  context.l10n.t('budget.recurring_schedules'),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...items.map((item) {
+            final canManage =
+                canManageBudget || currentUserId == item.createdByUserId;
+            return SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: item.isActive,
+              onChanged: canManage ? (value) => onToggle(item, value) : null,
+              title: Text(
+                item.category,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                '${AppFormatters.currency(context, amount: item.amount, currencyCode: item.currency)}'
+                ' • ${context.l10n.t('budget.frequency_${item.frequency}')}'
+                '\n${context.l10n.t('budget.next_charge')}: '
+                '${AppFormatters.fullDateTime(context, item.nextRunAt)}',
+              ),
+              secondary: Icon(
+                item.isActive
+                    ? Icons.play_circle_outline_rounded
+                    : Icons.pause_circle_outline_rounded,
+                color: item.isActive ? colors.primary : colors.onSurfaceVariant,
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightMetric extends StatelessWidget {
+  const _InsightMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: theme.textTheme.labelMedium),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

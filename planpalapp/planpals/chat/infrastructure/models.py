@@ -554,7 +554,10 @@ class ChatMessage(BaseModel):
     @property
     def location_url(self):
         if self.latitude is not None and self.longitude is not None:
-            return f"https://maps.google.com/?q={self.latitude},{self.longitude}"
+            return (
+                'planpal://map?'
+                f'latitude={self.latitude}&longitude={self.longitude}'
+            )
         return None
 
     def soft_delete(self):

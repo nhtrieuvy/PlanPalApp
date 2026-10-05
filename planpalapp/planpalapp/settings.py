@@ -12,33 +12,17 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import ssl
 import sys
 from dotenv import load_dotenv
 import cloudinary
-from urllib.parse import quote_plus
+from urllib.parse import quote, quote_plus, urlsplit
 import dj_database_url
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Load environment variables from .env file with explicit path
-# .env is in the same directory as manage.py (BASE_DIR)
-load_dotenv()
-
-
-
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-for-development')
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
-
 
 def _env_flag(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
@@ -56,23 +40,66 @@ def _env_positive_float(name: str, default: float) -> float:
     return value if value > 0 else default
 
 
+def _env_fraction(name: str, default: float) -> float:
+    """Read a sampling rate and clamp it to the inclusive 0..1 range."""
+    try:
+        value = float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return min(max(value, 0.0), 1.0)
+
+
+def _env_list(name: str, default: str = '') -> list[str]:
+    return [item.strip() for item in os.getenv(name, default).split(',') if item.strip()]
+
+
+# One settings module serves every environment. PLANPAL_ENV only selects safe
+# defaults and an optional .env.<environment> file; real process variables keep
+# precedence, which is important for Fly secrets and CI.
+_REQUESTED_PLANPAL_ENV = os.getenv('PLANPAL_ENV', 'local').lower()
+IS_TEST_ENV = (
+    any(arg in {'test', 'pytest'} for arg in sys.argv)
+    or _REQUESTED_PLANPAL_ENV == 'test'
+)
+PLANPAL_ENV = 'test' if IS_TEST_ENV else _REQUESTED_PLANPAL_ENV
+if PLANPAL_ENV in {'development', 'dev'}:
+    PLANPAL_ENV = 'local'
+if PLANPAL_ENV not in {'local', 'test', 'production'}:
+    raise ImproperlyConfigured(
+        'PLANPAL_ENV must be one of: local, test, production.'
+    )
+
+load_dotenv(BASE_DIR / f'.env.{PLANPAL_ENV}', override=False)
+# Keep the existing .env workflow as a backwards-compatible local fallback.
+if PLANPAL_ENV != 'production':
+    load_dotenv(BASE_DIR / '.env', override=False)
+
+IS_PRODUCTION = PLANPAL_ENV == 'production'
+DEBUG = False if IS_TEST_ENV else _env_flag('DEBUG', default=PLANPAL_ENV == 'local')
+if IS_PRODUCTION and DEBUG:
+    raise ImproperlyConfigured('DEBUG must be false when PLANPAL_ENV=production.')
+
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-for-development')
+if IS_PRODUCTION and SECRET_KEY == 'django-insecure-fallback-key-for-development':
+    raise ImproperlyConfigured('SECRET_KEY is required in production.')
+
+
 # API documentation should not depend on DEBUG in production. Keep it behind
 # an explicit feature flag so Fly can expose Swagger without weakening Django.
 ENABLE_API_DOCS = _env_flag('ENABLE_API_DOCS', DEBUG)
 API_DOCS_REQUIRE_AUTH = _env_flag('API_DOCS_REQUIRE_AUTH', default=not DEBUG)
 
-ALLOWED_HOSTS = os.getenv(
+ALLOWED_HOSTS = _env_list(
     'ALLOWED_HOSTS',
-    '10.0.2.2,localhost,127.0.0.1,192.168.1.41,planpal-backend.fly.dev'
-).split(',')
+    'localhost,127.0.0.1,10.0.2.2' if not IS_PRODUCTION else '',
+)
+if IS_PRODUCTION and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured('ALLOWED_HOSTS is required in production.')
 
 PLANPAL_DEEP_LINK_SCHEME = os.getenv('PLANPAL_DEEP_LINK_SCHEME', 'planpal')
 PLANPAL_WEB_BASE_URL = os.getenv('PLANPAL_WEB_BASE_URL', 'https://planpal.app')
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://planpal-backend.fly.dev",
-    "http://planpal-backend.fly.dev",
-]
+CSRF_TRUSTED_ORIGINS = _env_list('CSRF_TRUSTED_ORIGINS')
 
 # Application definition
 
@@ -99,6 +126,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'planpals.shared.middleware.RequestCorrelationMiddleware',
     'oauth2_provider.middleware.OAuth2TokenMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -284,15 +312,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 
-# CORS settings — restrict in production, allow all in development
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ALLOWED_ORIGINS = [
-        "https://planpal-backend.fly.dev",
-    ]
+# CORS is permissive only for local development. Production origins are
+# explicit and can be changed without touching this file.
+CORS_ALLOW_ALL_ORIGINS = _env_flag(
+    'CORS_ALLOW_ALL_ORIGINS', default=PLANPAL_ENV == 'local'
+)
+CORS_ALLOWED_ORIGINS = _env_list('CORS_ALLOWED_ORIGINS')
+if IS_PRODUCTION and CORS_ALLOW_ALL_ORIGINS:
+    raise ImproperlyConfigured(
+        'CORS_ALLOW_ALL_ORIGINS must be false in production.'
+    )
 CORS_ALLOW_CREDENTIALS = True
+
+# Fly terminates TLS at its proxy. These settings keep cookies and generated
+# absolute URLs secure without affecting local DEBUG sessions.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
 
 
 # # Media files settings
@@ -358,49 +396,80 @@ DEFAULT_FROM_EMAIL = (
     or 'PlanPal <noreply@planpal.local>'
 )
 
-# Ensure logs directory exists so FileHandler won't fail at import time
+# Container deployments log to stdout as JSON. Local development keeps the
+# readable formatter and may opt into a file with LOG_TO_FILE=true.
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO').upper()
+LOG_TO_FILE = _env_flag('LOG_TO_FILE', DEBUG)
+LOG_FORMATTER = 'verbose' if DEBUG else 'json'
+LOG_HANDLERS = ['console']
 LOGS_DIR = BASE_DIR / 'logs'
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
+if LOG_TO_FILE:
+    LOG_HANDLERS.append('file')
 
-# Logging configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
+        'json': {
+            '()': 'planpals.shared.observability.JsonFormatter',
+        },
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'format': '{levelname} {asctime} request_id={request_id} {name} {message}',
             'style': '{',
         },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
+    },
+    'filters': {
+        'request_context': {
+            '()': 'planpals.shared.observability.RequestContextFilter',
         },
     },
     'handlers': {
         'file': {
-            'level': 'DEBUG',
+            'level': LOG_LEVEL,
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'logs', 'planpal.log'),
-            'formatter': 'verbose',
+            'formatter': LOG_FORMATTER,
+            'filters': ['request_context'],
         },
         'console': {
-            'level': 'DEBUG',
+            'level': LOG_LEVEL,
             'class': 'logging.StreamHandler',
-            'formatter': 'simple',
+            'formatter': LOG_FORMATTER,
+            'filters': ['request_context'],
         },
     },
     'root': {
-        'handlers': ['console', 'file'],
-        'level': 'DEBUG',
+        'handlers': LOG_HANDLERS,
+        'level': LOG_LEVEL,
     },
     'loggers': {
         'planpals.services': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
+            'handlers': LOG_HANDLERS,
+            'level': LOG_LEVEL,
             'propagate': False,
         },
     },
 }
+
+# Error tracking is opt-in. No user PII is sent by default, and local/test
+# environments do not require the SDK unless a DSN is explicitly configured.
+SENTRY_DSN = os.getenv('SENTRY_DSN', '').strip()
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+    except ImportError as exc:
+        raise ImproperlyConfigured(
+            'SENTRY_DSN is configured but sentry-sdk is not installed.'
+        ) from exc
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=os.getenv('SENTRY_ENVIRONMENT', 'production'),
+        release=os.getenv('APP_RELEASE') or None,
+        send_default_pii=False,
+        traces_sample_rate=_env_fraction('SENTRY_TRACES_SAMPLE_RATE', 0.05),
+    )
 
 # ============================================================================
 # DRF-SPECTACULAR SETTINGS (Swagger/OpenAPI Documentation)
@@ -460,26 +529,62 @@ CLIENT_ID = os.getenv('CLIENT_ID')
 # ============================================================================
 # CELERY SETTINGS
 # ============================================================================
-IS_TEST_ENV = any(arg in {'test', 'pytest'} for arg in sys.argv)
-DEFAULT_LOCAL_CELERY_REDIS_URL = 'redis://127.0.0.1:6379/0'
-DEFAULT_LOCAL_CACHE_REDIS_URL = 'redis://127.0.0.1:6379/1'
-DEFAULT_LOCAL_CHANNEL_REDIS_URL = 'redis://127.0.0.1:6379/2'
+def _local_redis_url(database: int) -> str:
+    """Build local Redis URLs from one optional password/ACL configuration."""
+    host = os.getenv('LOCAL_REDIS_HOST', '127.0.0.1')
+    port = os.getenv('LOCAL_REDIS_PORT', '6379')
+    username = os.getenv('LOCAL_REDIS_USERNAME', '').strip()
+    password = os.getenv('LOCAL_REDIS_PASSWORD', '')
+    if password:
+        encoded_password = quote(password, safe='')
+        userinfo = f'{quote(username, safe="")}:' if username else ':'
+        return f'redis://{userinfo}{encoded_password}@{host}:{port}/{database}'
+    return f'redis://{host}:{port}/{database}'
+
+
+DEFAULT_LOCAL_CELERY_REDIS_URL = _local_redis_url(0)
+DEFAULT_LOCAL_CACHE_REDIS_URL = _local_redis_url(1)
+DEFAULT_LOCAL_CHANNEL_REDIS_URL = _local_redis_url(2)
+REDIS_URL = os.getenv('REDIS_URL')
 USE_LOCAL_REDIS_DEFAULTS = _env_flag(
     'PLANPAL_USE_LOCAL_REDIS_DEFAULTS',
-    default=not DEBUG and not IS_TEST_ENV,
+    default=DEBUG and not IS_TEST_ENV,
+)
+REQUIRE_EXTERNAL_REDIS = False if IS_TEST_ENV else _env_flag(
+    'REQUIRE_EXTERNAL_REDIS', default=IS_PRODUCTION
 )
 
-# Redis local trong container khi deploy, localhost khi dev.
+# A single external REDIS_URL is enough. Deployments that need separate Redis
+# instances can override the three component-specific URLs independently.
 # Tests use in-memory backends so CI/local test runs do not need Redis.
-CELERY_REDIS_URL = os.getenv('CELERY_REDIS_URL') or (
+CELERY_REDIS_URL = os.getenv('CELERY_REDIS_URL') or REDIS_URL or (
     DEFAULT_LOCAL_CELERY_REDIS_URL if USE_LOCAL_REDIS_DEFAULTS else None
 )
-CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL') or (
+CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL') or REDIS_URL or (
     DEFAULT_LOCAL_CACHE_REDIS_URL if USE_LOCAL_REDIS_DEFAULTS else None
 )
-CHANNEL_REDIS_URL = os.getenv('CHANNEL_REDIS_URL') or (
+CHANNEL_REDIS_URL = os.getenv('CHANNEL_REDIS_URL') or REDIS_URL or (
     DEFAULT_LOCAL_CHANNEL_REDIS_URL if USE_LOCAL_REDIS_DEFAULTS else CELERY_REDIS_URL
 )
+if REQUIRE_EXTERNAL_REDIS and not all(
+    (CELERY_REDIS_URL, CACHE_REDIS_URL, CHANNEL_REDIS_URL)
+):
+    raise ImproperlyConfigured(
+        'Production requires REDIS_URL, or all of CELERY_REDIS_URL, '
+        'CACHE_REDIS_URL, and CHANNEL_REDIS_URL.'
+    )
+if REQUIRE_EXTERNAL_REDIS:
+    for redis_setting_name, redis_setting_url in (
+        ('CELERY_REDIS_URL', CELERY_REDIS_URL),
+        ('CACHE_REDIS_URL', CACHE_REDIS_URL),
+        ('CHANNEL_REDIS_URL', CHANNEL_REDIS_URL),
+    ):
+        parsed_redis_url = urlsplit(redis_setting_url)
+        if parsed_redis_url.scheme != 'rediss' or not parsed_redis_url.password:
+            raise ImproperlyConfigured(
+                f'{redis_setting_name} must use rediss:// and include a password '
+                'when REQUIRE_EXTERNAL_REDIS=true.'
+            )
 CHANNEL_REDIS_SOCKET_TIMEOUT = _env_positive_float(
     'CHANNEL_REDIS_SOCKET_TIMEOUT',
     default=15.0,
@@ -492,13 +597,15 @@ CHANNEL_REDIS_HEALTH_CHECK_INTERVAL = _env_positive_float(
     'CHANNEL_REDIS_HEALTH_CHECK_INTERVAL',
     default=30.0,
 )
-USE_REDIS_CACHE = _env_flag(
-    'USE_REDIS_CACHE',
-    default=bool(CACHE_REDIS_URL) and not IS_TEST_ENV,
+REDIS_HEALTHCHECK_TIMEOUT = _env_positive_float(
+    'REDIS_HEALTHCHECK_TIMEOUT',
+    default=2.0,
 )
-USE_REDIS_CHANNELS = _env_flag(
-    'USE_REDIS_CHANNELS',
-    default=bool(CHANNEL_REDIS_URL) and not IS_TEST_ENV,
+USE_REDIS_CACHE = False if IS_TEST_ENV else _env_flag(
+    'USE_REDIS_CACHE', default=bool(CACHE_REDIS_URL)
+)
+USE_REDIS_CHANNELS = False if IS_TEST_ENV else _env_flag(
+    'USE_REDIS_CHANNELS', default=bool(CHANNEL_REDIS_URL)
 )
 
 # ============================================================================
@@ -523,6 +630,9 @@ if USE_REDIS_CACHE and CACHE_REDIS_URL:
             'LOCATION': CACHE_REDIS_URL,
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'SOCKET_CONNECT_TIMEOUT': CHANNEL_REDIS_CONNECT_TIMEOUT,
+                'SOCKET_TIMEOUT': CHANNEL_REDIS_SOCKET_TIMEOUT,
+                'IGNORE_EXCEPTIONS': False,
             },
             'KEY_PREFIX': 'planpal',
             'TIMEOUT': 300,
@@ -547,16 +657,23 @@ CELERY_ACCEPT_CONTENT = ['json']
 
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-CELERY_BROKER_URL = (
+CELERY_BROKER_URL = 'memory://' if IS_TEST_ENV else (
     os.getenv('CELERY_BROKER_URL')
     or CELERY_REDIS_URL
-    or ('memory://' if IS_TEST_ENV else DEFAULT_LOCAL_CELERY_REDIS_URL)
+    or DEFAULT_LOCAL_CELERY_REDIS_URL
 )
-CELERY_RESULT_BACKEND = (
+CELERY_RESULT_BACKEND = 'cache+memory://' if IS_TEST_ENV else (
     os.getenv('CELERY_RESULT_BACKEND')
     or CELERY_REDIS_URL
-    or ('cache+memory://' if IS_TEST_ENV else DEFAULT_LOCAL_CELERY_REDIS_URL)
+    or DEFAULT_LOCAL_CELERY_REDIS_URL
 )
+
+# rediss:// carries credentials and TLS in one URL. Certificate verification
+# remains mandatory for managed Redis providers.
+if CELERY_BROKER_URL.startswith('rediss://'):
+    CELERY_BROKER_USE_SSL = {'ssl_cert_reqs': ssl.CERT_REQUIRED}
+if CELERY_RESULT_BACKEND.startswith('rediss://'):
+    CELERY_REDIS_BACKEND_USE_SSL = {'ssl_cert_reqs': ssl.CERT_REQUIRED}
 
 # ---------------------------------------------------------------------------
 # Queue Architecture — 4 priority queues
@@ -654,6 +771,22 @@ CELERY_BEAT_SCHEDULE = {
     'expire-group-invites': {
         'task': 'planpals.groups.infrastructure.tasks.expire_group_invites_task',
         'schedule': crontab(minute=10),  # Every hour at minute 10
+    },
+    'generate-recurring-expenses': {
+        'task': 'planpals.budgets.infrastructure.tasks.generate_recurring_expenses_task',
+        'schedule': crontab(minute='*/15'),
+    },
+    'dispatch-settlement-reminders': {
+        'task': 'planpals.budgets.infrastructure.tasks.dispatch_settlement_reminders_task',
+        'schedule': crontab(hour=9, minute=0),
+    },
+    'expire-live-locations': {
+        'task': 'planpals.experience.infrastructure.tasks.expire_live_locations_task',
+        'schedule': crontab(minute='*/5'),
+    },
+    'dispatch-daily-digests': {
+        'task': 'planpals.notifications.infrastructure.tasks.dispatch_daily_digests_task',
+        'schedule': crontab(minute=5),
     },
 }
 

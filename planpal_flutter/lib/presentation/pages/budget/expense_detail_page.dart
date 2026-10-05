@@ -1,20 +1,34 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/services/error_display_service.dart';
 
-class ExpenseDetailPage extends StatelessWidget {
+class ExpenseDetailPage extends ConsumerWidget {
   final ExpenseModel expense;
 
   const ExpenseDetailPage({super.key, required this.expense});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.t('budget.expense_detail'))),
+      appBar: AppBar(
+        title: Text(l10n.t('budget.expense_detail')),
+        actions: [
+          IconButton(
+            tooltip: l10n.t('budget.correct_expense'),
+            onPressed: () => _correctExpense(context, ref),
+            icon: const Icon(Icons.edit_note_rounded),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
@@ -39,6 +53,29 @@ class ExpenseDetailPage extends StatelessWidget {
                   icon: Icons.notes_outlined,
                   label: l10n.t('budget.description'),
                   value: expense.description,
+                ),
+              if (expense.paymentNote.trim().isNotEmpty)
+                _InfoRow(
+                  icon: Icons.payments_outlined,
+                  label: l10n.t('budget.payment_note'),
+                  value: expense.paymentNote,
+                ),
+              if (expense.entryType == 'correction')
+                _InfoRow(
+                  icon: Icons.history_rounded,
+                  label: l10n.t('budget.corrected_entry'),
+                  value: expense.correctionReason,
+                ),
+              if (expense.receiptUrl != null)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.attach_file_rounded),
+                  title: Text(l10n.t('budget.receipt')),
+                  trailing: const Icon(Icons.open_in_new_rounded),
+                  onTap: () => launchUrl(
+                    Uri.parse(expense.receiptUrl!),
+                    mode: LaunchMode.externalApplication,
+                  ),
                 ),
             ],
           ),
@@ -75,6 +112,36 @@ class ExpenseDetailPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _correctExpense(BuildContext context, WidgetRef ref) async {
+    final draft = await showModalBottomSheet<_ExpenseCorrectionDraft>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _ExpenseCorrectionSheet(expense: expense),
+    );
+    if (draft == null || !context.mounted) return;
+    try {
+      final result = await ref
+          .read(budgetRepositoryProvider)
+          .correctExpense(
+            expense.planId,
+            expense.id,
+            amount: draft.amount,
+            category: draft.category,
+            description: draft.description,
+            paymentNote: draft.paymentNote,
+            reason: draft.reason,
+            receiptPath: draft.receiptPath,
+          );
+      if (!context.mounted) return;
+      Navigator.of(context).pop(result);
+    } catch (error) {
+      if (context.mounted) {
+        ErrorDisplayService.handleError(context, error, showDialog: true);
+      }
+    }
   }
 
   List<Widget> _paymentRows(BuildContext context, AppLocalizations l10n) {
@@ -123,6 +190,212 @@ class ExpenseDetailPage extends StatelessWidget {
       default:
         return l10n.t('budget.split_equal');
     }
+  }
+}
+
+class _ExpenseCorrectionDraft {
+  const _ExpenseCorrectionDraft({
+    required this.amount,
+    required this.category,
+    required this.description,
+    required this.paymentNote,
+    required this.reason,
+    this.receiptPath,
+  });
+
+  final double amount;
+  final String category;
+  final String description;
+  final String paymentNote;
+  final String reason;
+  final String? receiptPath;
+}
+
+class _ExpenseCorrectionSheet extends StatefulWidget {
+  const _ExpenseCorrectionSheet({required this.expense});
+
+  final ExpenseModel expense;
+
+  @override
+  State<_ExpenseCorrectionSheet> createState() =>
+      _ExpenseCorrectionSheetState();
+}
+
+class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _amount;
+  late final TextEditingController _category;
+  late final TextEditingController _description;
+  late final TextEditingController _paymentNote;
+  final _reason = TextEditingController();
+  String? _receiptPath;
+  String? _receiptName;
+
+  @override
+  void initState() {
+    super.initState();
+    _amount = TextEditingController(
+      text: widget.expense.amount.toStringAsFixed(2),
+    );
+    _category = TextEditingController(text: widget.expense.category);
+    _description = TextEditingController(text: widget.expense.description);
+    _paymentNote = TextEditingController(text: widget.expense.paymentNote);
+  }
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _category.dispose();
+    _description.dispose();
+    _paymentNote.dispose();
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 20,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.l10n.t('budget.correct_expense'),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _amount,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('budget.amount'),
+                ),
+                validator: (value) {
+                  final amount = double.tryParse(value?.trim() ?? '');
+                  return amount == null || amount <= 0
+                      ? context.l10n.t('budget.validation_amount_positive')
+                      : null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _category,
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('budget.category'),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? context.l10n.t('budget.validation_category_required')
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _description,
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('budget.description'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _paymentNote,
+                minLines: 2,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('budget.payment_note'),
+                  hintText: context.l10n.t('budget.payment_note_hint'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                leading: const Icon(Icons.receipt_long_outlined),
+                title: Text(
+                  _receiptName ?? context.l10n.t('budget.attach_new_receipt'),
+                ),
+                subtitle: Text(context.l10n.t('budget.receipt_formats')),
+                trailing: _receiptPath == null
+                    ? const Icon(Icons.add_rounded)
+                    : IconButton(
+                        tooltip: context.l10n.t('budget.remove_receipt'),
+                        onPressed: () => setState(() {
+                          _receiptPath = null;
+                          _receiptName = null;
+                        }),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                onTap: _pickReceipt,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _reason,
+                minLines: 2,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('budget.correction_reason'),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? context.l10n.t('budget.correction_reason')
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _submit,
+                  child: Text(context.l10n.t('common.save')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    Navigator.of(context).pop(
+      _ExpenseCorrectionDraft(
+        amount: double.parse(_amount.text.trim()),
+        category: _category.text.trim(),
+        description: _description.text.trim(),
+        paymentNote: _paymentNote.text.trim(),
+        reason: _reason.text.trim(),
+        receiptPath: _receiptPath,
+      ),
+    );
+  }
+
+  Future<void> _pickReceipt() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+    );
+    final file = result?.files.single;
+    if (file?.path == null || !mounted) return;
+    if (file!.size > 10 * 1024 * 1024) {
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        context.l10n.t('budget.receipt_too_large'),
+      );
+      return;
+    }
+    setState(() {
+      _receiptPath = file.path;
+      _receiptName = file.name;
+    });
   }
 }
 

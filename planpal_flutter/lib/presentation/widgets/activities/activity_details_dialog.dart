@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:planpal_flutter/core/dtos/plan_activity.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/maps/planpal_map.dart';
 import 'package:planpal_flutter/core/riverpod/activity_providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:planpal_flutter/presentation/pages/location/location_view_page.dart';
 
 class ActivityDetailsDialog extends StatelessWidget {
   final PlanActivity activity;
@@ -55,7 +56,8 @@ class ActivityDetailsDialog extends StatelessWidget {
                       _buildLocationSection(context),
                       const SizedBox(height: 16),
                       _buildCostInfo(context),
-                      if (activity.notes != null && activity.notes!.isNotEmpty) ...[
+                      if (activity.notes != null &&
+                          activity.notes!.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _buildNotes(context),
                       ],
@@ -219,7 +221,10 @@ class ActivityDetailsDialog extends StatelessWidget {
       context: context,
       icon: Icons.description,
       title: context.l10n.t('activity_details.description'),
-      content: Text(activity.description!, style: const TextStyle(fontSize: 14)),
+      content: Text(
+        activity.description!,
+        style: const TextStyle(fontSize: 14),
+      ),
     );
   }
 
@@ -271,7 +276,8 @@ class ActivityDetailsDialog extends StatelessWidget {
               ],
             ),
           ],
-          if (activity.durationMinutes != null && activity.durationMinutes! > 0) ...[
+          if (activity.durationMinutes != null &&
+              activity.durationMinutes! > 0) ...[
             const SizedBox(height: 4),
             Row(
               children: [
@@ -311,7 +317,8 @@ class ActivityDetailsDialog extends StatelessWidget {
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (activity.locationName != null && activity.locationName!.isNotEmpty)
+          if (activity.locationName != null &&
+              activity.locationName!.isNotEmpty)
             Text(
               activity.locationName!,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -332,32 +339,13 @@ class ActivityDetailsDialog extends StatelessWidget {
             const SizedBox(height: 8),
             _buildMiniMap(context),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _openInMaps,
-                    icon: const Icon(Icons.map, size: 16),
-                    label: Text(context.l10n.t('activity_details.open_map')),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _openDirections,
-                    icon: const Icon(Icons.directions, size: 16),
-                    label: Text(context.l10n.t('activity_details.directions')),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue,
-                      side: const BorderSide(color: Colors.blue),
-                    ),
-                  ),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _openInMaps(context),
+                icon: const Icon(Icons.map_outlined),
+                label: Text(context.l10n.t('activity_details.open_map')),
+              ),
             ),
           ],
         ],
@@ -376,59 +364,39 @@ class ActivityDetailsDialog extends StatelessWidget {
       height: 120,
       width: double.infinity,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         child: Stack(
           children: [
-            Image.network(
-              'https://maps.googleapis.com/maps/api/staticmap?'
-              'center=${activity.latitude},${activity.longitude}&'
-              'zoom=15&'
-              'size=400x120&'
-              'markers=color:red%7C${activity.latitude},${activity.longitude}&'
-              'key=AIzaSyD1GIETwZj5CNGQtZR2CPqDCkCYLZ6SZrc',
-              width: double.infinity,
-              height: 120,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: colorScheme.surfaceContainerHighest,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.map,
-                        size: 32,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        context.l10n.t('activity_details.view_on_map'),
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Text(
-                        '${activity.latitude!.toStringAsFixed(6)}, ${activity.longitude!.toStringAsFixed(6)}',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
+            PlanPalMap(
+              initialCameraPosition: MapCameraPosition(
+                target: MapCoordinate(activity.latitude!, activity.longitude!),
+                zoom: 15,
+              ),
+              pins: {
+                MapPin(
+                  id: 'activity-location',
+                  position: MapCoordinate(
+                    activity.latitude!,
+                    activity.longitude!,
                   ),
-                );
+                  title: activity.locationName,
+                ),
               },
+              compassEnabled: false,
+              scrollGesturesEnabled: false,
+              zoomGesturesEnabled: false,
+              rotateGesturesEnabled: false,
+              tiltGesturesEnabled: false,
             ),
             Positioned.fill(
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: _openInMaps,
+                  onTap: () => _openInMaps(context),
                   child: const SizedBox.expand(),
                 ),
               ),
@@ -440,7 +408,8 @@ class ActivityDetailsDialog extends StatelessWidget {
   }
 
   Widget _buildCostInfo(BuildContext context) {
-    final hasCost = activity.estimatedCost != null && activity.estimatedCost! > 0;
+    final hasCost =
+        activity.estimatedCost != null && activity.estimatedCost! > 0;
     final valueColor = hasCost ? Colors.orange : Colors.green;
     return _buildInfoCard(
       context: context,
@@ -533,10 +502,7 @@ class ActivityDetailsDialog extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: cardColor.withValues(alpha: 0.28),
-          width: 1,
-        ),
+        border: Border.all(color: cardColor.withValues(alpha: 0.28), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,10 +560,6 @@ class ActivityDetailsDialog extends StatelessWidget {
                 },
                 icon: const Icon(Icons.edit, size: 16),
                 label: Text(context.l10n.t('activity_details.edit')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                ),
               ),
             ),
           ],
@@ -638,7 +600,10 @@ class ActivityDetailsDialog extends StatelessWidget {
               Navigator.of(context).pop();
               onDelete?.call();
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             child: Text(
               context.l10n.t('common.delete'),
               style: const TextStyle(color: Colors.white),
@@ -649,22 +614,20 @@ class ActivityDetailsDialog extends StatelessWidget {
     );
   }
 
-  Future<void> _openInMaps() async {
+  void _openInMaps(BuildContext context) {
     if (activity.latitude == null || activity.longitude == null) return;
-    final url =
-        'https://www.google.com/maps/search/?api=1&query=${activity.latitude},${activity.longitude}';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    }
-  }
-
-  Future<void> _openDirections() async {
-    if (activity.latitude == null || activity.longitude == null) return;
-    final url =
-        'https://www.google.com/maps/dir/?api=1&destination=${activity.latitude},${activity.longitude}';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LocationViewPage(
+          latitude: activity.latitude!,
+          longitude: activity.longitude!,
+          title: activity.locationName?.trim().isNotEmpty == true
+              ? activity.locationName!.trim()
+              : activity.title,
+          address: activity.locationAddress,
+        ),
+      ),
+    );
   }
 
   IconData _getActivityIcon(String activityType) {

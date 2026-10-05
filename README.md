@@ -61,9 +61,10 @@ python -m venv ..\.venv
 ..\.venv\Scripts\activate
 ..\.venv\Scripts\python.exe -m pip install -r requirements.txt
 
-..\.venv\Scripts\python.exe manage.py migrate
-# Run ASGI directly so Channels always uses the dependencies pinned in .venv.
-..\.venv\Scripts\python.exe -m daphne -b 0.0.0.0 -p 8000 planpalapp.asgi:application
+cd ..
+Copy-Item .\planpalapp\.env.local.example .\planpalapp\.env.local
+.\scripts\run_backend.ps1 -Environment local -Component migrate
+.\scripts\run_backend.ps1 -Environment local -Component web
 ```
 
 Do not start Django with a global `python` installation. In particular, a
@@ -95,10 +96,15 @@ python -m celery -A planpalapp beat -l info
 ### Frontend Local Setup
 
 ```bash
-cd planpal_flutter
-flutter pub get
-flutter run --dart-define=PLANPAL_BASE_URL=http://10.0.2.2:8000
+flutter pub get --directory planpal_flutter
+.\scripts\run_flutter.ps1 -Environment local -Action run
 ```
+
+Environment switching does not require editing source files. Use
+`PLANPAL_ENV=local|test|production` for Django and
+`--dart-define=APP_ENV=local|production` for Flutter. See
+[`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md) for emulator, physical-device,
+testing, APK build, and production deployment instructions.
 
 **Requirements:** Python 3.11+, Flutter 3.32+, Dart 3.8+, MySQL or compatible database, Redis 7+, Android Studio Emulator or physical Android device.
 
@@ -106,7 +112,10 @@ flutter run --dart-define=PLANPAL_BASE_URL=http://10.0.2.2:8000
 
 ## Production Deploy
 
-PlanPal is designed to run as stateless Django ASGI app + Celery worker + Redis-backed cache/channel layer. The current Docker image uses Supervisor to run Redis, Celery worker, Celery Beat, and Daphne in one container for simple deployment.
+For a cost-conscious production deployment, PlanPal runs on one application
+machine. Supervisor starts Daphne, one Celery worker, and exactly one Celery
+Beat scheduler in the same container. MySQL and Redis remain managed external
+services; Redis is never started inside the application container.
 
 ```bash
 flyctl auth login
@@ -119,14 +128,26 @@ Check logs:
 flyctl logs -a planpal-backend
 ```
 
-Expected Supervisor programs:
+Programs in the single application container:
 
-- `redis`: local Redis process for cache, Channels, Celery broker in single-container deployment.
-- `celery`: background worker for notifications, analytics, plan lifecycle, cleanup.
-- `celery-beat`: periodic scheduler for analytics aggregation and maintenance jobs.
-- `daphne`: ASGI server for REST API and WebSocket traffic.
+- `web`: Daphne serving REST, health checks, and WebSocket traffic.
+- `worker`: Celery consumers for all configured queues.
+- `beat`: exactly one Celery Beat scheduler per environment.
+- external Redis: TLS/password-protected broker, cache, and Channels layer.
 
-For larger production deployments, Redis, database, web workers, and Celery workers should be separated into independent services.
+Configure `REDIS_URL` as a password-authenticated `rediss://` URL and set
+`REQUIRE_EXTERNAL_REDIS=true`. Keep exactly one Fly machine while this runtime
+topology is used; scaling beyond one machine would start a second Beat scheduler
+and duplicate periodic work:
+
+```bash
+fly scale count 1 -a planpal-backend
+```
+
+Liveness is exposed at `/health/live`; readiness at `/health/ready` checks the
+database and Redis. Production logs are JSON and every HTTP response carries
+`X-Request-ID`. See `docs/DEPLOYMENT_RUNBOOK.md` for backup, migration, rollout,
+rollback, and smoke-test checklists.
 
 ---
 
@@ -144,10 +165,11 @@ For larger production deployments, Redis, database, web workers, and Celery work
 | Cache/Queue | Redis, django-redis, Celery, Celery Beat |
 | File Storage | Cloudinary |
 | Push Notification | Firebase Cloud Messaging structure |
-| Maps/Location | Google Maps Flutter, Geolocator, backend location API |
+| Maps/Location | Goong vector maps via MapLibre, Geolocator, Goong location API |
 | Charts | fl_chart |
 | API Documentation | Swagger / Redoc via drf-yasg / OpenAPI |
-| Deployment | Docker, Supervisor, Fly.io |
+| Deployment | Docker, Supervisor single-machine runtime, managed Redis/MySQL |
+| Observability | JSON logs, request correlation, health probes, optional Sentry |
 
 ---
 
@@ -172,6 +194,7 @@ For larger production deployments, Redis, database, web workers, and Celery work
   - `member`: can participate and view allowed group data.
 - Admin can grant or revoke plan creator permission.
 - Object-level permission checks for groups, plans, budget, and conversations.
+- Group polls with single/multiple choice, member-only voting, and controlled closing.
 
 ### Plans and Activities
 
@@ -185,6 +208,11 @@ For larger production deployments, Redis, database, web workers, and Celery work
   - Optimistic locking.
   - Conflict response with server version and client attempted changes.
   - Plan WebSocket channel for live activity updates.
+- Group availability polls before plan creation with available/maybe/unavailable RSVP.
+- Plan assignments and checklist items with assignee, deadline, status, and aggregate progress.
+- Plan/activity discussion with replies-ready data model, `@username` mentions, reactions, and pinned content.
+- Clone existing plans as a new schedule or reusable template while preserving activity offsets.
+- Calendar export through standard ICS files and per-activity Google Calendar links.
 
 ### Chat and Conversations
 
@@ -194,6 +222,7 @@ For larger production deployments, Redis, database, web workers, and Celery work
 - Read status and unread count.
 - Chat WebSocket updates with reconnect behavior.
 - Last message contract for conversation list.
+- Global search across only the plans, groups, conversations, and message content visible to the signed-in user.
 
 ### Map and Location
 
@@ -202,6 +231,7 @@ For larger production deployments, Redis, database, web workers, and Celery work
 - Current location marker and coordinate display.
 - Send current location to a selected conversation.
 - Location picker with search, reverse geocoding, and place details API.
+- Consent-based live location sharing with a 5-480 minute expiry and automatic server cleanup.
 
 ### Budget Tracking
 
@@ -231,6 +261,14 @@ For larger production deployments, Redis, database, web workers, and Celery work
 - Realtime notification channel through WebSocket.
 - Push notification abstraction prepared for FCM.
 - Device token registration endpoint.
+- Per-user push toggle, timezone-aware quiet hours, and daily unread digest.
+
+### Offline Resilience
+
+- User-scoped drafts for group, plan, and activity create/edit wizards.
+- Sequential mutation queue for supported offline actions with automatic resume sync.
+- Idempotency keys prevent duplicate polls or live-location shares after ambiguous network failures.
+- Permanent 4xx failures are separated into a bounded dead-letter queue rather than retried forever.
 
 ### Analytics Dashboard
 
@@ -328,10 +366,17 @@ Main REST resources:
 | Friends | `/api/v1/friends/`, `/api/v1/friends/request/`, `/api/v1/friends/requests/` |
 | Groups | `/api/v1/groups/`, `/api/v1/groups/{id}/` |
 | Plans | `/api/v1/plans/`, `/api/v1/plans/{id}/`, `/api/v1/plans/{id}/cancel/` |
+| Availability | `/api/v1/groups/{group_id}/availability-polls/`, `/api/v1/availability-polls/{poll_id}/vote/` |
+| Plan collaboration | `/api/v1/plans/{plan_id}/work-items/`, `/api/v1/plans/{plan_id}/comments/`, `/api/v1/plan-comments/{id}/react/`, `/api/v1/plan-comments/{id}/pin/` |
+| Plan reuse/calendar | `/api/v1/plans/{plan_id}/clone/`, `/api/v1/plans/{plan_id}/export.ics`, `/api/v1/plans/{plan_id}/calendar-links/` |
 | Activities | `/api/v1/activities/`, `/api/v1/activities/{id}/` |
 | Conversations | `/api/v1/conversations/`, `/api/v1/conversations/{id}/send_message/` |
 | Messages | `/api/v1/messages/` |
 | Notifications | `/api/v1/notifications/`, `/api/v1/notifications/unread-count/`, `/api/v1/notifications/read-all/` |
+| Notification preferences | `/api/v1/notifications/preferences/` |
+| Group polls | `/api/v1/groups/{group_id}/polls/`, `/api/v1/group-polls/{poll_id}/vote/`, `/api/v1/group-polls/{poll_id}/close/` |
+| Global search | `/api/v1/search/?q={query}` |
+| Live location | `/api/v1/conversations/{conversation_id}/live-locations/`, `/api/v1/live-locations/{share_id}/` |
 | Analytics | `/api/v1/analytics/summary/`, `/api/v1/analytics/timeseries/`, `/api/v1/analytics/top/` |
 | Budget | `/api/v1/plans/{plan_id}/budget/`, `/api/v1/plans/{plan_id}/expenses/` |
 | Audit Log | `/api/v1/audit-logs/`, `/api/v1/audit-logs/resource/{type}/{id}/` |
@@ -412,11 +457,12 @@ Use the Locust UI to capture request count, failure rate, median latency, 95th p
 ## Environment Setup
 
 <details>
-<summary><b>Backend .env (planpalapp/.env)</b></summary>
+<summary><b>Backend local profile (planpalapp/.env.local)</b></summary>
 
 ```env
-SECRET_KEY=change-me
-DEBUG=True
+PLANPAL_ENV=local
+SECRET_KEY=django-insecure-local-only
+DEBUG=true
 ALLOWED_HOSTS=10.0.2.2,localhost,127.0.0.1
 
 # Database
@@ -429,19 +475,15 @@ DB_PORT=3306
 
 # OAuth2 client used by Flutter
 CLIENT_ID=your_oauth_client_id
-CLIENT_SECRET=your_oauth_client_secret
 
 # Redis / Celery / Channels
-CELERY_BROKER_URL=redis://127.0.0.1:6379/0
-CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/0
-CACHE_REDIS_URL=redis://127.0.0.1:6379/1
-# Keep long-lived WebSocket receives isolated from Celery queues.
-CHANNEL_REDIS_URL=redis://127.0.0.1:6379/2
+PLANPAL_USE_LOCAL_REDIS_DEFAULTS=true
+REQUIRE_EXTERNAL_REDIS=false
 CHANNEL_REDIS_SOCKET_TIMEOUT=15
 CHANNEL_REDIS_CONNECT_TIMEOUT=5
 CHANNEL_REDIS_HEALTH_CHECK_INTERVAL=30
-USE_REDIS_CACHE=True
-USE_REDIS_CHANNELS=True
+USE_REDIS_CACHE=true
+USE_REDIS_CHANNELS=true
 
 # Email OTP verification
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
@@ -462,21 +504,36 @@ GOONG_API_KEY=your_goong_or_location_api_key
 BACKEND_PUBLIC_URL=http://127.0.0.1:8000
 
 # Firebase / FCM
-FIREBASE_CREDENTIALS_PATH=
+FIREBASE_SERVICE_ACCOUNT_PATH=
 ```
 
 </details>
 
 <details>
-<summary><b>Frontend .env (planpal_flutter/.env)</b></summary>
+<summary><b>Frontend environment selector</b></summary>
+
+Create `planpal_flutter/.env` from `planpal_flutter/.env.example` and set the
+Goong map tile key. This client-side key renders vector maps only; place search
+and reverse geocoding continue through the authenticated backend API.
 
 ```env
-BASE_URL=http://10.0.2.2:8000
-PLANPAL_BASE_URL=http://10.0.2.2:8000
-CLIENT_ID=your_oauth_client_id
-CLIENT_SECRET=your_oauth_client_secret
-GOONG_API_KEY=your_goong_or_location_api_key
+GOONG_MAPTILES_KEY=your_goong_maptiles_key
 ```
+
+```powershell
+# Android emulator -> local backend
+flutter run --dart-define=APP_ENV=local
+
+# Production backend
+flutter run --release --dart-define=APP_ENV=production
+
+# Physical phone -> local backend on the computer LAN address
+flutter run --dart-define=APP_ENV=local `
+  --dart-define=API_BASE_URL=http://192.168.1.10:8000
+```
+
+The Flutter `.env` asset remains only for existing Firebase/external-service
+configuration. API URL and OAuth public client selection use build defines.
 
 </details>
 
@@ -506,9 +563,11 @@ PlanPal/
 ├── README.md                    # Project guide
 ├── Dockerfile                   # Backend container image
 ├── fly.toml                     # Fly.io deployment config
-├── supervisord.conf             # Redis + Celery + Beat + Daphne process config
+├── supervisord.conf             # Daphne + worker + singleton Beat process config
+├── .github/workflows/           # CI, scheduled performance tests, deployment controls
 ├── performance_tests/           # Locust performance testing scripts
-├── docs/                        # Additional report/documentation assets
+├── docs/                        # Architecture and deployment runbooks
+├── scripts/                     # Operational backup utilities
 ├── planpalapp/                  # Django backend
 │   ├── manage.py
 │   ├── requirements.txt
@@ -579,10 +638,13 @@ lib/
 
 - Run Redis for realtime, Celery, cache, analytics, and pending OTP registration.
 - Run Celery worker for notification delivery, push fan-out, plan lifecycle, cleanup, and analytics jobs.
-- Run Celery Beat for scheduled aggregation and maintenance tasks.
-- Keep `CLIENT_ID` and `CLIENT_SECRET` synchronized between backend OAuth application and Flutter `.env`.
+- Run exactly one Celery Beat instance for scheduled aggregation and maintenance tasks.
+- Keep the public OAuth `CLIENT_ID` synchronized between Django and the Flutter
+  `OAUTH_CLIENT_ID` build define. Never bundle `CLIENT_SECRET` in Flutter.
 - Do not commit real secrets, Firebase service accounts, Cloudinary secrets, or production database URLs.
-- In production, set `DEBUG=False`, strict `ALLOWED_HOSTS`, strict CORS origins, SMTP credentials, Redis URLs, and managed database connection string.
+- In production, set `DEBUG=False`, strict `ALLOWED_HOSTS`, strict CORS origins, SMTP credentials, managed database connection string, and password-authenticated TLS `rediss://` URLs.
+- Configure `SENTRY_DSN` when centralized error tracking is available; sensitive request data is disabled.
+- Schedule `scripts/backup_mysql.ps1` outside the application and verify restore procedures regularly.
 
 ---
 

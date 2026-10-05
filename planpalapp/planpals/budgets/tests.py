@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from django.test import TestCase
+from django.core.cache import cache
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -18,6 +19,7 @@ from planpals.budgets.infrastructure.models import (
     Expense,
     ExpenseParticipant,
     ExpensePayment,
+    RecurringExpense,
     Settlement,
 )
 from planpals.groups.infrastructure.models import Group, GroupMembership
@@ -27,10 +29,12 @@ from planpals.plans.application.commands import CreatePlanCommand
 from planpals.plans.application.factories import get_create_plan_handler
 from planpals.plans.infrastructure.models import Plan
 from planpals.models import User
+from planpals.shared.cache import CacheKeys
 
 
 class BudgetTrackingTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.budget_service = get_budget_service()
         self.analytics_service = get_analytics_service()
@@ -79,6 +83,49 @@ class BudgetTrackingTests(TestCase):
             is_public=False,
         )
         self.budget_service.initialize_plan_budget(self.plan.id)
+
+    def test_budget_mutations_invalidate_budget_and_plan_summary_cache(self):
+        budget_key = CacheKeys.budget_summary(self.plan.id)
+        plan_key = CacheKeys.plan_summary(self.plan.id)
+
+        cache.set(budget_key, {'stale': True})
+        cache.set(plan_key, {'stale': True})
+        self.budget_service.create_or_update_budget(
+            self.plan.id,
+            self.owner,
+            total_budget='1000.00',
+            currency='VND',
+        )
+        self.assertIsNone(cache.get(budget_key))
+        self.assertIsNone(cache.get(plan_key))
+
+        cache.set(budget_key, {'stale': True})
+        cache.set(plan_key, {'stale': True})
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='200.00',
+            category='Food',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+        )
+        self.assertIsNone(cache.get(budget_key))
+        self.assertIsNone(cache.get(plan_key))
+
+        cache.set(budget_key, {'stale': True})
+        cache.set(plan_key, {'stale': True})
+        self.budget_service.create_settlement(
+            plan_id=self.plan.id,
+            actor=self.member,
+            from_user_id=self.member.id,
+            to_user_id=self.owner.id,
+            amount='100.00',
+            currency='VND',
+        )
+        self.assertIsNone(cache.get(budget_key))
+        self.assertIsNone(cache.get(plan_key))
 
     def test_create_plan_handler_initializes_budget(self):
         handler = get_create_plan_handler()
@@ -417,8 +464,17 @@ class BudgetTrackingTests(TestCase):
             currency='VND',
         )
 
-        self.assertEqual(settlement.status, 'completed')
+        self.assertEqual(settlement.status, 'pending')
         self.assertEqual(Settlement.objects.count(), 1)
+        pending_balances = self.budget_service.get_balances(self.plan.id, self.owner)
+        self.assertEqual(len(pending_balances.settlement_suggestions), 1)
+
+        settlement = self.budget_service.respond_to_settlement(
+            settlement.id,
+            self.owner,
+            action='complete',
+        )
+        self.assertEqual(settlement.status, 'completed')
         balances = self.budget_service.get_balances(self.plan.id, self.owner)
         by_user = {item.user_id: item for item in balances.balances}
         self.assertEqual(by_user[self.owner.id].net_balance, Decimal('0.00'))
@@ -430,6 +486,278 @@ class BudgetTrackingTests(TestCase):
                 resource_id=self.plan.id,
             ).exists()
         )
+
+    def test_settlement_can_be_rejected_without_changing_balances(self):
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='200.00',
+            category='Food',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+        )
+        settlement = self.budget_service.create_settlement(
+            plan_id=self.plan.id,
+            actor=self.member,
+            from_user_id=self.member.id,
+            to_user_id=self.owner.id,
+            amount='100.00',
+        )
+        rejected = self.budget_service.respond_to_settlement(
+            settlement.id,
+            self.owner,
+            action='reject',
+            rejection_reason='Payment not received',
+        )
+        self.assertEqual(rejected.status, 'rejected')
+        self.assertEqual(rejected.rejection_reason, 'Payment not received')
+        balances = self.budget_service.get_balances(self.plan.id, self.owner)
+        self.assertEqual(len(balances.settlement_suggestions), 1)
+
+        with self.assertRaises(ValidationError):
+            self.budget_service.respond_to_settlement(
+                settlement.id,
+                self.owner,
+                action='complete',
+            )
+
+    def test_pending_settlements_cannot_exceed_current_debt(self):
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='200.00',
+            category='Food',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+        )
+        self.budget_service.create_settlement(
+            plan_id=self.plan.id,
+            actor=self.member,
+            from_user_id=self.member.id,
+            to_user_id=self.owner.id,
+            amount='80.00',
+        )
+
+        with self.assertRaises(ValidationError):
+            self.budget_service.create_settlement(
+                plan_id=self.plan.id,
+                actor=self.member,
+                from_user_id=self.member.id,
+                to_user_id=self.owner.id,
+                amount='30.00',
+            )
+
+    def test_corrective_entry_replaces_effective_expense_without_mutating_original(self):
+        original = self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='200.00',
+            category='Food',
+            receipt='image/upload/planpal/expenses/receipts/original-proof',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+        ).expense
+        corrected = self.budget_service.correct_expense(
+            self.plan.id,
+            original.id,
+            self.owner,
+            amount='300.00',
+            category='Restaurant',
+            description='Corrected receipt total',
+            reason='Receipt total was entered incorrectly',
+        )
+        original_row = Expense.objects.get(id=original.id)
+        corrected_row = Expense.objects.get(id=corrected.expense.id)
+        self.assertEqual(original_row.amount, Decimal('200.00'))
+        self.assertEqual(str(corrected_row.receipt), str(original_row.receipt))
+        self.assertEqual(corrected.expense.entry_type, 'correction')
+        self.assertEqual(corrected.expense.corrects_expense_id, original.id)
+        self.assertEqual(corrected.summary.total_spent, Decimal('300.00'))
+        self.assertEqual(corrected.summary.expense_count, 1)
+
+    def test_recurring_expense_generation_is_advanced_after_one_occurrence(self):
+        next_run = timezone.now() + timedelta(days=1)
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='120.00',
+            category='Transport',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+            recurrence={
+                'frequency': 'weekly',
+                'interval': 1,
+                'next_run_at': next_run,
+            },
+        )
+        rule = RecurringExpense.objects.get()
+        outcome = self.budget_service.generate_due_recurring_expenses(
+            now=next_run + timedelta(minutes=1),
+        )
+        self.assertEqual(outcome['created'], 1)
+        self.assertEqual(Expense.objects.filter(recurrence=rule).count(), 2)
+        repeated_outcome = self.budget_service.generate_due_recurring_expenses(
+            now=next_run + timedelta(minutes=1),
+        )
+        self.assertEqual(repeated_outcome['created'], 0)
+        self.assertEqual(Expense.objects.filter(recurrence=rule).count(), 2)
+        rule.refresh_from_db()
+        self.assertEqual(rule.last_run_at, next_run)
+
+    def test_recurring_expense_creator_can_pause_and_outsider_cannot(self):
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.member,
+            amount='120.00',
+            category='Transport',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+            recurrence={
+                'frequency': 'monthly',
+                'interval': 1,
+                'next_run_at': timezone.now() + timedelta(days=30),
+            },
+        )
+        rule = RecurringExpense.objects.get()
+
+        paused = self.budget_service.set_recurring_expense_active(
+            self.plan.id,
+            rule.id,
+            self.member,
+            is_active=False,
+        )
+        self.assertFalse(paused.is_active)
+
+        with self.assertRaises(PermissionDenied):
+            self.budget_service.set_recurring_expense_active(
+                self.plan.id,
+                rule.id,
+                self.outsider,
+                is_active=True,
+            )
+
+        self.client.force_authenticate(self.owner)
+        response = self.client.patch(
+            reverse(
+                'plan-recurring-expense-status',
+                kwargs={'plan_id': self.plan.id, 'recurring_id': rule.id},
+            ),
+            {'is_active': True},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['is_active'])
+
+    def test_finance_insights_returns_categories_and_over_budget_forecast(self):
+        self.budget_service.create_or_update_budget(
+            self.plan.id,
+            self.owner,
+            total_budget='100.00',
+        )
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='80.00',
+            category='Food',
+        )
+        insights = self.budget_service.get_finance_insights(self.plan.id, self.owner)
+        self.assertEqual(insights.categories[0].category, 'Food')
+        self.assertEqual(insights.categories[0].percentage, 100.0)
+        self.assertGreaterEqual(insights.forecast.projected_total, Decimal('80.00'))
+
+    def test_settlement_api_enforces_pending_then_receiver_confirmation(self):
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='200.00',
+            category='Food',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+        )
+        self.client.force_authenticate(self.member)
+        create_response = self.client.post(
+            reverse('settlements'),
+            {
+                'plan_id': str(self.plan.id),
+                'from_user_id': str(self.member.id),
+                'to_user_id': str(self.owner.id),
+                'amount': '100.00',
+                'payment_note': 'Bank transfer 123',
+            },
+            format='json',
+        )
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(create_response.data['status'], 'pending')
+
+        self.client.force_authenticate(self.owner)
+        complete_response = self.client.post(
+            reverse(
+                'settlement-action',
+                kwargs={
+                    'settlement_id': create_response.data['id'],
+                    'action': 'complete',
+                },
+            ),
+            {},
+            format='json',
+        )
+        self.assertEqual(complete_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(complete_response.data['status'], 'completed')
+
+    def test_expense_correction_and_finance_insights_api_contract(self):
+        original = self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='100.00',
+            category='Food',
+        ).expense
+        self.client.force_authenticate(self.owner)
+        correction_response = self.client.post(
+            reverse(
+                'plan-expense-corrections',
+                kwargs={'plan_id': self.plan.id, 'expense_id': original.id},
+            ),
+            {
+                'amount': '150.00',
+                'category': 'Restaurant',
+                'description': 'Correct total',
+                'reason': 'Receipt was read incorrectly',
+            },
+            format='json',
+        )
+        self.assertEqual(correction_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(correction_response.data['expense']['entry_type'], 'correction')
+        self.assertEqual(correction_response.data['summary']['total_spent'], Decimal('150.00'))
+
+        insights_response = self.client.get(
+            reverse('plan-finance-insights', kwargs={'plan_id': self.plan.id}),
+        )
+        self.assertEqual(insights_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(insights_response.data['categories'][0]['category'], 'Restaurant')
+
+    def test_outsider_cannot_read_settlements_or_finance_insights(self):
+        self.client.force_authenticate(self.outsider)
+        settlements_response = self.client.get(
+            reverse('settlements'),
+            {'plan_id': str(self.plan.id)},
+        )
+        insights_response = self.client.get(
+            reverse('plan-finance-insights', kwargs={'plan_id': self.plan.id}),
+        )
+        self.assertEqual(settlements_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(insights_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_process_expense_notifications_creates_budget_alerts(self):
         self.budget_service.create_or_update_budget(

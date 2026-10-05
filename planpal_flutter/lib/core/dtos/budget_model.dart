@@ -167,7 +167,14 @@ class ExpenseModel extends Equatable {
   final String currency;
   final String category;
   final String description;
+  final String paymentNote;
+  final String? receiptUrl;
   final String splitStrategy;
+  final String entryType;
+  final String? correctsExpenseId;
+  final String correctionReason;
+  final String? recurrenceId;
+  final DateTime? occurrenceAt;
   final List<ExpenseParticipantModel> participants;
   final List<ExpensePaymentModel> payments;
   final DateTime createdAt;
@@ -184,7 +191,14 @@ class ExpenseModel extends Equatable {
     required this.currency,
     required this.category,
     required this.description,
+    required this.paymentNote,
+    required this.receiptUrl,
     required this.splitStrategy,
+    required this.entryType,
+    required this.correctsExpenseId,
+    required this.correctionReason,
+    required this.recurrenceId,
+    required this.occurrenceAt,
     required this.participants,
     required this.payments,
     required this.createdAt,
@@ -217,7 +231,14 @@ class ExpenseModel extends Equatable {
       currency: json['currency']?.toString() ?? 'VND',
       category: json['category']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
+      paymentNote: json['payment_note']?.toString() ?? '',
+      receiptUrl: json['receipt_url']?.toString(),
       splitStrategy: json['split_strategy']?.toString() ?? 'equal',
+      entryType: json['entry_type']?.toString() ?? 'original',
+      correctsExpenseId: json['corrects_expense_id']?.toString(),
+      correctionReason: json['correction_reason']?.toString() ?? '',
+      recurrenceId: json['recurrence_id']?.toString(),
+      occurrenceAt: parseServerDateTime(json['occurrence_at']),
       participants: rawParticipants
           .whereType<Map>()
           .map(
@@ -229,9 +250,8 @@ class ExpenseModel extends Equatable {
       payments: rawPayments
           .whereType<Map>()
           .map(
-            (item) => ExpensePaymentModel.fromJson(
-              Map<String, dynamic>.from(item),
-            ),
+            (item) =>
+                ExpensePaymentModel.fromJson(Map<String, dynamic>.from(item)),
           )
           .toList(),
       createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
@@ -263,7 +283,14 @@ class ExpenseModel extends Equatable {
     currency,
     category,
     description,
+    paymentNote,
+    receiptUrl,
     splitStrategy,
+    entryType,
+    correctsExpenseId,
+    correctionReason,
+    recurrenceId,
+    occurrenceAt,
     participants,
     payments,
     createdAt,
@@ -608,11 +635,18 @@ class SettlementModel extends Equatable {
   final String planId;
   final String fromUserId;
   final String toUserId;
+  final BalanceUser fromUser;
+  final BalanceUser toUser;
   final double amount;
   final String currency;
   final String status;
   final String note;
+  final String paymentNote;
+  final String? receiptUrl;
+  final String? requestedByUserId;
+  final String rejectionReason;
   final DateTime? settledAt;
+  final DateTime? respondedAt;
   final DateTime createdAt;
 
   const SettlementModel({
@@ -620,11 +654,18 @@ class SettlementModel extends Equatable {
     required this.planId,
     required this.fromUserId,
     required this.toUserId,
+    required this.fromUser,
+    required this.toUser,
     required this.amount,
     required this.currency,
     required this.status,
     required this.note,
+    required this.paymentNote,
+    required this.receiptUrl,
+    required this.requestedByUserId,
+    required this.rejectionReason,
     required this.settledAt,
+    required this.respondedAt,
     required this.createdAt,
   });
 
@@ -634,11 +675,22 @@ class SettlementModel extends Equatable {
       planId: json['plan_id']?.toString() ?? '',
       fromUserId: json['from_user_id']?.toString() ?? '',
       toUserId: json['to_user_id']?.toString() ?? '',
+      fromUser: BalanceUser.fromJson(
+        Map<String, dynamic>.from(json['from_user'] as Map? ?? const {}),
+      ),
+      toUser: BalanceUser.fromJson(
+        Map<String, dynamic>.from(json['to_user'] as Map? ?? const {}),
+      ),
       amount: _asDouble(json['amount']),
       currency: json['currency']?.toString() ?? 'VND',
-      status: json['status']?.toString() ?? 'completed',
+      status: json['status']?.toString() ?? 'pending',
       note: json['note']?.toString() ?? '',
+      paymentNote: json['payment_note']?.toString() ?? '',
+      receiptUrl: json['receipt_url']?.toString(),
+      requestedByUserId: json['requested_by_user_id']?.toString(),
+      rejectionReason: json['rejection_reason']?.toString() ?? '',
       settledAt: parseServerDateTime(json['settled_at']),
+      respondedAt: parseServerDateTime(json['responded_at']),
       createdAt: parseServerDateTime(json['created_at']) ?? DateTime.now(),
     );
   }
@@ -649,12 +701,217 @@ class SettlementModel extends Equatable {
     planId,
     fromUserId,
     toUserId,
+    fromUser,
+    toUser,
     amount,
     currency,
     status,
     note,
+    paymentNote,
+    receiptUrl,
+    requestedByUserId,
+    rejectionReason,
     settledAt,
+    respondedAt,
     createdAt,
+  ];
+}
+
+class RecurrenceInput extends Equatable {
+  final String frequency;
+  final int interval;
+  final DateTime nextRunAt;
+  final DateTime? endAt;
+
+  const RecurrenceInput({
+    required this.frequency,
+    required this.interval,
+    required this.nextRunAt,
+    this.endAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'frequency': frequency,
+    'interval': interval,
+    'next_run_at': nextRunAt.toUtc().toIso8601String(),
+    if (endAt != null) 'end_at': endAt!.toUtc().toIso8601String(),
+  };
+
+  @override
+  List<Object?> get props => [frequency, interval, nextRunAt, endAt];
+}
+
+class RecurringExpenseModel extends Equatable {
+  final String id;
+  final String planId;
+  final String createdByUserId;
+  final double amount;
+  final String currency;
+  final String category;
+  final String description;
+  final String frequency;
+  final int interval;
+  final DateTime nextRunAt;
+  final DateTime? endAt;
+  final DateTime? lastRunAt;
+  final bool isActive;
+
+  const RecurringExpenseModel({
+    required this.id,
+    required this.planId,
+    required this.createdByUserId,
+    required this.amount,
+    required this.currency,
+    required this.category,
+    required this.description,
+    required this.frequency,
+    required this.interval,
+    required this.nextRunAt,
+    required this.endAt,
+    required this.lastRunAt,
+    required this.isActive,
+  });
+
+  factory RecurringExpenseModel.fromJson(Map<String, dynamic> json) {
+    return RecurringExpenseModel(
+      id: json['id']?.toString() ?? '',
+      planId: json['plan_id']?.toString() ?? '',
+      createdByUserId: json['created_by_user_id']?.toString() ?? '',
+      amount: _asDouble(json['amount']),
+      currency: json['currency']?.toString() ?? 'VND',
+      category: json['category']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      frequency: json['frequency']?.toString() ?? 'monthly',
+      interval: int.tryParse(json['interval']?.toString() ?? '') ?? 1,
+      nextRunAt: parseServerDateTime(json['next_run_at']) ?? DateTime.now(),
+      endAt: parseServerDateTime(json['end_at']),
+      lastRunAt: parseServerDateTime(json['last_run_at']),
+      isActive: json['is_active'] == true,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    id,
+    planId,
+    createdByUserId,
+    amount,
+    currency,
+    category,
+    description,
+    frequency,
+    interval,
+    nextRunAt,
+    endAt,
+    lastRunAt,
+    isActive,
+  ];
+}
+
+class CategorySpendingModel extends Equatable {
+  final String category;
+  final double amount;
+  final double percentage;
+
+  const CategorySpendingModel({
+    required this.category,
+    required this.amount,
+    required this.percentage,
+  });
+
+  factory CategorySpendingModel.fromJson(Map<String, dynamic> json) =>
+      CategorySpendingModel(
+        category: json['category']?.toString() ?? '',
+        amount: _asDouble(json['amount']),
+        percentage: _asDouble(json['percentage']),
+      );
+
+  @override
+  List<Object?> get props => [category, amount, percentage];
+}
+
+class BudgetForecastModel extends Equatable {
+  final double dailyAverage;
+  final double projectedTotal;
+  final double projectedRemaining;
+  final bool projectedOverBudget;
+  final DateTime? forecastDate;
+
+  const BudgetForecastModel({
+    required this.dailyAverage,
+    required this.projectedTotal,
+    required this.projectedRemaining,
+    required this.projectedOverBudget,
+    required this.forecastDate,
+  });
+
+  factory BudgetForecastModel.fromJson(Map<String, dynamic> json) =>
+      BudgetForecastModel(
+        dailyAverage: _asDouble(json['daily_average']),
+        projectedTotal: _asDouble(json['projected_total']),
+        projectedRemaining: _asDouble(json['projected_remaining']),
+        projectedOverBudget: json['projected_over_budget'] == true,
+        forecastDate: parseServerDateTime(json['forecast_date']),
+      );
+
+  @override
+  List<Object?> get props => [
+    dailyAverage,
+    projectedTotal,
+    projectedRemaining,
+    projectedOverBudget,
+    forecastDate,
+  ];
+}
+
+class FinanceInsightsModel extends Equatable {
+  final String planId;
+  final String currency;
+  final double totalSpent;
+  final List<CategorySpendingModel> categories;
+  final BudgetForecastModel forecast;
+  final int pendingSettlementCount;
+  final double pendingSettlementAmount;
+
+  const FinanceInsightsModel({
+    required this.planId,
+    required this.currency,
+    required this.totalSpent,
+    required this.categories,
+    required this.forecast,
+    required this.pendingSettlementCount,
+    required this.pendingSettlementAmount,
+  });
+
+  factory FinanceInsightsModel.fromJson(
+    Map<String, dynamic> json,
+  ) => FinanceInsightsModel(
+    planId: json['plan_id']?.toString() ?? '',
+    currency: json['currency']?.toString() ?? 'VND',
+    totalSpent: _asDouble(json['total_spent']),
+    categories: (json['categories'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map(
+          (item) =>
+              CategorySpendingModel.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .toList(),
+    forecast: BudgetForecastModel.fromJson(
+      Map<String, dynamic>.from(json['forecast'] as Map? ?? const {}),
+    ),
+    pendingSettlementCount: _asInt(json['pending_settlement_count']),
+    pendingSettlementAmount: _asDouble(json['pending_settlement_amount']),
+  );
+
+  @override
+  List<Object?> get props => [
+    planId,
+    currency,
+    totalSpent,
+    categories,
+    forecast,
+    pendingSettlementCount,
+    pendingSettlementAmount,
   ];
 }
 

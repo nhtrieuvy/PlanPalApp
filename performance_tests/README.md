@@ -242,6 +242,65 @@ Remove-Item Env:\PLANPAL_CLIENT_SECRET -ErrorAction SilentlyContinue
 Remove-Item Env:\PLANPAL_ACCESS_TOKEN -ErrorAction SilentlyContinue
 ```
 
+## 11. Đo WebSocket chat thật
+
+`websocket_locustfile.py` kết nối trực tiếp tới Channels và đo vòng lặp
+`ping -> pong`. Đây là số WebSocket latency thực, không dùng thời gian POST
+message làm số thay thế.
+
+Mặc định mỗi user chủ động đóng socket sau 20 ping thành công. Lần task kế tiếp
+phải kết nối và xác thực lại, nhờ đó cùng một bài test đo cả latency ổn định lẫn
+khả năng reconnect. Đặt `PLANPAL_WS_FORCE_RECONNECT_EVERY=0` nếu chỉ muốn đo
+steady-state latency.
+
+Tài khoản test phải có ít nhất một conversation. Có thể chỉ định cố định:
+
+```powershell
+$env:PLANPAL_WS_CONVERSATION_ID="conversation-uuid"
+```
+
+Chạy giao diện Locust:
+
+```powershell
+.\.venv\Scripts\python.exe -m locust `
+  -f .\performance_tests\websocket_locustfile.py `
+  --host=http://127.0.0.1:8000
+```
+
+Chạy headless và kiểm tra ngưỡng P95 dưới 200 ms:
+
+```powershell
+.\.venv\Scripts\python.exe -m locust `
+  -f .\performance_tests\websocket_locustfile.py `
+  --host=http://127.0.0.1:8000 `
+  --headless -u 20 -r 2 -t 2m `
+  --csv=.\performance_tests\results\websocket
+
+$env:PLANPAL_MAX_AVG_MS="100"
+$env:PLANPAL_MAX_P95_MS="200"
+.\.venv\Scripts\python.exe .\performance_tests\assert_performance.py `
+  .\performance_tests\results\websocket_stats.csv
+```
+
+## 12. Benchmark định kỳ
+
+Workflow `.github/workflows/performance.yml` chạy mỗi tuần trên staging và có
+thể chạy thủ công. Cần cấu hình các GitHub Actions secrets:
+
+- `PLANPAL_PERF_HOST`
+- `PLANPAL_PERF_USERNAME`
+- `PLANPAL_PERF_PASSWORD`
+- `PLANPAL_PERF_CLIENT_ID`
+- `PLANPAL_PERF_CLIENT_SECRET` nếu OAuth client là confidential
+- `PLANPAL_PERF_CONVERSATION_ID`
+
+Workflow mặc định chỉ chạy read scenarios để không làm bẩn dữ liệu staging.
+Muốn đo POST plan/chat/upload ở local, đặt:
+
+```powershell
+$env:PLANPAL_ENABLE_WRITE_SCENARIOS="true"
+```
+
 Nếu muốn kiểm tra token trước khi chạy Locust:
 
 ```powershell

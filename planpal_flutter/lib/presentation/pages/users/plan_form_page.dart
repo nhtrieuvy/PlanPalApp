@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/presentation/widgets/forms/app_select_field.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/riverpod/storage_providers.dart';
 import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/dtos/plan_requests.dart';
 import 'package:planpal_flutter/presentation/widgets/forms/form_wizard_scaffold.dart';
@@ -32,6 +35,10 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
   String? _selectedGroupId;
   String _planType = 'personal';
   int _currentStep = 0;
+  bool _submitted = false;
+
+  String get _draftScope =>
+      'plan_form:${widget.initial?['id']?.toString() ?? 'new'}';
 
   @override
   void initState() {
@@ -62,7 +69,39 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
         ? true
         : (widget.initial?['is_public'] ?? true);
     _selectedGroupId = widget.initial?['group_id']?.toString();
+    _restoreDraft();
     _fetchGroups();
+  }
+
+  void _restoreDraft() {
+    final draft = ref.read(offlineSyncProvider).loadDraft(_draftScope);
+    if (draft == null) return;
+    _titleCtrl.text = draft['title']?.toString() ?? _titleCtrl.text;
+    _descriptionCtrl.text =
+        draft['description']?.toString() ?? _descriptionCtrl.text;
+    _startDate =
+        DateTime.tryParse(draft['start_date']?.toString() ?? '') ?? _startDate;
+    _endDate =
+        DateTime.tryParse(draft['end_date']?.toString() ?? '') ?? _endDate;
+    _isPublic = draft['is_public'] as bool? ?? _isPublic;
+    _planType = draft['plan_type']?.toString() ?? _planType;
+    _selectedGroupId = draft['group_id']?.toString() ?? _selectedGroupId;
+  }
+
+  Future<void> _saveDraft() =>
+      ref.read(offlineSyncProvider).saveDraft(_draftScope, {
+        'title': _titleCtrl.text,
+        'description': _descriptionCtrl.text,
+        'start_date': _startDate?.toIso8601String(),
+        'end_date': _endDate?.toIso8601String(),
+        'is_public': _isPublic,
+        'plan_type': _planType,
+        'group_id': _selectedGroupId,
+      });
+
+  Future<void> _clearDraft() async {
+    _submitted = true;
+    await ref.read(offlineSyncProvider).clearDraft(_draftScope);
   }
 
   Future<void> _fetchGroups() async {
@@ -79,6 +118,7 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
 
   @override
   void dispose() {
+    if (!_submitted) unawaited(_saveDraft());
     _titleCtrl.dispose();
     _descriptionCtrl.dispose();
     super.dispose();
@@ -162,6 +202,8 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
         );
         result = await _repo.createPlan(request);
         if (!mounted) return;
+        await _clearDraft();
+        if (!mounted) return;
         Navigator.of(context).pop({
           'action': 'created',
           'plan': {
@@ -186,6 +228,8 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
           planType: _planType,
         );
         result = await _repo.updatePlan(planId, request);
+        if (!mounted) return;
+        await _clearDraft();
         if (!mounted) return;
         Navigator.of(context).pop({
           'action': 'updated',
@@ -410,7 +454,10 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
             prefixIcon: Icons.group_work_outlined,
             hintText: l10n.t('plan_form.select_group'),
             options: _groups
-                .map((group) => AppSelectOption(value: group.id, label: group.name))
+                .map(
+                  (group) =>
+                      AppSelectOption(value: group.id, label: group.name),
+                )
                 .toList(),
             onChanged: (value) => setState(() => _selectedGroupId = value),
           ),

@@ -42,6 +42,10 @@ test_*.xml
 # Environment variables
 .env
 *.env
+.env.*
+!.env.example
+!.env.local.example
+!.env.production.example
 
 # ============================
 # Flutter / Dart
@@ -54,6 +58,7 @@ build/
 .packages
 .pub-cache/
 .pub/
+.tool-home/
 
 # Android
 android/.gradle/
@@ -94,7 +99,6 @@ google-services.json
 # ============================
 # Test / Debug files
 # ============================
-test_*.py
 run_all.sh
 start_daphne.sh
 Dockerfile.allinone
@@ -111,3 +115,5 @@ fly.allinone.toml
 # ============================
 logs/
 planpalapp/logs/
+backups/
+performance_tests/results/

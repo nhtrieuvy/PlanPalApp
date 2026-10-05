@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
 import 'package:planpal_flutter/core/dtos/user_summary.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
@@ -29,6 +31,7 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
   final _amountController = TextEditingController();
   final _categoryController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _paymentNoteController = TextEditingController();
   final Map<String, TextEditingController> _splitControllers = {};
   final Map<String, TextEditingController> _paymentControllers = {};
   final Set<String> _selectedParticipantIds = {};
@@ -36,6 +39,13 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
   String? _paidByUserId;
   bool _hasMultiplePayers = false;
   bool _isSubmitting = false;
+  bool _isRecurring = false;
+  String _recurrenceFrequency = 'monthly';
+  final int _recurrenceInterval = 1;
+  DateTime? _nextRunAt;
+  DateTime? _recurrenceEndAt;
+  String? _receiptPath;
+  String? _receiptName;
   int _currentStep = 0;
 
   @override
@@ -54,6 +64,7 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
     _amountController.dispose();
     _categoryController.dispose();
     _descriptionController.dispose();
+    _paymentNoteController.dispose();
     for (final controller in _splitControllers.values) {
       controller.dispose();
     }
@@ -93,6 +104,12 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
           subtitle: l10n.t('budget.form_description'),
           child: _buildSharingSection(context),
         ),
+      FormWizardStep(
+        title: l10n.t('budget.payment_details'),
+        icon: Icons.event_repeat_rounded,
+        subtitle: l10n.t('budget.payment_details_subtitle'),
+        child: _buildPaymentDetailsStep(context),
+      ),
       FormWizardStep(
         title: l10n.t('wizard.review'),
         icon: Icons.fact_check_outlined,
@@ -248,8 +265,188 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
             ],
           ),
         ],
+        const SizedBox(height: 12),
+        ReviewSection(
+          title: l10n.t('budget.payment_details'),
+          items: [
+            ReviewItem(
+              l10n.t('budget.receipt'),
+              _receiptName ?? l10n.t('budget.no_receipt'),
+            ),
+            ReviewItem(
+              l10n.t('budget.payment_note'),
+              _paymentNoteController.text.trim().isEmpty
+                  ? '-'
+                  : _paymentNoteController.text.trim(),
+            ),
+            ReviewItem(
+              l10n.t('budget.recurring_expense'),
+              _isRecurring
+                  ? l10n.t(
+                      'budget.recurrence_summary',
+                      params: {
+                        'interval': '$_recurrenceInterval',
+                        'frequency': l10n.t(
+                          'budget.frequency_$_recurrenceFrequency',
+                        ),
+                      },
+                    )
+                  : l10n.t('common.no'),
+            ),
+          ],
+        ),
       ],
     );
+  }
+
+  Widget _buildPaymentDetailsStep(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: _paymentNoteController,
+          minLines: 2,
+          maxLines: 4,
+          maxLength: 2000,
+          decoration: InputDecoration(
+            labelText: l10n.t('budget.payment_note'),
+            hintText: l10n.t('budget.payment_note_hint'),
+            prefixIcon: const Icon(Icons.edit_note_rounded),
+            alignLabelWithHint: true,
+          ),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: _pickReceipt,
+          icon: const Icon(Icons.attach_file_rounded),
+          label: Text(
+            _receiptName ?? l10n.t('budget.attach_receipt'),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (_receiptName != null)
+          TextButton.icon(
+            onPressed: () => setState(() {
+              _receiptName = null;
+              _receiptPath = null;
+            }),
+            icon: const Icon(Icons.close_rounded),
+            label: Text(l10n.t('budget.remove_receipt')),
+          ),
+        const SizedBox(height: 16),
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.t('budget.recurring_expense')),
+          subtitle: Text(l10n.t('budget.recurring_expense_hint')),
+          value: _isRecurring,
+          onChanged: (value) => setState(() {
+            _isRecurring = value;
+            _nextRunAt ??= DateTime.now().add(const Duration(days: 30));
+          }),
+        ),
+        if (_isRecurring) ...[
+          const SizedBox(height: 8),
+          AppSelectField<String>(
+            label: l10n.t('budget.frequency'),
+            value: _recurrenceFrequency,
+            prefixIcon: Icons.repeat_rounded,
+            options: [
+              AppSelectOption(
+                value: 'weekly',
+                label: l10n.t('budget.frequency_weekly'),
+              ),
+              AppSelectOption(
+                value: 'monthly',
+                label: l10n.t('budget.frequency_monthly'),
+              ),
+            ],
+            onChanged: (value) {
+              setState(() => _recurrenceFrequency = value);
+            },
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _DateOption(
+                  label: l10n.t('budget.next_charge'),
+                  value: _nextRunAt,
+                  onTap: () => _selectRecurrenceDate(isEnd: false),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DateOption(
+                  label: l10n.t('budget.end_date_optional'),
+                  value: _recurrenceEndAt,
+                  onTap: () => _selectRecurrenceDate(isEnd: true),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.t('budget.recurring_ledger_hint'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _pickReceipt() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+    );
+    final file = result?.files.single;
+    if (file?.path == null || !mounted) return;
+    if ((file!.size) > 10 * 1024 * 1024) {
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        context.l10n.t('budget.receipt_too_large'),
+      );
+      return;
+    }
+    setState(() {
+      _receiptPath = file.path;
+      _receiptName = file.name;
+    });
+  }
+
+  Future<void> _selectRecurrenceDate({required bool isEnd}) async {
+    final now = DateTime.now();
+    final initial = isEnd
+        ? (_recurrenceEndAt ?? _nextRunAt ?? now.add(const Duration(days: 30)))
+        : (_nextRunAt ?? now.add(const Duration(days: 30)));
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initial.isBefore(now) ? now : initial,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 3650)),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      if (isEnd) {
+        _recurrenceEndAt = DateTime(
+          selected.year,
+          selected.month,
+          selected.day,
+          23,
+          59,
+          59,
+        );
+      } else {
+        _nextRunAt = selected.add(const Duration(hours: 9));
+        if (_recurrenceEndAt != null && _recurrenceEndAt!.isBefore(selected)) {
+          _recurrenceEndAt = null;
+        }
+      }
+    });
   }
 
   Widget _buildSharingSection(BuildContext context) {
@@ -284,8 +481,9 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
               setState(() {
                 _hasMultiplePayers = enabled;
                 if (enabled && _paidByUserId != null) {
-                  _paymentControllers[_paidByUserId!]?.text =
-                      _amountController.text.trim();
+                  _paymentControllers[_paidByUserId!]?.text = _amountController
+                      .text
+                      .trim();
                 }
               });
             },
@@ -417,6 +615,16 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
             splitStrategy: _splitStrategy,
             participants: participantInputs,
             payments: paymentInputs,
+            paymentNote: _paymentNoteController.text.trim(),
+            receiptPath: _receiptPath,
+            recurrence: _isRecurring && _nextRunAt != null
+                ? RecurrenceInput(
+                    frequency: _recurrenceFrequency,
+                    interval: _recurrenceInterval,
+                    nextRunAt: _nextRunAt!,
+                    endAt: _recurrenceEndAt,
+                  )
+                : null,
           );
       if (!mounted) return;
       Navigator.of(context).pop<ExpenseCreateResult>(result);
@@ -464,7 +672,8 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
     if (_selectedParticipantIds.isEmpty) {
       return context.l10n.t('budget.validation_participant_required');
     }
-    if (!_hasMultiplePayers && (_paidByUserId == null || _paidByUserId!.isEmpty)) {
+    if (!_hasMultiplePayers &&
+        (_paidByUserId == null || _paidByUserId!.isEmpty)) {
       return context.l10n.t('budget.validation_payer_required');
     }
     final paymentError = _validatePaymentInputs();
@@ -507,7 +716,9 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
       payerCount += 1;
       total += contribution;
     }
-    if (payerCount == 0) return context.l10n.t('budget.validation_payment_required');
+    if (payerCount == 0) {
+      return context.l10n.t('budget.validation_payment_required');
+    }
     if ((total - amount).abs() > 0.01) {
       return context.l10n.t('budget.validation_payment_total');
     }
@@ -520,7 +731,9 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
     final total = _paymentTotal();
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
     final isBalanced = (total - amount).abs() <= 0.01 && total > 0;
-    final color = isBalanced ? theme.colorScheme.primary : theme.colorScheme.error;
+    final color = isBalanced
+        ? theme.colorScheme.primary
+        : theme.colorScheme.error;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -534,7 +747,9 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
         children: [
           Text(
             l10n.t('budget.payment_contributions'),
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -549,7 +764,9 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
               padding: const EdgeInsets.only(bottom: 10),
               child: TextFormField(
                 controller: _paymentControllers[member.id],
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   labelText: _memberName(member),
@@ -577,7 +794,9 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
   double _paymentTotal() => widget.members.fold<double>(
     0,
     (total, member) =>
-        total + (double.tryParse(_paymentControllers[member.id]?.text.trim() ?? '') ?? 0),
+        total +
+        (double.tryParse(_paymentControllers[member.id]?.text.trim() ?? '') ??
+            0),
   );
 
   String _paymentPreview() {
@@ -612,5 +831,32 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
       default:
         return l10n.t('budget.split_equal');
     }
+  }
+}
+
+class _DateOption extends StatelessWidget {
+  const _DateOption({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final DateTime? value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: const Icon(Icons.calendar_month_outlined),
+        ),
+        child: Text(value == null ? '-' : DateFormat.yMd().format(value!)),
+      ),
+    );
   }
 }

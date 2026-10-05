@@ -7,6 +7,7 @@ import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/presentation/widgets/common/refreshable_page_wrapper.dart';
 import 'package:planpal_flutter/presentation/widgets/notifications/notification_item.dart';
+import 'package:planpal_flutter/presentation/pages/notifications/notification_preferences_page.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
 
 class NotificationListPage extends ConsumerStatefulWidget {
@@ -79,6 +80,15 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: l10n.t('notification_settings.title'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const NotificationPreferencesPage(),
+              ),
+            ),
+            icon: const Icon(Icons.tune_rounded),
+          ),
           if (unreadCount > 0)
             IconButton(
               tooltip: l10n.t('notifications.mark_all_as_read'),

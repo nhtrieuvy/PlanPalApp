@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
@@ -117,9 +119,12 @@ class PlanActivitySerializer(serializers.ModelSerializer):
     
     def _get_maps_url(self, instance):
         if instance.has_location:
-            return f"https://www.google.com/maps?q={instance.latitude},{instance.longitude}"
+            return (
+                'planpal://map?'
+                f'latitude={instance.latitude}&longitude={instance.longitude}'
+            )
         elif instance.location_name:
-            return f"https://www.google.com/maps/search/{instance.location_name}"
+            return f"planpal://map?query={quote(instance.location_name)}"
         return None
     
     def validate(self, attrs):
@@ -259,7 +264,7 @@ class PlanDetailSerializer(serializers.ModelSerializer):
         model = Plan
         fields = [
             'id', 'title', 'description', 'start_date', 'end_date',
-            'is_public', 'status', 'plan_type', 'creator', 'group', 'group_id', 'group_name',
+            'is_public', 'is_template', 'status', 'plan_type', 'creator', 'group', 'group_id', 'group_name',
             'activities', 'duration_days', 'activities_count', 
             'total_estimated_cost', 'can_view', 'can_edit', 'collaborators',
             'created_at', 'updated_at'
@@ -468,7 +473,7 @@ class PlanSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Plan
         fields = [
-            'id', 'title', 'start_date', 'end_date', 'is_public', 'status',
+            'id', 'title', 'start_date', 'end_date', 'is_public', 'is_template', 'status',
             'plan_type', 'creator', 'group_name', 'duration_days', 'activities_count',
             'created_at'
         ]

@@ -1,5 +1,7 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
@@ -31,8 +33,7 @@ class BalancesPage extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: l10n.t('common.refresh'),
-            onPressed: () =>
-                ref.read(balancesProvider(planId).notifier).refresh(),
+            onPressed: () => _refreshAll(ref),
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
@@ -41,13 +42,17 @@ class BalancesPage extends ConsumerWidget {
         loading: () => const AppSkeleton.list(itemCount: 5),
         error: (error, _) => AppError(
           message: ErrorDisplayService.getUserFriendlyMessage(error),
-          onRetry: () =>
-              ref.read(balancesProvider(planId).notifier).refresh(),
+          onRetry: () => ref.read(balancesProvider(planId).notifier).refresh(),
         ),
         data: (summary) =>
             _BalanceContent(planTitle: planTitle, summary: summary),
       ),
     );
+  }
+
+  Future<void> _refreshAll(WidgetRef ref) async {
+    await ref.read(balancesProvider(planId).notifier).refresh();
+    ref.invalidate(settlementsProvider(planId));
   }
 }
 
@@ -62,6 +67,12 @@ class _BalanceContent extends ConsumerWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final settlementsAsync = ref.watch(settlementsProvider(summary.planId));
+    final pendingSettlements =
+        settlementsAsync.valueOrNull
+            ?.where((item) => item.status == 'pending')
+            .toList() ??
+        const <SettlementModel>[];
     final totalToReceive = summary.balances
         .where((item) => item.netBalance > 0)
         .fold<double>(0, (sum, item) => sum + item.netBalance);
@@ -70,8 +81,7 @@ class _BalanceContent extends ConsumerWidget {
         .fold<double>(0, (sum, item) => sum + item.netBalance.abs());
 
     return RefreshIndicator(
-      onRefresh: () =>
-          ref.read(balancesProvider(summary.planId).notifier).refresh(),
+      onRefresh: () => _refreshAll(ref),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
@@ -111,9 +121,28 @@ class _BalanceContent extends ConsumerWidget {
                   planId: summary.planId,
                   currency: summary.currency,
                   suggestion: suggestion,
+                  hasPendingRequest: pendingSettlements.any(
+                    (item) =>
+                        item.fromUserId == suggestion.fromUser.id &&
+                        item.toUserId == suggestion.toUser.id,
+                  ),
                 ),
               ),
             ),
+          if (pendingSettlements.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _SectionTitle(
+              icon: Icons.hourglass_top_rounded,
+              title: l10n.t('budget.pending_settlements'),
+            ),
+            const SizedBox(height: 10),
+            ...pendingSettlements.map(
+              (settlement) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _PendingSettlementCard(settlement: settlement),
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
           _SectionTitle(
             icon: Icons.people_alt_outlined,
@@ -129,6 +158,11 @@ class _BalanceContent extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _refreshAll(WidgetRef ref) async {
+    await ref.read(balancesProvider(summary.planId).notifier).refresh();
+    ref.invalidate(settlementsProvider(summary.planId));
   }
 }
 
@@ -154,7 +188,10 @@ class _LedgerHero extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [colorScheme.primaryContainer, colorScheme.secondaryContainer],
+          colors: [
+            colorScheme.primaryContainer,
+            colorScheme.secondaryContainer,
+          ],
         ),
       ),
       child: Column(
@@ -292,7 +329,9 @@ class _SectionTitle extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           title,
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );
@@ -328,11 +367,13 @@ class _DebtSuggestionCard extends ConsumerStatefulWidget {
   final String planId;
   final String currency;
   final DebtSuggestionModel suggestion;
+  final bool hasPendingRequest;
 
   const _DebtSuggestionCard({
     required this.planId,
     required this.currency,
     required this.suggestion,
+    required this.hasPendingRequest,
   });
 
   @override
@@ -349,7 +390,8 @@ class _DebtSuggestionCardState extends ConsumerState<_DebtSuggestionCard> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final currentUserId = ref.watch(authNotifierProvider).user?.id;
-    final canRecord = currentUserId == suggestion.fromUser.id;
+    final canRecord =
+        currentUserId == suggestion.fromUser.id && !widget.hasPendingRequest;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -398,7 +440,7 @@ class _DebtSuggestionCardState extends ConsumerState<_DebtSuggestionCard> {
           ),
           if (canRecord)
             IconButton.filled(
-              tooltip: context.l10n.t('budget.mark_as_settled'),
+              tooltip: context.l10n.t('budget.request_payment_confirmation'),
               onPressed: _isSubmitting ? null : _recordSettlement,
               icon: _isSubmitting
                   ? const SizedBox(
@@ -414,6 +456,13 @@ class _DebtSuggestionCardState extends ConsumerState<_DebtSuggestionCard> {
   }
 
   Future<void> _recordSettlement() async {
+    final draft = await showModalBottomSheet<_SettlementRequestDraft>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const _SettlementRequestSheet(),
+    );
+    if (draft == null || !mounted) return;
     setState(() => _isSubmitting = true);
     try {
       await ref
@@ -424,12 +473,15 @@ class _DebtSuggestionCardState extends ConsumerState<_DebtSuggestionCard> {
             toUserId: widget.suggestion.toUser.id,
             amount: widget.suggestion.amount,
             currency: widget.currency,
+            paymentNote: draft.paymentNote,
+            receiptPath: draft.receiptPath,
           );
       ref.invalidate(balancesProvider(widget.planId));
+      ref.invalidate(settlementsProvider(widget.planId));
       if (!mounted) return;
       ErrorDisplayService.showSuccessSnackbar(
         context,
-        context.l10n.t('budget.settlement_recorded'),
+        context.l10n.t('budget.payment_request_sent'),
       );
     } catch (error) {
       if (!mounted) return;
@@ -437,6 +489,292 @@ class _DebtSuggestionCardState extends ConsumerState<_DebtSuggestionCard> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+}
+
+class _PendingSettlementCard extends ConsumerStatefulWidget {
+  const _PendingSettlementCard({required this.settlement});
+
+  final SettlementModel settlement;
+
+  @override
+  ConsumerState<_PendingSettlementCard> createState() =>
+      _PendingSettlementCardState();
+}
+
+class _PendingSettlementCardState
+    extends ConsumerState<_PendingSettlementCard> {
+  bool _submitting = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final settlement = widget.settlement;
+    final colors = Theme.of(context).colorScheme;
+    final currentUserId = ref.watch(authNotifierProvider).user?.id;
+    final canRespond = currentUserId == settlement.toUserId;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.schedule_send_rounded, color: colors.tertiary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${_displayName(settlement.fromUser)} → '
+                  '${_displayName(settlement.toUser)}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              Text(
+                AppFormatters.currency(
+                  context,
+                  amount: settlement.amount,
+                  currencyCode: settlement.currency,
+                ),
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+          if (settlement.paymentNote.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(settlement.paymentNote),
+          ],
+          if (settlement.receiptUrl != null) ...[
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              leading: const Icon(Icons.attach_file_rounded),
+              title: Text(context.l10n.t('budget.receipt')),
+              trailing: const Icon(Icons.open_in_new_rounded),
+              onTap: () => launchUrl(
+                Uri.parse(settlement.receiptUrl!),
+                mode: LaunchMode.externalApplication,
+              ),
+            ),
+          ],
+          if (canRespond) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _submitting ? null : () => _respond('reject'),
+                  child: Text(context.l10n.t('budget.reject_payment')),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: _submitting ? null : () => _respond('complete'),
+                  icon: _submitting
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_rounded),
+                  label: Text(context.l10n.t('budget.confirm_payment')),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _respond(String action) async {
+    var rejectionReason = '';
+    if (action == 'reject') {
+      final reason = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          var value = '';
+          return AlertDialog(
+            title: Text(context.l10n.t('budget.reject_payment')),
+            content: TextField(
+              autofocus: true,
+              minLines: 2,
+              maxLines: 4,
+              onChanged: (text) => value = text,
+              decoration: InputDecoration(
+                labelText: context.l10n.t('budget.rejection_reason'),
+                hintText: context.l10n.t('budget.rejection_reason_hint'),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(context.l10n.t('common.cancel')),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(value.trim()),
+                child: Text(context.l10n.t('budget.reject_payment')),
+              ),
+            ],
+          );
+        },
+      );
+      if (reason == null || !mounted) return;
+      rejectionReason = reason;
+    }
+    setState(() => _submitting = true);
+    try {
+      await ref
+          .read(budgetRepositoryProvider)
+          .respondToSettlement(
+            widget.settlement.id,
+            action: action,
+            rejectionReason: rejectionReason,
+          );
+      ref.invalidate(settlementsProvider(widget.settlement.planId));
+      ref.invalidate(balancesProvider(widget.settlement.planId));
+      if (!mounted) return;
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t(
+          action == 'complete'
+              ? 'budget.payment_confirmed'
+              : 'budget.payment_rejected',
+        ),
+      );
+    } catch (error) {
+      if (mounted) ErrorDisplayService.handleError(context, error);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+}
+
+class _SettlementRequestDraft {
+  const _SettlementRequestDraft({required this.paymentNote, this.receiptPath});
+
+  final String paymentNote;
+  final String? receiptPath;
+}
+
+class _SettlementRequestSheet extends StatefulWidget {
+  const _SettlementRequestSheet();
+
+  @override
+  State<_SettlementRequestSheet> createState() =>
+      _SettlementRequestSheetState();
+}
+
+class _SettlementRequestSheetState extends State<_SettlementRequestSheet> {
+  final _paymentNote = TextEditingController();
+  String? _receiptPath;
+  String? _receiptName;
+
+  @override
+  void dispose() {
+    _paymentNote.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 20,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.l10n.t('budget.request_payment_confirmation'),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.t('budget.payment_proof_hint'),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _paymentNote,
+              minLines: 2,
+              maxLines: 4,
+              decoration: InputDecoration(
+                labelText: context.l10n.t('budget.payment_note'),
+                hintText: context.l10n.t('budget.payment_note_hint'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: Text(
+                _receiptName ?? context.l10n.t('budget.attach_receipt'),
+              ),
+              subtitle: Text(context.l10n.t('budget.receipt_formats')),
+              trailing: _receiptPath == null
+                  ? const Icon(Icons.add_rounded)
+                  : IconButton(
+                      tooltip: context.l10n.t('budget.remove_receipt'),
+                      onPressed: () => setState(() {
+                        _receiptPath = null;
+                        _receiptName = null;
+                      }),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+              onTap: _pickReceipt,
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.of(context).pop(
+                  _SettlementRequestDraft(
+                    paymentNote: _paymentNote.text.trim(),
+                    receiptPath: _receiptPath,
+                  ),
+                ),
+                icon: const Icon(Icons.send_rounded),
+                label: Text(
+                  context.l10n.t('budget.request_payment_confirmation'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickReceipt() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+    );
+    final file = result?.files.single;
+    if (file?.path == null || !mounted) return;
+    if (file!.size > 10 * 1024 * 1024) {
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        context.l10n.t('budget.receipt_too_large'),
+      );
+      return;
+    }
+    setState(() {
+      _receiptPath = file.path;
+      _receiptName = file.name;
+    });
   }
 }
 
@@ -544,7 +882,9 @@ class _BalanceCard extends StatelessWidget {
   String _initials(BalanceUser user) {
     final name = _displayName(user);
     final parts = name.split(' ').where((part) => part.isNotEmpty).toList();
-    if (parts.length >= 2) return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 }
@@ -576,10 +916,16 @@ class _LedgerValue extends StatelessWidget {
         ),
         const SizedBox(height: 3),
         Text(
-          AppFormatters.currency(context, amount: amount, currencyCode: currency),
+          AppFormatters.currency(
+            context,
+            amount: amount,
+            currencyCode: currency,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );

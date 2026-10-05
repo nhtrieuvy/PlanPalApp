@@ -11,6 +11,13 @@ def _env(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = _env(name)
+    if not raw:
+        return default
+    return raw.lower() in {"1", "true", "yes", "on"}
+
+
 class PlanPalApiUser(HttpUser):
     """
     Locust user that simulates common PlanPal mobile flows.
@@ -36,6 +43,7 @@ class PlanPalApiUser(HttpUser):
     group_ids: list[str]
     conversation_ids: list[str]
     include_admin_analytics: bool
+    enable_write_scenarios: bool
 
     def on_start(self) -> None:
         self.plan_ids = []
@@ -46,6 +54,7 @@ class PlanPalApiUser(HttpUser):
             "true",
             "yes",
         }
+        self.enable_write_scenarios = _env_bool("PLANPAL_ENABLE_WRITE_SCENARIOS")
         self._authenticate()
         self._assert_authenticated()
         if self.include_admin_analytics:
@@ -270,6 +279,8 @@ class PlanPalApiUser(HttpUser):
 
     @task(1)
     def create_personal_plan(self) -> None:
+        if not self.enable_write_scenarios:
+            return
         now = datetime.now(timezone.utc) + timedelta(days=random.randint(5, 30))
         end = now + timedelta(days=random.randint(1, 3))
         payload = {
@@ -301,6 +312,8 @@ class PlanPalApiUser(HttpUser):
 
     @task(1)
     def send_chat_text_message(self) -> None:
+        if not self.enable_write_scenarios:
+            return
         if not self.conversation_ids:
             return
 
@@ -317,6 +330,8 @@ class PlanPalApiUser(HttpUser):
 
     @task(1)
     def send_chat_location_message(self) -> None:
+        if not self.enable_write_scenarios:
+            return
         if not self.conversation_ids:
             return
 
@@ -336,6 +351,8 @@ class PlanPalApiUser(HttpUser):
 
     @task(1)
     def upload_chat_image_if_configured(self) -> None:
+        if not self.enable_write_scenarios:
+            return
         image_path = _env("PLANPAL_TEST_IMAGE_PATH")
         if not image_path or not self.conversation_ids:
             return

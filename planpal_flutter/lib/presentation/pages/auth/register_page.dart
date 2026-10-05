@@ -60,12 +60,15 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           _avatarImage = File(image.path);
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            l10n.t('auth.pick_image_error', params: {'error': '$e'}),
+            l10n.t(
+              'auth.pick_image_error',
+              params: {'error': l10n.t('chat.pick_image_failed')},
+            ),
           ),
           backgroundColor: AppColors.error,
         ),

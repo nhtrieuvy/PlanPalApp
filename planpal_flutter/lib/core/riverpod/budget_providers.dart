@@ -181,3 +181,18 @@ final balancesProvider =
     AsyncNotifierProvider.family<BalancesNotifier, BalanceSummaryModel, String>(
       BalancesNotifier.new,
     );
+
+final financeInsightsProvider = FutureProvider.autoDispose
+    .family<FinanceInsightsModel, String>((ref, planId) {
+      return ref.watch(budgetRepositoryProvider).getFinanceInsights(planId);
+    });
+
+final settlementsProvider = FutureProvider.autoDispose
+    .family<List<SettlementModel>, String>((ref, planId) {
+      return ref.watch(budgetRepositoryProvider).getSettlements(planId);
+    });
+
+final recurringExpensesProvider = FutureProvider.autoDispose
+    .family<List<RecurringExpenseModel>, String>((ref, planId) {
+      return ref.watch(budgetRepositoryProvider).getRecurringExpenses(planId);
+    });

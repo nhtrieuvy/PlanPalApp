@@ -29,6 +29,7 @@ class PlanModel extends Equatable {
   final DateTime? startDate;
   final DateTime? endDate;
   final bool isPublic;
+  final bool isTemplate;
   final String status;
   final String planType;
   final UserSummary creator;
@@ -53,6 +54,7 @@ class PlanModel extends Equatable {
     this.startDate,
     this.endDate,
     required this.isPublic,
+    this.isTemplate = false,
     required this.status,
     required this.planType,
     required this.creator,
@@ -96,6 +98,7 @@ class PlanModel extends Equatable {
           ? _parseServerDateTime(json['end_date'].toString())
           : null,
       isPublic: json['is_public'] == true,
+      isTemplate: json['is_template'] == true,
       status: json['status']?.toString() ?? 'upcoming',
       planType: json['plan_type']?.toString() ?? 'personal',
       creator: UserSummary.fromJson(json['creator'] ?? {}),
@@ -131,6 +134,7 @@ class PlanModel extends Equatable {
       'start_date': startDate?.toIso8601String(),
       'end_date': endDate?.toIso8601String(),
       'is_public': isPublic,
+      'is_template': isTemplate,
       'status': status,
       'plan_type': planType,
       'creator': creator.toJson(),
@@ -157,6 +161,7 @@ class PlanModel extends Equatable {
     DateTime? startDate,
     DateTime? endDate,
     bool? isPublic,
+    bool? isTemplate,
     String? status,
     String? planType,
     UserSummary? creator,
@@ -181,6 +186,7 @@ class PlanModel extends Equatable {
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       isPublic: isPublic ?? this.isPublic,
+      isTemplate: isTemplate ?? this.isTemplate,
       status: status ?? this.status,
       planType: planType ?? this.planType,
       creator: creator ?? this.creator,
@@ -237,6 +243,7 @@ class PlanModel extends Equatable {
     startDate,
     endDate,
     isPublic,
+    isTemplate,
     status,
     planType,
     creator,

@@ -85,7 +85,14 @@ void main() {
       currency: 'VND',
       category: category,
       description: 'Expense $id',
+      paymentNote: '',
+      receiptUrl: null,
       splitStrategy: 'equal',
+      entryType: 'original',
+      correctsExpenseId: null,
+      correctionReason: '',
+      recurrenceId: null,
+      occurrenceAt: null,
       participants: const [],
       payments: const [],
       createdAt: DateTime(2026, 4, 5, 10),
@@ -267,8 +274,7 @@ class FakeBudgetRepository extends BudgetRepository {
     required this.summary,
     this.pages = const [],
     this.balanceSummary,
-  })
-    : super(AuthProvider());
+  }) : super(AuthProvider());
 
   @override
   Future<BudgetModel> getBudget(String planId) async => summary;
@@ -308,6 +314,9 @@ class FakeBudgetRepository extends BudgetRepository {
     String splitStrategy = 'equal',
     List<ExpenseParticipantInput> participants = const [],
     List<ExpensePaymentInput> payments = const [],
+    String paymentNote = '',
+    String? receiptPath,
+    RecurrenceInput? recurrence,
   }) async {
     return ExpenseCreateResult(
       expense: buildFakeExpense(
@@ -322,13 +331,14 @@ class FakeBudgetRepository extends BudgetRepository {
 
   @override
   Future<BalanceSummaryModel> getBalances(String planId) async {
-    return balanceSummary ?? const BalanceSummaryModel(
-      planId: 'plan-1',
-      currency: 'VND',
-      totalExpenses: 0,
-      balances: [],
-      settlementSuggestions: [],
-    );
+    return balanceSummary ??
+        const BalanceSummaryModel(
+          planId: 'plan-1',
+          currency: 'VND',
+          totalExpenses: 0,
+          balances: [],
+          settlementSuggestions: [],
+        );
   }
 
   @override
@@ -338,19 +348,37 @@ class FakeBudgetRepository extends BudgetRepository {
     required String toUserId,
     required double amount,
     String currency = 'VND',
-    String status = 'completed',
     String note = '',
+    String paymentNote = '',
+    String? receiptPath,
   }) async {
+    const fromUser = BalanceUser(
+      id: 'user-1',
+      username: 'payer',
+      fullName: 'Payer',
+    );
+    const toUser = BalanceUser(
+      id: 'user-2',
+      username: 'receiver',
+      fullName: 'Receiver',
+    );
     return SettlementModel(
       id: 'settlement-1',
       planId: planId,
       fromUserId: fromUserId,
       toUserId: toUserId,
+      fromUser: fromUser,
+      toUser: toUser,
       amount: amount,
       currency: currency,
-      status: status,
+      status: 'pending',
       note: note,
+      paymentNote: paymentNote,
+      receiptUrl: null,
+      requestedByUserId: fromUserId,
+      rejectionReason: '',
       settledAt: DateTime(2026, 4, 5),
+      respondedAt: null,
       createdAt: DateTime(2026, 4, 5),
     );
   }
@@ -408,7 +436,14 @@ class FakeBudgetRepository extends BudgetRepository {
       currency: 'VND',
       category: category,
       description: 'Expense $id',
+      paymentNote: '',
+      receiptUrl: null,
       splitStrategy: 'equal',
+      entryType: 'original',
+      correctsExpenseId: null,
+      correctionReason: '',
+      recurrenceId: null,
+      occurrenceAt: null,
       participants: const [],
       payments: const [],
       createdAt: DateTime(2026, 4, 5, 10),

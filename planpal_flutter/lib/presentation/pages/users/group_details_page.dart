@@ -5,12 +5,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/riverpod/conversation_providers.dart';
+import 'package:planpal_flutter/core/riverpod/collaboration_providers.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:web_socket_channel/status.dart' as ws_status;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/dtos/user_summary.dart';
@@ -20,6 +22,7 @@ import '../../../core/dtos/group_requests.dart';
 import '../../../core/dtos/conversation.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/services/error_display_service.dart';
+import '../../../core/services/reconnect_policy.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../widgets/audit/audit_log_list.dart';
 import '../../../shared/ui_states/ui_states.dart';
@@ -28,6 +31,8 @@ import 'plan_form_page.dart';
 import 'plan_details_page.dart';
 import 'group_form_page.dart';
 import 'group_invite_management_page.dart';
+import '../collaboration/group_availability_page.dart';
+import '../experience/group_polls_page.dart';
 import '../chat/chat_page.dart';
 
 class GroupDetailsPage extends ConsumerStatefulWidget {
@@ -51,6 +56,8 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   WebSocketChannel? _groupChannel;
   StreamSubscription? _groupSubscription;
   Timer? _groupReconnectTimer;
+  int _groupReconnectAttempts = 0;
+  final Random _groupReconnectJitter = Random();
   bool _manualGroupSocketDisconnect = false;
 
   @override
@@ -71,6 +78,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _groupReconnectAttempts = 0;
       _loadGroupData(forceRefresh: true, showLoading: false);
       _connectGroupRealtime();
     }
@@ -101,6 +109,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
         return;
       }
       _groupChannel = channel;
+      _groupReconnectAttempts = 0;
       _groupSubscription = channel.stream.listen(
         _handleGroupRealtimeMessage,
         onError: (_) => _scheduleGroupRealtimeReconnect(),
@@ -117,6 +126,10 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
       if (decoded is! Map) return;
 
       final eventType = decoded['event_type']?.toString();
+      if (eventType?.startsWith('availability.') == true) {
+        ref.invalidate(availabilityPollsProvider(widget.id));
+        return;
+      }
       if (eventType != 'group.role_changed' &&
           eventType != 'group.member_added' &&
           eventType != 'group.member_removed') {
@@ -134,16 +147,24 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
 
   void _scheduleGroupRealtimeReconnect() {
     if (_manualGroupSocketDisconnect || !mounted) return;
-    _groupReconnectTimer?.cancel();
-    _groupReconnectTimer = Timer(
-      const Duration(seconds: 2),
-      _connectGroupRealtime,
+    if (_groupReconnectTimer?.isActive ?? false) return;
+    if (!defaultReconnectPolicy.canRetry(_groupReconnectAttempts)) return;
+
+    _groupReconnectAttempts += 1;
+    final delay = defaultReconnectPolicy.delayForAttempt(
+      _groupReconnectAttempts,
+      jitterMilliseconds: _groupReconnectJitter.nextInt(
+        defaultReconnectPolicy.maxJitter.inMilliseconds,
+      ),
     );
+    _groupReconnectTimer?.cancel();
+    _groupReconnectTimer = Timer(delay, _connectGroupRealtime);
   }
 
   Future<void> _disconnectGroupRealtime() async {
     _manualGroupSocketDisconnect = true;
     _groupReconnectTimer?.cancel();
+    _groupReconnectAttempts = 0;
     await _groupSubscription?.cancel();
     await _groupChannel?.sink.close(ws_status.goingAway);
     _groupSubscription = null;
@@ -177,7 +198,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        error = e.toString();
+        error = ErrorDisplayService.getUserFriendlyMessage(e);
         isLoading = false;
       });
     }
@@ -508,6 +529,47 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
               _buildMembersCard(membersCount, members),
               const SizedBox(height: 16),
               _buildPlansCard(g),
+              const SizedBox(height: 16),
+              Card(
+                child: ListTile(
+                  leading: Icon(
+                    Icons.event_available_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: Text(
+                    context.l10n.t('collaboration.availability_title'),
+                  ),
+                  subtitle: Text(
+                    context.l10n.t('collaboration.availability_subtitle'),
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => GroupAvailabilityPage(
+                        groupId: g.id,
+                        canManage: g.canCreatePlan,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: ListTile(
+                  leading: Icon(
+                    Icons.poll_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: Text(context.l10n.t('polls.title')),
+                  subtitle: Text(context.l10n.t('polls.group_subtitle')),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => GroupPollsPage(groupId: g.id),
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
               AuditLogList(
                 title: context.l10n.t('group_details.audit_log_title'),
@@ -962,18 +1024,12 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             ),
             const SizedBox(height: 16),
             if (canCreatePlan) ...[
-              ElevatedButton.icon(
-                onPressed: () => _navigateToCreatePlan(g),
-                icon: const Icon(Icons.add),
-                label: Text(context.l10n.t('group_details.create_plan')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 16,
-                  ),
-                  minimumSize: const Size(double.infinity, 44),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => _navigateToCreatePlan(g),
+                  icon: const Icon(Icons.add),
+                  label: Text(context.l10n.t('group_details.create_plan')),
                 ),
               ),
               const SizedBox(height: 16),
@@ -1243,9 +1299,8 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             child: OutlinedButton.icon(
               onPressed: () => _showLeaveGroupDialog(g),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.orange,
-                side: const BorderSide(color: Colors.orange),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                foregroundColor: Theme.of(context).colorScheme.error,
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
               ),
               icon: const Icon(Icons.exit_to_app),
               label: Text(context.l10n.t('group_details.leave_action')),
@@ -1257,13 +1312,14 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
       // ThÃ nh viÃªn thÆ°á»ng chá»‰ cÃ³ thá»ƒ rá»i nhÃ³m
       return SizedBox(
         width: double.infinity,
-        child: FloatingActionButton.extended(
+        child: OutlinedButton.icon(
           onPressed: () => _showLeaveGroupDialog(g),
-          backgroundColor: Colors.redAccent,
-          foregroundColor: Colors.white,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+            side: BorderSide(color: Theme.of(context).colorScheme.error),
+          ),
           icon: const Icon(Icons.exit_to_app),
           label: Text(context.l10n.t('group_details.leave_action')),
-          heroTag: 'leave_group',
         ),
       );
     }
@@ -1336,7 +1392,10 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
             child: Text(context.l10n.t('common.cancel')),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: Text(context.l10n.t('common.delete')),
           ),
@@ -1375,7 +1434,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
       friends = await friendRepo.getFriends();
       loading = false;
     } catch (e) {
-      error = e.toString();
+      error = ErrorDisplayService.getUserFriendlyMessage(e);
       loading = false;
     }
 
@@ -1440,7 +1499,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: Text(context.l10n.t('group_details.leave_action')),
           ),
         ],
@@ -1625,7 +1686,9 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: Text(context.l10n.t('common.delete')),
           ),
         ],

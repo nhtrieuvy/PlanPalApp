@@ -4,6 +4,8 @@ export 'analytics_providers.dart';
 export 'activity_providers.dart';
 export 'budget_providers.dart';
 export 'conversation_providers.dart';
+export 'collaboration_providers.dart';
+export 'experience_providers.dart';
 export 'groups_notifier.dart';
 export 'notifications_provider.dart';
 export 'plans_notifier.dart';

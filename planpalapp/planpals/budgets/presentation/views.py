@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -14,10 +15,15 @@ from planpals.budgets.presentation.serializers import (
     BudgetUpsertSerializer,
     ExpenseCreateResponseSerializer,
     ExpenseCreateSerializer,
+    ExpenseCorrectionSerializer,
     ExpenseFilterSerializer,
     ExpenseSerializer,
     SettlementCreateSerializer,
+    SettlementActionSerializer,
     SettlementSerializer,
+    FinanceInsightsSerializer,
+    RecurringExpenseSerializer,
+    RecurringExpenseStatusSerializer,
 )
 
 
@@ -49,6 +55,7 @@ class PlanBudgetView(APIView):
 
 class PlanExpenseListCreateView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get(self, request, plan_id):
         filter_serializer = ExpenseFilterSerializer(data=request.query_params)
@@ -86,6 +93,9 @@ class PlanExpenseListCreateView(APIView):
             split_strategy=serializer.validated_data.get('split_strategy', 'equal'),
             participants=serializer.validated_data.get('participants') or None,
             payments=serializer.validated_data.get('payments') or None,
+            payment_note=serializer.validated_data.get('payment_note', ''),
+            receipt=serializer.validated_data.get('receipt'),
+            recurrence=serializer.validated_data.get('recurrence'),
         )
         return Response(
             ExpenseCreateResponseSerializer.from_result(result),
@@ -120,6 +130,20 @@ class PlanBalancesView(APIView):
 
 class SettlementCreateView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def get(self, request):
+        plan_id = request.query_params.get('plan_id')
+        if not plan_id:
+            return Response(
+                {'plan_id': ['This query parameter is required.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        items = get_budget_service().list_settlements(plan_id, request.user)
+        return Response(
+            [SettlementSerializer.from_entity(item) for item in items],
+            status=status.HTTP_200_OK,
+        )
 
     def post(self, request):
         serializer = SettlementCreateSerializer(data=request.data)
@@ -131,10 +155,94 @@ class SettlementCreateView(APIView):
             to_user_id=serializer.validated_data['to_user_id'],
             amount=serializer.validated_data['amount'],
             currency=serializer.validated_data.get('currency', 'VND'),
-            status=serializer.validated_data.get('status', 'completed'),
+            status='pending',
             note=serializer.validated_data.get('note', ''),
+            payment_note=serializer.validated_data.get('payment_note', ''),
+            receipt=serializer.validated_data.get('receipt'),
         )
         return Response(
             SettlementSerializer.from_entity(settlement),
             status=status.HTTP_201_CREATED,
+        )
+
+
+class SettlementActionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, settlement_id, action):
+        serializer = SettlementActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        settlement = get_budget_service().respond_to_settlement(
+            settlement_id,
+            request.user,
+            action=action,
+            rejection_reason=serializer.validated_data.get('rejection_reason', ''),
+        )
+        return Response(
+            SettlementSerializer.from_entity(settlement),
+            status=status.HTTP_200_OK,
+        )
+
+
+class PlanExpenseCorrectionView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def post(self, request, plan_id, expense_id):
+        serializer = ExpenseCorrectionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = get_budget_service().correct_expense(
+            plan_id,
+            expense_id,
+            request.user,
+            amount=serializer.validated_data['amount'],
+            category=serializer.validated_data['category'],
+            description=serializer.validated_data.get('description', ''),
+            payment_note=serializer.validated_data.get('payment_note', ''),
+            reason=serializer.validated_data['reason'],
+            receipt=serializer.validated_data.get('receipt'),
+        )
+        return Response(
+            ExpenseCreateResponseSerializer.from_result(result),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class PlanFinanceInsightsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, plan_id):
+        insights = get_budget_service().get_finance_insights(plan_id, request.user)
+        return Response(
+            FinanceInsightsSerializer.from_entity(insights),
+            status=status.HTTP_200_OK,
+        )
+
+
+class PlanRecurringExpenseListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, plan_id):
+        items = get_budget_service().list_recurring_expenses(plan_id, request.user)
+        return Response(
+            [RecurringExpenseSerializer.from_entity(item) for item in items],
+            status=status.HTTP_200_OK,
+        )
+
+
+class PlanRecurringExpenseStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, plan_id, recurring_id):
+        serializer = RecurringExpenseStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        item = get_budget_service().set_recurring_expense_active(
+            plan_id,
+            recurring_id,
+            request.user,
+            is_active=serializer.validated_data['is_active'],
+        )
+        return Response(
+            RecurringExpenseSerializer.from_entity(item),
+            status=status.HTTP_200_OK,
         )

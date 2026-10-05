@@ -147,7 +147,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       if (silent) return;
       setState(() {
         _loadingFriends = false;
-        _friendsError = error.toString();
+        _friendsError = ErrorDisplayService.getUserFriendlyMessage(error);
       });
     }
   }
@@ -168,7 +168,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       if (!mounted) return;
       setState(() {
         _loadingRequests = false;
-        _requestsError = error.toString();
+        _requestsError = ErrorDisplayService.getUserFriendlyMessage(error);
       });
     }
   }
@@ -443,13 +443,6 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => _rejectFriendRequest(request),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.grey[700],
-                      side: BorderSide(color: Colors.grey[300]!),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
                     child: Text(l10n.t('friends.decline')),
                   ),
                 ),
@@ -457,13 +450,6 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () => _acceptFriendRequest(request),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
                     child: Text(l10n.t('friends.accept')),
                   ),
                 ),

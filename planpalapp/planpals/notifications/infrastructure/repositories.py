@@ -8,6 +8,7 @@ import json
 from datetime import datetime
 from typing import Optional, Sequence
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -21,7 +22,11 @@ from planpals.notifications.application.repositories import (
     NotificationPage,
     NotificationRepository,
 )
-from planpals.notifications.infrastructure.models import Notification, UserDeviceToken
+from planpals.notifications.infrastructure.models import (
+    Notification,
+    NotificationPreference,
+    UserDeviceToken,
+)
 
 User = get_user_model()
 
@@ -130,6 +135,98 @@ class DjangoNotificationRepository(NotificationRepository):
         for user_id in user_ids:
             count_map.setdefault(user_id, 0)
         return count_map
+
+    def get_preferences(self, user_id: UUID):
+        preference, _ = NotificationPreference.objects.get_or_create(user_id=user_id)
+        return preference
+
+    def update_preferences(self, user_id: UUID, values: dict):
+        preference, _ = NotificationPreference.objects.update_or_create(
+            user_id=user_id,
+            defaults=values,
+        )
+        return preference
+
+    def get_push_allowed_user_ids(self, user_ids, current_time):
+        unique_ids = list(dict.fromkeys(UUID(str(value)) for value in user_ids))
+        preferences = {
+            item.user_id: item
+            for item in NotificationPreference.objects.filter(user_id__in=unique_ids)
+        }
+        return [
+            user_id
+            for user_id in unique_ids
+            if self._push_allowed(preferences.get(user_id), current_time)
+        ]
+
+    def list_digest_candidates(self, current_time):
+        candidates = NotificationPreference.objects.filter(
+            daily_digest_enabled=True,
+            push_enabled=True,
+        ).select_related('user')
+        result = []
+        for preference in candidates.iterator(chunk_size=500):
+            try:
+                zone = ZoneInfo(preference.timezone)
+            except ZoneInfoNotFoundError:
+                zone = ZoneInfo('UTC')
+            local_now = current_time.astimezone(zone)
+            already_sent_today = (
+                preference.last_digest_sent_at is not None
+                and preference.last_digest_sent_at.astimezone(zone).date()
+                == local_now.date()
+            )
+            if (
+                local_now.hour == preference.daily_digest_hour
+                and not already_sent_today
+                and self._push_allowed(preference, current_time)
+            ):
+                result.append(preference)
+        return result
+
+    def get_digest_summary(self, user_id, since):
+        queryset = Notification.objects.filter(
+            user_id=user_id,
+            is_read=False,
+            created_at__gte=since,
+        )
+        return {
+            'count': queryset.count(),
+            'titles': list(queryset.values_list('title', flat=True)[:3]),
+        }
+
+    def mark_digest_sent(self, user_id, sent_at):
+        NotificationPreference.objects.filter(user_id=user_id).update(
+            last_digest_sent_at=sent_at,
+            updated_at=timezone.now(),
+        )
+
+    @staticmethod
+    def _push_allowed(preference, current_time):
+        if preference is None:
+            return True
+        if not preference.push_enabled:
+            return False
+        if not preference.quiet_hours_enabled:
+            return True
+        if preference.quiet_hours_start is None or preference.quiet_hours_end is None:
+            return True
+        try:
+            local_time = current_time.astimezone(
+                ZoneInfo(preference.timezone)
+            ).time().replace(tzinfo=None)
+        except ZoneInfoNotFoundError:
+            local_time = current_time.astimezone(
+                ZoneInfo('UTC')
+            ).time().replace(tzinfo=None)
+        start = preference.quiet_hours_start
+        end = preference.quiet_hours_end
+        in_quiet_hours = (
+            start <= local_time < end
+            if start < end
+            else local_time >= start or local_time < end
+        )
+        return not in_quiet_hours
 
     def _base_queryset(self) -> QuerySet[Notification]:
         return Notification.objects.select_related('user').order_by('-created_at', '-id')

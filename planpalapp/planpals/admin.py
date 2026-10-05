@@ -9,7 +9,9 @@ from django.forms import Textarea
 from .models import (
     User, Group, GroupMembership, Plan, PlanActivity, 
     ChatMessage, Friendship, FriendshipRejection, MessageReadStatus,
-    Conversation, Budget, Expense
+    Conversation, Budget, Expense, RecurringExpense, Settlement,
+    GroupPoll, GroupPollOption, GroupPollVote, LiveLocationShare,
+    NotificationPreference,
 )
 from planpals.groups.infrastructure.cache import invalidate_group_detail_cache
 
@@ -523,10 +525,107 @@ class BudgetAdmin(admin.ModelAdmin):
 
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
-    list_display = ['plan', 'user', 'amount', 'category', 'created_at']
-    list_filter = ['category', 'created_at']
+    list_display = [
+        'plan', 'user', 'amount', 'category', 'entry_type', 'created_at'
+    ]
+    list_filter = ['entry_type', 'category', 'created_at']
     search_fields = ['plan__title', 'user__username', 'description']
+    readonly_fields = [field.name for field in Expense._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Settlement)
+class SettlementAdmin(admin.ModelAdmin):
+    list_display = [
+        'plan', 'from_user', 'to_user', 'amount', 'currency', 'status',
+        'created_at', 'responded_at',
+    ]
+    list_filter = ['status', 'currency', 'created_at']
+    search_fields = [
+        'plan__title', 'from_user__username', 'to_user__username',
+        'payment_note',
+    ]
+    readonly_fields = [field.name for field in Settlement._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(RecurringExpense)
+class RecurringExpenseAdmin(admin.ModelAdmin):
+    list_display = [
+        'plan', 'category', 'amount', 'frequency', 'next_run_at', 'is_active'
+    ]
+    list_filter = ['is_active', 'frequency', 'currency']
+    search_fields = ['plan__title', 'created_by__username', 'category']
+    readonly_fields = [
+        'id', 'created_at', 'updated_at', 'last_run_at', 'participants',
+        'payments',
+    ]
+
+
+@admin.register(GroupPoll)
+class GroupPollAdmin(admin.ModelAdmin):
+    list_display = [
+        'question', 'group', 'created_by', 'allow_multiple', 'is_closed',
+        'closes_at', 'created_at',
+    ]
+    list_filter = ['allow_multiple', 'is_closed', 'created_at']
+    search_fields = ['question', 'group__name', 'created_by__username']
+    readonly_fields = ['id', 'client_mutation_id', 'created_at', 'updated_at']
+
+
+@admin.register(GroupPollOption)
+class GroupPollOptionAdmin(admin.ModelAdmin):
+    list_display = ['text', 'poll', 'order', 'created_at']
+    search_fields = ['text', 'poll__question']
     readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(GroupPollVote)
+class GroupPollVoteAdmin(admin.ModelAdmin):
+    list_display = ['poll', 'option', 'user', 'created_at']
+    search_fields = ['poll__question', 'option__text', 'user__username']
+    readonly_fields = [field.name for field in GroupPollVote._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(LiveLocationShare)
+class LiveLocationShareAdmin(admin.ModelAdmin):
+    list_display = ['conversation', 'user', 'is_active', 'expires_at', 'updated_at']
+    list_filter = ['is_active', 'expires_at']
+    search_fields = ['user__username', 'conversation__name']
+    readonly_fields = [field.name for field in LiveLocationShare._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(NotificationPreference)
+class NotificationPreferenceAdmin(admin.ModelAdmin):
+    list_display = [
+        'user', 'push_enabled', 'quiet_hours_enabled', 'daily_digest_enabled',
+        'daily_digest_hour', 'timezone', 'last_digest_sent_at',
+    ]
+    list_filter = ['push_enabled', 'quiet_hours_enabled', 'daily_digest_enabled']
+    search_fields = ['user__username', 'user__email']
+    readonly_fields = ['last_digest_sent_at', 'updated_at']
 
 # ============================================================================
 # ADMIN SITE CUSTOMIZATION

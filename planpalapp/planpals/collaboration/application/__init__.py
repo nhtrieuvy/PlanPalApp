@@ -1,0 +1,1 @@
+"""Collaboration use cases."""

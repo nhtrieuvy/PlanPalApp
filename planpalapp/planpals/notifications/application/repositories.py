@@ -76,6 +76,32 @@ class NotificationRepository(ABC):
     def get_unread_counts(self, user_ids: Sequence[UUID]) -> dict[UUID, int]:
         ...
 
+    @abstractmethod
+    def get_preferences(self, user_id: UUID) -> Any:
+        ...
+
+    @abstractmethod
+    def update_preferences(self, user_id: UUID, values: dict[str, Any]) -> Any:
+        ...
+
+    @abstractmethod
+    def get_push_allowed_user_ids(
+        self, user_ids: Sequence[UUID], current_time: datetime
+    ) -> Sequence[UUID]:
+        ...
+
+    @abstractmethod
+    def list_digest_candidates(self, current_time: datetime) -> Sequence[Any]:
+        ...
+
+    @abstractmethod
+    def get_digest_summary(self, user_id: UUID, since: datetime) -> dict[str, Any]:
+        ...
+
+    @abstractmethod
+    def mark_digest_sent(self, user_id: UUID, sent_at: datetime) -> None:
+        ...
+
 
 class DeviceTokenRepository(ABC):
     @abstractmethod

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/riverpod/auth_notifier.dart';
 import '../../../core/riverpod/conversation_providers.dart';
 import '../../../core/dtos/conversation.dart';
@@ -453,9 +454,10 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
 
   Widget _buildErrorState(ThemeData theme, String errorMessage) {
     return AppError(
-      message: 'Failed to load conversations\n$errorMessage',
+      message:
+          '${context.l10n.t('chat.load_conversations_failed')}\n$errorMessage',
       onRetry: onRefresh,
-      retryLabel: 'Retry',
+      retryLabel: context.l10n.t('common.retry'),
     );
   }
 
@@ -467,12 +469,14 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
     return AppEmpty(
       icon: Icons.chat_bubble_outline,
       title: _searchQuery.isNotEmpty
-          ? 'No conversations found'
-          : 'No conversations yet',
+          ? context.l10n.t('chat.no_conversations_found')
+          : context.l10n.t('chat.no_conversations_yet'),
       description: _searchQuery.isNotEmpty
-          ? 'Try adjusting your search terms'
-          : 'Start a conversation with your friends',
-      actionLabel: _searchQuery.isEmpty ? 'Find Friends' : null,
+          ? context.l10n.t('chat.adjust_search')
+          : context.l10n.t('chat.start_conversation'),
+      actionLabel: _searchQuery.isEmpty
+          ? context.l10n.t('chat.find_friends')
+          : null,
       onAction: _searchQuery.isEmpty ? _navigateToFriends : null,
     );
   }

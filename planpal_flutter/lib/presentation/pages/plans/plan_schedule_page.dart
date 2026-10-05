@@ -6,6 +6,7 @@ import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/activity_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/activity_websocket_service.dart';
+import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/presentation/pages/plans/activity_form_page.dart';
 
 import '../../widgets/activities/activity_details_dialog.dart';
@@ -37,7 +38,10 @@ class PlanSchedulePage extends ConsumerWidget {
             Text(planTitle),
             Text(
               context.l10n.t('plan.schedule_fallback_title'),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.normal,
+              ),
             ),
           ],
         ),
@@ -96,7 +100,9 @@ class PlanSchedulePage extends ConsumerWidget {
 
     if (scheduleAsync.hasError && scheduleAsync.valueOrNull == null) {
       return AppError(
-        message: scheduleAsync.error.toString(),
+        message: ErrorDisplayService.getUserFriendlyMessage(
+          scheduleAsync.error,
+        ),
         onRetry: () => ref.read(activityProvider(planId).notifier).refresh(),
         retryLabel: context.l10n.t('common.retry'),
       );
@@ -126,13 +132,15 @@ class PlanSchedulePage extends ConsumerWidget {
       onRefresh: () => ref.read(activityProvider(planId).notifier).refresh(),
       child: Column(
         children: [
-          if (realtime.connectionState != ActivitySocketConnectionState.connected)
+          if (realtime.connectionState !=
+              ActivitySocketConnectionState.connected)
             _RealtimeBanner(realtime: realtime),
           _StatisticsCard(statistics: state.statistics),
           Expanded(
             child: TabBarView(
               children: dates.map((date) {
-                final activities = state.scheduleByDate[date] ?? const <PlanActivity>[];
+                final activities =
+                    state.scheduleByDate[date] ?? const <PlanActivity>[];
                 return _buildDaySchedule(
                   context,
                   ref,
@@ -197,7 +205,8 @@ class PlanSchedulePage extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AppLoading(message: context.l10n.t('common.loading_session')),
+      builder: (_) =>
+          AppLoading(message: context.l10n.t('common.loading_session')),
     );
 
     try {
@@ -211,8 +220,12 @@ class PlanSchedulePage extends ConsumerWidget {
           activity: fullActivity,
           canEdit: canEdit,
           realtimeHighlight: highlight,
-          onEdit: canEdit ? () => _openEditActivity(context, ref, fullActivity) : null,
-          onDelete: canEdit ? () => _deleteActivity(context, ref, fullActivity) : null,
+          onEdit: canEdit
+              ? () => _openEditActivity(context, ref, fullActivity)
+              : null,
+          onDelete: canEdit
+              ? () => _deleteActivity(context, ref, fullActivity)
+              : null,
         ),
       );
     } catch (error) {
@@ -223,7 +236,9 @@ class PlanSchedulePage extends ConsumerWidget {
           content: Text(
             context.l10n.t(
               'schedule.load_detail_error',
-              params: {'error': error.toString()},
+              params: {
+                'error': ErrorDisplayService.getUserFriendlyMessage(error),
+              },
             ),
           ),
           backgroundColor: Colors.orange,
@@ -235,10 +250,7 @@ class PlanSchedulePage extends ConsumerWidget {
   Future<void> _openCreateActivity(BuildContext context, WidgetRef ref) async {
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => ActivityFormPage(
-          planId: planId,
-          planTitle: planTitle,
-        ),
+        builder: (_) => ActivityFormPage(planId: planId, planTitle: planTitle),
       ),
     );
     if (result == true) {
@@ -303,7 +315,9 @@ class PlanSchedulePage extends ConsumerWidget {
           content: Text(
             context.l10n.t(
               'schedule.delete_error',
-              params: {'error': error.toString()},
+              params: {
+                'error': ErrorDisplayService.getUserFriendlyMessage(error),
+              },
             ),
           ),
           backgroundColor: Colors.red,
@@ -395,7 +409,9 @@ class _StatisticsCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _StatItem(
-                    label: context.l10n.t('analytics.metric.plan_completion_rate'),
+                    label: context.l10n.t(
+                      'analytics.metric.plan_completion_rate',
+                    ),
                     value:
                         '${((statistics!['completion_rate'] as num?) ?? 0).toStringAsFixed(1)}%',
                     icon: Icons.pie_chart,
@@ -406,7 +422,8 @@ class _StatisticsCard extends StatelessWidget {
                   child: _StatItem(
                     label: context.l10n.t('activity_details.time'),
                     value:
-                        statistics!['total_duration_display']?.toString() ?? '0m',
+                        statistics!['total_duration_display']?.toString() ??
+                        '0m',
                     icon: Icons.access_time,
                     color: Colors.purple,
                   ),
@@ -470,7 +487,9 @@ class _ActivityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accentColor = highlight != null ? Colors.amber : _getActivityTypeColor(activity.activityType);
+    final accentColor = highlight != null
+        ? Colors.amber
+        : _getActivityTypeColor(activity.activityType);
     return Card(
       margin: EdgeInsets.zero,
       elevation: highlight != null ? 4 : 2,
@@ -481,7 +500,9 @@ class _ActivityCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: accentColor.withValues(alpha: highlight != null ? 0.8 : 0.3),
+              color: accentColor.withValues(
+                alpha: highlight != null ? 0.8 : 0.3,
+              ),
               width: highlight != null ? 2.5 : 2,
             ),
           ),
@@ -497,7 +518,8 @@ class _ActivityCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 8),
                 _buildTitle(),
-                if (activity.description != null && activity.description!.isNotEmpty) ...[
+                if (activity.description != null &&
+                    activity.description!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   _buildDescription(),
                 ],
@@ -517,7 +539,9 @@ class _ActivityCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: _getActivityTypeColor(activity.activityType).withValues(alpha: 0.1),
+            color: _getActivityTypeColor(
+              activity.activityType,
+            ).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -537,7 +561,11 @@ class _ActivityCard extends StatelessWidget {
               color: Colors.green.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.check_circle, color: Colors.green, size: 16),
+            child: const Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 16,
+            ),
           ),
       ],
     );
@@ -551,7 +579,9 @@ class _ActivityCard extends StatelessWidget {
     final label = byUser == null || byUser.isEmpty
         ? context.l10n.t(
             'activity_collab.edited_fields',
-            params: {'fields': fields.isEmpty ? context.l10n.t('common.edit') : fields},
+            params: {
+              'fields': fields.isEmpty ? context.l10n.t('common.edit') : fields,
+            },
           )
         : context.l10n.t(
             'activity_collab.edited_by',
@@ -612,7 +642,8 @@ class _ActivityCard extends StatelessWidget {
       spacing: 16,
       runSpacing: 4,
       children: [
-        if (activity.startTime != null) _buildInfoChip(Icons.access_time, activity.timeRange),
+        if (activity.startTime != null)
+          _buildInfoChip(Icons.access_time, activity.timeRange),
         if (activity.hasLocation && activity.locationName != null)
           _buildInfoChip(Icons.location_on, activity.locationName!),
         if (activity.estimatedCost != null && activity.estimatedCost! > 0)

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import calendar
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any, Iterable
 from uuid import UUID
 
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from planpals.audit.domain.entities import AuditAction, AuditResourceType
@@ -16,16 +19,21 @@ from planpals.budgets.application.repositories import (
     ExpensePaymentCreateData,
     ExpenseParticipantCreateData,
     ExpenseRepository,
+    RecurringExpenseCreateData,
+    RecurringExpenseRepository,
     SettlementCreateData,
     SettlementRepository,
 )
 from planpals.budgets.domain.entities import (
     BalanceSummary,
+    BudgetForecast,
     Budget,
     BudgetSummary,
     DebtSuggestion,
     ExpenseCreationResult,
     ExpenseWarning,
+    FinanceInsights,
+    CategorySpending,
     Settlement,
     SettlementStatus,
     SplitStrategy,
@@ -53,6 +61,8 @@ class BudgetService:
         audit_service=None,
         notification_service=None,
         expense_notification_dispatcher=None,
+        recurring_expense_repo: RecurringExpenseRepository | None = None,
+        settlement_notification_dispatcher=None,
     ):
         self.budget_repo = budget_repo
         self.expense_repo = expense_repo
@@ -62,6 +72,8 @@ class BudgetService:
         self.audit_service = audit_service
         self.notification_service = notification_service
         self.expense_notification_dispatcher = expense_notification_dispatcher
+        self.recurring_expense_repo = recurring_expense_repo
+        self.settlement_notification_dispatcher = settlement_notification_dispatcher
 
     def initialize_plan_budget(self, plan_id, currency: str = DEFAULT_CURRENCY) -> Budget:
         plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
@@ -133,12 +145,18 @@ class BudgetService:
         split_strategy: str = SplitStrategy.EQUAL.value,
         participants: Iterable[dict[str, Any]] | None = None,
         payments: Iterable[dict[str, Any]] | None = None,
+        payment_note: str = '',
+        receipt=None,
+        recurrence: dict[str, Any] | None = None,
+        recurrence_id=None,
+        occurrence_at: datetime | None = None,
     ) -> ExpenseCreationResult:
         plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
         actor_id = self._normalize_required_uuid(user, 'user')
         plan = self._require_plan(plan_uuid)
+        permission_user = self._resolve_plan_user(plan, user, actor_id)
 
-        if not self._can_add_expense(plan, user):
+        if not self._can_add_expense(plan, permission_user):
             raise PermissionDenied('Only plan participants can add expenses.')
 
         budget = self.budget_repo.ensure_budget(plan_uuid, currency=self.DEFAULT_CURRENCY)
@@ -161,6 +179,22 @@ class BudgetService:
             raw_participants=list(participants or []),
         )
 
+        recurring_rule = None
+        if recurrence:
+            recurring_rule = self._create_recurring_rule(
+                plan_uuid=plan_uuid,
+                actor_id=actor_id,
+                amount=expense_amount,
+                currency=normalized_currency,
+                category=normalized_category,
+                description=normalized_description,
+                payment_note=(payment_note or '').strip(),
+                split_strategy=normalized_strategy,
+                participant_items=participant_items,
+                payment_items=payment_items,
+                recurrence=recurrence,
+            )
+
         expense = self.expense_repo.create_expense(
             ExpenseCreateData(
                 plan_id=plan_uuid,
@@ -170,9 +204,18 @@ class BudgetService:
                 currency=normalized_currency,
                 category=normalized_category,
                 description=normalized_description,
+                payment_note=(payment_note or '').strip(),
+                receipt=receipt,
                 split_strategy=normalized_strategy,
                 participants=participant_items,
                 payments=payment_items,
+                recurrence_id=(
+                    recurring_rule.id if recurring_rule else (
+                        self._normalize_required_uuid(recurrence_id, 'recurrence_id')
+                        if recurrence_id else None
+                    )
+                ),
+                occurrence_at=occurrence_at,
             )
         )
         summary = self._build_summary(plan_uuid, budget)
@@ -215,6 +258,111 @@ class BudgetService:
             expense=expense,
             summary=summary,
             warnings=tuple(warnings),
+        )
+
+    @transaction.atomic
+    def correct_expense(
+        self,
+        plan_id,
+        expense_id,
+        actor,
+        *,
+        amount,
+        category: str,
+        description: str = '',
+        payment_note: str = '',
+        reason: str,
+        receipt=None,
+    ) -> ExpenseCreationResult:
+        plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
+        expense_uuid = self._normalize_required_uuid(expense_id, 'expense_id')
+        actor_id = self._normalize_required_uuid(actor, 'actor')
+        plan = self._require_plan(plan_uuid)
+        current = self.expense_repo.get_effective_expense(expense_uuid, for_update=True)
+        if current is None or current.plan_id != plan_uuid:
+            raise ValidationError({'expense_id': 'Expense is missing or has already been corrected'})
+        if actor_id != current.user_id and not self._can_manage_budget(plan, actor):
+            raise PermissionDenied('Only the expense creator or a plan admin can correct it.')
+
+        normalized_reason = (reason or '').strip()
+        if not normalized_reason:
+            raise ValidationError({'reason': 'A correction reason is required'})
+        corrected_amount = self._normalize_positive_amount(amount, 'amount')
+        current_payments = current.payments or (
+            ExpensePaymentCreateData(user_id=current.paid_by_user_id, amount=current.amount),
+        )
+        current_participants = current.participants or (
+            ExpenseParticipantCreateData(user_id=current.paid_by_user_id, owed_amount=current.amount),
+        )
+        payment_amounts = self._rescale_amounts(
+            [item.amount for item in current_payments],
+            current.amount,
+            corrected_amount,
+        )
+        owed_amounts = self._rescale_amounts(
+            [item.owed_amount for item in current_participants],
+            current.amount,
+            corrected_amount,
+        )
+        payments = tuple(
+            ExpensePaymentCreateData(user_id=item.user_id, amount=value)
+            for item, value in zip(current_payments, payment_amounts)
+        )
+        payment_map = {item.user_id: item.amount for item in payments}
+        participants = tuple(
+            ExpenseParticipantCreateData(
+                user_id=item.user_id,
+                owed_amount=value,
+                balance=(payment_map.get(item.user_id, Decimal('0.00')) - value).quantize(Decimal('0.01')),
+            )
+            for item, value in zip(current_participants, owed_amounts)
+        )
+        corrected = self.expense_repo.create_expense(
+            ExpenseCreateData(
+                plan_id=plan_uuid,
+                user_id=current.user_id,
+                paid_by_user_id=current.paid_by_user_id,
+                amount=corrected_amount,
+                currency=current.currency,
+                category=self._normalize_category(category),
+                description=(description or '').strip(),
+                payment_note=(payment_note or '').strip(),
+                receipt=receipt,
+                copy_receipt_from_expense_id=current.id,
+                split_strategy=current.split_strategy,
+                participants=participants,
+                payments=payments,
+                entry_type='correction',
+                corrects_expense_id=current.id,
+                correction_reason=normalized_reason,
+                recurrence_id=current.recurrence_id,
+            )
+        )
+        budget = self.budget_repo.ensure_budget(plan_uuid, currency=current.currency)
+        summary = self._build_summary(plan_uuid, budget)
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=actor_id,
+                action=AuditAction.UPDATE_EXPENSE.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan_uuid,
+                metadata={
+                    'plan_id': plan_uuid,
+                    'plan_title': getattr(plan, 'title', 'Plan'),
+                    'expense_id': corrected.id,
+                    'corrects_expense_id': current.id,
+                    'previous_amount': current.amount,
+                    'amount': corrected.amount,
+                    'currency': corrected.currency,
+                    'category': corrected.category,
+                    'reason': normalized_reason,
+                },
+            )
+        self.invalidate_budget_cache(plan_uuid)
+        return ExpenseCreationResult(
+            expense=corrected,
+            summary=summary,
+            warnings=tuple(self._build_warnings(summary, corrected.amount)),
         )
 
     def get_budget_summary(self, plan_id, viewer) -> BudgetSummary:
@@ -336,8 +484,10 @@ class BudgetService:
         to_user_id,
         amount,
         currency: str | None = None,
-        status: str = SettlementStatus.COMPLETED.value,
+        status: str = SettlementStatus.PENDING.value,
         note: str = '',
+        payment_note: str = '',
+        receipt=None,
     ) -> Settlement:
         plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
         actor_id = self._normalize_required_uuid(actor, 'actor')
@@ -354,23 +504,42 @@ class BudgetService:
             raise PermissionDenied('Only the payer or a plan admin can record this settlement.')
 
         normalized_status = self._normalize_settlement_status(status)
+        if normalized_status != SettlementStatus.PENDING.value:
+            raise ValidationError({'status': 'New settlements must start in pending status'})
+        requested_amount = self._normalize_positive_amount(amount, 'amount')
         budget = self.budget_repo.ensure_budget(plan_uuid, currency=self.DEFAULT_CURRENCY)
+        self.settlement_repo.lock_plan_ledger(plan_uuid)
+        available = self._available_debt(plan_uuid, actor, payer_id, receiver_id)
+        pending_amount = sum(
+            (
+                item.amount for item in self.settlement_repo.list_settlements(plan_uuid)
+                if item.status == SettlementStatus.PENDING.value
+                and item.from_user_id == payer_id
+                and item.to_user_id == receiver_id
+            ),
+            Decimal('0.00'),
+        )
+        if requested_amount > available - pending_amount:
+            raise ValidationError({'amount': 'Settlement exceeds the outstanding balance'})
         settlement = self.settlement_repo.create_settlement(
             SettlementCreateData(
                 plan_id=plan_uuid,
                 from_user_id=payer_id,
                 to_user_id=receiver_id,
-                amount=self._normalize_positive_amount(amount, 'amount'),
+                amount=requested_amount,
                 currency=self._normalize_currency(currency or budget.currency),
+                requested_by_user_id=actor_id,
                 status=normalized_status,
                 note=(note or '').strip(),
+                payment_note=(payment_note or '').strip(),
+                receipt=receipt,
             )
         )
 
-        if self.audit_service and settlement.status == SettlementStatus.COMPLETED.value:
+        if self.audit_service:
             self.audit_service.log_action(
                 user=actor_id,
-                action=AuditAction.SETTLEMENT_COMPLETED.value,
+                action=AuditAction.SETTLEMENT_REQUESTED.value,
                 resource_type=AuditResourceType.PLAN.value,
                 resource_id=plan_uuid,
                 metadata={
@@ -380,25 +549,243 @@ class BudgetService:
                     'to_user_id': receiver_id,
                     'amount': settlement.amount,
                     'currency': settlement.currency,
+                    'settlement_id': settlement.id,
                 },
             )
 
-        if self.notification_service:
-            self.notification_service.notify(
-                user_id=receiver_id,
-                notification_type=NotificationType.SETTLEMENT_REQUESTED.value,
-                data={
-                    'plan_id': str(plan_uuid),
-                    'plan_title': getattr(plan, 'title', 'Plan'),
-                    'actor_name': self._resolve_actor_name(plan, actor_id),
-                    'amount': float(settlement.amount),
-                    'currency': settlement.currency,
-                },
-                send_push=True,
+        if self.settlement_notification_dispatcher:
+            transaction.on_commit(
+                lambda: self.settlement_notification_dispatcher(settlement.id, 'requested')
             )
 
         self.invalidate_budget_cache(plan_uuid)
         return settlement
+
+    def list_settlements(self, plan_id, viewer) -> tuple[Settlement, ...]:
+        plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
+        plan = self._require_plan(plan_uuid)
+        if not self._can_view_budget(plan, viewer):
+            raise PermissionDenied('You do not have permission to view settlements.')
+        return tuple(self.settlement_repo.list_settlements(plan_uuid))
+
+    @transaction.atomic
+    def respond_to_settlement(
+        self,
+        settlement_id,
+        actor,
+        *,
+        action: str,
+        rejection_reason: str = '',
+    ) -> Settlement:
+        settlement_uuid = self._normalize_required_uuid(settlement_id, 'settlement_id')
+        actor_id = self._normalize_required_uuid(actor, 'actor')
+        current = self.settlement_repo.get_by_id(settlement_uuid, for_update=True)
+        if current is None:
+            raise ValidationError({'settlement_id': 'Settlement not found'})
+        if current.status != SettlementStatus.PENDING.value:
+            raise ValidationError({'status': 'Only pending settlements can be processed'})
+        plan = self._require_plan(current.plan_id)
+        if actor_id != current.to_user_id and not self._can_manage_budget(plan, actor):
+            raise PermissionDenied('Only the receiver or a plan admin can process this request.')
+        if action not in {'complete', 'reject'}:
+            raise ValidationError({'action': 'Unsupported settlement action'})
+        if action == 'complete':
+            self.budget_repo.ensure_budget(current.plan_id, currency=self.DEFAULT_CURRENCY)
+            self.settlement_repo.lock_plan_ledger(current.plan_id)
+            available = self._available_debt(
+                current.plan_id,
+                actor,
+                current.from_user_id,
+                current.to_user_id,
+            )
+            if current.amount > available:
+                raise ValidationError({'amount': 'Outstanding balance changed; this request can no longer be completed'})
+            target_status = SettlementStatus.COMPLETED.value
+            reason = ''
+        else:
+            target_status = SettlementStatus.REJECTED.value
+            reason = (rejection_reason or '').strip()
+
+        updated = self.settlement_repo.transition(
+            settlement_uuid,
+            status=target_status,
+            rejection_reason=reason,
+        )
+        if self.audit_service:
+            action_name = (
+                AuditAction.SETTLEMENT_COMPLETED.value
+                if target_status == SettlementStatus.COMPLETED.value
+                else AuditAction.SETTLEMENT_REJECTED.value
+            )
+            self.audit_service.log_action(
+                user=actor_id,
+                action=action_name,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=current.plan_id,
+                metadata={
+                    'plan_id': current.plan_id,
+                    'plan_title': getattr(plan, 'title', 'Plan'),
+                    'settlement_id': current.id,
+                    'from_user_id': current.from_user_id,
+                    'to_user_id': current.to_user_id,
+                    'amount': current.amount,
+                    'currency': current.currency,
+                    'rejection_reason': reason,
+                },
+            )
+        self.invalidate_budget_cache(current.plan_id)
+        if self.settlement_notification_dispatcher:
+            transaction.on_commit(
+                lambda: self.settlement_notification_dispatcher(updated.id, target_status)
+            )
+        return updated
+
+    def get_finance_insights(self, plan_id, viewer) -> FinanceInsights:
+        plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
+        plan = self._require_plan(plan_uuid)
+        if not self._can_view_budget(plan, viewer):
+            raise PermissionDenied('You do not have permission to view finance insights.')
+        budget = self.budget_repo.ensure_budget(plan_uuid, currency=self.DEFAULT_CURRENCY)
+        total = self.expense_repo.get_total_expense(plan_uuid).quantize(Decimal('0.01'))
+        categories = tuple(
+            CategorySpending(
+                category=category,
+                amount=value.quantize(Decimal('0.01')),
+                percentage=round(float(value / total * Decimal('100')), 2) if total else 0.0,
+            )
+            for category, value in self.expense_repo.get_category_totals(plan_uuid)
+        )
+        today = timezone.localdate()
+        start = getattr(plan, 'start_date', None) or today
+        end = getattr(plan, 'end_date', None) or (today + timedelta(days=30))
+        if hasattr(start, 'date'):
+            start = start.date()
+        if hasattr(end, 'date'):
+            end = end.date()
+        elapsed_days = max((today - min(start, today)).days + 1, 1)
+        remaining_days = max((end - today).days, 0)
+        daily_average = (total / Decimal(elapsed_days)).quantize(Decimal('0.01'))
+        projected_total = (total + daily_average * remaining_days).quantize(Decimal('0.01'))
+        pending = [
+            item for item in self.settlement_repo.list_settlements(plan_uuid)
+            if item.status == SettlementStatus.PENDING.value
+        ]
+        return FinanceInsights(
+            plan_id=plan_uuid,
+            currency=budget.currency,
+            total_spent=total,
+            categories=categories,
+            forecast=BudgetForecast(
+                daily_average=daily_average,
+                projected_total=projected_total,
+                projected_remaining=(budget.total_budget - projected_total).quantize(Decimal('0.01')),
+                projected_over_budget=budget.total_budget > 0 and projected_total > budget.total_budget,
+                forecast_date=end,
+            ),
+            pending_settlement_count=len(pending),
+            pending_settlement_amount=sum((item.amount for item in pending), Decimal('0.00')).quantize(Decimal('0.01')),
+        )
+
+    def list_recurring_expenses(self, plan_id, viewer):
+        plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
+        plan = self._require_plan(plan_uuid)
+        if not self._can_view_budget(plan, viewer):
+            raise PermissionDenied('You do not have permission to view recurring expenses.')
+        if self.recurring_expense_repo is None:
+            return ()
+        return tuple(self.recurring_expense_repo.list_for_plan(plan_uuid))
+
+    @transaction.atomic
+    def set_recurring_expense_active(
+        self,
+        plan_id,
+        recurring_id,
+        actor,
+        *,
+        is_active: bool,
+    ):
+        if self.recurring_expense_repo is None:
+            raise ValidationError({'recurring_id': 'Recurring expenses are unavailable'})
+        plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
+        recurring_uuid = self._normalize_required_uuid(recurring_id, 'recurring_id')
+        actor_id = self._normalize_required_uuid(actor, 'actor')
+        plan = self._require_plan(plan_uuid)
+        rule = self.recurring_expense_repo.get_by_id(recurring_uuid, for_update=True)
+        if rule is None or rule.plan_id != plan_uuid:
+            raise ValidationError({'recurring_id': 'Recurring expense not found'})
+        if actor_id != rule.created_by_user_id and not self._can_manage_budget(plan, actor):
+            raise PermissionDenied('Only the creator or a plan admin can manage this schedule.')
+
+        next_run = rule.next_run_at
+        if is_active and next_run <= timezone.now():
+            next_run = self._next_recurrence_at(
+                timezone.now(),
+                rule.frequency,
+                rule.interval,
+            )
+        updated = self.recurring_expense_repo.set_active(
+            recurring_uuid,
+            is_active=bool(is_active),
+            next_run_at=next_run,
+        )
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=actor_id,
+                action=AuditAction.UPDATE_EXPENSE.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan_uuid,
+                metadata={
+                    'plan_id': plan_uuid,
+                    'plan_title': getattr(plan, 'title', 'Plan'),
+                    'recurring_expense_id': recurring_uuid,
+                    'category': rule.category,
+                    'schedule_status': 'active' if is_active else 'paused',
+                },
+            )
+        return updated
+
+    @transaction.atomic
+    def generate_due_recurring_expenses(self, now=None, limit: int = 100) -> dict[str, int]:
+        if self.recurring_expense_repo is None:
+            return {'created': 0, 'disabled': 0}
+        current_time = now or timezone.now()
+        created = 0
+        disabled = 0
+        for rule in self.recurring_expense_repo.list_due(current_time, limit=limit):
+            is_expired = rule.end_at is not None and rule.next_run_at > rule.end_at
+            if is_expired:
+                self.recurring_expense_repo.advance(
+                    rule.id,
+                    last_run_at=rule.last_run_at or current_time,
+                    next_run_at=rule.next_run_at,
+                    is_active=False,
+                )
+                disabled += 1
+                continue
+            self.add_expense(
+                rule.plan_id,
+                rule.created_by_user_id,
+                amount=rule.amount,
+                category=rule.category,
+                description=rule.description,
+                currency=rule.currency,
+                split_strategy=rule.split_strategy,
+                participants=rule.participants,
+                payments=rule.payments,
+                payment_note=rule.payment_note,
+                recurrence_id=rule.id,
+                occurrence_at=rule.next_run_at,
+            )
+            next_run = self._next_recurrence_at(rule.next_run_at, rule.frequency, rule.interval)
+            active = rule.end_at is None or next_run <= rule.end_at
+            self.recurring_expense_repo.advance(
+                rule.id,
+                last_run_at=rule.next_run_at,
+                next_run_at=next_run,
+                is_active=active,
+            )
+            created += 1
+        return {'created': created, 'disabled': disabled}
 
     def process_expense_notifications(self, expense_id) -> dict[str, Any]:
         if not self.notification_service:
@@ -478,6 +865,57 @@ class BudgetService:
         if notifications_sent == 0:
             return {'status': 'skipped', 'reason': 'no_recipients'}
         return {'status': 'processed', 'notifications_sent': notifications_sent}
+
+    def process_settlement_notification(self, settlement_id, event: str) -> dict[str, Any]:
+        if not self.notification_service:
+            return {'status': 'skipped', 'reason': 'notification_service_unavailable'}
+        settlement_uuid = self._normalize_required_uuid(settlement_id, 'settlement_id')
+        settlement = self.settlement_repo.get_by_id(settlement_uuid)
+        if settlement is None:
+            return {'status': 'skipped', 'reason': 'settlement_not_found'}
+        plan = self._require_plan(settlement.plan_id)
+        event_types = {
+            'requested': NotificationType.SETTLEMENT_REQUESTED.value,
+            SettlementStatus.COMPLETED.value: NotificationType.SETTLEMENT_COMPLETED.value,
+            SettlementStatus.REJECTED.value: NotificationType.SETTLEMENT_REJECTED.value,
+            'reminder': NotificationType.SETTLEMENT_REMINDER.value,
+        }
+        notification_type = event_types.get(event)
+        if notification_type is None:
+            return {'status': 'skipped', 'reason': 'unsupported_event'}
+        recipient_id = (
+            settlement.to_user_id
+            if event in {'requested', 'reminder'}
+            else settlement.from_user_id
+        )
+        actor_id = (
+            settlement.from_user_id
+            if event in {'requested', 'reminder'}
+            else settlement.to_user_id
+        )
+        self.notification_service.notify(
+            user_id=recipient_id,
+            notification_type=notification_type,
+            data={
+                'settlement_id': str(settlement.id),
+                'plan_id': str(settlement.plan_id),
+                'plan_title': getattr(plan, 'title', 'Plan'),
+                'actor_name': self._resolve_actor_name(plan, actor_id),
+                'amount': float(settlement.amount),
+                'currency': settlement.currency,
+                'status': settlement.status,
+            },
+            send_push=True,
+        )
+        return {'status': 'processed', 'recipient_id': str(recipient_id)}
+
+    def dispatch_pending_settlement_reminders(self, minimum_age_hours: int = 24) -> dict[str, int]:
+        cutoff = timezone.now() - timedelta(hours=max(minimum_age_hours, 1))
+        pending = self.settlement_repo.list_pending_before(cutoff)
+        if self.settlement_notification_dispatcher:
+            for settlement in pending:
+                self.settlement_notification_dispatcher(settlement.id, 'reminder')
+        return {'queued': len(pending)}
 
     def invalidate_budget_cache(self, plan_id) -> None:
         plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
@@ -701,6 +1139,114 @@ class BudgetService:
                 creditor_index += 1
         return suggestions
 
+    def _available_debt(
+        self,
+        plan_id: UUID,
+        viewer,
+        from_user_id: UUID,
+        to_user_id: UUID,
+    ) -> Decimal:
+        summary = self.get_balances(plan_id, viewer)
+        for item in summary.settlement_suggestions:
+            if item.from_user_id == from_user_id and item.to_user_id == to_user_id:
+                return item.amount
+        return Decimal('0.00')
+
+    def _create_recurring_rule(
+        self,
+        *,
+        plan_uuid: UUID,
+        actor_id: UUID,
+        amount: Decimal,
+        currency: str,
+        category: str,
+        description: str,
+        payment_note: str,
+        split_strategy: str,
+        participant_items,
+        payment_items,
+        recurrence: dict[str, Any],
+    ):
+        if self.recurring_expense_repo is None:
+            raise ValidationError({'recurrence': 'Recurring expenses are unavailable'})
+        frequency = str(recurrence.get('frequency', '')).strip().lower()
+        if frequency not in {'weekly', 'monthly'}:
+            raise ValidationError({'recurrence.frequency': 'Frequency must be weekly or monthly'})
+        try:
+            interval = int(recurrence.get('interval', 1))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({'recurrence.interval': 'Interval must be an integer'}) from exc
+        if interval < 1 or interval > 52:
+            raise ValidationError({'recurrence.interval': 'Interval must be between 1 and 52'})
+        next_run_at = recurrence.get('next_run_at')
+        if not isinstance(next_run_at, datetime):
+            raise ValidationError({'recurrence.next_run_at': 'A valid next run time is required'})
+        if timezone.is_naive(next_run_at):
+            next_run_at = timezone.make_aware(next_run_at)
+        if next_run_at <= timezone.now():
+            raise ValidationError({'recurrence.next_run_at': 'Next run time must be in the future'})
+        end_at = recurrence.get('end_at')
+        if end_at is not None and timezone.is_naive(end_at):
+            end_at = timezone.make_aware(end_at)
+        if end_at is not None and end_at < next_run_at:
+            raise ValidationError({'recurrence.end_at': 'End time cannot be before the next run'})
+        return self.recurring_expense_repo.create(
+            RecurringExpenseCreateData(
+                plan_id=plan_uuid,
+                created_by_user_id=actor_id,
+                amount=amount,
+                currency=currency,
+                category=category,
+                description=description,
+                payment_note=payment_note,
+                # Store resolved exact shares so future occurrences are stable
+                # even when the source used a percentage split.
+                split_strategy=SplitStrategy.EXACT.value,
+                participants=tuple(
+                    {
+                        'user_id': str(item.user_id),
+                        'amount': str(item.owed_amount),
+                    }
+                    for item in participant_items
+                ),
+                payments=tuple(
+                    {'user_id': str(item.user_id), 'amount': str(item.amount)}
+                    for item in payment_items
+                ),
+                frequency=frequency,
+                interval=interval,
+                next_run_at=next_run_at,
+                end_at=end_at,
+            )
+        )
+
+    @staticmethod
+    def _next_recurrence_at(value: datetime, frequency: str, interval: int) -> datetime:
+        if frequency == 'weekly':
+            return value + timedelta(weeks=interval)
+        month_index = value.month - 1 + interval
+        year = value.year + month_index // 12
+        month = month_index % 12 + 1
+        day = min(value.day, calendar.monthrange(year, month)[1])
+        return value.replace(year=year, month=month, day=day)
+
+    @staticmethod
+    def _rescale_amounts(
+        values: list[Decimal],
+        old_total: Decimal,
+        new_total: Decimal,
+    ) -> list[Decimal]:
+        if not values:
+            return []
+        if old_total <= 0:
+            return BudgetService._split_equal(new_total, len(values))
+        scaled = [
+            (value * new_total / old_total).quantize(Decimal('0.01'))
+            for value in values
+        ]
+        scaled[-1] = (scaled[-1] + new_total - sum(scaled, Decimal('0.00'))).quantize(Decimal('0.01'))
+        return scaled
+
     @staticmethod
     def _empty_balance_totals() -> dict[str, Decimal]:
         return {
@@ -790,6 +1336,17 @@ class BudgetService:
         return plan
 
     @staticmethod
+    def _resolve_plan_user(plan, user, user_id: UUID):
+        if hasattr(user, 'id'):
+            return user
+        if str(getattr(plan, 'creator_id', '')) == str(user_id):
+            return plan.creator
+        return next(
+            (member for member in plan.get_members() if str(member.id) == str(user_id)),
+            user,
+        )
+
+    @staticmethod
     def _can_view_budget(plan, user) -> bool:
         if user is None:
             return False
@@ -870,7 +1427,7 @@ class BudgetService:
 
     @staticmethod
     def _normalize_settlement_status(value: str | None) -> str:
-        normalized = (value or SettlementStatus.COMPLETED.value).strip().lower()
+        normalized = (value or SettlementStatus.PENDING.value).strip().lower()
         if normalized not in SettlementStatus.values():
             raise ValidationError({'status': 'Unsupported settlement status'})
         return normalized

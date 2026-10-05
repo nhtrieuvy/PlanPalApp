@@ -171,69 +171,89 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
     final actionItems = _buildActionSelectOptions();
     final actorItems = _buildActorSelectOptions(actorOptions);
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+    // Stable rows keep the complete labels visible on narrow devices and when
+    // users increase the system text size.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          width: 180,
-          child: AppSelectField<String>(
-            label: context.l10n.t('audit.action'),
-            value: _selectedAction,
-            prefixIcon: Icons.filter_alt_outlined,
-            options: actionItems,
-            onChanged: (value) {
-              setState(() {
-                _selectedAction = value;
-              });
-            },
-          ),
-        ),
-        SizedBox(
-          width: 180,
-          child: AppSelectField<String>(
-            label: context.l10n.t('audit.user'),
-            value: _selectedUserId,
-            prefixIcon: Icons.person_outline,
-            options: actorItems,
-            onChanged: (value) {
-              setState(() {
-                _selectedUserId = value;
-              });
-            },
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => _pickDate(isStartDate: true),
-          icon: const Icon(Icons.date_range_outlined),
-          label: Text(
-            _dateFrom == null
-                ? context.l10n.t('common.from_date')
-                : AppFormatters.shortDate(context, _dateFrom!),
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => _pickDate(isStartDate: false),
-          icon: const Icon(Icons.event_available_outlined),
-          label: Text(
-            _dateTo == null
-                ? context.l10n.t('common.to_date')
-                : AppFormatters.shortDate(context, _dateTo!),
-          ),
-        ),
-        TextButton(
-          onPressed: () {
+        AppSelectField<String>(
+          label: context.l10n.t('audit.action'),
+          value: _selectedAction,
+          prefixIcon: Icons.filter_alt_outlined,
+          options: actionItems,
+          onChanged: (value) {
             setState(() {
-              _selectedAction = '';
-              _selectedUserId = '';
-              _dateFrom = null;
-              _dateTo = null;
+              _selectedAction = value;
             });
           },
-          child: Text(context.l10n.t('common.clear_filters')),
         ),
+        const SizedBox(height: 12),
+        AppSelectField<String>(
+          label: context.l10n.t('audit.user'),
+          value: _selectedUserId,
+          prefixIcon: Icons.person_outline,
+          options: actorItems,
+          onChanged: (value) {
+            setState(() {
+              _selectedUserId = value;
+            });
+          },
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _pickDate(isStartDate: true),
+                icon: const Icon(Icons.date_range_outlined),
+                label: Text(
+                  _dateFrom == null
+                      ? context.l10n.t('common.from_date')
+                      : AppFormatters.shortDate(context, _dateFrom!),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _pickDate(isStartDate: false),
+                icon: const Icon(Icons.event_available_outlined),
+                label: Text(
+                  _dateTo == null
+                      ? context.l10n.t('common.to_date')
+                      : AppFormatters.shortDate(context, _dateTo!),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_hasActiveFilters)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _clearFilters,
+              child: Text(context.l10n.t('common.clear_filters')),
+            ),
+          ),
       ],
     );
+  }
+
+  bool get _hasActiveFilters =>
+      _selectedAction.isNotEmpty ||
+      _selectedUserId.isNotEmpty ||
+      _dateFrom != null ||
+      _dateTo != null;
+
+  void _clearFilters() {
+    setState(() {
+      _selectedAction = '';
+      _selectedUserId = '';
+      _dateFrom = null;
+      _dateTo = null;
+    });
   }
 
   List<AppSelectOption<String>> _buildActionSelectOptions() {

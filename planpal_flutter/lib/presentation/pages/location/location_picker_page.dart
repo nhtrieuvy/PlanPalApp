@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/maps/planpal_map.dart';
 import 'package:planpal_flutter/core/repositories/location_repository.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -26,16 +26,19 @@ class LocationPickerPage extends ConsumerStatefulWidget {
 }
 
 class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
-  static const LatLng _defaultPosition = LatLng(10.762622, 106.660172);
+  static const MapCoordinate _defaultPosition = MapCoordinate(
+    10.762622,
+    106.660172,
+  );
 
   late final LocationRepository _locationRepository;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
-  GoogleMapController? _mapController;
+  PlanPalMapController? _mapController;
   Timer? _searchDebounce;
 
-  late LatLng _selectedPosition;
+  late MapCoordinate _selectedPosition;
   String _selectedAddress = '';
   String _locationName = '';
   bool _isInitializing = true;
@@ -66,9 +69,9 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     super.dispose();
   }
 
-  LatLng _initialPositionFromWidget() {
+  MapCoordinate _initialPositionFromWidget() {
     if (widget.initialLatitude != null && widget.initialLongitude != null) {
-      return LatLng(widget.initialLatitude!, widget.initialLongitude!);
+      return MapCoordinate(widget.initialLatitude!, widget.initialLongitude!);
     }
     return _defaultPosition;
   }
@@ -127,22 +130,20 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     setState(() {});
   }
 
-  Set<Marker> get _markers => {
-    Marker(
-      markerId: const MarkerId('selected_location'),
+  Set<MapPin> get _markers => {
+    MapPin(
+      id: 'selected_location',
       position: _selectedPosition,
       draggable: true,
       onDragEnd: _handleMapSelection,
-      infoWindow: InfoWindow(
-        title: _locationName.isNotEmpty
-            ? _locationName
-            : _defaultLocationName(context),
-        snippet: _selectedAddress,
-      ),
+      title: _locationName.isNotEmpty
+          ? _locationName
+          : _defaultLocationName(context),
+      subtitle: _selectedAddress,
     ),
   };
 
-  Future<void> _handleMapSelection(LatLng position) async {
+  Future<void> _handleMapSelection(MapCoordinate position) async {
     setState(() {
       _selectedPosition = position;
       _locationName = _defaultLocationName(context);
@@ -154,14 +155,14 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     await _resolveSelectedAddress();
   }
 
-  Future<void> _animateTo(LatLng position, {double? zoom}) async {
+  Future<void> _animateTo(MapCoordinate position, {double? zoom}) async {
     final controller = _mapController;
     if (controller == null) return;
 
     await controller.animateCamera(
       zoom == null
-          ? CameraUpdate.newLatLng(position)
-          : CameraUpdate.newLatLngZoom(position, zoom),
+          ? MapCameraUpdate.newCoordinate(position)
+          : MapCameraUpdate.newCoordinateZoom(position, zoom),
     );
   }
 
@@ -215,7 +216,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     });
 
     if (directLatitude != null && directLongitude != null) {
-      _selectedPosition = LatLng(directLatitude, directLongitude);
+      _selectedPosition = MapCoordinate(directLatitude, directLongitude);
       _locationName = description;
       _selectedAddress = description;
       _setMarkerOnly();
@@ -246,7 +247,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       return;
     }
 
-    _selectedPosition = LatLng(latitude, longitude);
+    _selectedPosition = MapCoordinate(latitude, longitude);
     _locationName = details?['name']?.toString().trim().isNotEmpty == true
         ? details!['name'].toString()
         : description;
@@ -287,7 +288,9 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      await _handleMapSelection(LatLng(position.latitude, position.longitude));
+      await _handleMapSelection(
+        MapCoordinate(position.latitude, position.longitude),
+      );
     } catch (_) {
       _showSnackBar(l10n.t('location_picker.current_location_error'));
     }
@@ -295,7 +298,9 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _confirmSelection() {
@@ -320,7 +325,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     });
   }
 
-  String _formatCoordinates(LatLng position) =>
+  String _formatCoordinates(MapCoordinate position) =>
       '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
 
   @override
@@ -332,39 +337,28 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(context.l10n.t('location_picker.title')),
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
           actions: [
             TextButton(
               onPressed: _confirmSelection,
-              child: Text(
-                context.l10n.t('location_picker.confirm'),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: Text(context.l10n.t('location_picker.confirm')),
             ),
           ],
         ),
         body: Stack(
           children: [
             Positioned.fill(
-              child: GoogleMap(
+              child: PlanPalMap(
                 onMapCreated: (controller) async {
                   _mapController = controller;
                   await _animateTo(_selectedPosition, zoom: 15);
                 },
-                initialCameraPosition: CameraPosition(
+                initialCameraPosition: MapCameraPosition(
                   target: _selectedPosition,
                   zoom: 15,
                 ),
-                markers: _markers,
+                pins: _markers,
                 onTap: _handleMapSelection,
                 myLocationEnabled: false,
-                myLocationButtonEnabled: false,
-                zoomControlsEnabled: false,
-                mapToolbarEnabled: false,
                 compassEnabled: true,
               ),
             ),
@@ -380,7 +374,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
               child: FloatingActionButton.small(
                 heroTag: 'current_location_button',
                 onPressed: _goToCurrentLocation,
-                backgroundColor: Colors.white,
+                backgroundColor: theme.colorScheme.surface,
                 foregroundColor: AppColors.primary,
                 child: const Icon(Icons.my_location),
               ),
@@ -411,13 +405,14 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: const [
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x22000000),
-                  blurRadius: 16,
-                  offset: Offset(0, 6),
+                  color: theme.shadowColor.withValues(alpha: 0.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -451,7 +446,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
                             )
                           : null),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(
@@ -474,13 +469,14 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
               margin: const EdgeInsets.only(top: 8),
               constraints: const BoxConstraints(maxHeight: 280),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: const [
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 16,
-                    offset: Offset(0, 6),
+                    color: theme.shadowColor.withValues(alpha: 0.12),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -504,7 +500,9 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
                       color: AppColors.primary,
                     ),
                     title: Text(mainText),
-                    subtitle: secondaryText.isEmpty ? null : Text(secondaryText),
+                    subtitle: secondaryText.isEmpty
+                        ? null
+                        : Text(secondaryText),
                     onTap: () => _selectSuggestion(suggestion),
                   );
                 },
@@ -593,22 +591,10 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: _confirmSelection,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
                 child: Text(
                   context.l10n.t('location_picker.select_this_location'),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
                 ),
               ),
             ),

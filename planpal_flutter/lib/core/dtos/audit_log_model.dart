@@ -43,12 +43,27 @@ class AuditLogModel extends Equatable {
     AuditActionOption(value: 'COMPLETE_PLAN', label: 'Complete Plan'),
     AuditActionOption(value: 'CREATE_ACTIVITY', label: 'Create Activity'),
     AuditActionOption(value: 'UPDATE_ACTIVITY', label: 'Update Activity'),
+    AuditActionOption(value: 'CREATE_GROUP_POLL', label: 'Create Group Poll'),
+    AuditActionOption(value: 'CLOSE_GROUP_POLL', label: 'Close Group Poll'),
+    AuditActionOption(
+      value: 'START_LIVE_LOCATION',
+      label: 'Start Live Location',
+    ),
+    AuditActionOption(value: 'STOP_LIVE_LOCATION', label: 'Stop Live Location'),
     AuditActionOption(value: 'UPDATE_BUDGET', label: 'Update Budget'),
     AuditActionOption(value: 'CREATE_EXPENSE', label: 'Create Expense'),
     AuditActionOption(value: 'UPDATE_EXPENSE', label: 'Update Expense'),
     AuditActionOption(
+      value: 'SETTLEMENT_REQUESTED',
+      label: 'Settlement Requested',
+    ),
+    AuditActionOption(
       value: 'SETTLEMENT_COMPLETED',
       label: 'Settlement Completed',
+    ),
+    AuditActionOption(
+      value: 'SETTLEMENT_REJECTED',
+      label: 'Settlement Rejected',
     ),
     AuditActionOption(value: 'JOIN_GROUP', label: 'Join Group'),
     AuditActionOption(value: 'LEAVE_GROUP', label: 'Leave Group'),
@@ -259,15 +274,19 @@ class AuditLogModel extends Equatable {
                 );
         }
         return l10n.t('audit.action.$action');
+      case 'SETTLEMENT_REQUESTED':
       case 'SETTLEMENT_COMPLETED':
+      case 'SETTLEMENT_REJECTED':
         final amountText = _formatMoney(
           _metadataString('amount'),
           _metadataString('currency'),
         );
-        return l10n.t(
-          'audit.summary.settlement_completed',
-          params: {'amount': amountText},
-        );
+        final summaryKey = action == 'SETTLEMENT_REQUESTED'
+            ? 'audit.summary.settlement_requested'
+            : action == 'SETTLEMENT_REJECTED'
+            ? 'audit.summary.settlement_rejected'
+            : 'audit.summary.settlement_completed';
+        return l10n.t(summaryKey, params: {'amount': amountText});
       case 'JOIN_GROUP':
         return groupName.isNotEmpty
             ? l10n.t('audit.summary.joined_group', params: {'group': groupName})
@@ -309,6 +328,20 @@ class AuditLogModel extends Equatable {
           'audit.summary.opened_notifications',
           params: {'count': '${metadata['notification_count'] ?? 1}'},
         );
+      case 'CREATE_GROUP_POLL':
+        return l10n.t(
+          'audit.summary.created_group_poll',
+          params: {'question': _metadataString('question')},
+        );
+      case 'CLOSE_GROUP_POLL':
+        return l10n.t(
+          'audit.summary.closed_group_poll',
+          params: {'question': _metadataString('question')},
+        );
+      case 'START_LIVE_LOCATION':
+        return l10n.t('audit.summary.started_live_location');
+      case 'STOP_LIVE_LOCATION':
+        return l10n.t('audit.summary.stopped_live_location');
       case 'GROUP_INVITE_CREATED':
         return groupName.isNotEmpty
             ? l10n.t(

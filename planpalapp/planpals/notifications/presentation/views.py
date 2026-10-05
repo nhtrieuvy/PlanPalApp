@@ -9,6 +9,7 @@ from planpals.notifications.application.factories import get_notification_servic
 from planpals.notifications.application.repositories import NotificationFilters
 from planpals.notifications.presentation.serializers import (
     NotificationFilterSerializer,
+    NotificationPreferenceSerializer,
     NotificationSerializer,
 )
 
@@ -49,6 +50,23 @@ class NotificationViewSet(viewsets.ViewSet):
             {'message': 'Notifications marked as read', 'updated_count': updated_count},
             status=status.HTTP_200_OK,
         )
+
+    @action(detail=False, methods=['get', 'patch'], url_path='preferences')
+    def preferences(self, request):
+        service = get_notification_service()
+        if request.method == 'GET':
+            preference = service.get_preferences(request.user)
+        else:
+            serializer = NotificationPreferenceSerializer(
+                data=request.data,
+                partial=True,
+            )
+            serializer.is_valid(raise_exception=True)
+            preference = service.update_preferences(
+                request.user,
+                serializer.validated_data,
+            )
+        return Response(NotificationPreferenceSerializer(preference).data)
 
     def _validated_filters(self, request) -> NotificationFilters:
         serializer = NotificationFilterSerializer(data=request.query_params)

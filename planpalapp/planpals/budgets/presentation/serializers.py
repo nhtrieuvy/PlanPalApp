@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from rest_framework import serializers
 
 from planpals.budgets.application.repositories import ExpenseFilters
@@ -30,6 +32,8 @@ class ExpenseCreateSerializer(serializers.Serializer):
     currency = serializers.CharField(required=False, allow_blank=False, default='VND', max_length=10)
     category = serializers.CharField(max_length=100)
     description = serializers.CharField(required=False, allow_blank=True, default='')
+    payment_note = serializers.CharField(required=False, allow_blank=True, default='', max_length=2000)
+    receipt = serializers.FileField(required=False, allow_null=True, write_only=True)
     split_strategy = serializers.ChoiceField(
         choices=[(value, value) for value in SplitStrategy.values()],
         required=False,
@@ -45,6 +49,44 @@ class ExpenseCreateSerializer(serializers.Serializer):
         required=False,
         allow_empty=False,
     )
+    recurrence = serializers.DictField(required=False, allow_null=True)
+
+    def to_internal_value(self, data):
+        mutable = data.copy() if hasattr(data, 'copy') else dict(data)
+        for key in ('participants', 'payments', 'recurrence'):
+            value = mutable.get(key)
+            if isinstance(value, str):
+                try:
+                    mutable[key] = json.loads(value)
+                except json.JSONDecodeError as exc:
+                    raise serializers.ValidationError({key: 'Invalid JSON value'}) from exc
+        return super().to_internal_value(mutable)
+
+    def validate_receipt(self, value):
+        return _validate_finance_attachment(value)
+
+    def validate_recurrence(self, value):
+        if value is None:
+            return None
+        frequency = str(value.get('frequency', '')).lower()
+        if frequency not in {'weekly', 'monthly'}:
+            raise serializers.ValidationError('Frequency must be weekly or monthly')
+        try:
+            interval = int(value.get('interval', 1))
+        except (TypeError, ValueError) as exc:
+            raise serializers.ValidationError('Interval must be an integer') from exc
+        if interval < 1 or interval > 52:
+            raise serializers.ValidationError('Interval must be between 1 and 52')
+        next_run = serializers.DateTimeField().run_validation(value.get('next_run_at'))
+        end_at = value.get('end_at')
+        if end_at:
+            end_at = serializers.DateTimeField().run_validation(end_at)
+        return {
+            'frequency': frequency,
+            'interval': interval,
+            'next_run_at': next_run,
+            'end_at': end_at,
+        }
 
 
 class SettlementCreateSerializer(serializers.Serializer):
@@ -53,12 +95,44 @@ class SettlementCreateSerializer(serializers.Serializer):
     to_user_id = serializers.UUIDField()
     amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0.01)
     currency = serializers.CharField(required=False, allow_blank=False, default='VND', max_length=10)
-    status = serializers.ChoiceField(
-        choices=[(value, value) for value in SettlementStatus.values()],
-        required=False,
-        default=SettlementStatus.COMPLETED.value,
-    )
     note = serializers.CharField(required=False, allow_blank=True, default='')
+    payment_note = serializers.CharField(required=False, allow_blank=True, default='', max_length=2000)
+    receipt = serializers.FileField(required=False, allow_null=True, write_only=True)
+
+    def validate_receipt(self, value):
+        return _validate_finance_attachment(value)
+
+
+class SettlementActionSerializer(serializers.Serializer):
+    rejection_reason = serializers.CharField(required=False, allow_blank=True, default='', max_length=1000)
+
+
+class RecurringExpenseStatusSerializer(serializers.Serializer):
+    is_active = serializers.BooleanField()
+
+
+class ExpenseCorrectionSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0.01)
+    category = serializers.CharField(max_length=100)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+    payment_note = serializers.CharField(required=False, allow_blank=True, default='', max_length=2000)
+    reason = serializers.CharField(max_length=1000, allow_blank=False)
+    receipt = serializers.FileField(required=False, allow_null=True, write_only=True)
+
+    def validate_receipt(self, value):
+        return _validate_finance_attachment(value)
+
+
+def _validate_finance_attachment(value):
+    if value is None:
+        return value
+    if getattr(value, 'size', 0) > 10 * 1024 * 1024:
+        raise serializers.ValidationError('Receipt must be 10 MB or smaller')
+    content_type = str(getattr(value, 'content_type', '')).lower()
+    allowed = {'image/jpeg', 'image/png', 'image/webp', 'application/pdf'}
+    if content_type and content_type not in allowed:
+        raise serializers.ValidationError('Receipt must be a JPG, PNG, WEBP, or PDF file')
+    return value
 
 
 class ExpenseFilterSerializer(serializers.Serializer):
@@ -129,7 +203,14 @@ class ExpenseSerializer(serializers.Serializer):
             'currency': expense.currency,
             'category': expense.category,
             'description': expense.description,
+            'payment_note': expense.payment_note,
+            'receipt_url': expense.receipt_url,
             'split_strategy': expense.split_strategy,
+            'entry_type': expense.entry_type,
+            'corrects_expense_id': expense.corrects_expense_id,
+            'correction_reason': expense.correction_reason,
+            'recurrence_id': expense.recurrence_id,
+            'occurrence_at': expense.occurrence_at,
             'participants': [
                 {
                     'id': participant.id,
@@ -321,7 +402,63 @@ class SettlementSerializer(serializers.Serializer):
             'currency': settlement.currency,
             'status': settlement.status,
             'note': settlement.note,
+            'payment_note': settlement.payment_note,
+            'receipt_url': settlement.receipt_url,
+            'requested_by_user_id': settlement.requested_by_user_id,
+            'rejection_reason': settlement.rejection_reason,
             'settled_at': settlement.settled_at,
+            'responded_at': settlement.responded_at,
             'created_at': settlement.created_at,
             'updated_at': settlement.updated_at,
+        }
+
+
+class FinanceInsightsSerializer(serializers.Serializer):
+    @classmethod
+    def from_entity(cls, insights) -> dict:
+        return {
+            'plan_id': insights.plan_id,
+            'currency': insights.currency,
+            'total_spent': insights.total_spent,
+            'categories': [
+                {
+                    'category': item.category,
+                    'amount': item.amount,
+                    'percentage': item.percentage,
+                }
+                for item in insights.categories
+            ],
+            'forecast': {
+                'daily_average': insights.forecast.daily_average,
+                'projected_total': insights.forecast.projected_total,
+                'projected_remaining': insights.forecast.projected_remaining,
+                'projected_over_budget': insights.forecast.projected_over_budget,
+                'forecast_date': insights.forecast.forecast_date,
+            },
+            'pending_settlement_count': insights.pending_settlement_count,
+            'pending_settlement_amount': insights.pending_settlement_amount,
+        }
+
+
+class RecurringExpenseSerializer(serializers.Serializer):
+    @classmethod
+    def from_entity(cls, recurring) -> dict:
+        return {
+            'id': recurring.id,
+            'plan_id': recurring.plan_id,
+            'created_by_user_id': recurring.created_by_user_id,
+            'amount': recurring.amount,
+            'currency': recurring.currency,
+            'category': recurring.category,
+            'description': recurring.description,
+            'payment_note': recurring.payment_note,
+            'split_strategy': recurring.split_strategy,
+            'frequency': recurring.frequency,
+            'interval': recurring.interval,
+            'next_run_at': recurring.next_run_at,
+            'end_at': recurring.end_at,
+            'last_run_at': recurring.last_run_at,
+            'is_active': recurring.is_active,
+            'created_at': recurring.created_at,
+            'updated_at': recurring.updated_at,
         }

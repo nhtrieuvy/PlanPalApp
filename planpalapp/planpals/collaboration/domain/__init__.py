@@ -1,0 +1,1 @@
+"""Framework-independent collaboration domain."""
