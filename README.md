@@ -33,6 +33,30 @@
 | Data and media | MySQL, Cloudinary |
 | Maps and notifications | Goong, MapLibre, Firebase Cloud Messaging |
 | Delivery | GitHub Actions, Docker, Fly.io, Cloudflare Workers |
+```text
+username: admin
+password: 123
+```
+
+**User 1**
+
+```text
+username: u1
+password: 12345678
+```
+
+**User 2**
+
+```text
+username: u2
+password: 12345678
+```
+
+> Demo accounts depend on the target deployment database. For local development, create users through Django Admin, fixtures, or the mobile registration flow.
+
+
+## NOTE: The app is NOT available from 09:00 PM to 08:00 AM. ⏲️
+
 
 ## Run locally
 
