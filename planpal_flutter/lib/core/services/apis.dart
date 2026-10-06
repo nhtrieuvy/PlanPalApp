@@ -16,6 +16,7 @@ class Endpoints {
   // OAuth2 endpoints
   static const String token = '/o/token/';
   static String get logout => _v1('/auth/logout/');
+  static String get websocketTicket => _v1('/auth/websocket-ticket/');
 
   // User endpoints
   static String get register => _v1('/users/');
@@ -51,6 +52,8 @@ class Endpoints {
   static String planCancel(String planId) => _v1('/plans/$planId/cancel/');
   static String planBudget(String planId) => _v1('/plans/$planId/budget/');
   static String planExpenses(String planId) => _v1('/plans/$planId/expenses/');
+  static String planExpense(String planId, String expenseId) =>
+      _v1('/plans/$planId/expenses/$expenseId/');
   static String planBalances(String planId) => _v1('/plans/$planId/balances/');
   static String planFinanceInsights(String planId) =>
       _v1('/plans/$planId/finance-insights/');
@@ -64,8 +67,7 @@ class Endpoints {
       _v1('/groups/$groupId/availability-polls/');
   static String availabilityPollVote(String pollId) =>
       _v1('/availability-polls/$pollId/vote/');
-  static String groupPolls(String groupId) =>
-      _v1('/groups/$groupId/polls/');
+  static String groupPolls(String groupId) => _v1('/groups/$groupId/polls/');
   static String groupPollVote(String pollId) =>
       _v1('/group-polls/$pollId/vote/');
   static String groupPollClose(String pollId) =>

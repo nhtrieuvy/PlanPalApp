@@ -1,5 +1,7 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
@@ -9,6 +11,7 @@ import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
 
 /// A plan-level ledger. Expense details stay scoped to one bill; this page
@@ -44,8 +47,11 @@ class BalancesPage extends ConsumerWidget {
           message: ErrorDisplayService.getUserFriendlyMessage(error),
           onRetry: () => ref.read(balancesProvider(planId).notifier).refresh(),
         ),
-        data: (summary) =>
-            _BalanceContent(planTitle: planTitle, summary: summary),
+        data: (summary) => ResponsiveContent(
+          mediumMaxWidth: 760,
+          expandedMaxWidth: 960,
+          child: _BalanceContent(planTitle: planTitle, summary: summary),
+        ),
       ),
     );
   }
@@ -474,7 +480,7 @@ class _DebtSuggestionCardState extends ConsumerState<_DebtSuggestionCard> {
             amount: widget.suggestion.amount,
             currency: widget.currency,
             paymentNote: draft.paymentNote,
-            receiptPath: draft.receiptPath,
+            receiptFile: draft.receiptFile,
           );
       ref.invalidate(balancesProvider(widget.planId));
       ref.invalidate(settlementsProvider(widget.planId));
@@ -653,10 +659,10 @@ class _PendingSettlementCardState
 }
 
 class _SettlementRequestDraft {
-  const _SettlementRequestDraft({required this.paymentNote, this.receiptPath});
+  const _SettlementRequestDraft({required this.paymentNote, this.receiptFile});
 
   final String paymentNote;
-  final String? receiptPath;
+  final XFile? receiptFile;
 }
 
 class _SettlementRequestSheet extends StatefulWidget {
@@ -669,7 +675,7 @@ class _SettlementRequestSheet extends StatefulWidget {
 
 class _SettlementRequestSheetState extends State<_SettlementRequestSheet> {
   final _paymentNote = TextEditingController();
-  String? _receiptPath;
+  XFile? _receiptFile;
   String? _receiptName;
 
   @override
@@ -723,12 +729,12 @@ class _SettlementRequestSheetState extends State<_SettlementRequestSheet> {
                 _receiptName ?? context.l10n.t('budget.attach_receipt'),
               ),
               subtitle: Text(context.l10n.t('budget.receipt_formats')),
-              trailing: _receiptPath == null
+              trailing: _receiptFile == null
                   ? const Icon(Icons.add_rounded)
                   : IconButton(
                       tooltip: context.l10n.t('budget.remove_receipt'),
                       onPressed: () => setState(() {
-                        _receiptPath = null;
+                        _receiptFile = null;
                         _receiptName = null;
                       }),
                       icon: const Icon(Icons.close_rounded),
@@ -742,7 +748,7 @@ class _SettlementRequestSheetState extends State<_SettlementRequestSheet> {
                 onPressed: () => Navigator.of(context).pop(
                   _SettlementRequestDraft(
                     paymentNote: _paymentNote.text.trim(),
-                    receiptPath: _receiptPath,
+                    receiptFile: _receiptFile,
                   ),
                 ),
                 icon: const Icon(Icons.send_rounded),
@@ -761,10 +767,11 @@ class _SettlementRequestSheetState extends State<_SettlementRequestSheet> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      withData: kIsWeb,
     );
     final file = result?.files.single;
-    if (file?.path == null || !mounted) return;
-    if (file!.size > 10 * 1024 * 1024) {
+    if (file == null || (!kIsWeb && file.path == null) || !mounted) return;
+    if (file.size > 10 * 1024 * 1024) {
       ErrorDisplayService.showErrorSnackbar(
         context,
         context.l10n.t('budget.receipt_too_large'),
@@ -772,7 +779,7 @@ class _SettlementRequestSheetState extends State<_SettlementRequestSheet> {
       return;
     }
     setState(() {
-      _receiptPath = file.path;
+      _receiptFile = file.xFile;
       _receiptName = file.name;
     });
   }

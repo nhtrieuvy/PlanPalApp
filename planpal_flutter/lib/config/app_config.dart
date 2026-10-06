@@ -17,7 +17,8 @@ class AppConfig {
   static const String _productionBaseUrl = 'https://planpal-backend.fly.dev';
   static const String _productionClientId =
       'UhBBWfbCi72eNYMTTn3XqUBR5wGdCcO7TCWmMA7L';
-  static const String _localBaseUrl = 'http://10.0.2.2:8000';
+  static const String _androidEmulatorBaseUrl = 'http://10.0.2.2:8000';
+  static const String _localHostBaseUrl = 'http://127.0.0.1:8000';
   static const String _localClientId =
       'UmrrG84UV5li86D7F5e9TDAOugedMLnrErUS1Cvj';
 
@@ -38,8 +39,15 @@ class AppConfig {
     final override = _baseUrlOverride.trim();
     final value = override.isNotEmpty
         ? override
-        : (isProduction ? _productionBaseUrl : _localBaseUrl);
+        : (isProduction ? _productionBaseUrl : _defaultLocalBaseUrl);
     return value.endsWith('/') ? value.substring(0, value.length - 1) : value;
+  }
+
+  static String get _defaultLocalBaseUrl {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return _androidEmulatorBaseUrl;
+    }
+    return _localHostBaseUrl;
   }
 
   static String getClientId() {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 
 class StatCard extends StatelessWidget {
   final IconData icon;
@@ -20,16 +21,23 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final card = Card(
-      color: backgroundColor,
-      elevation: 1,
-      margin: EdgeInsets.zero,
+    final colors = Theme.of(context).colorScheme;
+    final card = AnimatedContainer(
+      duration: AppMotion.quick,
+      decoration: BoxDecoration(
+        color: backgroundColor.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: colors.outlineVariant),
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.sm,
+          horizontal: AppSpacing.md,
+        ),
         child: Row(
           children: [
             Icon(icon, color: color, size: 28),
-            const SizedBox(width: 16),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
                 label,
@@ -49,10 +57,14 @@ class StatCard extends StatelessWidget {
     );
 
     if (onTap == null) return card;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: card,
+    return Semantics(
+      button: true,
+      label: '$label: $value',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        child: card,
+      ),
     );
   }
 }

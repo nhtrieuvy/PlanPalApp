@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:cross_file/cross_file.dart';
 import 'package:planpal_flutter/core/auth/auth_session.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
 import 'package:planpal_flutter/core/dtos/user_summary.dart';
@@ -11,6 +12,7 @@ import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/presentation/pages/budget/budget_overview_page.dart';
 import 'package:planpal_flutter/presentation/pages/budget/balances_page.dart';
+import 'package:planpal_flutter/presentation/pages/budget/expense_detail_page.dart';
 import 'test_app.dart';
 
 void main() {
@@ -144,8 +146,40 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Per-user breakdown'), findsOneWidget);
     expect(find.text('Plan Owner'), findsOneWidget);
+    expect(find.text('Add expense'), findsOneWidget);
+    await tester.ensureVisible(find.byTooltip('Manage'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Manage'));
+    await tester.pumpAndSettle();
     expect(find.text('View expenses'), findsOneWidget);
     expect(find.text('Update budget'), findsOneWidget);
+  });
+
+  testWidgets('Expense detail keeps correction actions visible', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: buildLocalizedTestApp(
+          ExpenseDetailPage(
+            expense: buildExpense(
+              id: 'exp-visible-actions',
+              amount: 60000,
+              category: 'Food',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Correct expense'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Edit participants'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Edit participants'), findsOneWidget);
   });
 
   test('expensesProvider appends the next page', () async {
@@ -261,6 +295,8 @@ void main() {
     expect(find.text('Total to receive'), findsOneWidget);
     expect(find.text('Total to pay'), findsOneWidget);
     expect(find.text('Plan Owner'), findsWidgets);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -500));
+    await tester.pumpAndSettle();
     expect(find.text('Group Member'), findsWidgets);
   });
 }
@@ -315,7 +351,7 @@ class FakeBudgetRepository extends BudgetRepository {
     List<ExpenseParticipantInput> participants = const [],
     List<ExpensePaymentInput> payments = const [],
     String paymentNote = '',
-    String? receiptPath,
+    XFile? receiptFile,
     RecurrenceInput? recurrence,
   }) async {
     return ExpenseCreateResult(
@@ -350,7 +386,7 @@ class FakeBudgetRepository extends BudgetRepository {
     String currency = 'VND',
     String note = '',
     String paymentNote = '',
-    String? receiptPath,
+    XFile? receiptFile,
   }) async {
     const fromUser = BalanceUser(
       id: 'user-1',

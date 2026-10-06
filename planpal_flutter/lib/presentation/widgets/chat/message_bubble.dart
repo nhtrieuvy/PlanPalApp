@@ -6,6 +6,8 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/dtos/chat_message.dart';
 import '../../../core/localization/app_formatters.dart';
 import '../../../core/localization/app_localizations.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/semantic_colors.dart';
 
 enum MessageStatus { sending, sent, delivered, read, failed }
 
@@ -35,112 +37,123 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final semantic = context.semanticColors;
 
-    return GestureDetector(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
-        child: Row(
-          mainAxisAlignment: isCurrentUser
-              ? MainAxisAlignment.end
-              : MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (!isCurrentUser && showAvatar) ...[
-              _buildAvatar(),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
-              child: Column(
-                crossAxisAlignment: isCurrentUser
-                    ? CrossAxisAlignment.end
-                    : CrossAxisAlignment.start,
-                children: [
-                  if (!isCurrentUser && message.sender.fullName.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12, bottom: 4),
-                      child: Text(
-                        message.sender.fullName,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: colorScheme.onSurfaceVariant,
+    return MouseRegion(
+      cursor: onTap != null || onLongPress != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      child: GestureDetector(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 16),
+          child: Row(
+            mainAxisAlignment: isCurrentUser
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!isCurrentUser && showAvatar) ...[
+                _buildAvatar(context),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: isCurrentUser
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
+                  children: [
+                    if (!isCurrentUser && message.sender.fullName.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12, bottom: 4),
+                        child: Text(
+                          message.sender.fullName,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
-                    ),
-                  Container(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isCurrentUser
-                          ? const Color(0xFF6366F1)
-                          : colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(20),
-                        topRight: const Radius.circular(20),
-                        bottomLeft: Radius.circular(isCurrentUser ? 20 : 4),
-                        bottomRight: Radius.circular(isCurrentUser ? 4 : 20),
+                    Container(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.75,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(13),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                      decoration: BoxDecoration(
+                        color: isCurrentUser
+                            ? semantic.brandPrimary
+                            : colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(20),
+                          topRight: const Radius.circular(20),
+                          bottomLeft: Radius.circular(isCurrentUser ? 20 : 4),
+                          bottomRight: Radius.circular(isCurrentUser ? 4 : 20),
                         ),
-                      ],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(13),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: _buildMessageContent(context),
                     ),
-                    child: _buildMessageContent(context),
-                  ),
-                  if (showTimestamp) _buildMessageInfo(context),
-                ],
+                    if (showTimestamp) _buildMessageInfo(context),
+                  ],
+                ),
               ),
-            ),
-            if (isCurrentUser && showAvatar) ...[
-              const SizedBox(width: 8),
-              _buildAvatar(),
+              if (isCurrentUser && showAvatar) ...[
+                const SizedBox(width: 8),
+                _buildAvatar(context),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAvatar() {
+  Widget _buildAvatar(BuildContext context) {
+    final palette = AppColors.avatarPalette(
+      message.sender.id.isNotEmpty
+          ? message.sender.id
+          : message.sender.fullName,
+      Theme.of(context).brightness,
+    );
+
     return Container(
       width: 32,
       height: 32,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF06B6D4)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: palette.background,
       ),
-      child: message.sender.avatarUrl != null
+      child: message.sender.avatarUrl?.isNotEmpty == true
           ? ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: CachedNetworkImage(
                 imageUrl: message.sender.avatarUrl!,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => _buildAvatarPlaceholder(),
-                errorWidget: (context, url, error) => _buildAvatarPlaceholder(),
+                placeholder: (context, url) =>
+                    _buildAvatarPlaceholder(palette.foreground),
+                errorWidget: (context, url, error) =>
+                    _buildAvatarPlaceholder(palette.foreground),
               ),
             )
-          : _buildAvatarPlaceholder(),
+          : _buildAvatarPlaceholder(palette.foreground),
     );
   }
 
-  Widget _buildAvatarPlaceholder() {
+  Widget _buildAvatarPlaceholder(Color foregroundColor) {
     return Center(
       child: Text(
         message.sender.fullName.isNotEmpty ? message.sender.initials : '?',
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: foregroundColor,
         ),
       ),
     );
@@ -167,10 +180,10 @@ class MessageBubble extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Text(
         message.content,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 15,
           height: 1.4,
-          color: isCurrentUser ? Colors.white : colorScheme.onSurfaceVariant,
+          color: isCurrentUser ? colorScheme.onPrimary : colorScheme.onSurface,
         ),
       ),
     );
@@ -183,26 +196,35 @@ class MessageBubble extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onTap: onImageTap,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 250, maxHeight: 300),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
-              ),
-              child: CachedNetworkImage(
-                imageUrl: imageUrl,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  height: 150,
-                  color: Colors.grey[300],
-                  child: const Center(child: CircularProgressIndicator()),
+        MouseRegion(
+          cursor: onImageTap == null
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: onImageTap,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 250, maxHeight: 300),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
                 ),
-                errorWidget: (context, url, error) => Container(
-                  height: 150,
-                  color: Colors.grey[300],
-                  child: const Center(child: Icon(Icons.error)),
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    height: 150,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 150,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: const Center(child: Icon(Icons.error)),
+                  ),
                 ),
               ),
             ),
@@ -213,10 +235,10 @@ class MessageBubble extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: Text(
               caption,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: isCurrentUser
-                    ? Colors.white
+                    ? Theme.of(context).colorScheme.onPrimary
                     : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
@@ -227,6 +249,7 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildLocationMessage(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
     final l10n = context.l10n;
     final title = (message.locationName?.trim().isNotEmpty ?? false)
         ? message.locationName!.trim()
@@ -243,11 +266,11 @@ class MessageBubble extends StatelessWidget {
           _buildIconChip(
             icon: PhosphorIcons.mapPin(),
             backgroundColor: isCurrentUser
-                ? Colors.white.withAlpha(50)
-                : const Color(0xFF6366F1).withAlpha(25),
+                ? colorScheme.onPrimary.withAlpha(36)
+                : semantic.brandPrimary.withAlpha(28),
             foregroundColor: isCurrentUser
-                ? Colors.white
-                : const Color(0xFF6366F1),
+                ? colorScheme.onPrimary
+                : semantic.brandPrimary,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -256,21 +279,21 @@ class MessageBubble extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: isCurrentUser
-                        ? Colors.white
-                        : colorScheme.onSurfaceVariant,
+                        ? colorScheme.onPrimary
+                        : colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     color: isCurrentUser
-                        ? Colors.white.withAlpha(200)
+                        ? colorScheme.onPrimary.withAlpha(200)
                         : colorScheme.onSurfaceVariant.withAlpha(175),
                   ),
                   maxLines: 2,
@@ -279,10 +302,10 @@ class MessageBubble extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   l10n.t('chat.tap_to_open_map'),
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 11,
                     color: isCurrentUser
-                        ? Colors.white.withAlpha(180)
+                        ? colorScheme.onPrimary.withAlpha(180)
                         : colorScheme.onSurfaceVariant.withAlpha(150),
                   ),
                 ),
@@ -296,9 +319,9 @@ class MessageBubble extends StatelessWidget {
 
   Widget _buildFileMessage(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = context.semanticColors;
     final l10n = context.l10n;
-    final fileName =
-        (message.attachmentName?.trim().isNotEmpty ?? false)
+    final fileName = (message.attachmentName?.trim().isNotEmpty ?? false)
         ? message.attachmentName!.trim()
         : l10n.t('chat.file_default_name');
     final fileSize = message.attachmentSize != null
@@ -313,11 +336,11 @@ class MessageBubble extends StatelessWidget {
           _buildIconChip(
             icon: _getFileIcon(fileName),
             backgroundColor: isCurrentUser
-                ? Colors.white.withAlpha(50)
-                : const Color(0xFF6366F1).withAlpha(25),
+                ? colorScheme.onPrimary.withAlpha(36)
+                : semantic.brandPrimary.withAlpha(28),
             foregroundColor: isCurrentUser
-                ? Colors.white
-                : const Color(0xFF6366F1),
+                ? colorScheme.onPrimary
+                : semantic.brandPrimary,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -326,12 +349,12 @@ class MessageBubble extends StatelessWidget {
               children: [
                 Text(
                   fileName,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: isCurrentUser
-                        ? Colors.white
-                        : colorScheme.onSurfaceVariant,
+                        ? colorScheme.onPrimary
+                        : colorScheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -340,10 +363,10 @@ class MessageBubble extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     fileSize,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12,
                       color: isCurrentUser
-                          ? Colors.white.withAlpha(200)
+                          ? colorScheme.onPrimary.withAlpha(200)
                           : colorScheme.onSurfaceVariant.withAlpha(175),
                     ),
                   ),
@@ -351,10 +374,10 @@ class MessageBubble extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   l10n.t('chat.tap_to_open_file'),
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 11,
                     color: isCurrentUser
-                        ? Colors.white.withAlpha(180)
+                        ? colorScheme.onPrimary.withAlpha(180)
                         : colorScheme.onSurfaceVariant.withAlpha(150),
                   ),
                 ),
@@ -391,18 +414,14 @@ class MessageBubble extends StatelessWidget {
         children: [
           Text(
             AppFormatters.shortTime(context, message.createdAt),
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 11,
               color: colorScheme.onSurfaceVariant.withAlpha(150),
             ),
           ),
           if (isCurrentUser) ...[
             const SizedBox(width: 4),
-            Icon(
-              _getStatusIcon(),
-              size: 12,
-              color: _getStatusColor(colorScheme),
-            ),
+            Icon(_getStatusIcon(), size: 12, color: _getStatusColor(context)),
           ],
         ],
       ),
@@ -424,14 +443,15 @@ class MessageBubble extends StatelessWidget {
     }
   }
 
-  Color _getStatusColor(ColorScheme colorScheme) {
+  Color _getStatusColor(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     switch (status) {
       case MessageStatus.sending:
       case MessageStatus.sent:
       case MessageStatus.delivered:
         return colorScheme.onSurfaceVariant.withAlpha(150);
       case MessageStatus.read:
-        return const Color(0xFF06B6D4);
+        return context.semanticColors.brandSecondary;
       case MessageStatus.failed:
         return colorScheme.error;
     }

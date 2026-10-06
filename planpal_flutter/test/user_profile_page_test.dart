@@ -15,7 +15,7 @@ import 'test_app.dart';
 
 void main() {
   setUpAll(() async {
-    await dotenv.load(fileName: '.env');
+    dotenv.testLoad(fileInput: 'CLIENT_ID=test-client');
   });
 
   UserSummary buildUserSummary({

@@ -10,6 +10,9 @@ import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
+import 'package:planpal_flutter/presentation/widgets/design_system/journey_ui.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 
 class UserProfilePage extends ConsumerStatefulWidget {
   final UserSummary user;
@@ -509,8 +512,6 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
     return Scaffold(
       appBar: AppBar(
         title: Text(_user.fullName),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
         actions: !isOwnProfile && !_profileAccessDenied
             ? [
                 PopupMenuButton<String>(
@@ -530,7 +531,10 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                         value: 'block',
                         child: Row(
                           children: [
-                            const Icon(Icons.block, color: Colors.red),
+                            Icon(
+                              Icons.block,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
                             const SizedBox(width: 8),
                             Text(context.l10n.t('user_profile.menu_block')),
                           ],
@@ -541,7 +545,10 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                         value: 'unblock',
                         child: Row(
                           children: [
-                            const Icon(Icons.check_circle, color: Colors.green),
+                            const Icon(
+                              Icons.check_circle,
+                              color: AppColors.success,
+                            ),
                             const SizedBox(width: 8),
                             Text(context.l10n.t('user_profile.menu_unblock')),
                           ],
@@ -552,9 +559,13 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
               ]
             : null,
       ),
-      body: _profileAccessDenied
-          ? _buildAccessDeniedView()
-          : _buildProfileContent(),
+      body: ResponsiveContent(
+        mediumMaxWidth: 760,
+        expandedMaxWidth: 960,
+        child: _profileAccessDenied
+            ? _buildAccessDeniedView()
+            : _buildProfileContent(),
+      ),
     );
   }
 
@@ -610,54 +621,51 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
             width: double.infinity,
             height: 200,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.primary,
-                  AppColors.primary.withValues(alpha: 0.8),
-                ],
-              ),
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppRadius.sheet),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildAvatar(),
-                const SizedBox(height: 16),
-                Text(
-                  _user.fullName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+            child: JourneyPathBackdrop(
+              color: Colors.white,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildAvatar(),
+                  const SizedBox(height: 16),
+                  Text(
+                    _user.fullName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '@${_user.username}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                if (_user.isOnline)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      context.l10n.t('user_profile.online'),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                  const SizedBox(height: 4),
+                  Text(
+                    '@${_user.username}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_user.isOnline)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.success,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Text(
+                        context.l10n.t('user_profile.online'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           if (!isOwnProfile) ...[
@@ -742,7 +750,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.green,
+                color: AppColors.success,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Row(
@@ -864,24 +872,26 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
     final l10n = context.l10n;
 
     return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: JourneySurface(
+        padding: EdgeInsets.zero,
+        child: ExpansionTile(
+          leading: const Icon(Icons.account_circle_outlined),
+          title: Text(
             l10n.t('user_profile.personal_info'),
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 16),
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          subtitle: Text(l10n.t('user_profile.personal_info_hint')),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
+              ),
               child: Column(
                 children: [
                   _buildInfoRow(
@@ -910,7 +920,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                     _user.isOnline
                         ? l10n.t('user_profile.online')
                         : l10n.t('friends.offline'),
-                    valueColor: _user.isOnline ? Colors.green : Colors.grey,
+                    valueColor: _user.isOnline
+                        ? AppColors.success
+                        : theme.colorScheme.onSurfaceVariant,
                   ),
                   const Divider(),
                   _buildInfoRow(
@@ -929,8 +941,8 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -941,11 +953,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
     String value, {
     Color? valueColor,
   }) {
+    final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Colors.grey[600]),
+          Icon(icon, size: 20, color: colors.onSurfaceVariant),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -954,7 +967,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                 Text(
                   label,
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: colors.onSurfaceVariant,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -963,7 +976,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                 Text(
                   value,
                   style: TextStyle(
-                    color: valueColor ?? Colors.black87,
+                    color: valueColor ?? colors.onSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),

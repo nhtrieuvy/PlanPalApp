@@ -116,52 +116,56 @@ class _AuditLogListState extends ConsumerState<AuditLogList> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withAlpha(25),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.history_edu_outlined,
-                    color: AppColors.secondary,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+        child: SingleChildScrollView(
+          primary: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withAlpha(25),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.history_edu_outlined,
+                      color: AppColors.secondary,
+                      size: 24,
                     ),
                   ),
-                ),
-                IconButton(
-                  onPressed: _refresh,
-                  icon: const Icon(Icons.refresh),
-                  tooltip: context.l10n.t('audit.refresh'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildFilters(actorOptions),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 320,
-              child: asyncState.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) =>
-                    _AuditErrorState(error: error, onRetry: _refresh),
-                data: (state) => _buildListState(context, state),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: context.l10n.t('audit.refresh'),
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              _buildFilters(actorOptions),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 320,
+                child: asyncState.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, _) =>
+                      _AuditErrorState(error: error, onRetry: _refresh),
+                  data: (state) => _buildListState(context, state),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

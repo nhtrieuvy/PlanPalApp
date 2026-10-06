@@ -21,7 +21,6 @@ class BudgetUpsertSerializer(serializers.Serializer):
     currency = serializers.CharField(
         required=False,
         allow_blank=False,
-        default='VND',
         max_length=10,
     )
 
@@ -29,7 +28,7 @@ class BudgetUpsertSerializer(serializers.Serializer):
 class ExpenseCreateSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0.01)
     paid_by_user_id = serializers.UUIDField(required=False)
-    currency = serializers.CharField(required=False, allow_blank=False, default='VND', max_length=10)
+    currency = serializers.CharField(required=False, allow_blank=False, max_length=10)
     category = serializers.CharField(max_length=100)
     description = serializers.CharField(required=False, allow_blank=True, default='')
     payment_note = serializers.CharField(required=False, allow_blank=True, default='', max_length=2000)
@@ -94,7 +93,7 @@ class SettlementCreateSerializer(serializers.Serializer):
     from_user_id = serializers.UUIDField()
     to_user_id = serializers.UUIDField()
     amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0.01)
-    currency = serializers.CharField(required=False, allow_blank=False, default='VND', max_length=10)
+    currency = serializers.CharField(required=False, allow_blank=False, max_length=10)
     note = serializers.CharField(required=False, allow_blank=True, default='')
     payment_note = serializers.CharField(required=False, allow_blank=True, default='', max_length=2000)
     receipt = serializers.FileField(required=False, allow_null=True, write_only=True)
@@ -118,6 +117,27 @@ class ExpenseCorrectionSerializer(serializers.Serializer):
     payment_note = serializers.CharField(required=False, allow_blank=True, default='', max_length=2000)
     reason = serializers.CharField(max_length=1000, allow_blank=False)
     receipt = serializers.FileField(required=False, allow_null=True, write_only=True)
+    split_strategy = serializers.ChoiceField(
+        choices=[(value, value) for value in SplitStrategy.values()],
+        required=False,
+    )
+    participants = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_empty=False,
+    )
+
+    def to_internal_value(self, data):
+        mutable = data.copy() if hasattr(data, 'copy') else dict(data)
+        value = mutable.get('participants')
+        if isinstance(value, str):
+            try:
+                mutable['participants'] = json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise serializers.ValidationError(
+                    {'participants': 'Invalid JSON value'}
+                ) from exc
+        return super().to_internal_value(mutable)
 
     def validate_receipt(self, value):
         return _validate_finance_attachment(value)

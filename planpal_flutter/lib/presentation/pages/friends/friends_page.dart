@@ -12,7 +12,11 @@ import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/services/notification_websocket_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
+import 'package:planpal_flutter/presentation/pages/friends/friend_search_page.dart';
 import 'package:planpal_flutter/presentation/pages/friends/user_profile_page.dart';
+import 'package:planpal_flutter/presentation/widgets/design_system/journey_ui.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../shared/ui_states/ui_states.dart';
@@ -227,13 +231,17 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.t('friends.title')),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            tooltip: l10n.t('friend_search.title'),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const FriendSearchPage())),
+            icon: const Icon(Icons.person_search_rounded),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
           tabs: [
             Tab(
               text: l10n.t(
@@ -254,8 +262,8 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
+                        color: Theme.of(context).colorScheme.error,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                       ),
                       child: Text(
                         '${_friendRequests.length}',
@@ -273,9 +281,13 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildFriendsList(), _buildRequestsList()],
+      body: ResponsiveContent(
+        mediumMaxWidth: 860,
+        expandedMaxWidth: 1080,
+        child: TabBarView(
+          controller: _tabController,
+          children: [_buildFriendsList(), _buildRequestsList()],
+        ),
       ),
     );
   }
@@ -304,10 +316,21 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
 
     return RefreshablePageWrapper(
       onRefresh: onRefresh,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _friends.length,
-        itemBuilder: (context, index) => _buildFriendTile(_friends[index]),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 760 ? 2 : 1;
+          return GridView.builder(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              crossAxisSpacing: AppSpacing.xs,
+              mainAxisSpacing: AppSpacing.xs,
+              mainAxisExtent: 92,
+            ),
+            itemCount: _friends.length,
+            itemBuilder: (context, index) => _buildFriendTile(_friends[index]),
+          );
+        },
       ),
     );
   }
@@ -337,7 +360,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
     return RefreshablePageWrapper(
       onRefresh: onRefresh,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         itemCount: _friendRequests.length,
         itemBuilder: (context, index) =>
             _buildRequestTile(_friendRequests[index]),
@@ -347,10 +370,10 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
 
   Widget _buildFriendTile(UserSummary friend) {
     final l10n = context.l10n;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return JourneySurface(
+      padding: EdgeInsets.zero,
+      onTap: () => _onUserTap(friend),
+      semanticLabel: friend.fullName,
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
         leading: _buildAvatar(friend),
@@ -363,7 +386,9 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
           children: [
             Text(
               '@${friend.username}',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 4),
             Row(
@@ -371,7 +396,9 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
                 Icon(
                   Icons.circle,
                   size: 8,
-                  color: friend.isOnline ? Colors.green : Colors.grey,
+                  color: friend.isOnline
+                      ? AppColors.success
+                      : Theme.of(context).colorScheme.outline,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -379,7 +406,9 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
                       ? l10n.t('friends.online')
                       : l10n.t('friends.offline'),
                   style: TextStyle(
-                    color: friend.isOnline ? Colors.green : Colors.grey,
+                    color: friend.isOnline
+                        ? AppColors.success
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -388,74 +417,79 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
             ),
           ],
         ),
-        trailing: Icon(
-          Icons.arrow_forward_ios,
-          size: 16,
-          color: Colors.grey[400],
-        ),
-        onTap: () => _onUserTap(friend),
+        trailing: const Icon(Icons.arrow_forward_rounded, size: 20),
       ),
     );
   }
 
   Widget _buildRequestTile(Friendship request) {
     final l10n = context.l10n;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                _buildAvatar(request.friend),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        request.friend.fullName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: JourneySurface(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xxs),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _buildAvatar(request.friend),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          request.friend.fullName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
-                      Text(
-                        '@${request.friend.username}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        l10n.t('friends.request_sent'),
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                    ],
+                        Text(
+                          '@${request.friend.username}',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          l10n.t('friends.request_sent'),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _rejectFriendRequest(request),
-                    child: Text(l10n.t('friends.decline')),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _rejectFriendRequest(request),
+                      child: Text(l10n.t('friends.decline')),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _acceptFriendRequest(request),
-                    child: Text(l10n.t('friends.accept')),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _acceptFriendRequest(request),
+                      child: Text(l10n.t('friends.accept')),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

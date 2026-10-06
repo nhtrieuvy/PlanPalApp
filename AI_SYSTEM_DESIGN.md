@@ -93,6 +93,17 @@ Environment rule:
   `production`) and optionally loads `.env.<environment>`.
 - Flutter uses the build-time `APP_ENV` selector and optional `API_BASE_URL` /
   `OAUTH_CLIENT_ID` overrides; no source edit is required to switch targets.
+- Flutter Web uses `go_router` paths for group, plan and conversation details.
+  Authentication redirects preserve the originally requested browser URL.
+- Flutter Web exposes an unauthenticated public website at `/`; `/login` and
+  `/register` remain public while every product route stays behind the auth
+  redirect. Native builds preserve the app-first entry flow by redirecting `/`
+  to `/login` or `/home` instead of rendering the marketing website.
+- Browser WebSockets exchange the bearer token over HTTPS for a short-lived,
+  single-use cache-backed ticket. Native clients retain token query auth during
+  the migration window.
+- Upload repositories accept `XFile` and stream multipart bodies, avoiding
+  `dart:io` in shared public interfaces.
 - Flutter map rendering uses the shared `PlanPalMap` adapter backed by MapLibre
   and Goong vector styles. Place search and reverse-geocoding continue through
   the backend Goong adapter; Google Maps is not a runtime dependency.
@@ -944,6 +955,63 @@ Widget
  -> widget rebuild
 ```
 
+### 12.1 Responsive application shell
+
+Flutter mobile and web share one route tree. Responsive behavior is isolated
+from repositories, Riverpod state, API contracts, and domain logic:
+
+- `< 600px`: the existing compact/mobile presentation is preserved.
+- `600px - 1024px`: a `NavigationRail` is shown with width-constrained content.
+- `> 1024px`: a persistent sidebar is shown, with wide or two-column content
+  where that improves the information hierarchy.
+
+Wizard and long-form content remains constrained to a maximum width of `720px`.
+Shared breakpoint and layout primitives live under `core/responsive` and
+`presentation/widgets/layout`.
+
+### 12.2 Web feature compatibility
+
+Mobile and web use the same Riverpod providers, repositories, DTOs, API
+version, permissions, and business rules. Platform differences are restricted
+to adapters at the presentation/infrastructure boundary:
+
+- browser WebSockets exchange the access token for a short-lived, single-use
+  ticket before connecting over `wss://`;
+- uploads use streamed `XFile` multipart bodies on native and web;
+- browser camera actions fall back to an image file picker, while native
+  Android/iOS retain direct camera capture;
+- Goong/MapLibre rendering is shared, while browser geolocation requires HTTPS
+  (or localhost) and explicit browser permission;
+- browser FCM registration is opt-in from Notification Settings and uses a
+  public VAPID key plus a dedicated service worker; native local-notification
+  presentation remains Android/iOS-only;
+- ICS exports use portable filenames and browser share/download behavior.
+
+The acceptance matrix and browser prerequisites are maintained in
+`planpal_flutter/WEB_COMPATIBILITY.md`.
+
+### 12.3 Journey Canvas design system
+
+Flutter mobile and web share the **Journey Canvas** visual language documented
+in `planpal_flutter/DESIGN_SYSTEM.md`. The product identity uses Journey Green,
+Horizon Blue and a restrained Discovery Coral on warm neutral surfaces. Manrope
+provides the common type hierarchy.
+
+Reusable tokens live in `core/theme`; reusable product surfaces live in
+`presentation/widgets/design_system`. The route-thread motif links itinerary,
+activity and branded hero content, while compact travel-stamp icon containers
+identify pages and sections. Screens must derive colors from `ColorScheme`,
+use the 4/8 spacing scale, expose one dominant action, and preserve complete
+loading, empty, error, focus, hover and disabled states.
+
+Compact navigation uses `Home / Trips / Create / Groups / Me` and does not
+duplicate those destinations in a drawer. Medium layouts use `NavigationRail`.
+Expanded layouts use a persistent `Home / Trips / Explore / Groups / Messages`
+sidebar with notifications and profile separated as utilities. Wide itinerary
+views synchronize their timeline with the shared Goong map; compact itinerary
+views remain timeline-first. These presentation rules do not alter Riverpod
+ownership, repositories, DTOs, API contracts or domain behavior.
+
 Key provider groups:
 
 - auth/session
@@ -1562,11 +1630,22 @@ into Flutter widgets. Its production contracts and invariants are:
   Quiet hours support daytime and overnight ranges in the user's IANA timezone.
   Daily digest candidates are evaluated hourly and receive at most one run in
   their configured local hour.
-- Flutter drafts and queued mutations are scoped by authenticated user in
-  `SharedPreferences`; OAuth tokens remain in `flutter_secure_storage`. Drafts
-  are cleared only after a successful API response. Network mutations are
-  replayed sequentially with their original mutation ID; non-retryable 4xx
-  responses move to a bounded dead-letter list.
+- Flutter drafts and queued mutations are scoped by authenticated user. Native
+  builds persist them in `SharedPreferences`; Web uses IndexedDB behind the
+  same `OfflineStorage` boundary. Logout removes that user's drafts, queue and
+  dead letters before clearing the session. OAuth tokens remain in
+  `flutter_secure_storage`. Drafts are cleared only after a successful API
+  response. Network mutations are replayed sequentially with their original
+  mutation ID; non-retryable 4xx responses move to a bounded dead-letter list.
+
+Web production is deployed as Flutter static assets on Cloudflare Workers.
+SPA fallback preserves router URLs, while `_headers` applies a restrictive CSP
+for Fly HTTPS/WSS, Goong and Firebase. Mutable bootstrap files and
+`index.html` are not cached; versioned/static assets receive longer caching.
+Firebase Web Push uses an explicit permission action, a public VAPID build
+define and a dedicated messaging service worker. The Flutter PWA worker caches
+only same-origin app-shell resources and never proxies or caches private Fly
+API responses.
 
 Primary contracts:
 
@@ -1617,3 +1696,40 @@ Expose stable contracts to Flutter through serializers and DTOs.
 ```
 
 If an AI agent follows the dependency rule, respects the invariants above, and updates audit / notification / analytics touchpoints deliberately, it can modify PlanPal safely without rereading the whole codebase.
+
+---
+
+## 21. PlanPal Journey System
+
+The Flutter presentation layer uses a travel-first design language named
+**PlanPal Journey System**, with **Journey Together** as its route-and-stops
+motif. This layer changes composition and hierarchy only; repositories, DTOs,
+providers, routes and backend contracts remain stable.
+
+Responsive information architecture:
+
+- Compact (`<600`): Home, Trips, contextual Create, Groups and Me. No duplicate
+  navigation drawer. Messages are reached from contextual entry points.
+- Medium (`600-1024`): NavigationRail with constrained content.
+- Expanded (`>1024`): persistent product sidebar, utility destinations kept
+  separate, and master-detail/split compositions for trips and conversations.
+
+Compact Trip Detail is divided into Overview, Itinerary, Decisions and More;
+expanded itinerary uses a synchronized timeline and Goong map. Poll option
+responses include additive `voters` summaries, and availability option
+responses include additive `votes` entries (`status` plus user summary). These
+fields power participant avatars and the desktop traveler-by-date matrix. The
+existing request payloads and response fields remain backward-compatible.
+
+Trip is the primary product object. Group is its collaboration workspace;
+messages are communication; notifications and profile are utilities. Shared
+presentation primitives live under `presentation/widgets/design_system`, and
+tokens live under `core/theme`. See `planpal_flutter/DESIGN_SYSTEM.md` and
+`planpal_flutter/UX_UI_AUDIT.md` before adding a new screen pattern.
+
+Brand foundations are defined in `planpal_flutter/BRAND_FOUNDATION.md`.
+Flutter color roles must use `PlanPalSemanticColors`; physical palette values
+remain in `AppColors` for theme construction and legacy compatibility. Manrope
+is the bundled UI/body family and Space Grotesk is the bundled display family;
+runtime font fetching is disabled. Logo, Journey Line and cartographic
+illustration primitives are shared widgets, not page-specific decorations.

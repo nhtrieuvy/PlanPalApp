@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:planpal_flutter/core/dtos/analytics_model.dart';
+import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 class AnalyticsKpiCard extends StatelessWidget {
   final AnalyticsKpi metric;
@@ -39,6 +40,8 @@ class AnalyticsKpiCard extends StatelessWidget {
         children: [
           Text(
             label ?? metric.label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -58,16 +61,16 @@ class AnalyticsKpiCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: metric.isPositiveChange
-                  ? Colors.green.withValues(alpha: 0.12)
-                  : Colors.red.withValues(alpha: 0.12),
+                  ? AppColors.success.withValues(alpha: 0.12)
+                  : AppColors.error.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               metric.changeLabel,
               style: theme.textTheme.labelMedium?.copyWith(
                 color: metric.isPositiveChange
-                    ? Colors.green.shade700
-                    : Colors.red.shade700,
+                    ? AppColors.success
+                    : AppColors.error,
                 fontWeight: FontWeight.w700,
               ),
             ),

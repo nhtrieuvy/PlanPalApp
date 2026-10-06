@@ -3,9 +3,9 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' as maplibre;
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/theme/app_colors.dart';
 
 /// Provider-neutral coordinate used by PlanPal presentation code.
 class MapCoordinate {
@@ -146,7 +146,11 @@ class _PlanPalMapState extends State<PlanPalMap> {
   Timer? _loadWatchdog;
   final Map<String, MapPin> _pinBySymbolId = {};
 
-  String get _mapTilesKey => dotenv.env['GOONG_MAPTILES_KEY']?.trim() ?? '';
+  static const _buildTimeMapTilesKey = String.fromEnvironment(
+    'GOONG_MAPTILES_KEY',
+  );
+
+  String get _mapTilesKey => _buildTimeMapTilesKey.trim();
 
   String get _styleUrl =>
       // Goong's documented mobile/reference street style is the most reliable
@@ -173,20 +177,22 @@ class _PlanPalMapState extends State<PlanPalMap> {
     // A Set compares by identity, so checking it directly caused a second
     // annotation render after every parent rebuild, including style loading.
     // Compare stable pin data instead to avoid racing clear/add operations.
-    if (_styleLoaded && _pinsSignature(oldWidget.pins) != _pinsSignature(widget.pins)) {
+    if (_styleLoaded &&
+        _pinsSignature(oldWidget.pins) != _pinsSignature(widget.pins)) {
       unawaited(_renderPins());
     }
   }
 
   String _pinsSignature(Set<MapPin> pins) {
-    final entries = pins
-        .map(
-          (pin) =>
-              '${pin.id}:${pin.position.latitude}:${pin.position.longitude}:'
-              '${pin.title ?? ''}:${pin.subtitle ?? ''}:${pin.draggable}',
-        )
-        .toList()
-      ..sort();
+    final entries =
+        pins
+            .map(
+              (pin) =>
+                  '${pin.id}:${pin.position.latitude}:${pin.position.longitude}:'
+                  '${pin.title ?? ''}:${pin.subtitle ?? ''}:${pin.draggable}',
+            )
+            .toList()
+          ..sort();
     return entries.join('|');
   }
 
@@ -374,7 +380,7 @@ class _PlanPalMapState extends State<PlanPalMap> {
       ..cubicTo(59, 41, 44, 52, 36, 68)
       ..close();
     canvas.drawShadow(path, const Color(0x55000000), 5, true);
-    canvas.drawPath(path, Paint()..color = const Color(0xFF4F46E5));
+    canvas.drawPath(path, Paint()..color = AppColors.oceanTeal);
     canvas.drawCircle(
       const Offset(36, 27),
       12,
@@ -383,7 +389,7 @@ class _PlanPalMapState extends State<PlanPalMap> {
     canvas.drawCircle(
       const Offset(36, 27),
       6,
-      Paint()..color = const Color(0xFF06B6D4),
+      Paint()..color = AppColors.sunsetCoral,
     );
     final image = await recorder.endRecording().toImage(72, 72);
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);

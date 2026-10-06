@@ -7,6 +7,10 @@ __pycache__/
 venv/
 env/
 ENV/
+.venv/
+**/.venv/
+.git/
+**/.git/
 
 # Django
 *.log
@@ -14,6 +18,9 @@ db.sqlite3
 db.sqlite3-journal
 /staticfiles/
 /media/
+**/staticfiles/
+**/media/
+celerybeat-schedule*
 
 # IDE
 .vscode/
@@ -30,7 +37,7 @@ Thumbs.db
 logs/
 *.backup
 firebase_service_account.json
-.env
+**/.env*
 .mypy_cache/
 build/
 planpal_flutter/

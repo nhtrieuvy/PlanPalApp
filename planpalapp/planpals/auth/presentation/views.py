@@ -31,6 +31,7 @@ from planpals.auth.presentation.permissions import (
 from planpals.auth.application.services import UserService
 from planpals.auth.infrastructure.email_verification import EmailVerificationService
 from planpals.auth.infrastructure.oauth2_utils import OAuth2ResponseFormatter
+from planpals.auth.infrastructure.websocket_ticket import WebSocketTicketService
 from planpals.shared.paginators import (
     StandardResultsPagination, SearchResultsPagination,
     ActivityCursorPagination
@@ -493,6 +494,17 @@ class FriendRequestView(generics.CreateAPIView):
                 
         except ValidationError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class WebSocketTicketView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        ticket = WebSocketTicketService.issue(request.user.id)
+        return Response({
+            'ticket': ticket,
+            'expires_in': WebSocketTicketService.ttl_seconds(),
+        })
 
 
 class FriendRequestListView(generics.ListAPIView):

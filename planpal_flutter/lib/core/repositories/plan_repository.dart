@@ -12,10 +12,7 @@ class GroupPlansResult {
   final List<PlanSummary> plans;
   final bool canCreatePlan;
 
-  const GroupPlansResult({
-    required this.plans,
-    required this.canCreatePlan,
-  });
+  const GroupPlansResult({required this.plans, required this.canCreatePlan});
 }
 
 class PlanRepository {

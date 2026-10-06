@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'package:cross_file/cross_file.dart';
 import 'package:dio/dio.dart';
+import '../files/upload_file.dart';
 import '../services/apis.dart';
 import '../services/api_error.dart';
 import '../dtos/conversation.dart';
@@ -148,18 +149,15 @@ class ConversationRepository {
   /// Send image file with multipart upload (like user/group avatar)
   Future<ChatMessage> sendImageFile(
     String conversationId,
-    File imageFile, {
+    XFile imageFile, {
     String? replyToId,
   }) async {
     try {
-      final fileName = imageFile.path.split(Platform.pathSeparator).last;
+      final fileName = imageFile.name;
       final fileSize = await imageFile.length();
       final formData = FormData.fromMap({
         'message_type': MessageType.image.name,
-        'attachment': await MultipartFile.fromFile(
-          imageFile.path,
-          filename: fileName,
-        ),
+        'attachment': await multipartFromXFile(imageFile),
         'attachment_name': fileName,
         'attachment_size': fileSize,
         if (replyToId != null) 'reply_to_id': replyToId,
@@ -178,18 +176,15 @@ class ConversationRepository {
   /// Send file with multipart upload (like user/group avatar)
   Future<ChatMessage> sendFileAttachment(
     String conversationId,
-    File file, {
+    XFile file, {
     String? replyToId,
   }) async {
     try {
-      final fileName = file.path.split(Platform.pathSeparator).last;
+      final fileName = file.name;
       final fileSize = await file.length();
       final formData = FormData.fromMap({
         'message_type': MessageType.file.name,
-        'attachment': await MultipartFile.fromFile(
-          file.path,
-          filename: fileName,
-        ),
+        'attachment': await multipartFromXFile(file),
         'attachment_name': fileName,
         'attachment_size': fileSize,
         if (replyToId != null) 'reply_to_id': replyToId,

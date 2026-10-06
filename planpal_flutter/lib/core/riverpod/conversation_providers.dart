@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../dtos/conversation.dart';
 import '../dtos/chat_message.dart';
@@ -238,29 +238,29 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
         content.trim(),
       );
       addOrUpdateMessage(message);
-      ref.invalidate(conversationListProvider);
+      _refreshConversationListInBackground();
       return true;
     } catch (_) {
       return false;
     }
   }
 
-  Future<bool> sendImageFile(File imageFile) async {
+  Future<bool> sendImageFile(XFile imageFile) async {
     try {
       final message = await _repo.sendImageFile(_conversationId, imageFile);
       addOrUpdateMessage(message);
-      ref.invalidate(conversationListProvider);
+      _refreshConversationListInBackground();
       return true;
     } catch (_) {
       return false;
     }
   }
 
-  Future<bool> sendFileAttachment(File file) async {
+  Future<bool> sendFileAttachment(XFile file) async {
     try {
       final message = await _repo.sendFileAttachment(_conversationId, file);
       addOrUpdateMessage(message);
-      ref.invalidate(conversationListProvider);
+      _refreshConversationListInBackground();
       return true;
     } catch (_) {
       return false;
@@ -280,11 +280,17 @@ class MessagesNotifier extends FamilyAsyncNotifier<MessagesState, String> {
         locationName,
       );
       addOrUpdateMessage(message);
-      ref.invalidate(conversationListProvider);
+      _refreshConversationListInBackground();
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  void _refreshConversationListInBackground() {
+    unawaited(
+      ref.read(conversationListProvider.notifier).refresh(silent: true),
+    );
   }
 
   void _scheduleMarkMessagesAsRead(List<ChatMessage> messages) {

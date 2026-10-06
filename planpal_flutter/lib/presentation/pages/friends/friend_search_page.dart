@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/localization/app_localizations.dart';
 import '../../../core/riverpod/repository_providers.dart';
 import '../../../core/dtos/user_summary.dart';
+import '../../../core/services/error_display_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_design_tokens.dart';
+import '../../widgets/design_system/journey_ui.dart';
+import '../../widgets/layout/responsive_content.dart';
 import '../../../shared/ui_states/ui_states.dart';
 import 'user_profile_page.dart';
 
@@ -21,20 +26,9 @@ class _FriendSearchPageState extends ConsumerState<FriendSearchPage> {
   List<UserSummary> _searchResults = [];
 
   @override
-  void initState() {
-    super.initState();
-    _loadSuggestions();
-  }
-
-  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadSuggestions() async {
-    // For now, we'll show a generic search prompt
-    // In a real app, you might load mutual friends or nearby users
   }
 
   Future<void> _performSearch(String query) async {
@@ -62,12 +56,12 @@ class _FriendSearchPageState extends ConsumerState<FriendSearchPage> {
         _searching = false;
         _searchError = null;
       });
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _searchResults = [];
         _searching = false;
-        _searchError = 'Không thể tìm kiếm người dùng';
+        _searchError = ErrorDisplayService.getUserFriendlyMessage(error);
       });
     }
   }
@@ -84,69 +78,50 @@ class _FriendSearchPageState extends ConsumerState<FriendSearchPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tìm bạn bè'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: Column(
-        children: [
-          // Search bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Tìm kiếm theo tên, email hoặc username...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          _performSearch('');
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+      appBar: AppBar(title: Text(context.l10n.t('friend_search.title'))),
+      body: ResponsiveContent(
+        mediumMaxWidth: 760,
+        expandedMaxWidth: 920,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: context.l10n.t('friend_search.hint'),
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          tooltip: context.l10n.t('common.clear'),
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            _searchController.clear();
+                            _performSearch('');
+                            setState(() {});
+                          },
+                        )
+                      : null,
                 ),
-                filled: true,
-                fillColor: theme.brightness == Brightness.dark
-                    ? Colors.white12
-                    : Colors.grey[50],
-                hintStyle: TextStyle(
-                  color: theme.brightness == Brightness.dark
-                      ? Colors.white70
-                      : Colors.grey[600],
-                ),
+                style: theme.textTheme.bodyLarge,
+                onChanged: (value) {
+                  setState(() {});
+                  _performSearch(value.trim().length >= 2 ? value : '');
+                },
+                onSubmitted: _performSearch,
               ),
-              style: TextStyle(
-                color:
-                    theme.textTheme.bodyLarge?.color ??
-                    theme.colorScheme.onSurface,
-              ),
-              onChanged: (value) {
-                if (value.trim().length >= 2) {
-                  _performSearch(value);
-                } else {
-                  _performSearch('');
-                }
-              },
-              onSubmitted: _performSearch,
             ),
-          ),
-
-          // Results
-          Expanded(child: _buildBody()),
-        ],
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildBody() {
     if (_searching) {
-      return const AppLoading(message: 'Đang tìm kiếm...');
+      return AppLoading(message: context.l10n.t('friend_search.searching'));
     }
 
     if (_searchController.text.trim().isEmpty) {
@@ -157,7 +132,7 @@ class _FriendSearchPageState extends ConsumerState<FriendSearchPage> {
       return AppError(
         message: _searchError!,
         onRetry: () => _performSearch(_searchController.text.trim()),
-        retryLabel: 'Tìm lại',
+        retryLabel: context.l10n.t('common.retry'),
       );
     }
 
@@ -176,61 +151,66 @@ class _FriendSearchPageState extends ConsumerState<FriendSearchPage> {
   }
 
   Widget _buildEmptyState() {
-    return const AppEmpty(
-      icon: Icons.person_search,
-      title: 'Tìm kiếm bạn bè',
-      description: 'Nhập tên, email hoặc username để tìm kiếm',
+    return AppEmpty(
+      icon: Icons.person_search_rounded,
+      title: context.l10n.t('friend_search.empty_title'),
+      description: context.l10n.t('friend_search.empty_description'),
     );
   }
 
   Widget _buildNoResults() {
-    return const AppEmpty(
-      icon: Icons.search_off,
-      title: 'Không tìm thấy kết quả',
-      description: 'Thử tìm kiếm với từ khóa khác',
+    return AppEmpty(
+      icon: Icons.search_off_rounded,
+      title: context.l10n.t('friend_search.no_results'),
+      description: context.l10n.t('friend_search.try_another'),
     );
   }
 
   Widget _buildUserTile(UserSummary user) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: _buildAvatar(user),
-        title: Text(
-          user.fullName,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '@${user.username}',
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
-            ),
-            if (user.isOnline)
-              const Text(
-                'Đang online',
-                style: TextStyle(color: Colors.green, fontSize: 12),
-              ),
-          ],
-        ),
-        trailing: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.arrow_forward_ios,
-            size: 16,
-            color: AppColors.primary,
-          ),
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: JourneySurface(
+        padding: EdgeInsets.zero,
         onTap: () => _onUserTap(user),
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(12),
+          leading: _buildAvatar(user),
+          title: Text(
+            user.fullName,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '@${user.username}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (user.isOnline)
+                Text(
+                  context.l10n.t('friends.online'),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.success),
+                ),
+            ],
+          ),
+          trailing: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
       ),
     );
   }

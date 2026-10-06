@@ -23,7 +23,6 @@ daphne==4.2.1
 dj-database-url==2.2.0
 Django==5.2.6
 django-celery-beat==2.8.1
-django-ckeditor==6.7.3
 django-cloudinary-storage==0.3.0
 django-cors-headers==4.3.1
 django-redis==5.4.0

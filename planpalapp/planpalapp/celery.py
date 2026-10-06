@@ -21,8 +21,13 @@ app.autodiscover_tasks()
 # Also discover tasks in shared modules that aren't auto-discovered
 app.autodiscover_tasks([
     'planpals.shared',
+    'planpals.analytics.infrastructure',
+    'planpals.budgets.infrastructure',
     'planpals.chat.infrastructure',
+    'planpals.experience.infrastructure',
     'planpals.groups.infrastructure',
+    'planpals.notifications.infrastructure',
+    'planpals.plans.infrastructure',
 ])
 
 

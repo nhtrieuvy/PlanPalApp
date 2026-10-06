@@ -10,15 +10,20 @@ import 'dart:convert';
 import '../dtos/user_model.dart';
 import '../repositories/user_repository.dart';
 import 'package:planpal_flutter/config/app_config.dart';
+import 'package:planpal_flutter/core/storage/offline_storage.dart';
 
 // Central auth/session service used by repositories and Riverpod providers.
 class AuthProvider extends ChangeNotifier {
+  AuthProvider({OfflineStorage? offlineStorage})
+    : _offlineStorage = offlineStorage;
+
   static const String _kAccessTokenKey = 'access_token';
   static const String _kRefreshTokenKey = 'refresh_token';
   static const String _kCachedUserKey = 'cached_user';
 
   // Chỗ lưu bảo mật của thư viện flutter_secure_storage
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final OfflineStorage? _offlineStorage;
 
   UserModel? _user; // cached User model
   String? _token;
@@ -56,22 +61,37 @@ class AuthProvider extends ChangeNotifier {
         // ignore cache restore failures
       }
 
-      // Nếu có token, fetch user profile
+      // Refresh the cached profile when a stored token is available. A
+      // temporary network failure must not sign a returning web user out.
       if (_token != null) {
         try {
           final userRepo = UserRepository(this);
           await userRepo
-              .getProfile(); // This will call setUser() and update cache
+              .getProfile(); // This calls setUser() and updates cache.
           await markOnline();
         } catch (e) {
-          // Nếu token hết hạn hoặc không hợp lệ, clear session
-          await _clearSession();
+          if (_isUnauthorized(e)) {
+            await _clearSession();
+          } else {
+            // Keep the encrypted token and cached profile so the app remains
+            // usable while Fly/API connectivity recovers.
+            debugPrint(
+              'Session profile refresh failed; keeping cached session',
+            );
+            notifyListeners();
+          }
         }
       }
     } catch (e) {
       // Nếu có lỗi khi khôi phục, đảm bảo trạng thái sạch
       await _clearSession();
     }
+  }
+
+  bool _isUnauthorized(Object error) {
+    if (error is ApiException) return error.statusCode == 401;
+    if (error is DioException) return error.response?.statusCode == 401;
+    return false;
   }
 
   Future<void> _saveTokens({
@@ -234,6 +254,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    final userId = _user?.id;
     try {
       if (_token != null) {
         final apiClient = ApiClient(token: _token);
@@ -242,6 +263,15 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Logout API error');
     } finally {
+      if (userId != null) {
+        try {
+          await _offlineStorage?.removeWhere(
+            (key) => isOfflineStorageKeyForUser(key, userId),
+          );
+        } catch (_) {
+          debugPrint('AuthProvider: failed to clear offline user data');
+        }
+      }
       await _clearSession();
       FirebaseService.instance.reset();
     }
@@ -266,7 +296,9 @@ class AuthProvider extends ChangeNotifier {
     if (_token == null) return;
 
     try {
-      final registered = await FirebaseService.instance.registerToken(_token!);
+      final registered = kIsWeb
+          ? await FirebaseService.instance.initialize()
+          : await FirebaseService.instance.registerToken(_token!);
       if (!registered) {
         final error = FirebaseService.instance.lastInitializationError;
         if (error != null && error.isNotEmpty) {

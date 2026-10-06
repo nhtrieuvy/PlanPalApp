@@ -60,8 +60,12 @@ class PlanActivitiesState {
   }) {
     return PlanActivitiesState(
       scheduleByDate: scheduleByDate ?? this.scheduleByDate,
-      statistics: replaceStatistics ? statistics : (statistics ?? this.statistics),
-      permissions: replacePermissions ? permissions : (permissions ?? this.permissions),
+      statistics: replaceStatistics
+          ? statistics
+          : (statistics ?? this.statistics),
+      permissions: replacePermissions
+          ? permissions
+          : (permissions ?? this.permissions),
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
       connectionState: connectionState ?? this.connectionState,
@@ -133,8 +137,9 @@ class PlanActivitiesNotifier
 
     _socket ??= ActivityWebSocketService(_planId!);
     _eventSubscription ??= _socket!.eventStream.listen(_handleRealtimeEvent);
-    _connectionSubscription ??=
-        _socket!.connectionStream.listen(_handleConnectionState);
+    _connectionSubscription ??= _socket!.connectionStream.listen(
+      _handleConnectionState,
+    );
     unawaited(_socket!.connect(token));
   }
 
@@ -208,7 +213,8 @@ class PlanActivitiesNotifier
         (data['permissions'] as Map?) ?? const <String, dynamic>{},
       ),
       connectionState:
-          current?.connectionState ?? ActivitySocketConnectionState.disconnected,
+          current?.connectionState ??
+          ActivitySocketConnectionState.disconnected,
       isPollingFallback: current?.isPollingFallback ?? false,
       highlights: current?.highlights ?? const {},
     );
@@ -352,7 +358,9 @@ class PlanActivitiesNotifier
   ) {
     final activities = schedule.values.expand((items) => items).toList();
     final totalActivities = activities.length;
-    final completedActivities = activities.where((item) => item.isCompleted).length;
+    final completedActivities = activities
+        .where((item) => item.isCompleted)
+        .length;
     final completionRate = totalActivities == 0
         ? 0.0
         : (completedActivities / totalActivities) * 100;
@@ -362,8 +370,9 @@ class PlanActivitiesNotifier
       if (activity.durationMinutes != null) {
         totalMinutes += activity.durationMinutes!;
       } else if (activity.startTime != null && activity.endTime != null) {
-        totalMinutes +=
-            activity.endTime!.difference(activity.startTime!).inMinutes;
+        totalMinutes += activity.endTime!
+            .difference(activity.startTime!)
+            .inMinutes;
       }
     }
 
@@ -387,8 +396,10 @@ class PlanActivitiesNotifier
   }
 
   int _compareActivities(PlanActivity a, PlanActivity b) {
-    final startComparison = (a.startTime ?? DateTime.fromMillisecondsSinceEpoch(0))
-        .compareTo(b.startTime ?? DateTime.fromMillisecondsSinceEpoch(0));
+    final startComparison =
+        (a.startTime ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+          b.startTime ?? DateTime.fromMillisecondsSinceEpoch(0),
+        );
     if (startComparison != 0) return startComparison;
     return a.createdAt.compareTo(b.createdAt);
   }
@@ -403,21 +414,19 @@ class PlanActivitiesNotifier
   }
 }
 
-final activityProvider = AsyncNotifierProvider.autoDispose.family<
-  PlanActivitiesNotifier,
-  PlanActivitiesState,
-  String
->(PlanActivitiesNotifier.new);
+final activityProvider = AsyncNotifierProvider.autoDispose
+    .family<PlanActivitiesNotifier, PlanActivitiesState, String>(
+      PlanActivitiesNotifier.new,
+    );
 
-final realtimeActivityProvider = Provider.family<ActivityRealtimeState, String>((
-  ref,
-  planId,
-) {
-  final state = ref.watch(activityProvider(planId)).valueOrNull;
-  return ActivityRealtimeState(
-    connectionState:
-        state?.connectionState ?? ActivitySocketConnectionState.disconnected,
-    isPollingFallback: state?.isPollingFallback ?? false,
-    highlights: state?.highlights ?? const {},
-  );
-});
+final realtimeActivityProvider = Provider.family<ActivityRealtimeState, String>(
+  (ref, planId) {
+    final state = ref.watch(activityProvider(planId)).valueOrNull;
+    return ActivityRealtimeState(
+      connectionState:
+          state?.connectionState ?? ActivitySocketConnectionState.disconnected,
+      isPollingFallback: state?.isPollingFallback ?? false,
+      highlights: state?.highlights ?? const {},
+    );
+  },
+);

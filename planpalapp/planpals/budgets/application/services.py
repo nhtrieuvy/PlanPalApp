@@ -90,7 +90,7 @@ class BudgetService:
         user,
         *,
         total_budget,
-        currency: str = DEFAULT_CURRENCY,
+        currency: str | None = None,
     ) -> BudgetSummary:
         plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
         actor_id = self._normalize_required_uuid(user, 'user')
@@ -100,7 +100,15 @@ class BudgetService:
             raise PermissionDenied('Only the plan owner or a group admin can update the budget.')
 
         budget_amount = self._normalize_non_negative_amount(total_budget, 'total_budget')
-        normalized_currency = self._normalize_currency(currency)
+        current_budget = self.budget_repo.get_budget_by_plan(plan_uuid)
+        normalized_currency = self._normalize_currency(
+            currency or (current_budget.currency if current_budget else self.DEFAULT_CURRENCY)
+        )
+        if current_budget and normalized_currency != current_budget.currency:
+            if self.expense_repo.count_expenses(plan_uuid) or self.settlement_repo.list_settlements(plan_uuid):
+                raise ValidationError({
+                    'currency': 'Currency cannot change after expenses or settlements exist.'
+                })
         budget = self.budget_repo.update_budget(
             BudgetUpsertData(
                 plan_id=plan_uuid,
@@ -162,6 +170,8 @@ class BudgetService:
         budget = self.budget_repo.ensure_budget(plan_uuid, currency=self.DEFAULT_CURRENCY)
         expense_amount = self._normalize_positive_amount(amount, 'amount')
         normalized_currency = self._normalize_currency(currency or budget.currency)
+        if normalized_currency != budget.currency:
+            raise ValidationError({'currency': 'Expense currency must match the plan budget.'})
         normalized_category = self._normalize_category(category)
         normalized_description = (description or '').strip()
         payment_items, paid_by_id = self._calculate_payments(
@@ -273,6 +283,8 @@ class BudgetService:
         payment_note: str = '',
         reason: str,
         receipt=None,
+        split_strategy: str | None = None,
+        participants: list[dict[str, Any]] | None = None,
     ) -> ExpenseCreationResult:
         plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
         expense_uuid = self._normalize_required_uuid(expense_id, 'expense_id')
@@ -299,24 +311,34 @@ class BudgetService:
             current.amount,
             corrected_amount,
         )
-        owed_amounts = self._rescale_amounts(
-            [item.owed_amount for item in current_participants],
-            current.amount,
-            corrected_amount,
-        )
         payments = tuple(
             ExpensePaymentCreateData(user_id=item.user_id, amount=value)
             for item, value in zip(current_payments, payment_amounts)
         )
         payment_map = {item.user_id: item.amount for item in payments}
-        participants = tuple(
-            ExpenseParticipantCreateData(
-                user_id=item.user_id,
-                owed_amount=value,
-                balance=(payment_map.get(item.user_id, Decimal('0.00')) - value).quantize(Decimal('0.01')),
+        normalized_strategy = split_strategy or current.split_strategy
+        if participants is None:
+            owed_amounts = self._rescale_amounts(
+                [item.owed_amount for item in current_participants],
+                current.amount,
+                corrected_amount,
             )
-            for item, value in zip(current_participants, owed_amounts)
-        )
+            participant_items = tuple(
+                ExpenseParticipantCreateData(
+                    user_id=item.user_id,
+                    owed_amount=value,
+                    balance=(payment_map.get(item.user_id, Decimal('0.00')) - value).quantize(Decimal('0.01')),
+                )
+                for item, value in zip(current_participants, owed_amounts)
+            )
+        else:
+            participant_items = self._calculate_participants(
+                plan=plan,
+                payment_amounts=payment_map,
+                amount=corrected_amount,
+                split_strategy=normalized_strategy,
+                raw_participants=participants,
+            )
         corrected = self.expense_repo.create_expense(
             ExpenseCreateData(
                 plan_id=plan_uuid,
@@ -329,8 +351,8 @@ class BudgetService:
                 payment_note=(payment_note or '').strip(),
                 receipt=receipt,
                 copy_receipt_from_expense_id=current.id,
-                split_strategy=current.split_strategy,
-                participants=participants,
+                split_strategy=normalized_strategy,
+                participants=participant_items,
                 payments=payments,
                 entry_type='correction',
                 corrects_expense_id=current.id,
@@ -364,6 +386,36 @@ class BudgetService:
             summary=summary,
             warnings=tuple(self._build_warnings(summary, corrected.amount)),
         )
+
+    @transaction.atomic
+    def delete_expense(self, plan_id, expense_id, actor) -> None:
+        plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
+        expense_uuid = self._normalize_required_uuid(expense_id, 'expense_id')
+        actor_id = self._normalize_required_uuid(actor, 'actor')
+        plan = self._require_plan(plan_uuid)
+        expense = self.expense_repo.get_effective_expense(expense_uuid, for_update=True)
+        if expense is None or expense.plan_id != plan_uuid:
+            raise ValidationError({'expense_id': 'Expense is missing or has already been deleted'})
+        if actor_id != expense.user_id and not self._can_manage_budget(plan, actor):
+            raise PermissionDenied('Only the expense creator or a plan admin can delete it.')
+
+        self.expense_repo.soft_delete(expense_uuid, deleted_by_user_id=actor_id)
+        if self.audit_service:
+            self.audit_service.log_action(
+                user=actor_id,
+                action=AuditAction.DELETE_EXPENSE.value,
+                resource_type=AuditResourceType.PLAN.value,
+                resource_id=plan_uuid,
+                metadata={
+                    'plan_id': plan_uuid,
+                    'plan_title': getattr(plan, 'title', 'Plan'),
+                    'expense_id': expense.id,
+                    'amount': expense.amount,
+                    'currency': expense.currency,
+                    'category': expense.category,
+                },
+            )
+        self.invalidate_budget_cache(plan_uuid)
 
     def get_budget_summary(self, plan_id, viewer) -> BudgetSummary:
         plan_uuid = self._normalize_required_uuid(plan_id, 'plan_id')
@@ -508,6 +560,9 @@ class BudgetService:
             raise ValidationError({'status': 'New settlements must start in pending status'})
         requested_amount = self._normalize_positive_amount(amount, 'amount')
         budget = self.budget_repo.ensure_budget(plan_uuid, currency=self.DEFAULT_CURRENCY)
+        normalized_currency = self._normalize_currency(currency or budget.currency)
+        if normalized_currency != budget.currency:
+            raise ValidationError({'currency': 'Settlement currency must match the plan budget.'})
         self.settlement_repo.lock_plan_ledger(plan_uuid)
         available = self._available_debt(plan_uuid, actor, payer_id, receiver_id)
         pending_amount = sum(
@@ -527,7 +582,7 @@ class BudgetService:
                 from_user_id=payer_id,
                 to_user_id=receiver_id,
                 amount=requested_amount,
-                currency=self._normalize_currency(currency or budget.currency),
+                currency=normalized_currency,
                 requested_by_user_id=actor_id,
                 status=normalized_status,
                 note=(note or '').strip(),
