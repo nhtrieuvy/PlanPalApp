@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
@@ -233,6 +234,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
     }
 
     final p = _detail!;
+    final isOwner = ref.read(authNotifierProvider).user?.id == p.creator.id;
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: NestedScrollView(
@@ -250,6 +252,14 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
               PopupMenuButton<String>(
                 onSelected: (value) => _handlePlanningAction(value, p),
                 itemBuilder: (context) => [
+                  if (isOwner && p.isPersonalPlan && p.isCompleted)
+                    PopupMenuItem(
+                      value: 'publication',
+                      child: ListTile(
+                        leading: const Icon(Icons.auto_stories_outlined),
+                        title: Text(context.l10n.t('published.manage')),
+                      ),
+                    ),
                   if (p.canEdit)
                     PopupMenuItem(
                       value: 'clone',
@@ -258,7 +268,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                         title: Text(context.l10n.t('collaboration.clone_plan')),
                       ),
                     ),
-                  if (p.canEdit)
+                  if (isOwner)
                     PopupMenuItem(
                       value: 'delete',
                       child: ListTile(
@@ -656,20 +666,21 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                               label: Text(context.l10n.t('plan.edit')),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () => _confirmDeletePlan(p),
-                              icon: const Icon(Icons.delete_outline),
-                              label: Text(context.l10n.t('plan.delete')),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: theme.colorScheme.error,
-                                side: BorderSide(
-                                  color: theme.colorScheme.error,
+                          if (isOwner) const SizedBox(width: 12),
+                          if (isOwner)
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _confirmDeletePlan(p),
+                                icon: const Icon(Icons.delete_outline),
+                                label: Text(context.l10n.t('plan.delete')),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: theme.colorScheme.error,
+                                  side: BorderSide(
+                                    color: theme.colorScheme.error,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     ],
@@ -748,10 +759,143 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
       await _clonePlan(plan);
     } else if (action == 'delete') {
       await _confirmDeletePlan(plan);
+    } else if (action == 'publication') {
+      await _managePublication(plan);
     } else if (action == 'ics') {
       await _shareIcs(plan);
     } else if (action == 'google') {
       await _showCalendarLinks(plan);
+    }
+  }
+
+  Future<void> _managePublication(PlanModel plan) async {
+    final repo = ref.read(planRepositoryProvider);
+    Map<String, dynamic>? current;
+    try {
+      current = await repo.getPublication(plan.id);
+    } catch (error) {
+      if (mounted) ErrorDisplayService.handleError(context, error);
+      return;
+    }
+    if (!mounted) return;
+    final destination = TextEditingController(
+      text: current?['destination']?.toString() ?? '',
+    );
+    final summary = TextEditingController(
+      text: current?['summary']?.toString() ?? '',
+    );
+    final selectedIds = <String>{
+      for (final id in current?['highlight_ids'] as List? ?? const [])
+        id.toString(),
+    };
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: 680),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 640,
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.8,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    context.l10n.t('published.manage'),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(context.l10n.t('published.owner_hint')),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: destination,
+                    maxLength: 120,
+                    decoration: InputDecoration(
+                      labelText: context.l10n.t('published.destination'),
+                    ),
+                  ),
+                  TextField(
+                    controller: summary,
+                    maxLength: 500,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: context.l10n.t('published.summary'),
+                    ),
+                  ),
+                  if (plan.activities.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(context.l10n.t('published.highlights')),
+                    ...plan.activities.map(
+                      (activity) => CheckboxListTile(
+                        title: Text(activity.title),
+                        value: selectedIds.contains(activity.id),
+                        onChanged: (selected) {
+                          setSheetState(() {
+                            if (selected == true && selectedIds.length < 5) {
+                              selectedIds.add(activity.id);
+                            } else if (selected == false) {
+                              selectedIds.remove(activity.id);
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () {
+                      if (destination.text.trim().isNotEmpty &&
+                          summary.text.trim().isNotEmpty) {
+                        Navigator.pop(sheetContext, 'publish');
+                      }
+                    },
+                    child: Text(context.l10n.t('published.publish')),
+                  ),
+                  if (current != null)
+                    TextButton(
+                      onPressed: () => Navigator.pop(sheetContext, 'unpublish'),
+                      child: Text(context.l10n.t('published.unpublish')),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final destinationValue = destination.text.trim();
+    final summaryValue = summary.text.trim();
+    destination.dispose();
+    summary.dispose();
+    if (result == null || !mounted) return;
+    try {
+      if (result == 'publish') {
+        await repo.publishPlan(
+          plan.id,
+          destination: destinationValue,
+          summary: summaryValue,
+          highlightIds: selectedIds.toList(),
+        );
+      } else {
+        await repo.unpublishPlan(plan.id);
+      }
+      if (!mounted) return;
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t('published.updated'),
+      );
+    } catch (error) {
+      if (mounted) ErrorDisplayService.handleError(context, error);
     }
   }
 

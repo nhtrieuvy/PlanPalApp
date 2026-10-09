@@ -28,7 +28,7 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
   late final TextEditingController _descriptionCtrl;
   DateTime? _startDate;
   DateTime? _endDate;
-  bool _isPublic = true;
+  bool _isPublic = false;
   bool _submitting = false;
   PlanRepository get _repo => ref.read(planRepositoryProvider);
   List<GroupSummary> _groups = [];
@@ -38,7 +38,7 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
   bool _submitted = false;
 
   String get _draftScope =>
-      'plan_form:${widget.initial?['id']?.toString() ?? 'new'}';
+      'plan_form:${widget.initial?['id']?.toString() ?? widget.initial?['source_publication_id']?.toString() ?? 'new'}';
 
   @override
   void initState() {
@@ -65,9 +65,7 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
     } catch (_) {}
 
     _planType = widget.initial?['plan_type']?.toString() ?? 'personal';
-    _isPublic = _planType == 'group'
-        ? true
-        : (widget.initial?['is_public'] ?? true);
+    _isPublic = widget.initial?['is_public'] == true;
     _selectedGroupId = widget.initial?['group_id']?.toString();
     _restoreDraft();
     _fetchGroups();
@@ -185,7 +183,11 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
     setState(() => _submitting = true);
     try {
       PlanModel result;
-      final isPublic = _planType == 'group' ? true : _isPublic;
+      final isPublic = _planType == 'group'
+          ? _groups.any(
+              (group) => group.id == _selectedGroupId && group.isPublic,
+            )
+          : _isPublic;
       // Check if we have an ID to determine edit vs create mode
       final planId = widget.initial?['id']?.toString();
       if (planId == null || planId.isEmpty) {
@@ -421,6 +423,28 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
 
   Widget _buildTypeStep(BuildContext context) {
     final l10n = context.l10n;
+    if (widget.initial?['id'] != null) {
+      return ReviewSection(
+        title: l10n.t('plan_form.field_type'),
+        items: [
+          ReviewItem(
+            l10n.t('plan_form.field_type'),
+            _planType == 'group'
+                ? l10n.t('plan_form.type_group')
+                : l10n.t('plan_form.type_personal'),
+          ),
+          if (_planType == 'group')
+            ReviewItem(
+              l10n.t('plan_form.select_group'),
+              _groups
+                      .where((group) => group.id == _selectedGroupId)
+                      .map((group) => group.name)
+                      .firstOrNull ??
+                  '',
+            ),
+        ],
+      );
+    }
     return Column(
       children: [
         _buildPlanTypeCard(
@@ -443,7 +467,6 @@ class _PlanFormPageState extends ConsumerState<PlanFormPage> {
           selected: _planType == 'group',
           onTap: () => setState(() {
             _planType = 'group';
-            _isPublic = true;
           }),
         ),
         if (_planType == 'group') ...[

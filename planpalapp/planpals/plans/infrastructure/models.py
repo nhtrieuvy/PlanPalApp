@@ -39,7 +39,10 @@ class PlanQuerySet(models.QuerySet['Plan']):
         return self.filter(plan_type='group')
     
     def public(self) -> 'PlanQuerySet':
-        return self.filter(is_public=True)
+        return self.filter(is_public=True).filter(
+            Q(plan_type='personal') |
+            Q(plan_type='group', group__visibility='public')
+        )
     
     def upcoming(self) -> 'PlanQuerySet':
         return self.filter(status='upcoming')
@@ -57,7 +60,8 @@ class PlanQuerySet(models.QuerySet['Plan']):
         return self.filter(
             Q(creator=user) |  # Own plans
             Q(group__members=user) |  # Group plans
-            Q(is_public=True)  # Public plans
+            Q(is_public=True, plan_type='personal') |
+            Q(is_public=True, plan_type='group', group__visibility='public')
         ).distinct()
     
     def with_activity_count(self) -> 'PlanQuerySet':
@@ -233,15 +237,43 @@ class Plan(BaseModel):
         # Infer plan_type from group FK — pure data derivation, not business logic.
         self.plan_type = 'personal' if self.group is None else 'group'
         if self.plan_type == 'group':
-            self.is_public = True
+            self.is_public = self.group.visibility == 'public'
         self.clean()
         super().save(*args, **kwargs)
+
+    @property
+    def is_discoverable(self) -> bool:
+        if not self.is_public:
+            return False
+        return self.is_personal() or bool(
+            self.group and self.group.visibility == 'public'
+        )
 
     def is_personal(self) -> bool:
         return self.plan_type == 'personal'
 
     def is_group_plan(self) -> bool:
         return self.plan_type == 'group'
+
+    def can_edit_by_id(self, user_id) -> bool:
+        if str(self.creator_id) == str(user_id):
+            return True
+        if not self.group_id:
+            return False
+        if self.group.is_admin_by_id(user_id):
+            return True
+        from planpals.auth.infrastructure.models import FriendTripInvitation
+        from planpals.groups.infrastructure.models import GroupMembership
+
+        return (
+            FriendTripInvitation.objects.filter(
+                group_id=self.group_id,
+                status=FriendTripInvitation.ACCEPTED,
+            ).filter(Q(sender_id=user_id) | Q(recipient_id=user_id)).exists()
+            and GroupMembership.objects.filter(
+                group_id=self.group_id, user_id=user_id
+            ).exists()
+        )
 
 
     @property
@@ -323,6 +355,25 @@ class Plan(BaseModel):
             queryset = queryset.exclude(id=exclude_activity.id)
             
         return queryset.exists()
+
+
+class PlanPublication(BaseModel):
+    """A curated public preview, separate from the private plan timeline."""
+
+    plan = models.OneToOneField(
+        Plan, on_delete=models.CASCADE, related_name='publication'
+    )
+    destination = models.CharField(max_length=120)
+    summary = models.CharField(max_length=500)
+    highlights = models.JSONField(default=list, blank=True)
+    published_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        app_label = 'planpals'
+        db_table = 'planpal_plan_publications'
+
+    def __str__(self) -> str:
+        return f'Publication for {self.plan_id}'
 
 
 class PlanActivity(BaseModel):    

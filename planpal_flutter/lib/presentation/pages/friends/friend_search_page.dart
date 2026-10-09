@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -21,17 +23,21 @@ class FriendSearchPage extends ConsumerStatefulWidget {
 
 class _FriendSearchPageState extends ConsumerState<FriendSearchPage> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  int _searchGeneration = 0;
   bool _searching = false;
   String? _searchError;
   List<UserSummary> _searchResults = [];
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _performSearch(String query) async {
+    final generation = ++_searchGeneration;
     if (query.trim().isEmpty) {
       setState(() {
         _searchResults = [];
@@ -50,14 +56,14 @@ class _FriendSearchPageState extends ConsumerState<FriendSearchPage> {
       final results = await ref
           .read(friendRepositoryProvider)
           .searchUsers(query.trim());
-      if (!mounted) return;
+      if (!mounted || generation != _searchGeneration) return;
       setState(() {
         _searchResults = results;
         _searching = false;
         _searchError = null;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || generation != _searchGeneration) return;
       setState(() {
         _searchResults = [];
         _searching = false;
@@ -97,6 +103,7 @@ class _FriendSearchPageState extends ConsumerState<FriendSearchPage> {
                           tooltip: context.l10n.t('common.clear'),
                           icon: const Icon(Icons.clear_rounded),
                           onPressed: () {
+                            _searchDebounce?.cancel();
                             _searchController.clear();
                             _performSearch('');
                             setState(() {});
@@ -107,9 +114,21 @@ class _FriendSearchPageState extends ConsumerState<FriendSearchPage> {
                 style: theme.textTheme.bodyLarge,
                 onChanged: (value) {
                   setState(() {});
-                  _performSearch(value.trim().length >= 2 ? value : '');
+                  _searchDebounce?.cancel();
+                  final query = value.trim();
+                  if (query.length < 2) {
+                    _performSearch('');
+                  } else {
+                    _searchDebounce = Timer(
+                      const Duration(milliseconds: 300),
+                      () => _performSearch(query),
+                    );
+                  }
                 },
-                onSubmitted: _performSearch,
+                onSubmitted: (query) {
+                  _searchDebounce?.cancel();
+                  _performSearch(query);
+                },
               ),
             ),
             Expanded(child: _buildBody()),

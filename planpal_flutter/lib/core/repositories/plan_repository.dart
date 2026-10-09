@@ -21,6 +21,45 @@ class PlanRepository {
 
   PlanRepository(this._auth);
 
+  Future<Map<String, dynamic>?> getPublication(String planId) async {
+    final res = await _auth.requestWithAutoRefresh(
+      (c) => c.dio.get(Endpoints.planPublication(planId)),
+    );
+    if (res.statusCode == 200) {
+      return res.data == null ? null : Map<String, dynamic>.from(res.data);
+    }
+    throw buildApiException(res);
+  }
+
+  Future<Map<String, dynamic>> publishPlan(
+    String planId, {
+    required String destination,
+    required String summary,
+    List<String> highlightIds = const [],
+  }) async {
+    final res = await _auth.requestWithAutoRefresh(
+      (c) => c.dio.put(
+        Endpoints.planPublication(planId),
+        data: {
+          'destination': destination,
+          'summary': summary,
+          'highlight_ids': highlightIds,
+        },
+      ),
+    );
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      return Map<String, dynamic>.from(res.data);
+    }
+    throw buildApiException(res);
+  }
+
+  Future<void> unpublishPlan(String planId) async {
+    final res = await _auth.requestWithAutoRefresh(
+      (c) => c.dio.delete(Endpoints.planPublication(planId)),
+    );
+    if (res.statusCode != 204) throw buildApiException(res);
+  }
+
   // Plan CRUD operations
   Future<PlanModel> createPlan(CreatePlanRequest request) async {
     try {

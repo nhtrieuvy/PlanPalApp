@@ -45,6 +45,12 @@ class Endpoints {
 
   // Dynamic endpoints
   static String planDetails(String planId) => _v1('/plans/$planId/');
+  static String planPublication(String planId) =>
+      _v1('/plans/$planId/publication/');
+  static String publishedProfile(String userId) =>
+      _v1('/users/$userId/published-profile/');
+  static String publicationPreview(String publicationId) =>
+      _v1('/publications/$publicationId/');
   static String planActivitiesByDate(String planId, String date) =>
       _v1('/plans/$planId/activities_by_date/?date=$date');
   static String planSchedule(String planId) => _v1('/plans/$planId/schedule/');
@@ -138,6 +144,9 @@ class Endpoints {
   // Friendship endpoints
   static String get friendRequest => _v1('/friends/request/');
   static String get friendRequests => _v1('/friends/requests/');
+  static String get friendTripInvitations => _v1('/friends/trip-invitations/');
+  static String friendTripDecision(String invitationId) =>
+      _v1('/friends/trip-invitations/$invitationId/decision/');
   static String get friends => _v1('/friends/');
   static String friendRequestAction(String requestId) =>
       _v1('/friends/requests/$requestId/action/');

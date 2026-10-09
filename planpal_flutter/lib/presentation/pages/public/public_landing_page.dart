@@ -265,6 +265,17 @@ class _PublicAccountMenu extends ConsumerWidget {
       message: displayName,
       child: PopupMenuButton<_PublicAccountAction>(
         tooltip: l10n.t('home.profile'),
+        position: PopupMenuPosition.under,
+        offset: const Offset(0, 10),
+        constraints: const BoxConstraints(minWidth: 236, maxWidth: 280),
+        menuPadding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        color: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          side: BorderSide(color: context.semanticColors.borderDefault),
+        ),
         onSelected: (action) async {
           switch (action) {
             case _PublicAccountAction.home:
@@ -282,42 +293,56 @@ class _PublicAccountMenu extends ConsumerWidget {
         itemBuilder: (context) => [
           PopupMenuItem<_PublicAccountAction>(
             enabled: false,
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(displayName, maxLines: 1),
-              subtitle: Text('@${user.username}', maxLines: 1),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: context.semanticColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '@${user.username}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.semanticColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
           const PopupMenuDivider(),
           PopupMenuItem(
             value: _PublicAccountAction.home,
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.home_outlined),
-              title: Text(l10n.t('navigation.home')),
+            child: _AccountMenuItem(
+              icon: Icons.home_outlined,
+              label: l10n.t('navigation.home'),
             ),
           ),
           PopupMenuItem(
             value: _PublicAccountAction.profile,
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.person_outline_rounded),
-              title: Text(l10n.t('home.profile')),
+            child: _AccountMenuItem(
+              icon: Icons.person_outline_rounded,
+              label: l10n.t('home.profile'),
             ),
           ),
           const PopupMenuDivider(),
           PopupMenuItem(
             value: _PublicAccountAction.logout,
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                Icons.logout_rounded,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                l10n.t('profile.logout'),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+            child: _AccountMenuItem(
+              icon: Icons.logout_rounded,
+              label: l10n.t('profile.logout'),
+              color: Theme.of(context).colorScheme.error,
             ),
           ),
         ],
@@ -335,6 +360,36 @@ class _PublicAccountMenu extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _AccountMenuItem extends StatelessWidget {
+  const _AccountMenuItem({required this.icon, required this.label, this.color});
+
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(
+        icon,
+        size: AppSize.icon,
+        color: color ?? context.semanticColors.textSecondary,
+      ),
+      const SizedBox(width: AppSpacing.sm),
+      Expanded(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: color ?? context.semanticColors.textPrimary,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 class _NavLink extends StatelessWidget {

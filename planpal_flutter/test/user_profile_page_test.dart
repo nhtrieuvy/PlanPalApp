@@ -106,7 +106,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Friends'), findsOneWidget);
+    expect(find.text('Plan a trip together'), findsOneWidget);
     expect(find.text('Add friend'), findsNothing);
   });
 
@@ -145,8 +145,7 @@ void main() {
       await tester.tap(find.text('Add friend'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Friends'), findsWidgets);
-      expect(find.text('Remove friend'), findsOneWidget);
+      expect(find.text('Plan a trip together'), findsOneWidget);
       expect(find.text('Add friend'), findsNothing);
     },
   );
@@ -171,6 +170,14 @@ class _FakeFriendRepository extends FriendRepository {
   @override
   Future<UserSummary> getUserProfile(String userId) async {
     return profileUser;
+  }
+
+  @override
+  Future<Map<String, dynamic>> getPublishedProfile(
+    String userId, {
+    String? nextPageUrl,
+  }) async {
+    return {'publications': <Map<String, dynamic>>[]};
   }
 
   @override

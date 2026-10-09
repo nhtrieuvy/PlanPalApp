@@ -45,6 +45,8 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
   String? _requestsError;
   List<UserSummary> _friends = [];
   List<Friendship> _friendRequests = [];
+  List<Friendship> _sentRequests = [];
+  List<Map<String, dynamic>> _tripInvitations = [];
 
   FriendRepository get _friendRepo => ref.read(friendRepositoryProvider);
 
@@ -128,7 +130,55 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
   }
 
   Future<void> _loadData() async {
-    await Future.wait([_loadFriends(), _loadFriendRequests()]);
+    await Future.wait([
+      _loadFriends(),
+      _loadFriendRequests(),
+      _loadSentRequests(),
+      _loadTripInvitations(),
+    ]);
+  }
+
+  Future<void> _loadSentRequests() async {
+    try {
+      final requests = await _friendRepo.getSentRequests();
+      if (mounted) setState(() => _sentRequests = requests);
+    } catch (_) {
+      // Incoming requests and friends remain usable during a partial failure.
+    }
+  }
+
+  Future<void> _loadTripInvitations() async {
+    try {
+      final invitations = await _friendRepo.getTripInvitations();
+      if (mounted) setState(() => _tripInvitations = invitations);
+    } catch (_) {
+      // Keep previously loaded invitations on transient network errors.
+    }
+  }
+
+  Future<void> _decideTrip(String id, String decision) async {
+    try {
+      await _friendRepo.decideTripInvitation(id, decision);
+      await _loadTripInvitations();
+      if (!mounted) return;
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t('friend_trip.updated'),
+      );
+    } catch (error) {
+      if (mounted) ErrorDisplayService.handleError(context, error);
+    }
+  }
+
+  Future<void> _cancelSentRequest(Friendship request) async {
+    try {
+      await _friendRepo.cancelFriendRequest(request.id);
+      if (mounted) {
+        setState(() => _sentRequests.removeWhere((r) => r.id == request.id));
+      }
+    } catch (error) {
+      if (mounted) ErrorDisplayService.handleError(context, error);
+    }
   }
 
   Future<void> _loadFriends({bool silent = false}) async {
@@ -349,7 +399,9 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       );
     }
 
-    if (_friendRequests.isEmpty) {
+    if (_friendRequests.isEmpty &&
+        _sentRequests.isEmpty &&
+        _tripInvitations.where((item) => item['status'] == 'pending').isEmpty) {
       return AppEmpty(
         icon: Icons.inbox_outlined,
         title: l10n.t('friends.empty_requests_title'),
@@ -357,13 +409,96 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       );
     }
 
+    final myId = ref.read(authNotifierProvider).user?.id;
+    final pendingTrips = _tripInvitations
+        .where((item) => item['status'] == 'pending')
+        .toList();
     return RefreshablePageWrapper(
       onRefresh: onRefresh,
-      child: ListView.builder(
+      child: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
-        itemCount: _friendRequests.length,
-        itemBuilder: (context, index) =>
-            _buildRequestTile(_friendRequests[index]),
+        children: [
+          if (pendingTrips.isNotEmpty) ...[
+            Text(
+              l10n.t('friend_trip.pending'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ...pendingTrips.map((item) {
+              final sentByMe = (item['sender'] as Map?)?['id'] == myId;
+              final peer = Map<String, dynamic>.from(
+                (sentByMe ? item['recipient'] : item['sender']) as Map,
+              );
+              final name = peer['name'];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: JourneySurface(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['name']?.toString() ?? '',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(name?.toString() ?? ''),
+                      const SizedBox(height: AppSpacing.sm),
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        children: sentByMe
+                            ? [
+                                OutlinedButton(
+                                  onPressed: () =>
+                                      _decideTrip(item['id'], 'cancel'),
+                                  child: Text(l10n.t('common.cancel')),
+                                ),
+                              ]
+                            : [
+                                FilledButton(
+                                  onPressed: () =>
+                                      _decideTrip(item['id'], 'accept'),
+                                  child: Text(l10n.t('friends.accept')),
+                                ),
+                                OutlinedButton(
+                                  onPressed: () =>
+                                      _decideTrip(item['id'], 'decline'),
+                                  child: Text(l10n.t('friends.decline')),
+                                ),
+                              ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          if (_friendRequests.isNotEmpty) ...[
+            Text(
+              l10n.t('friends.tab_requests'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ..._friendRequests.map(_buildRequestTile),
+          ],
+          if (_sentRequests.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              l10n.t('friends.sent_requests'),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ..._sentRequests.map(
+              (request) => ListTile(
+                title: Text(request.friend.fullName),
+                subtitle: Text(l10n.t('user_profile.pending_sent')),
+                trailing: TextButton(
+                  onPressed: () => _cancelSentRequest(request),
+                  child: Text(l10n.t('common.cancel')),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

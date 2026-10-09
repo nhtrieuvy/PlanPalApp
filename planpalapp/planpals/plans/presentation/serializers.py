@@ -322,28 +322,20 @@ class PlanDetailSerializer(serializers.ModelSerializer):
             if obj.creator_id == user.id:
                 return True
             
-            if obj.is_public:
+            if obj.is_discoverable:
                 return True
             
             if obj.is_group_plan() and obj.group:
                 return self._user_is_group_member(obj.group, user)
             
             return False
-        return obj.is_public
+        return obj.is_discoverable
     
     
     def get_can_edit(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            user = request.user
-            
-            if obj.creator_id == user.id:
-                return True
-            
-            if obj.is_group_plan() and obj.group:
-                return self._user_is_group_admin(obj.group, user)
-            
-            return False
+            return obj.can_edit_by_id(request.user.id)
         return False
     
     def get_collaborators(self, obj):
@@ -377,7 +369,7 @@ class PlanDetailSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Group does not exist")
 
         if instance and instance.plan_type == 'group' and 'is_public' in attrs:
-            attrs['is_public'] = True
+            attrs['is_public'] = instance.group.visibility == 'public'
 
         return attrs
     
@@ -442,7 +434,7 @@ class PlanCreateSerializer(serializers.ModelSerializer):
                             "You are not a member of this group"
                         )
                 attrs['group'] = group
-                attrs['is_public'] = True
+                attrs['is_public'] = group.visibility == 'public'
             except Group.DoesNotExist:
                 raise serializers.ValidationError("Group does not exist")
         elif plan_type == 'personal':

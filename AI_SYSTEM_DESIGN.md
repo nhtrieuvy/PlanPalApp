@@ -1,1735 +1,246 @@
-# AI System Design - PlanPal
+# PlanPal System Design
 
-Generated: 2026-04-19  
-Repository root: `D:\Study\DoAnNganh\PlanPal`  
-Scope: Django backend, Flutter frontend, Riverpod state, Channels realtime, Celery async, Audit Log, Notifications, Analytics, Budget Tracking.
+Source of truth: the application code in this repository, inspected on 2026-10-07. This document describes implemented behavior, not a target architecture or the health of a live deployment. PlanPal currently has no AI/LLM runtime despite this document's historical filename.
 
-This document is AI-optimized. It is designed to let an engineer or an AI agent reason about behavior, trace dependencies, predict side effects, and modify the system safely without first reading the entire codebase.
+## 1. System overview
 
----
+PlanPal helps people plan trips together: create groups and plans, arrange activities, discuss locations, vote and coordinate availability, track work items, share expenses, and receive notifications. Regular users work in shared groups and conversations; staff users can access system analytics.
 
-## 1. System Mental Model
+The client is one Flutter/Dart application built for Android and web, with platform-specific storage, push, map, and layout behavior. It calls a Django REST Framework API over HTTPS and uses Django Channels WebSockets for live chat, plan/group events, and notifications. Django persists relational data in MySQL. Redis backs production cache, Channels, and Celery messaging. Celery handles scheduled and asynchronous work. Goong, Cloudinary, Firebase, and SMTP are external integrations configured independently.
 
-PlanPal is a layered social planning system. The product is organized around a small set of durable entities and a larger set of behavioral events.
+This is not a separate JavaScript web frontend and native mobile backend. Both clients share Flutter pages, repositories, DTOs, and business-facing flows, while adaptive navigation and selected platform services differ.
 
-Primary bounded contexts:
+## 2. Repository and project structure
 
-- `auth`: users, profile, friendship, device token registration
-- `groups`: group lifecycle, membership, roles
-- `plans`: plans, activities, schedule, plan lifecycle
-- `chat`: conversations, messages, read state
-- `audit`: append-only behavioral history
-- `notifications`: in-app notifications, unread state, push abstraction, realtime delivery
-- `analytics`: pre-aggregated metrics and dashboard queries
-- `budgets`: budget + expense tracking per plan
-- `locations`: external place lookup
-- `shared`: cache, pagination, Celery utilities, cross-cutting abstractions
-
-Core system equation:
-
-```text
-User
-  -> UI action
-  -> Riverpod provider/notifier
-  -> repository
-  -> REST API or WebSocket
-  -> presentation layer
-  -> application service / command handler
-  -> repository interface
-  -> infrastructure repository / ORM
-  -> DB state change
-  -> synchronous side effects
-  -> asynchronous side effects
-  -> serializer / DTO mapping
-  -> UI state update
-```
-
-Behavior model:
-
-```text
-User -> Actions -> System -> State changes -> Side effects
-
-Examples
-- Create plan -> insert Plan + initialize Budget -> write AuditLog -> queue notification fan-out
-- Join group -> insert GroupMembership -> write AuditLog -> notify admins
-- Add expense -> insert Expense -> recompute budget summary -> write AuditLog -> maybe queue budget alerts
-- Mark notification read -> update Notification -> write AuditLog NOTIFICATION_OPENED -> analytics aggregate later
-```
-
-Mermaid overview:
-
-```mermaid
-flowchart LR
-    U["User"] --> UI["Flutter UI"]
-    UI --> RP["Riverpod Provider / Notifier"]
-    RP --> REPO["Flutter Repository"]
-    REPO --> API["REST API / WebSocket"]
-    API --> PRES["Django Presentation"]
-    PRES --> APP["Application Service / Handler"]
-    APP --> INF["Infrastructure Repository"]
-    INF --> DB["MySQL"]
-    APP --> CACHE["Cache Invalidation"]
-    APP --> AUDIT["Audit Log"]
-    AUDIT --> CEL["Celery Task Dispatch"]
-    CEL --> NOTIF["Notifications / Push / Analytics Jobs"]
-    DB --> PRES
-    PRES --> API
-    API --> REPO
-    REPO --> RP
-    RP --> UI
-```
-
-Key design rule:
-
-- request-time reads stay cheap
-- durable state lives in MySQL
-- audit logs are the canonical behavioral trace
-- analytics dashboard reads only pre-aggregated `DailyMetric` rows
-- background work is delegated to Celery
-
-Environment rule:
-
-- Django uses one settings module selected by `PLANPAL_ENV` (`local`, `test`,
-  `production`) and optionally loads `.env.<environment>`.
-- Flutter uses the build-time `APP_ENV` selector and optional `API_BASE_URL` /
-  `OAUTH_CLIENT_ID` overrides; no source edit is required to switch targets.
-- Flutter Web uses `go_router` paths for group, plan and conversation details.
-  Authentication redirects preserve the originally requested browser URL.
-- Flutter Web exposes an unauthenticated public website at `/`; `/login` and
-  `/register` remain public while every product route stays behind the auth
-  redirect. Native builds preserve the app-first entry flow by redirecting `/`
-  to `/login` or `/home` instead of rendering the marketing website.
-- Browser WebSockets exchange the bearer token over HTTPS for a short-lived,
-  single-use cache-backed ticket. Native clients retain token query auth during
-  the migration window.
-- Upload repositories accept `XFile` and stream multipart bodies, avoiding
-  `dart:io` in shared public interfaces.
-- Flutter map rendering uses the shared `PlanPalMap` adapter backed by MapLibre
-  and Goong vector styles. Place search and reverse-geocoding continue through
-  the backend Goong adapter; Google Maps is not a runtime dependency.
-- Production process variables and secret stores override dotenv files.
-- The test environment always uses in-memory cache, channel layer, and Celery
-  transport to prevent accidental dependency on or writes to production Redis.
-
----
-
-## 2. Domain Model Graph
-
-Core entity graph:
-
-```text
-User
- ├── creates -> Plan
- ├── belongs to -> GroupMembership
- ├── participates in -> Conversation
- ├── sends -> ChatMessage
- ├── receives -> Notification
- ├── owns -> UserDeviceToken
- ├── writes -> AuditLog
- ├── records -> Expense
- └── relates to -> Friendship
-
-Friendship
- ├── connects -> User A
- └── connects -> User B
-
-Group
- ├── has many -> GroupMembership
- ├── has one -> admin User
- ├── has many -> Plan
- └── has one group conversation -> Conversation
-
-GroupMembership
- ├── belongs to -> User
- ├── belongs to -> Group
- └── has role -> admin | member
-
-Plan
- ├── belongs to -> creator User
- ├── optionally belongs to -> Group
- ├── has many -> PlanActivity
- ├── has exactly one -> Budget
- ├── has many -> Expense
- ├── has many -> AuditLog (logical scope)
- └── can trigger -> Notification
-
-PlanActivity
- └── belongs to -> Plan
-
-Budget
- └── belongs to -> Plan (one-to-one)
-
-Expense
- ├── belongs to -> Plan
- ├── records -> ExpenseParticipant (who shares the cost)
- └── records -> ExpensePayment (who actually paid each contribution)
-
-Conversation
- ├── direct: has -> user_a, user_b
- ├── group: belongs to -> Group
- └── has many -> ChatMessage
-
-ChatMessage
- ├── belongs to -> Conversation
- ├── belongs to -> sender User
- └── has many -> MessageReadStatus
-
-AuditLog
- ├── belongs to -> acting User (nullable for some system actions)
- ├── points to -> resource_type + resource_id
- └── carries -> metadata JSON
-
-Notification
- ├── belongs to -> User
- ├── has type -> NotificationType
- └── carries -> data JSON
-
-UserDeviceToken
- └── belongs to -> User
-
-DailyMetric
- └── aggregates -> AuditLog + Notification activity per day
-```
-
-Important logical relationships:
-
-- Every `Plan` must have exactly one `Budget`.
-- `Expense` is always scoped to a `Plan`.
-- `BudgetSummary` is derived, not stored.
-- `BalanceSummary` is a plan-scoped ledger: it aggregates all `ExpensePayment`, `ExpenseParticipant`, and completed `Settlement` records. It is distinct from a single expense detail.
-- `Plan` audit history logically includes direct plan logs and legacy `budget` / `expense` logs via `metadata.plan_id`.
-
----
-
-## 3. Dependency Graph (Critical)
-
-### 3.1 Layer rule
-
-Conceptual direction:
-
-```text
-Presentation -> Application -> Domain
-Infrastructure -> Application + Domain
-Shared -> imported by all layers as utility/port abstractions
-```
-
-Important nuance:
-
-- Domain is framework-independent.
-- Application logic avoids ORM.
-- Infrastructure owns Django ORM, Celery task implementations, Channels consumers, push adapters.
-- Presentation owns DRF views and serializers. Some serializers read ORM models directly as boundary adapters. This is an allowed edge in this repo, but services and handlers must stay ORM-free.
-
-### 3.2 Backend module map
-
-```mermaid
-flowchart TD
-    P1["presentation"] --> A1["application"]
-    A1 --> D1["domain"]
-    I1["infrastructure"] --> A1
-    I1 --> D1
-    P1 --> I1
-    S["shared"] --> P1
-    S --> A1
-    S --> I1
-```
-
-Actual module families:
-
-- `planpals/<context>/domain/*`
-  - pure enums, entities, validation helpers, events
-- `planpals/<context>/application/*`
-  - services, command handlers, repository interfaces, factories
-- `planpals/<context>/infrastructure/*`
-  - Django models, ORM repositories, Celery tasks, Channels publishers/consumers
-- `planpals/<context>/presentation/*`
-  - DRF views, serializers, permissions
-- `planpals/shared/*`
-  - cache ports/keys, pagination, exception mapping, event and realtime helpers
-
-Critical cross-context dependencies:
-
-- `plans -> groups`
-  - group plan membership and admin checks
-- `plans -> audit`
-  - create/update/delete/complete plan audit logs
-- `plans -> budgets`
-  - create plan initializes one budget row
-- `groups -> auth`
-  - friendship validation and user identity
-- `groups -> chat`
-  - group messaging actions
-- `groups -> audit`
-  - join/leave/change role/delete group audit logs
-- `audit -> notifications`
-  - audit factory wires notification dispatcher closure
-- `notifications -> audit`
-  - mark-read and read-all emit `NOTIFICATION_OPENED`
-- `analytics -> audit + notifications`
-  - daily aggregation reads audit logs and notification rows
-- `budgets -> plans + groups`
-  - budget and expense permissions are plan/group scoped
-- `budgets -> audit + notifications`
-  - budget updates and expenses write audit logs and may queue notifications
-
-### 3.3 Circular dependency policy
-
-The codebase avoids hard architectural cycles in core logic, but there is one intentional event loop:
-
-```text
-business action -> AuditLog -> notification dispatcher
-notification read -> AuditLog NOTIFICATION_OPENED
-analytics aggregate -> consumes audit logs later
-```
-
-This loop is acceptable because:
-
-- it is event-driven, not synchronous business recursion
-- integration is wired through factories and tasks
-- repositories and domain models stay separate
-
-Do not bypass this wiring by calling notification side effects directly from views or ORM models.
-
----
-
-## 4. Sequence Diagrams (Text)
-
-### 4.1 Create plan
-
-```text
-User
- -> Flutter PlanFormPage
- -> PlanRepository.createPlan()
- -> POST /api/v1/plans/
- -> PlanViewSet.create()
- -> PlanService.create_plan()
- -> CreatePlanHandler.handle()
- -> PlanRepository.save_new()
- -> DB insert Plan
- -> BudgetService.initialize_plan_budget(plan)
- -> DB insert Budget
- -> AuditLogService.log_action(CREATE_PLAN, resource=plan)
- -> DB insert AuditLog
- -> Audit factory dispatches notification task
- -> return PlanDetailSerializer payload
- -> Flutter updates plan list / navigates to detail
-```
-
-### 4.2 Join group
-
-```text
-User
- -> Flutter GroupDetailPage
- -> GroupRepository.joinGroup()
- -> POST /api/v1/groups/{id}/join/
- -> GroupViewSet.join()
- -> GroupService.join_group()
- -> JoinGroupHandler.handle()
- -> DB insert GroupMembership
- -> AuditLogService.log_action(JOIN_GROUP, resource=group)
- -> DB insert AuditLog
- -> process_audit_log_notification_task.delay()
- -> return GroupDetailSerializer payload
- -> Flutter refreshes group detail and user groups
-```
-
-### 4.3 Send message
-
-```text
-User
- -> Flutter ConversationPage
- -> ConversationRepository.sendMessage()
- -> POST /api/v1/conversations/{id}/send_message/
- -> ConversationViewSet.send_message()
- -> ConversationService.create_message()
- -> DB insert ChatMessage
- -> Channels publish to ws/chat/{conversation_id}/
- -> optional push fan-out task
- -> response returns ChatMessageSerializer
- -> Flutter appends message locally
- -> other clients receive websocket event
-```
-
-### 4.4 Notification flow
-
-```text
-Business action
- -> AuditLogService.log_action(...)
- -> DB insert AuditLog
- -> audit notification dispatcher whitelist check
- -> Celery process_audit_log_notification_task
- -> NotificationService.notify() or notify_many()
- -> DB insert Notification(s)
- -> Channels user notification publish
- -> optional FCM push send
- -> Flutter NotificationWebSocketService receives event
- -> notificationsProvider + unreadCountProvider update state
-```
-
-### 4.5 Expense flow
-
-```text
-User
- -> Flutter AddExpenseForm
- -> BudgetRepository.addExpense()
- -> POST /api/v1/plans/{id}/expenses/
- -> PlanExpenseListCreateView.post()
- -> BudgetService.add_expense()
- -> ExpenseRepository.create_expense()
- -> DB insert Expense + ExpenseParticipant + ExpensePayment
- -> Budget summary recomputed
- -> AuditLogService.log_action(CREATE_EXPENSE, resource=plan, entity_type=expense)
- -> Celery process_expense_notifications_task.delay()
- -> return {expense, summary, warnings}
- -> Flutter refreshes budget summary and expense feed
-```
-
----
-
-## 5. Event Flow Map
-
-System event map:
-
-| Event | Trigger | Immediate State Change | Side Effects |
-|---|---|---|---|
-| `PlanCreated` | valid plan create | insert `Plan`, initialize `Budget` | write audit log, schedule notifications, schedule plan tasks |
-| `PlanUpdated` | valid plan update | update `Plan` | write audit log, invalidate plan cache, notify participants |
-| `PlanCompleted` | plan completion flow | `Plan.status = completed` | write `COMPLETE_PLAN` audit log, analytics picks it up later |
-| `ActivityCreated` | valid activity create | insert `PlanActivity` | write `CREATE_ACTIVITY` audit log scoped to the parent plan, broadcast realtime update |
-| `ActivityUpdated` | valid activity update | update `PlanActivity`, increment version | write `UPDATE_ACTIVITY` audit log with changed fields, broadcast realtime update |
-| `GroupJoined` | join group | insert `GroupMembership` | write audit log, notify admins |
-| `GroupLeft` | leave group | delete membership | write audit log, notify admins |
-| `RoleChanged` | admin changes member role | update membership role | write audit log, notify affected user |
-| `NotificationSent` | notification service | insert `Notification` row(s) | websocket publish, optional push |
-| `NotificationOpened` | mark read / read all | update `Notification.is_read` | write `NOTIFICATION_OPENED` audit log |
-| `BudgetUpdated` | budget upsert | update `Budget` | invalidate budget cache, write audit log |
-| `ExpenseCreated` | expense add | insert `Expense` | invalidate budget + plan summary cache, write audit log, maybe queue alerts |
-| `DailyMetricsAggregated` | Celery beat at 02:15 | upsert `DailyMetric` | invalidate analytics cache |
-
-Important event rule:
-
-- Notifications are not created for every audit action.
-- Audit-to-notification dispatch is explicitly whitelisted in `notifications/application/factories.py`.
-
----
-
-## 6. State Transitions
-
-### 6.1 Plan state machine
-
-Persisted field: `Plan.status`
-
-```text
-upcoming -> ongoing -> completed
-upcoming -> cancelled
-ongoing  -> cancelled
-```
-
-Rules:
-
-- Only creator or group admin can modify plan.
-- `complete_trip()` writes audit `COMPLETE_PLAN`.
-- Celery `plan_status` queue may advance state based on schedule.
-
-### 6.2 Friendship state machine
-
-Persisted field: `Friendship.status`
-
-```text
-pending -> accepted
-pending -> rejected (tracked via FriendshipRejection + status path)
-pending -> blocked
-accepted -> blocked
-blocked -> unblocked (relationship removed or changed by service flow)
-```
-
-Rules:
-
-- cannot send friend request to self
-- cannot send duplicate pending request
-- accepted friendship is required for group initial member validation
-
-### 6.3 Group membership state
-
-There is no persisted `pending` membership state. Membership is presence-based.
-
-```text
-not_member -> member
-not_member -> admin
-member -> admin
-admin -> member (only if another admin remains)
-member/admin -> removed (row deleted)
-```
-
-Rules:
-
-- `GroupMembership` is unique on `(user, group)`
-- a group must always have at least one admin
-- `GroupCreateSerializer` requires `initial_members` and at least 2 friend IDs
-
-### 6.4 Notification state
-
-Persisted fields: `is_read`, `read_at`
-
-```text
-unread -> read
-```
-
-Rules:
-
-- read is monotonic
-- `mark_all_as_read()` marks all unread rows for the current user
-- notification open analytics is derived from audit logs, not from notification row counts alone
-
-### 6.5 Budget status
-
-`Budget` has no explicit status field. Operational state is derived:
-
-```text
-normal      : spent_percentage < 80
-near_limit  : 80 <= spent_percentage < 100
-over_budget : spent_percentage >= 100
-```
-
-Rules:
-
-- `Expense.amount > 0`
-- every plan has one budget row
-- updating budget does not delete history
-
----
-
-## 7. Data Flow Pipeline
-
-### 7.1 Standard request path
-
-```text
-Flutter UI
- -> Riverpod provider / notifier
- -> Flutter repository
- -> ApiClient (Dio)
- -> Django view / viewset
- -> serializer validates request
- -> application service / handler
- -> repository interface
- -> ORM repository
- -> DB
- -> cache invalidation / websocket publish / task enqueue
- -> serializer builds response
- -> DTO parsing in Flutter
- -> provider state update
- -> widget rebuild
-```
-
-### 7.2 Serialization and DTO mapping
-
-Backend:
-
-- DRF serializers validate input at the boundary
-- application services work with domain-level values or ORM-backed entities returned by repositories
-- response serializers define stable API shape
-
-Frontend:
-
-- repositories map JSON -> DTOs
-- `parseServerDateTime()` normalizes server timestamps
-- DTOs hide API shape differences from widgets
-
-### 7.3 Cache placement
-
-Cache is used only for read optimization:
-
-- user profile
-- plan summary
-- group detail
-- budget summary
-- analytics summary / time series / top entities
-
-Write operations update DB first, then invalidate or version-bump cache.
-
----
-
-## 8. API Contract Map
-
-Base path: `/api/v1`
-
-Versioning rule: REST endpoints are exposed only through the versioned
-`/api/v1/...` contract. Unprefixed legacy REST routes such as `/plans/`,
-`/groups/`, and `/activities/` are intentionally disabled to keep Swagger,
-client contracts, and future `/api/v2` migration paths clean.
-
-Pagination styles:
-
-- Standard DRF lists: `count`, `next`, `previous`, `results`
-- Notifications and audit logs: custom cursor pagination
-- Budget expenses: custom page-number pagination
-- Conversation list: custom non-paginated `{conversations, count}`
-
-### 8.1 Authentication and users
-
-| Endpoint | Request | Response | Notes |
-|---|---|---|---|
-| `POST /o/token/` | OAuth2 password grant fields | access + refresh token payload | login |
-| `POST /api/v1/auth/logout/` | bearer token | `{message}` | logout |
-| `POST /api/v1/users/` | username, email, password, password_confirm, profile fields | created inactive user + email verification status | registration sends verification email |
-| `GET/POST /api/v1/users/verify-email/` | `uid`, `token` | `{message, email_verified}` | activates account after email ownership proof |
-| `POST /api/v1/users/resend-verification-email/` | `email` | generic resend ack | public, avoids account enumeration |
-| `GET /api/v1/users/` | optional filters | paginated user list | list/search support via separate route |
-| `GET /api/v1/users/profile/` | none | full current user profile | includes `is_staff` |
-| `PUT/PATCH /api/v1/users/update_profile/` | profile fields | updated user profile | current user only |
-| `GET /api/v1/users/search/` | `q` | list of users | custom search |
-| `POST /api/v1/users/register_device_token/` | `fcm_token`, `platform` | `{message, token_id}` style ack | persists `UserDeviceToken` |
-| `GET /api/v1/users/my_plans/` | none | list/paginated plans | current user scope |
-| `GET /api/v1/users/my_groups/` | none | list groups | current user scope |
-| `GET /api/v1/users/my_activities/` | none | list activities | current user scope |
-| `POST /api/v1/users/set_online_status/` | online flag | status ack | online presence |
-| `GET /api/v1/users/friendship_stats/` | none | counts | social stats |
-| `GET /api/v1/users/recent_conversations/` | none | recent conversations | profile shortcut |
-| `GET /api/v1/users/unread_count/` | none | unread message count | messaging badge |
-| `GET /api/v1/users/{id}/` | none | user detail | user summary/detail mix |
-| `GET /api/v1/users/{id}/friendship_status/` | none | friendship state | current user vs target |
-| `DELETE /api/v1/users/{id}/unfriend/` | none | ack | remove friendship |
-| `POST /api/v1/users/{id}/block/` | none | ack | block user |
-| `DELETE /api/v1/users/{id}/unblock/` | none | ack | unblock user |
-
-### 8.2 Friendship
-
-| Endpoint | Request | Response | Notes |
-|---|---|---|---|
-| `POST /api/v1/friends/request/` | `friend_id`, optional `message` | friendship/request payload | creates pending friendship |
-| `GET /api/v1/friends/requests/` | none | list pending requests | incoming/outgoing as serializer context |
-| `POST /api/v1/friends/requests/{id}/action/` | `action=accept|reject|cancel` | updated friendship result | accept path fixed to use correct event args |
-| `GET /api/v1/friends/` | none | friends list | accepted friendships only |
-
-### 8.3 Groups
-
-| Endpoint | Request | Response | Notes |
-|---|---|---|---|
-| `GET /api/v1/groups/` | optional filters | paginated or list groups | group summary |
-| `POST /api/v1/groups/` | `name`, `description`, media, `initial_members:[uuid,...]` | `GroupDetailSerializer` payload | `initial_members` required, at least 2 friend IDs |
-| `GET /api/v1/groups/{id}/` | none | `GroupDetailSerializer` | object permission checked before cached detail |
-| `PUT/PATCH /api/v1/groups/{id}/` | editable group fields | updated group detail | admin only |
-| `DELETE /api/v1/groups/{id}/` | none | ack | owner/admin delete path |
-| `POST /api/v1/groups/{id}/join/` | none | updated group detail | authenticated user |
-| `GET /api/v1/groups/my_groups/` | none | user groups | current user |
-| `GET /api/v1/groups/created_by_me/` | none | created groups | current user |
-| `GET /api/v1/groups/search/` | `q` | search results | custom |
-| `POST /api/v1/groups/{id}/add_member/` | target user data | ack/detail | admin only |
-| `POST /api/v1/groups/{id}/leave/` | none | ack | member only |
-| `POST /api/v1/groups/{id}/remove_member/` | `user_id` | ack/detail | admin only |
-| `POST /api/v1/groups/{id}/change_role/` | `user_id`, `role` | updated membership | admin only |
-| `GET /api/v1/groups/{id}/admins/` | none | admin list | member only |
-| `GET /api/v1/groups/{id}/plans/` | none | group plans | member only |
-| `POST /api/v1/groups/{id}/send_message/` | message payload | message result | group message shortcut |
-| `POST /api/v1/groups/{id}/send_message_with_notification/` | message payload | message result | group message + notifications |
-| `GET /api/v1/groups/{id}/recent_messages/` | none | recent messages | member only |
-| `GET /api/v1/groups/{id}/unread_count/` | none | unread count | member only |
-
-### 8.4 Plans and activities
-
-| Endpoint | Request | Response | Notes |
-|---|---|---|---|
-| `GET /api/v1/plans/` | standard filters, pagination | paginated plan summaries/details | list |
-| `POST /api/v1/plans/` | title, description, dates, `group_id?`, `is_public` | `PlanDetailSerializer` payload | returns `id` and detail fields |
-| `GET /api/v1/plans/{id}/` | none | `PlanDetailSerializer` | plan detail |
-| `PUT/PATCH /api/v1/plans/{id}/` | mutable plan fields | updated `PlanDetailSerializer` | creator or group admin |
-| `DELETE /api/v1/plans/{id}/` | none | ack | owner only |
-| `GET /api/v1/plans/my_plans/` | none | list plans | current user |
-| `GET /api/v1/plans/joined/` | none | joined plans | public/collab scope |
-| `GET /api/v1/plans/public/` | none | public plans | discoverability |
-| `POST /api/v1/plans/{id}/join/` | none | joined plan result | public plan only |
-| `GET /api/v1/plans/{id}/activities_by_date/?date=YYYY-MM-DD` | date | `{date, activities}` style payload | current contract fixed |
-| `GET /api/v1/plans/{id}/collaborators/` | none | collaborator list | plan access required |
-| `GET /api/v1/plans/{id}/summary/` | none | cached summary | plan access required |
-| `GET /api/v1/plans/{id}/schedule/` | none | schedule payload | plan access required |
-| `POST /api/v1/plans/{id}/create_activity/` | activity fields | created activity | modifier only |
-| `PUT/PATCH /api/v1/plans/{id}/activities/{activity_id}/` | activity updates | updated activity | modifier only |
-| `DELETE /api/v1/plans/{id}/activities/{activity_id}/` | none | ack | modifier only |
-| `POST /api/v1/plans/{id}/activities/{activity_id}/complete/` | none | toggled activity | modifier only |
-| `POST /api/v1/plans/{id}/add_activity_with_place/` | place-backed activity fields | created activity | place helper |
-| `GET /api/v1/activities/` | standard pagination | activity list | separate viewset |
-| `GET /api/v1/activities/by_plan/` | `plan_id` | plan activities | custom |
-| `GET /api/v1/activities/by_date_range/` | range params | activities | custom |
-| `GET /api/v1/activities/upcoming/` | none | upcoming activities | custom |
-| `GET /api/v1/activities/search/` | `q` and filters | search results | custom |
-
-### 8.5 Chat
-
-| Endpoint | Request | Response | Notes |
-|---|---|---|---|
-| `GET /api/v1/conversations/` | optional `q` | `{conversations: [...], count}` | not standard DRF pagination |
-| `POST /api/v1/conversations/create_direct/` | `user_id` | `{conversation, created}` | direct conversation |
-| `GET /api/v1/conversations/{id}/` | none | `ConversationSerializer` | retrieve |
-| `GET /api/v1/conversations/{id}/messages/` | `limit`, `before_id?` | `{messages, has_more, next_cursor, count}` | read-only fetch, no implicit mark-read |
-| `POST /api/v1/conversations/{id}/send_message/` | message payload | `ChatMessageSerializer` | send into conversation |
-| `POST /api/v1/conversations/{id}/mark_read/` | `message_ids:[]` | `{success, message}` | explicit read mutation |
-| `POST /api/v1/messages/` | group message payload incl. `group_id` | `ChatMessageSerializer` | legacy group-message create path |
-| `GET /api/v1/messages/{id}/` | none | `ChatMessageSerializer` | retrieve |
-| `PUT/PATCH /api/v1/messages/{id}/` | editable message content | updated message | edit |
-| `DELETE /api/v1/messages/{id}/` | none | ack | soft delete |
-| `GET /api/v1/messages/by_group/` | `group_id`, pagination params | `{messages, has_more, next_cursor, count}` | group feed |
-| `GET /api/v1/messages/search/` | `q`, optional `group_id` | message search results | custom |
-| `GET /api/v1/messages/recent/` | limit | recent messages | custom |
-
-Stable chat contract details:
-
-- `Conversation.last_message.id` is nullable in Flutter DTO but backend now returns a real ID whenever annotated last message exists.
-- `last_message.message_type` is derived from real annotated message data, not hard-coded.
-
-### 8.6 Audit log
-
-| Endpoint | Request | Response | Notes |
-|---|---|---|---|
-| `GET /api/v1/audit-logs/` | `user_id`, `action`, `resource_type`, `date_from`, `date_to`, `cursor`, `page_size` | `{next, previous, has_more, page_size, results}` | custom cursor page |
-| `GET /api/v1/audit-logs/resource/{resource_type}/{resource_id}/` | same filters | same page shape plus `resource_type`, `resource_id` | permission-gated |
-
-Audit response notes:
-
-- serializer includes actor user summary
-- plan-scoped queries include direct plan logs and legacy budget/expense logs by `metadata.plan_id`
-
-### 8.7 Notifications
-
-| Endpoint | Request | Response | Notes |
-|---|---|---|---|
-| `GET /api/v1/notifications/` | `is_read?`, `cursor?`, `page_size?` | `{next, previous, has_more, page_size, unread_count, results}` | custom cursor page |
-| `GET /api/v1/notifications/unread-count/` | none | `{unread_count}` | badge endpoint |
-| `PATCH /api/v1/notifications/{id}/read/` | none | notification or ack payload | marks one read |
-| `PATCH /api/v1/notifications/read-all/` | none | `{message, updated_count}` | marks all read |
-
-Stable notification contract:
-
-- list response always carries `unread_count`
-- websocket events mirror list mutations: `notification.created`, `notification.read`, `notification.read_all`
-
-### 8.8 Analytics
-
-| Endpoint | Request | Response | Notes |
-|---|---|---|---|
-| `GET /api/v1/analytics/summary/?range=30d` | `range in {7d,30d,90d,180d}` | dashboard summary payload | staff only |
-| `GET /api/v1/analytics/timeseries/?metric=dau&range=30d` | metric + range | `{metric, range, points:[{date,value}]}` | staff only |
-| `GET /api/v1/analytics/top/?range=30d&limit=5` | range + limit | `{range, plans:[...], groups:[...]}` | staff only |
-
-Summary payload keys:
-
-- `dau`
-- `mau`
-- `plan_creation_rate`
-- `plan_completion_rate`
-- `group_join_rate`
-- `notification_open_rate`
-- `totals.plans_created`
-- `totals.plans_completed`
-- `totals.expenses_created`
-- `totals.expense_total_amount`
-- `totals.group_joins`
-- `totals.notifications_sent`
-- `totals.notifications_opened`
-
-### 8.9 Budget tracking
-
-| Endpoint | Request | Response | Notes |
-|---|---|---|---|
-| `GET /api/v1/plans/{plan_id}/budget/` | none | `BudgetSummary` | creator or group member |
-| `POST /api/v1/plans/{plan_id}/budget/` | `total_budget`, `currency` | updated `BudgetSummary` | creator or group admin |
-| `GET /api/v1/plans/{plan_id}/expenses/` | `category`, `user_id`, `sort_by`, `sort_direction`, `page`, `page_size` | `{count, total_pages, current_page, page_size, next, previous, results}` | page-number pagination |
-| `POST /api/v1/plans/{plan_id}/expenses/` | `amount`, `category`, `description`, optional `participants`, optional `payments` | `{expense, summary, warnings}` | creator or group member |
-
-Budget summary shape:
-
-```json
-{
-  "budget_id": "uuid",
-  "plan_id": "uuid",
-  "currency": "VND",
-  "total_budget": "1200000.00",
-  "total_spent": "500000.00",
-  "remaining_budget": "700000.00",
-  "spent_percentage": 41.67,
-  "near_limit": false,
-  "over_budget": false,
-  "expense_count": 2,
-  "breakdown": [
-    { "user": { "id": "uuid", "username": "alice", "full_name": "Alice" }, "amount": "300000.00" }
-  ],
-  "trend": [
-    { "date": "2026-04-18", "amount": "500000.00" }
-  ]
-}
-```
-
-### 8.10 Locations
-
-| Endpoint | Request | Response | Notes |
-|---|---|---|---|
-| `GET /api/v1/location/reverse-geocode/` | lat/lng | place result | external service |
-| `GET /api/v1/location/search/` | query | places | external service |
-| `GET /api/v1/location/autocomplete/` | query | suggestions | external service |
-| `GET /api/v1/location/place-details/` | place id | place detail | external service |
-
----
-
-## 9. Permission Model
-
-Roles used by the system:
-
-- anonymous
-- authenticated user
-- friend / pending friend / blocked user
-- group member
-- group admin
-- plan creator
-- plan collaborator
-- staff user
-
-Action to role map:
-
-| Action | Required role |
+| Area | Role |
 |---|---|
-| register | anonymous; account remains inactive until email verification |
-| verify email | valid verification token |
-| login/logout | authenticated session lifecycle |
-| send friend request | authenticated user |
-| accept friend request | request receiver |
-| create group | authenticated user with at least 2 accepted friends selected |
-| edit group | group admin |
-| delete group | group owner/admin path |
-| add/remove/change member role | group admin |
-| join group | authenticated user |
-| leave group | group member |
-| view group detail | member or authorized path |
-| create personal plan | authenticated user |
-| create group plan | group member |
-| edit plan | creator or group admin |
-| delete plan | creator |
-| view plan | creator, collaborator, public user, or group member depending on scope |
-| add activity | plan modifier |
-| join public plan | authenticated user, if public and not already collaborator |
-| view notifications | notification owner only |
-| mark notifications read | notification owner only |
-| view analytics | staff only |
-| read audit logs | only if viewer can access underlying resource |
-| update budget | plan creator or group admin |
-| add expense | plan creator or group member |
-| view budget/expenses | plan creator or group member |
-
-Special permission notes:
-
-- `GET /api/v1/groups/{id}/` explicitly checks object permissions before serving cached detail.
-- Audit log access is resource-aware, not global admin-only.
-- Analytics is intentionally staff-only on backend and hidden in Flutter for non-staff users.
-
----
-
-## 10. Caching Flow
-
-Cache key registry lives in `planpalapp/planpals/shared/cache.py`.
-
-Primary keys:
-
-- `v1:user:profile:{user_id}`
-- `v1:plan:summary:{plan_id}`
-- `v1:group:detail:version:{group_id}`
-- `v1:group:detail:{group_id}:r{version}:u{user_id}`
-- `v1:budget:summary:{plan_id}`
-- `v1:analytics:version`
-- `v1:analytics:summary:{range}:r{version}`
-- `v1:analytics:timeseries:{metric}:{range}:r{version}`
-- `v1:analytics:top:{range}:limit:{limit}:r{version}`
-
-TTL strategy:
-
-- user profile: 120s
-- plan summary: 180s
-- group detail: 180s
-- budget summary: 180s
-- analytics summary: 300s
-- analytics time series / top: 600s
-
-Flow:
-
-```text
-Request
- -> cache lookup
- -> hit: return cached payload
- -> miss: query DB through service/repository
- -> cache write
- -> response
-```
-
-Invalidation strategy:
-
-- group mutations:
-  - bump `group_detail_version(group_id)`
-  - best-effort `delete_pattern(group_detail_pattern(group_id))`
-- plan mutations:
-  - delete `plan_summary(plan_id)`
-- budget / expense mutations:
-  - delete `budget_summary(plan_id)`
-  - delete `plan_summary(plan_id)` because summary fields depend on expenses
-- analytics aggregation:
-  - increment `analytics_version`
-  - delete old summary keys and pattern
-
-Why versioned keys exist:
-
-- Redis `delete_pattern` is best-effort and backend-dependent
-- version bump guarantees hard invalidation even if pattern deletion misses entries
-
----
-
-## 11. Async Flow (Celery)
-
-Runtime rule:
-
-- test env may use `memory://`
-- normal runtime defaults to Redis broker/result backend
-- local default if env is absent: `redis://127.0.0.1:6379/0`
-
-Queues:
-
-- `high_priority`
-- `default`
-- `plan_status`
-- `low_priority`
-
-Queue intent:
-
-- `high_priority`: user-triggered fan-out and push-sensitive work
-- `default`: general event processing
-- `plan_status`: ETA-scheduled plan lifecycle
-- `low_priority`: analytics, cleanup, reminders
-
-Key tasks:
-
-| Task | Queue | Purpose |
-|---|---|---|
-| `send_notification_task` | high_priority | single-user notification |
-| `fanout_group_notification_task` | high_priority | bulk notification fan-out |
-| `process_audit_log_notification_task` | high_priority | audit -> notification mapping |
-| `process_expense_notifications_task` | high_priority | budget alerts and large expense alerts |
-| `aggregate_daily_metrics_task` | low_priority | build `DailyMetric` |
-| `dispatch_plan_reminders_task` | low_priority | reminder notifications |
-| plan start/complete tasks | plan_status | scheduled plan lifecycle |
-| cleanup invalid FCM tokens | low_priority | hygiene |
-| cleanup expired offline events | low_priority | hygiene |
-
-Beat schedule:
-
-- `02:15` daily: aggregate daily metrics
-- `03:00` daily: cleanup expired offline events
-- `04:00` Sunday: cleanup invalid FCM tokens
-- hourly: dispatch plan reminders
-
-Async flow:
-
-```text
-Event
- -> Celery task enqueued
- -> worker consumes from queue
- -> service/repository work
- -> DB / push / websocket side effects
- -> optional retries on transient failures
-```
-
-Important operational rule:
-
-- if Celery is down, core writes still succeed
-- async side effects become delayed or absent
-- dashboard still reads existing `DailyMetric`; it just will not refresh automatically
-
----
-
-## 12. Frontend State Graph
-
-Frontend architecture:
-
-```text
-Widget
- -> Riverpod provider / notifier
- -> repository
- -> ApiClient / WebSocket service
- -> backend
- -> DTO mapping
- -> provider state
- -> widget rebuild
-```
-
-### 12.1 Responsive application shell
-
-Flutter mobile and web share one route tree. Responsive behavior is isolated
-from repositories, Riverpod state, API contracts, and domain logic:
-
-- `< 600px`: the existing compact/mobile presentation is preserved.
-- `600px - 1024px`: a `NavigationRail` is shown with width-constrained content.
-- `> 1024px`: a persistent sidebar is shown, with wide or two-column content
-  where that improves the information hierarchy.
-
-Wizard and long-form content remains constrained to a maximum width of `720px`.
-Shared breakpoint and layout primitives live under `core/responsive` and
-`presentation/widgets/layout`.
-
-### 12.2 Web feature compatibility
-
-Mobile and web use the same Riverpod providers, repositories, DTOs, API
-version, permissions, and business rules. Platform differences are restricted
-to adapters at the presentation/infrastructure boundary:
-
-- browser WebSockets exchange the access token for a short-lived, single-use
-  ticket before connecting over `wss://`;
-- uploads use streamed `XFile` multipart bodies on native and web;
-- browser camera actions fall back to an image file picker, while native
-  Android/iOS retain direct camera capture;
-- Goong/MapLibre rendering is shared, while browser geolocation requires HTTPS
-  (or localhost) and explicit browser permission;
-- browser FCM registration is opt-in from Notification Settings and uses a
-  public VAPID key plus a dedicated service worker; native local-notification
-  presentation remains Android/iOS-only;
-- ICS exports use portable filenames and browser share/download behavior.
-
-The acceptance matrix and browser prerequisites are maintained in
-`planpal_flutter/WEB_COMPATIBILITY.md`.
-
-### 12.3 Journey Canvas design system
-
-Flutter mobile and web share the **Journey Canvas** visual language documented
-in `planpal_flutter/DESIGN_SYSTEM.md`. The product identity uses Journey Green,
-Horizon Blue and a restrained Discovery Coral on warm neutral surfaces. Manrope
-provides the common type hierarchy.
-
-Reusable tokens live in `core/theme`; reusable product surfaces live in
-`presentation/widgets/design_system`. The route-thread motif links itinerary,
-activity and branded hero content, while compact travel-stamp icon containers
-identify pages and sections. Screens must derive colors from `ColorScheme`,
-use the 4/8 spacing scale, expose one dominant action, and preserve complete
-loading, empty, error, focus, hover and disabled states.
-
-Compact navigation uses `Home / Trips / Create / Groups / Me` and does not
-duplicate those destinations in a drawer. Medium layouts use `NavigationRail`.
-Expanded layouts use a persistent `Home / Trips / Explore / Groups / Messages`
-sidebar with notifications and profile separated as utilities. Wide itinerary
-views synchronize their timeline with the shared Goong map; compact itinerary
-views remain timeline-first. These presentation rules do not alter Riverpod
-ownership, repositories, DTOs, API contracts or domain behavior.
-
-Key provider groups:
-
-- auth/session
-  - `authNotifierProvider`
-  - `sharedPreferencesProvider`
-- home/dashboard aggregates
-  - `plansNotifierProvider`
-  - `groupsNotifierProvider`
-  - `conversationListProvider`
-  - `unreadCountProvider`
-- notifications
-  - `notificationsProvider`
-  - `unreadCountProvider`
-  - websocket service + polling fallback
-- analytics
-  - `analyticsRangeProvider`
-  - `analyticsChartMetricProvider`
-  - `analyticsSummaryProvider`
-  - `analyticsTimeSeriesProvider`
-  - `analyticsTopEntitiesProvider`
-- budgets
-- `budgetProvider(planId)`
-- `expensesProvider(ExpenseListQuery)`
-- `balancesProvider(planId)`
-
-Provider behavior notes:
-
-- analytics fetches only the currently selected metric series, not all series
-- notifications merge realtime events into the list and poll every 60s as fallback
-- expense and notification feeds dedupe by page URL and by item ID when appending
-
----
-
-## 13. UI State Machine
-
-Common state model used across screens:
-
-```text
-loading -> success
-loading -> empty
-loading -> error
-success -> loading (refresh)
-success -> error (load more error or mutation error)
-```
-
-Feature examples:
-
-- `NotificationListPage`
-  - initial loading
-  - empty when no notifications
-  - inline load-more state
-  - optimistic read / read-all update with rollback on failure
-- `AnalyticsDashboardPage`
-  - guarded by `currentUser.isStaff`
-  - loading KPIs and chart
-  - empty-style zero chart if no data
-  - explicit retry on API error
-- `BudgetOverviewPage`
-  - loading summary
-  - success with progress bar and breakdown
-  - refresh after budget update or expense add
-
-UI rule:
-
-- widgets should not interpret raw HTTP payloads directly
-- repositories and DTOs own API-shape normalization
-
----
-
-## 14. Pagination Flow
-
-Three pagination strategies exist.
-
-### 14.1 Standard DRF
-
-Used by many list endpoints.
-
-```text
-Request -> {count,next,previous,results} -> repository maps results -> provider replaces or appends
-```
-
-### 14.2 Cursor pagination
-
-Used by:
-
-- audit logs
-- notifications
-
-Shape:
-
-```json
-{
-  "next": "absolute-url-or-null",
-  "previous": null,
-  "has_more": true,
-  "page_size": 20,
-  "results": []
-}
-```
-
-Frontend strategy:
-
-- store `nextPageUrl`
-- pass absolute `next` URL back to repository
-- dedupe page URLs to avoid duplicate requests
-
-### 14.3 Page-number pagination
-
-Used by budget expenses.
-
-Shape:
-
-```json
-{
-  "count": 53,
-  "total_pages": 3,
-  "current_page": 1,
-  "page_size": 20,
-  "next": "absolute-url-or-null",
-  "previous": null,
-  "results": []
-}
-```
-
-Frontend merge rule:
-
-- append only items whose IDs are not already present
-
----
-
-## 15. Performance Model
-
-### 15.1 Backend
-
-Primary optimization techniques:
-
-- indexed ORM models
-- `select_related` / `prefetch_related`
-- cached read models
-- Celery offload for heavy side effects
-- pre-aggregated analytics table
-
-Important indexes:
-
-- notifications:
-  - `(user, is_read)`
-  - `(created_at)`
-  - `(type)`
-  - `(user, created_at)`
-  - `(created_at, id)`
-- audit:
-  - `(user, created_at)`
-  - `(resource_type, resource_id)`
-  - `(action)`
-  - `(created_at, id)`
-- budgets / expenses:
-  - budget on plan
-  - expense `(plan, created_at)`
-  - expense `(user)`
-  - expense `(category)`
-  - expense `(plan, category)`
-  - expense `(created_at, id)`
-- analytics:
-  - `DailyMetric.date`
-
-### 15.2 Frontend
-
-Performance controls:
-
-- Riverpod `AsyncNotifier` isolates network state
-- selected analytics series only
-- infinite scroll instead of loading entire feeds
-- page URL and ID dedupe prevent duplicate merges
-- websocket push avoids unnecessary full refreshes for notifications
-
-### 15.3 Runtime expectations
-
-- analytics requests should be fast because they read `DailyMetric`, not raw `AuditLog`
-- notification badge should be fast because unread count is a direct query
-- budget summary is cheap because totals are aggregate queries scoped to one plan
-
----
-
-## 16. Failure Modes
-
-Known failure classes and intended behavior:
-
-| Failure | Cause | Expected handling |
-|---|---|---|
-| API mismatch | serializer and DTO drift | repository/DTO layer must absorb shape changes; tests should catch it |
-| missing migrations | new tables not applied | backend returns `500`; fix by migrating before runtime |
-| stale cache | old cached detail after mutation | versioned keys on group/analytics, explicit key delete on plan/budget |
-| websocket disconnect | mobile network / server restart | notifications provider continues via polling fallback |
-| Celery unavailable | worker down or Redis unavailable | core writes still succeed, async side effects delayed |
-| push unavailable | FCM credentials invalid or token bad | in-app notifications still work; token cleanup task removes invalid tokens |
-| permission error | unauthorized user hits restricted endpoint | return `403`, UI should show error / hide feature |
-| unverified email login | user registered but has not confirmed email ownership | `/o/token/` returns `email_not_verified`; user must verify or resend email |
-| large data volume | long feeds or many notifications | pagination + indexes + dedupe |
-| invalid input | serializer validation failure | structured `400` response |
-| analytics no data | fresh environment | dashboard returns zeros/empty series rather than computing raw history live |
-
-Failure handling notes:
-
-- profile caching has fallback/self-heal logic and should not hard-fail if cache content is partially stale
-- notification websocket URL is derived from `baseUrl` to prevent malformed WS paths
-- Celery local runtime is no longer silently downgraded to `memory://` outside tests
-
----
-
-## 17. Invariants (Very Important)
-
-These invariants must never be violated.
-
-### 17.1 Identity and membership
-
-- A friendship cannot connect a user to themself.
-- A user can have at most one friendship record pair with another user.
-- A user can have at most one `GroupMembership` per group.
-- A group must always have at least one admin.
-
-### 17.2 Plans
-
-- `Plan.plan_type == personal` implies `group is null`.
-- `Plan.plan_type == group` implies `group is not null`.
-- A user must be a group member to create a group plan for that group.
-- A created plan must always have exactly one budget row.
-
-### 17.3 Budgets and expenses
-
-- Every `Expense` belongs to an existing `Plan`.
-- Every `Expense` belongs to an existing `User`.
-- `Expense.amount > 0`.
-- Every `ExpensePayment.amount > 0`; payment contributors must be plan members and their total must exactly equal `Expense.amount`.
-- Expense participants and payment contributors are independent: participants owe the split amount, while payment contributors receive credit for the cash they paid.
-- Only plan creator or group admin can update budget.
-- Only plan creator or group member can add expenses.
-- Budget summary is derived from stored budget + expense rows, never manually edited.
-
-### 17.4 Audit and notifications
-
-- Audit log is append-only behavioral history.
-- Notification rows belong to exactly one user.
-- Newly registered users must not receive OAuth tokens until `email_verified_at` is set.
-- `NOTIFICATION_OPENED` must only be emitted from actual read operations.
-- Plan-scoped audit feeds must include activity/budget/expense history logically tied to the plan.
-
-### 17.5 Analytics
-
-- Dashboard endpoints must not compute raw audit scans per request.
-- `DailyMetric` is the only source for dashboard summary and time series.
-- Only staff users may access analytics APIs and UI.
-
-### 17.6 Chat
-
-- Conversation access requires participation or group membership.
-- Message read mutation is explicit; fetching messages does not silently mark read.
-
-### 17.7 Planning Collaboration (Sprint 3)
-
-The `collaboration` bounded context extends planning without moving plan/group
-ownership rules into UI or serializers.
-
-- `AvailabilityPoll -> AvailabilityOption -> AvailabilityVote` is group-scoped
-  so members can RSVP before a plan exists. Admins and plan creators create
-  polls; every member can cast one upserted vote per option. Poll-row locking
-  serializes concurrent first votes and closing/expiry is enforced server-side.
-- `PlanWorkItem` represents both assignments and checklist entries through
-  `item_type`. Plan managers create/edit/delete; an assignee may update only
-  their own status. `completed_at` is derived from status transitions.
-- `PlanComment` may target a whole plan or one activity. Members comment and
-  react, authors edit, while plan managers pin or moderate. Mentions and
-  reactions use unique through rows to prevent duplicate state.
-- Clone creates a plan and budget atomically, shifts every activity by the
-  source-to-target start-date delta, and optionally marks the clone as a
-  template. Templates are excluded from automatic lifecycle transitions.
-- ICS is generated on demand in UTC and Google Calendar links are generated per
-  activity; no calendar artifact is persisted.
-- Assignment and mention notifications are queued through Celery. Mutations
-  publish compact events to the existing group or plan WebSocket channel and
-  write append-only audit events where behavioral traceability is required.
-  Flutter invalidates only the affected Riverpod family when these events
-  arrive; existing reconnect/backoff and pull-to-refresh provide recovery.
-  Realtime and notification delivery are best-effort after persistence, so a
-  temporary Redis outage is logged but cannot turn a successful mutation into
-  a misleading HTTP 500 response.
-
-Main API contract:
-
-```text
-GET/POST /api/v1/groups/{group_id}/availability-polls/
-POST     /api/v1/availability-polls/{poll_id}/vote/
-GET/POST /api/v1/plans/{plan_id}/work-items/
-PATCH/DELETE /api/v1/plan-work-items/{item_id}/
-GET/POST /api/v1/plans/{plan_id}/comments/
-PATCH/DELETE /api/v1/plan-comments/{comment_id}/
-POST     /api/v1/plan-comments/{comment_id}/react/
-POST     /api/v1/plan-comments/{comment_id}/pin/
-POST     /api/v1/plans/{plan_id}/clone/
-GET      /api/v1/plans/{plan_id}/export.ics
-GET      /api/v1/plans/{plan_id}/calendar-links/
-```
-
----
-
-## 18. Extension Rules
-
-Safe extension recipe:
-
-1. Define domain model first.
-   - entity / enum / validation helpers in `domain`
-2. Define repository interface.
-   - keep application depending on abstractions only
-3. Implement service or command handler.
-   - business rules go here
-4. Implement infrastructure repository / model / task / consumer as needed.
-5. Add presentation adapter.
-   - serializer, view, permission, route
-6. Add frontend DTO and repository mapping.
-7. Add Riverpod provider or notifier.
-8. Add UI page/widget.
-9. Decide cross-cutting integration explicitly:
-   - should this write audit logs?
-   - should it notify users?
-   - should it affect analytics aggregates?
-   - should it invalidate cache?
-10. Add tests.
-    - backend service + API contract
-    - frontend DTO/provider/UI behavior
-11. Update this document.
-
-Rules for safe modifications:
-
-- do not put business logic into Django models
-- do not bypass services from views
-- do not use ORM directly in application services
-- do not add request-time heavy analytics queries
-- do not add new side effects without deciding sync vs async placement
-- if a new feature changes user-visible behavior, consider audit + notification + analytics touchpoints together
-
----
-
-## 19. Machine-Readable Summary
-
-```json
-{
-  "system": "PlanPal",
-  "architecture": {
-    "backend": "Django + DRF + Channels + Celery",
-    "frontend": "Flutter + Riverpod",
-    "database": "MySQL",
-    "cache": "Redis or LocMem",
-    "realtime": "Channels WebSocket",
-    "async": "Celery with Redis broker in normal runtime"
-  },
-  "entities": [
-    "User",
-    "Friendship",
-    "FriendshipRejection",
-    "Group",
-    "GroupMembership",
-    "Plan",
-    "PlanActivity",
-    "Budget",
-    "Expense",
-    "Conversation",
-    "ChatMessage",
-    "MessageReadStatus",
-    "AuditLog",
-    "Notification",
-    "UserDeviceToken",
-    "DailyMetric",
-    "AvailabilityPoll",
-    "AvailabilityOption",
-    "AvailabilityVote",
-    "PlanWorkItem",
-    "PlanComment",
-    "CommentMention",
-    "CommentReaction"
-  ],
-  "core_actions": [
-    "register",
-    "verify_email",
-    "resend_email_verification",
-    "login",
-    "send_friend_request",
-    "accept_friend_request",
-    "create_group",
-    "join_group",
-    "leave_group",
-    "change_role",
-    "create_plan",
-    "update_plan",
-    "delete_plan",
-    "complete_plan",
-    "create_activity",
-    "send_message",
-    "mark_notification_read",
-    "update_budget",
-    "create_expense",
-    "create_availability_poll",
-    "vote_availability",
-    "assign_work_item",
-    "comment_and_mention",
-    "react_and_pin",
-    "clone_plan",
-    "export_calendar"
-  ],
-  "audit_actions": [
-    "CREATE_PLAN",
-    "UPDATE_PLAN",
-    "DELETE_PLAN",
-    "COMPLETE_PLAN",
-    "CREATE_ACTIVITY",
-    "UPDATE_ACTIVITY",
-    "UPDATE_BUDGET",
-    "CREATE_EXPENSE",
-    "JOIN_GROUP",
-    "LEAVE_GROUP",
-    "CHANGE_ROLE",
-    "DELETE_GROUP",
-    "NOTIFICATION_OPENED"
-  ],
-  "notification_types": [
-    "PLAN_REMINDER",
-    "GROUP_JOIN",
-    "GROUP_INVITE",
-    "ROLE_CHANGED",
-    "PLAN_UPDATED",
-    "NEW_MESSAGE",
-    "BUDGET_ALERT",
-    "LARGE_EXPENSE"
-  ],
-  "analytics_metrics": [
-    "dau",
-    "mau",
-    "plans_created",
-    "plans_completed",
-    "expenses_created",
-    "expense_total_amount",
-    "plan_creation_rate",
-    "plan_completion_rate",
-    "group_joins",
-    "group_join_rate",
-    "notification_open_rate"
-  ],
-  "websocket_routes": [
-    "/ws/chat/{conversation_id}/",
-    "/ws/plans/{plan_id}/",
-    "/ws/groups/{group_id}/",
-    "/ws/user/",
-    "/ws/notifications/"
-  ],
-  "cache_keys": [
-    "user_profile",
-    "plan_summary",
-    "group_detail_version",
-    "group_detail",
-    "budget_summary",
-    "analytics_version",
-    "analytics_summary",
-    "analytics_timeseries",
-    "analytics_top"
-  ],
-  "celery_queues": [
-    "high_priority",
-    "default",
-    "plan_status",
-    "low_priority"
-  ],
-  "api_groups": [
-    "auth",
-    "friends",
-    "users",
-    "groups",
-    "plans",
-    "activities",
-    "chat",
-    "audit_logs",
-    "notifications",
-    "analytics",
-    "budgets",
-    "locations"
-  ],
-  "frontend_providers": [
-    "authNotifierProvider",
-    "plansNotifierProvider",
-    "groupsNotifierProvider",
-    "conversationListProvider",
-    "notificationsProvider",
-    "unreadCountProvider",
-    "analyticsRangeProvider",
-    "analyticsChartMetricProvider",
-    "analyticsSummaryProvider",
-    "analyticsTimeSeriesProvider",
-    "analyticsTopEntitiesProvider",
-    "budgetProvider",
-    "expensesProvider"
-  ],
-  "invariants": [
-    "Every plan has exactly one budget",
-    "Expense amount is always > 0",
-    "Group must always have an admin",
-    "Analytics reads DailyMetric instead of raw AuditLog at request time",
-    "Plan-scoped audit feed includes related activity, budget, and expense history",
-    "Analytics is staff-only",
-    "Message fetch does not implicitly mark messages as read"
-  ]
-}
-```
-
----
-
-## 19.5 Operational Hardening Addendum
-
-These runtime rules must be preserved when changing production behavior:
-
-- Audit logs are append-only at ORM level. Normal code may create audit records, but must not update or delete them.
-- Chat message creation updates the message row and conversation timestamp inside one transaction. Realtime and push side effects run only after commit.
-- Celery workers must consume `high_priority`, `default`, `plan_status`, and `low_priority`. Celery Beat must run as exactly one singleton process per environment for analytics aggregation, cleanup, and plan reminders.
-- The budget production topology uses one application machine/container. Supervisor starts `web` (Daphne), one `worker`, and singleton `beat` together. This topology must remain at one machine; split Beat into its own singleton service before horizontal scaling. Redis is external and must never run inside the application container.
-- Production Redis backs Celery, cache, and Channels through password-authenticated TLS `rediss://` URLs. Startup fails fast when this contract is missing. Tests intentionally use in-memory backends to avoid external service coupling.
-- `/health/live` proves that the process is alive. `/health/ready` returns success only when database and required Redis dependencies are reachable, and is the deployment readiness probe.
-- Production logs are structured JSON. `X-Request-ID` is accepted or generated at the HTTP boundary, returned to the caller, and attached to log records. Credential-shaped values are redacted.
-- Optional Sentry integration is enabled only through `SENTRY_DSN`, does not send personally identifiable data, and supplements rather than replaces JSON logs.
-- Flutter WebSocket clients use bounded exponential reconnect with jitter. UI should tolerate temporary realtime loss and continue through polling or manual refresh.
-- Mobile auth tokens are stored in `flutter_secure_storage`. Debug logs must not include access tokens, refresh tokens, passwords, or raw auth response bodies.
-- User-facing mobile errors pass through the centralized API error mapper and must be localized and friendly. Unknown server or exception strings are not rendered to users.
-- CI runs Django system checks, migration-drift checks, backend tests, Flutter analysis, and Flutter tests. Scheduled staging benchmarks use read-only REST scenarios and a real WebSocket ping/pong load test.
-- Mutation services invalidate every affected read cache after commit. Regression tests cover budget, plan-summary, group-detail, and invite-related invalidation paths.
-
-```json
-{
-  "runtime_hardening": {
-    "audit_log": "append_only",
-    "chat_side_effects": "transaction_on_commit",
-    "celery_worker_queues": ["high_priority", "default", "plan_status", "low_priority"],
-    "celery_beat": "singleton_required",
-    "runtime_topology": ["single_application_machine", "supervisor", "web", "worker", "beat", "external_redis"],
-    "redis_transport": "password_authenticated_rediss",
-    "health_endpoints": ["/health/live", "/health/ready"],
-    "logging": "json_with_request_id_and_redaction",
-    "realtime_reconnect": "exponential_backoff_with_jitter",
-    "mobile_token_storage": "flutter_secure_storage",
-    "client_error_policy": "friendly_localized_messages",
-    "continuous_verification": ["ci", "scheduled_locust", "websocket_load_test"]
-  }
-}
-```
-
----
-
-## 19.6 Sprint 4 Finance Ledger
-
-PlanPal finance is an auditable plan-scoped ledger rather than a mutable list
-of totals. These rules are part of the production contract:
-
-- A settlement follows `pending -> completed | rejected`. Creating a request
-  never changes balances; only receiver/admin confirmation does.
-- A pending settlement cannot exceed the current debt after subtracting other
-  pending requests for the same debtor/creditor pair. The row is locked while
-  transitioning, so the same request cannot be confirmed twice.
-- Payment notes and JPG/PNG/WEBP/PDF proof files are optional and limited to
-  10 MB. Files use Cloudinary while metadata remains in MySQL.
-- Expense corrections append a complete replacement entry linked through
-  `corrects_expense`. Original entries are immutable; read models aggregate
-  only the latest leaf in each correction chain.
-- Recurring rules store a snapshot of payer contributions and participant
-  shares. Celery Beat scans due rules every 15 minutes; row locking plus the
-  `(recurrence_id, occurrence_at)` unique constraint makes generation
-  idempotent across workers.
-- Finance insights aggregate effective expenses by category and project the
-  plan-end total from elapsed daily spend. The UI labels the forecast as a
-  projection, not a guaranteed outcome.
-- A singleton Celery Beat queues settlement reminders daily. Settlement,
-  correction, and recurring-expense mutations invalidate budget and plan
-  summary caches after their transaction succeeds.
-
-Primary contracts:
-
-```text
-POST /api/v1/settlements/
-GET  /api/v1/settlements/?plan_id={plan_id}
-POST /api/v1/settlements/{settlement_id}/complete/
-POST /api/v1/settlements/{settlement_id}/reject/
-POST /api/v1/plans/{plan_id}/expenses/{expense_id}/corrections/
-GET  /api/v1/plans/{plan_id}/finance-insights/
-GET  /api/v1/plans/{plan_id}/recurring-expenses/
-PATCH /api/v1/plans/{plan_id}/recurring-expenses/{recurring_id}/
-```
-
-Flutter owns no finance business rules. `BudgetRepository` maps these stable
-contracts, Riverpod providers expose plan-scoped read state, and mutations
-invalidate balances, settlements, expense pages, summaries, and insights.
-
----
-
-## 19.7 Sprint 5 Experience Layer
-
-Sprint 5 adds an `experience` bounded context without moving business rules
-into Flutter widgets. Its production contracts and invariants are:
-
-- Group polls are visible only to group members. A vote replaces that user's
-  previous selection atomically; single-choice polls reject multiple options.
-- Poll creation and live-location start accept `X-Client-Mutation-ID` and store
-  a unique nullable key. Offline retries therefore return the original object
-  instead of duplicating mutations or realtime events.
-- Live location requires explicit consent, is limited to 5-480 minutes, and is
-  visible only to conversation participants. Coordinates are never written to
-  audit metadata. The mobile implementation updates while its sharing screen
-  is active and stops on exit; the backend also expires abandoned shares every
-  five minutes through the singleton Celery Beat.
-- Global search applies object-level visibility before querying plans, groups,
-  conversations, or message text. Chat message matches are prefetched to avoid
-  per-result queries. Results are capped at 20 items per resource.
-- Notification preferences affect push delivery, not durable in-app records.
-  Quiet hours support daytime and overnight ranges in the user's IANA timezone.
-  Daily digest candidates are evaluated hourly and receive at most one run in
-  their configured local hour.
-- Flutter drafts and queued mutations are scoped by authenticated user. Native
-  builds persist them in `SharedPreferences`; Web uses IndexedDB behind the
-  same `OfflineStorage` boundary. Logout removes that user's drafts, queue and
-  dead letters before clearing the session. OAuth tokens remain in
-  `flutter_secure_storage`. Drafts are cleared only after a successful API
-  response. Network mutations are replayed sequentially with their original
-  mutation ID; non-retryable 4xx responses move to a bounded dead-letter list.
-
-Web production is deployed as Flutter static assets on Cloudflare Workers.
-SPA fallback preserves router URLs, while `_headers` applies a restrictive CSP
-for Fly HTTPS/WSS, Goong and Firebase. Mutable bootstrap files and
-`index.html` are not cached; versioned/static assets receive longer caching.
-Firebase Web Push uses an explicit permission action, a public VAPID build
-define and a dedicated messaging service worker. The Flutter PWA worker caches
-only same-origin app-shell resources and never proxies or caches private Fly
-API responses.
-
-Primary contracts:
-
-```text
-GET/POST /api/v1/groups/{group_id}/polls/
-POST     /api/v1/group-polls/{poll_id}/vote/
-POST     /api/v1/group-polls/{poll_id}/close/
-GET/POST /api/v1/conversations/{conversation_id}/live-locations/
-PATCH/DELETE /api/v1/live-locations/{share_id}/
-GET      /api/v1/search/?q={query}
-GET/PATCH /api/v1/notifications/preferences/
-```
-
-`ExperienceRepository` owns the Flutter boundary. `groupPollsProvider` and
-`liveLocationsProvider` are plan/group-scoped read providers; mutation methods
-invalidate only the affected provider. The search UI debounces requests and
-discards stale responses by request version.
-
----
-
-## 20. Final System Summary
-
-PlanPal is a layered, event-aware product system.
-
-At runtime it behaves as:
-
-- stateful and relational for core entities
-- event-driven for audit, notification, and analytics integration
-- cache-accelerated for expensive read models
-- async for fan-out, reminders, cleanup, and aggregation
-- strongly boundary-oriented between Flutter DTOs and Django serializers
-
-The current architecture is optimized for:
-
-- predictable user-facing flows
-- explicit business rules in services and handlers
-- scalable analytics through pre-aggregation
-- extensibility through bounded contexts and repository abstractions
-
-Safe mental model for future work:
-
-```text
-Change state through services.
-Record behavior through audit.
-Fan out user-facing side effects through notifications.
-Aggregate product insights through daily analytics jobs.
-Expose stable contracts to Flutter through serializers and DTOs.
-```
-
-If an AI agent follows the dependency rule, respects the invariants above, and updates audit / notification / analytics touchpoints deliberately, it can modify PlanPal safely without rereading the whole codebase.
-
----
-
-## 21. PlanPal Journey System
-
-The Flutter presentation layer uses a travel-first design language named
-**PlanPal Journey System**, with **Journey Together** as its route-and-stops
-motif. This layer changes composition and hierarchy only; repositories, DTOs,
-providers, routes and backend contracts remain stable.
-
-Responsive information architecture:
-
-- Compact (`<600`): Home, Trips, contextual Create, Groups and Me. No duplicate
-  navigation drawer. Messages are reached from contextual entry points.
-- Medium (`600-1024`): NavigationRail with constrained content.
-- Expanded (`>1024`): persistent product sidebar, utility destinations kept
-  separate, and master-detail/split compositions for trips and conversations.
-
-Compact Trip Detail is divided into Overview, Itinerary, Decisions and More;
-expanded itinerary uses a synchronized timeline and Goong map. Poll option
-responses include additive `voters` summaries, and availability option
-responses include additive `votes` entries (`status` plus user summary). These
-fields power participant avatars and the desktop traveler-by-date matrix. The
-existing request payloads and response fields remain backward-compatible.
-
-Trip is the primary product object. Group is its collaboration workspace;
-messages are communication; notifications and profile are utilities. Shared
-presentation primitives live under `presentation/widgets/design_system`, and
-tokens live under `core/theme`. See `planpal_flutter/DESIGN_SYSTEM.md` and
-`planpal_flutter/UX_UI_AUDIT.md` before adding a new screen pattern.
-
-Brand foundations are defined in `planpal_flutter/BRAND_FOUNDATION.md`.
-Flutter color roles must use `PlanPalSemanticColors`; physical palette values
-remain in `AppColors` for theme construction and legacy compatibility. Manrope
-is the bundled UI/body family and Space Grotesk is the bundled display family;
-runtime font fetching is disabled. Logo, Journey Line and cartographic
-illustration primitives are shared widgets, not page-specific decorations.
+| planpal_flutter/lib/main.dart | Flutter startup, provider bootstrap, app router, theme and lifecycle setup. |
+| planpal_flutter/lib/presentation/pages/ | Public site, authentication, and product pages. |
+| planpal_flutter/lib/presentation/widgets/ | Shared controls, layouts, forms, and design-system widgets. |
+| planpal_flutter/lib/core/ | Routing, responsive rules, Riverpod state, HTTP/WS clients, repositories, DTOs, auth, storage, maps, configuration, and utilities. |
+| planpal_flutter/web/ | Web shell, bootstrap, Firebase messaging worker, manifest, and static metadata. |
+| planpalapp/planpalapp/ | Django settings, root URLs, ASGI, Celery, and server configuration. |
+| planpalapp/planpals/ | Domain contexts, API routes, consumers, middleware, health checks, and model facade. |
+| planpalapp/planpals/migrations/ | Django schema migrations for the single app. |
+| scripts/ | Local PowerShell runners and operational helpers. |
+| Dockerfile, fly.toml, supervisord.conf | Backend image, Fly deployment, and multi-process runtime. |
+| planpal_flutter/wrangler.jsonc | Cloudflare Worker static-asset deployment for the compiled web app. |
+
+There is no generated shared schema package between Dart and Python. Client DTOs and server serializers are separate implementations of the HTTP contract. There is no AI-related source directory or AI provider adapter.
+
+## 3. Frontend architecture
+
+### Startup, routing, and layout
+
+Flutter starts in planpal_flutter/lib/main.dart. It initializes persistent preferences and platform offline storage, restores authentication, sets up Riverpod providers, and launches MaterialApp.router. Navigation is defined in planpal_flutter/lib/core/routing/app_router.dart using go_router. Web exposes a public landing page at / and /welcome; the native root enters the authenticated flow or login. Product routes include /home, /groups, /groups/:id, /plans, /plans/:id, /conversations, /conversations/:id, /explore, /analytics, /notifications, and /profile. The router redirects unauthenticated visits to /login with a return path and restores the intended route after successful sign-in.
+
+planpal_flutter/lib/presentation/widgets/layout/app_navigation_shell.dart supplies the authenticated shell: bottom navigation below 600 logical pixels, NavigationRail from 600 to 1024, and a sidebar above 1024. Breakpoints live in planpal_flutter/lib/core/responsive/app_breakpoints.dart. Public/authentication pages have their own composition; desktop is not simply a widened mobile screen.
+
+Pages are grouped by feature under presentation/pages; core/theme and presentation/widgets/design_system hold visual tokens and reusable primitives. Several authenticated pages use deferred imports in app_router.dart to split web loading. Multi-step forms and feature-specific controls remain in presentation. The login/register transition is a UI-level change around the same auth operations, not a second auth mechanism.
+
+### State and network
+
+Riverpod providers under planpal_flutter/lib/core/riverpod wire repositories and feature notifiers for plans, groups, chat, finance, collaboration, experience, notifications, and analytics. Widgets invoke a notifier or repository, which uses the centralized Dio ApiClient in planpal_flutter/lib/core/services/apis.dart. API endpoints and base URL are centralized there; typed request/response objects are maintained manually under planpal_flutter/lib/core/dtos and feature repositories. There are no React hooks or browser-only frontend type definitions.
+
+ApiClient sends JSON for ordinary operations and multipart data for uploads, including XFile/stream-based files so browser and mobile can use the same repository interfaces. AuthProvider attaches bearer tokens, retries a 401 once after refresh where supported, and clears the session when refresh cannot recover it. Error mapping and user-facing presentation are handled by core/services/api_error.dart and core/services/error_display_service.dart. Pages use Riverpod loading/error/data state, refresh actions, form validation, and localized messages rather than a single global loading screen.
+
+Authentication and offline storage are distinct. OAuth access/refresh tokens are stored via flutter_secure_storage; a cached user profile is in SharedPreferences. On web, selected drafts and queued mutations use IndexedDB through core/storage/offline_storage_web.dart; on native platforms the offline store uses SharedPreferences. The queue in core/services/offline_sync_service.dart retries on a timer/resume and is scoped by user. It is not a full offline replica of server data.
+
+MapLibre draws tiles from a Goong style URL using the client-side GOONG_MAPTILES_KEY. Place search and reverse geocoding call the backend location API, which has its own GOONG_API_KEY. WebSocket clients connect to chat, plan/group, and notification routes; browsers obtain a short-lived ticket first, while native clients retain the legacy token-query path. Optional Firebase Messaging registers browser/native device tokens for push, with a dedicated web service worker and VAPID configuration.
+
+The build configuration in planpal_flutter/lib/config/app_config.dart reads dart-defines such as APP_ENV, API_BASE_URL, and OAUTH_CLIENT_ID. scripts/run_flutter.ps1 passes environment-specific defines for run/build commands; values in a local frontend .env are build inputs, not server-side secrets after web compilation.
+
+## 4. Backend architecture
+
+### Request and realtime pipeline
+
+planpalapp/planpalapp/asgi.py is the production ASGI entry point: HTTP requests reach Django/DRF, while WebSockets are routed through Channels and token/ticket middleware. planpalapp/planpalapp/urls.py mounts /api/v1/ at planpalapp/planpals/urls.py, OAuth token routes under /o/, and health endpoints. The API URL file combines DRF router ViewSets with explicit class-based views. Default DRF authentication is OAuth2 bearer tokens and default permission is IsAuthenticated; individual public and admin endpoints override it.
+
+The main contexts under planpalapp/planpals are auth, groups, plans, chat, collaboration, experience, budgets, locations, notifications, audit, and analytics. Most have presentation views/serializers, application services, and infrastructure repositories/models; some also have domain objects and repository interfaces. A typical mutation goes from URL/view to serializer validation and permission checks, then to an application service/handler, ORM repository or model, and finally a serializer response. This separation is useful but not absolute: some views and serializers also access ORM objects directly.
+
+The planpals/models.py facade reexports context models so Django sees them under one installed app and migration tree. Auth, ownership, group/plan membership, and resource permissions are checked in the relevant views/services, not solely by frontend route guards. DRF serializers validate payloads; application services validate cross-record rules such as membership, budget currency, expense splits, and workflow state.
+
+Channels routes are defined in planpalapp/planpals/routing.py for /ws/chat/{conversation_id}/, /ws/plans/{plan_id}/, /ws/groups/{group_id}/, /ws/user/, and /ws/notifications/. HTTP mutations publish realtime events after database commit where appropriate. The Celery app in planpalapp/planpalapp/celery.py discovers tasks; settings define queues and Beat jobs for metrics, cleanup, reminders, invites, recurring finance work, live-location expiry, and notification digests. Celery workers and Beat must actually run for scheduled behavior.
+
+### Operations and integrations
+
+Settings in planpalapp/planpalapp/settings.py select local, test, or production with PLANPAL_ENV. Local environment files may supply values; production requires explicit secrets and allowed hosts. DATABASE_URL or DB_* configures MySQL. Redis is used for production cache, Channels, and Celery (with component-specific URL overrides). Test settings use in-memory substitutes for selected services. Goong place queries are implemented in planpalapp/planpals/locations/infrastructure/goong_service.py. Cloudinary-backed media storage, Firebase Admin push, and SMTP mail are conditional on their configuration. WhiteNoise serves static files.
+
+The backend has structured JSON logging, request correlation/X-Request-ID, a DRF exception handler, and liveness/readiness endpoints. Readiness checks infrastructure such as DB and Redis; it does not prove that every external provider or feature flow works. There is no AI provider, model invocation, prompt pipeline, or retrieval service in the backend.
+
+## 5. Frontend-backend communication
+
+Ordinary traffic follows:
+
+User action -> Flutter page/widget -> Riverpod notifier/repository -> Dio ApiClient -> /api/v1/ route -> serializer/view -> service/repository -> MySQL or external service -> HTTP JSON/multipart response -> Dart DTO/state -> UI.
+
+The exception is OAuth token issuance at /o/token/. Authenticated API requests send Authorization: Bearer {access token}. Responses are generally JSON; list endpoints can be paginated, so repositories handle the shapes of their respective routes. Uploads use multipart; calendar export returns an ICS file. HTTP errors are converted to client errors and shown as form or page feedback. A 401 may trigger refresh/retry; it is not treated as a successful empty result.
+
+Representative implemented API groups (all below /api/v1/ unless noted):
+
+| Group | Routes and purpose |
+|---|---|
+| Identity | /users/, /users/verify-email/, /users/profile/, /auth/logout/, /auth/websocket-ticket/; /o/token/ is mounted at root. |
+| Social/trips | /friends/, /groups/, /plans/, /activities/ plus invite/join-request, clone, ICS, and calendar-link routes. |
+| Coordination | /groups/{id}/polls/, /groups/{id}/availability-polls/, /plans/{id}/work-items/, /plans/{id}/comments/. |
+| Chat/realtime | /conversations/, /conversations/{id}/send_message/, /messages/, /notifications/ and Channels /ws/... routes. |
+| Finance | /plans/{id}/budget/, /expenses/, /balances/, /finance-insights/, /recurring-expenses/, /settlements/ and expense correction/detail routes. |
+| Places/location | /location/search/, /location/autocomplete/, /location/place-details/, /location/reverse-geocode/, /conversations/{id}/live-locations/. |
+| Administration | /analytics/summary/, /analytics/timeseries/, /analytics/top/ and /audit-logs/, with endpoint-specific permissions. |
+
+The ViewSet action routes are generated by DRF router registrations and action decorators; not every route appears as a literal path in planpals/urls.py. Channels WebSockets provide realtime messages/events; push notifications use Firebase where configured. The client also polls/retries selected state and offline mutations. No SSE transport is present in the inspected code.
+
+## 6. Data model and persistence
+
+The default relational store is MySQL via Django ORM using DB_* variables; DATABASE_URL can override the database connection/engine. The schema lives in planpalapp/planpals/migrations/. Major models include:
+
+| Context | Main persisted records and relationships |
+|---|---|
+| Identity/social | User, Friendship; Group with GroupMembership, invite, and join-request records. |
+| Planning | Plan is personal or associated with a group and contains PlanActivity records; related work items, comments, mentions, and reactions support collaboration. |
+| Messaging | Conversation and ChatMessage, with read-status records and membership/access checks. |
+| Finance | Budget associated with a plan; Expense, ExpenseParticipant, ExpensePayment, Settlement, and RecurringExpense. Corrections create linked replacement expenses; effective expense queries exclude superseded entries from totals. |
+| Coordination | AvailabilityPoll/option/vote and group poll/option/vote; LiveLocationShare for temporary sharing. |
+| Operations | Notification, preference and device-token records; AuditLog; DailyMetric for aggregated analytics. |
+
+The budget code validates currency against the plan budget rather than silently adding unmatched currency amounts. Financial corrections and deletion preserve historical/audit information rather than treating every update as an in-place overwrite. Redis-backed cache is used for transient state, WebSocket tickets, and selected cached reads, not as the source of truth for plans or expenses. Cloudinary stores uploaded media when configured. On-device/browser storage only holds session metadata and selected offline state.
+
+## 7. Authentication and authorization
+
+Registration starts with POST /api/v1/users/: the backend caches pending registration details and a hashed one-time code, then sends email. The user record is created after successful POST /api/v1/users/verify-email/ (the endpoint also handles verification of an existing inactive user). The pending registration is not a permanent inactive account by default. Login exchanges credentials and a public OAuth client ID at /o/token/ for access/refresh tokens; unverified accounts are rejected. OAuth Toolkit settings set token lifetimes and refresh rotation.
+
+The Flutter AuthProvider restores its cached user and token on startup, refreshes the profile, and uses the access token in API requests. On logout it calls /api/v1/auth/logout/, clears secure tokens and cached profile, and removes user-scoped offline data. The go_router guard protects product pages and returns to the originally requested URL after login. Backend permissions remain authoritative even if a client navigates directly to an API or WebSocket.
+
+Browser WebSockets request a cache-backed, single-use ticket with a short lifetime from /api/v1/auth/websocket-ticket/ before connection. Native clients can still connect with an access token in the query string for compatibility; this is a transitional contract, not proof that query tokens are safe for all environments. WebSocket consumers check identity and resource access. Admin analytics uses staff-only permission rather than just hiding the UI link.
+
+## 8. AI / LLM status
+
+No current AI/LLM application flow was found in Flutter or Django: no model-provider client, prompts, embeddings/vector store, RAG, tool calling, streaming model response, or AI-conversation persistence. The app's chat is human-to-human messaging. "Analytics" means computed usage/finance reports, not generative AI. This file's name is historical; any future AI feature would require a separate design and implementation. No AI API key is part of the observed runtime configuration.
+
+## 9. Important end-to-end flows
+
+### Sign-up and sign-in
+
+The registration UI sends user details to /api/v1/users/, then the entered OTP to /api/v1/users/verify-email/. The backend holds pending details in cache, validates the OTP, creates/activates the user, and responds. Sign-in then posts to /o/token/; Flutter securely stores tokens, loads the profile, and navigates to the saved destination. Logout revokes/clears session state and scoped offline data.
+
+### Create a plan
+
+The plan form invokes a PlanRepository method and POST /api/v1/plans/. PlanViewSet validates payload and group permission, calls PlanService/CreatePlanHandler, persists the plan, initializes associated budget state, schedules relevant work, and returns serialized plan data. The repository parses the response and Riverpod updates the list/detail UI. Editing activities uses separate activity endpoints and permissions.
+
+### Chat and attachment
+
+The conversation page sends text or multipart attachment via ConversationRepository to /api/v1/conversations/{id}/send_message/. ConversationViewSet checks access and validates the payload; ConversationService persists the message and updates conversation state in a transaction. After commit, realtime and optional push notifications are dispatched. The sender receives HTTP state; other participants receive a WebSocket event. Historical messages are fetched through paginated endpoints, not reconstructed from WebSocket events alone.
+
+### Expense and correction
+
+The expense form sends plan, amount, payer, participants/splits, and optional receipt to /api/v1/plans/{id}/expenses/. BudgetService validates plan membership, currency, and shares, then creates the expense and related participant/payment records. Balance and insight reads aggregate effective expenses. Corrections use /expenses/{expense_id}/corrections/ to create a linked replacement; detail/delete operations use /expenses/{expense_id}/. Audit and notification work is attached to the backend flow.
+
+### Map and live location
+
+The Flutter map displays Goong tiles through MapLibre using a build-time map-tiles key. Search/geocoding calls /api/v1/location/... so the Goong service key stays on the backend. Conversation live location is created/read under /api/v1/conversations/{id}/live-locations/ and can be stopped through /api/v1/live-locations/{id}/; expiration requires the scheduled backend task. Browser geolocation additionally depends on user permission and browser support.
+
+### Analytics and notifications
+
+The analytics screen calls staff-protected /api/v1/analytics/summary/, /timeseries/, and /top/ actions. AnalyticsService serves summaries/time series from DailyMetric and reads top plans/groups from their repositories; Celery Beat refreshes daily metrics. Notifications are stored, listed via /api/v1/notifications/, and delivered over WebSocket/push where enabled. These paths do not rely on an AI inference service.
+
+## 10. Configuration and environment
+
+| Scope | Important names and behavior |
+|---|---|
+| Flutter build | scripts/run_flutter.ps1 passes APP_ENV and, when supplied, API_BASE_URL, OAUTH_CLIENT_ID, GOONG_MAPTILES_KEY, and FIREBASE_WEB_VAPID_KEY as dart-defines. Firebase runtime code also reads the optional PLANPAL_ENABLE_PUSH define, which the runner does not expose as a parameter. A web build embeds public client configuration; never put backend secrets there. |
+| Django core | PLANPAL_ENV selects environment; SECRET_KEY, ALLOWED_HOSTS, CORS_ALLOWED_ORIGINS and related CSRF/security settings govern production exposure. Local files are loaded only as configured by settings.py. |
+| Database/messaging | DATABASE_URL or DB_* for MySQL; REDIS_URL and/or cache/channel/Celery URL overrides for cache, Channels, and workers. Production settings require an external password-protected TLS Redis URL by default. |
+| OAuth/email | OAuth Toolkit client configuration and SMTP variables support token issuance and verification emails. The Flutter OAuth client ID is public, unlike Django's SECRET_KEY. |
+| External services | GOONG_API_KEY is backend-only; GOONG_MAPTILES_KEY is a browser-visible tile key. Cloudinary, Firebase service-account and web VAPID configuration, optional Sentry, and SMTP each need their respective credentials/settings. |
+
+Example variable names and safe templates are in planpalapp/.env.example, planpalapp/.env.local.example, and planpal_flutter/.env.example. Values in those templates are not evidence that production services are configured or reachable.
+
+## 11. Development and runtime architecture
+
+Locally, scripts/run_backend.ps1 can run the Django web server, Celery worker, Beat, migrations, checks, or tests with the project's Python virtual environment. Django serves on port 8000 in the local setup; MySQL and Redis must be supplied separately for the corresponding features. scripts/run_flutter.ps1 runs Android or browser clients and builds APK or web artifacts. Local web uses 127.0.0.1:8000; an Android emulator uses 10.0.2.2:8000 to reach the host. CORS/allowed origins must match the browser origin; native requests do not use browser CORS.
+
+For the configured backend deployment, Dockerfile builds the Python image, fly.toml defines the Fly app/service and migration release command, and supervisord.conf starts Daphne plus one Celery worker and Beat. A separate external MySQL/Redis and service secrets are required; a successful image build alone does not establish runtime readiness. /health/live and /health/ready serve liveness and dependency checks.
+
+For web, Flutter produces planpal_flutter/build/web; planpal_flutter/wrangler.jsonc configures a Cloudflare Worker static-assets deployment with SPA fallback. The web directory contains metadata and a Firebase messaging worker. The presence of a web/_headers file does not by itself prove Cloudflare Workers applies those headers in production; verify actual responses when deploying. A production rebuild is needed when embedded dart-define values change.
+
+## 12. Observed design decisions and patterns
+
+- A single Flutter client shares feature flows while responsive shell and platform storage/push/maps adapt by target.
+- go_router centralizes deep links and auth redirects; Riverpod provides feature state and repository construction.
+- Dio is the central HTTP transport; Dart DTOs and DRF serializers implement a manually synchronized contract.
+- Django contexts are feature-based with presentation/application/infrastructure separation in many paths, with domain abstractions where present.
+- DRF ViewSets coexist with explicit APIViews; model facade and one migration tree keep Django model registration centralized.
+- Services use transactions and post-commit realtime/push dispatch for operations such as chat; audit and notifications capture significant events.
+- Celery/Beat provide asynchronous and scheduled behavior; Redis also supports cache and Channels fan-out.
+
+These are observed patterns, not an assertion that every endpoint follows identical layering.
+
+## 13. Current limitations and technical debt
+
+- Dart DTOs/endpoints and Python serializers/routes are maintained separately; no generated OpenAPI client enforces compile-time parity.
+- Backend layering is mixed: some presentation code still reaches ORM models directly, and ViewSet/action and standalone-view response shapes differ.
+- Native WebSocket query-token authentication remains supported alongside the browser ticket flow.
+- Offline support covers selected drafts/mutations, not all features or an authoritative synchronized local database.
+- Optional Cloudinary, Goong, Firebase, email, Redis, and Cloudflare behavior depends on credentials, deployment settings, and reachable providers. Repository inspection cannot establish their current production health.
+- Web CSP/cache behavior and browser-specific push/geolocation should be verified against the deployed Worker/browser, not inferred solely from checked-in configuration.
+
+## 14. Architecture diagrams
+
+~~~mermaid
+flowchart LR
+    U[Traveler or staff] --> F[Flutter Android or web]
+    F --> R[Riverpod repositories and Dio]
+    R -->|HTTPS JSON or multipart| A[Django DRF on Daphne]
+    F -->|WebSocket ticket or native token| C[Django Channels]
+    A --> M[(MySQL)]
+    A --> X[(Redis cache)]
+    C --> X
+    A --> Q[Celery tasks]
+    Q --> X
+    Q --> M
+    A --> G[Goong place API]
+    A --> CL[Cloudinary media]
+    A --> FB[Firebase push and SMTP]
+    F -->|MapLibre tiles| GT[Goong tile service]
+    F --> O[(IndexedDB web or native preferences)]
+    W[Celery Beat] --> Q
+~~~
+
+~~~mermaid
+sequenceDiagram
+    actor User
+    participant UI as Flutter conversation page
+    participant Repo as ConversationRepository
+    participant API as DRF ConversationViewSet
+    participant Service as ConversationService
+    participant DB as MySQL
+    participant WS as Channels
+    User->>UI: Send text or attachment
+    UI->>Repo: sendMessage
+    Repo->>API: POST /api/v1/conversations/{id}/send_message/
+    API->>Service: validate access and create message
+    Service->>DB: transaction: message and conversation state
+    DB-->>Service: committed
+    Service-->>WS: publish event after commit
+    Service-->>API: saved message
+    API-->>Repo: HTTP response
+    Repo-->>UI: update state
+    WS-->>UI: event for connected participants
+~~~
+
+## 15. File reference map
+
+| Responsibility | Main files/directories |
+|---|---|
+| Flutter entry, build configuration | planpal_flutter/lib/main.dart; planpal_flutter/lib/config/app_config.dart; planpal_flutter/pubspec.yaml |
+| Routing and adaptive shell | planpal_flutter/lib/core/routing/app_router.dart; planpal_flutter/lib/presentation/widgets/layout/app_navigation_shell.dart; planpal_flutter/lib/core/responsive/app_breakpoints.dart |
+| Client transport, auth, state | planpal_flutter/lib/core/services/apis.dart; planpal_flutter/lib/core/auth/auth_session.dart; planpal_flutter/lib/core/riverpod/ |
+| Client offline, maps, push | planpal_flutter/lib/core/services/offline_sync_service.dart; planpal_flutter/lib/core/storage/offline_storage_web.dart; planpal_flutter/lib/core/maps/planpal_map.dart; planpal_flutter/lib/core/services/firebase_service.dart |
+| Django entry, routing, settings | planpalapp/planpalapp/asgi.py; planpalapp/planpalapp/urls.py; planpalapp/planpalapp/settings.py; planpalapp/planpals/urls.py; planpalapp/planpals/routing.py |
+| Business services | planpalapp/planpals/plans/application/services.py; planpalapp/planpals/chat/application/services.py; planpalapp/planpals/budgets/application/services.py; planpalapp/planpals/analytics/application/services.py |
+| Models and migrations | planpalapp/planpals/models.py; planpalapp/planpals/migrations/; planpalapp/planpals/budgets/infrastructure/models.py |
+| Auth and WebSocket | planpalapp/planpals/auth/presentation/views.py; planpalapp/planpals/chat/presentation/views.py; planpalapp/planpals/routing.py |
+| External integration | planpalapp/planpals/locations/infrastructure/goong_service.py; planpalapp/planpalapp/settings.py; planpal_flutter/web/firebase-messaging-sw.js |
+| Background jobs and health | planpalapp/planpalapp/celery.py; planpalapp/planpals/shared/health.py |
+| Local and production operations | scripts/run_backend.ps1; scripts/run_flutter.ps1; Dockerfile; fly.toml; supervisord.conf; planpal_flutter/wrangler.jsonc |
+| AI integration | None implemented in the inspected application source. |

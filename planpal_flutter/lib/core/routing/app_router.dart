@@ -16,6 +16,10 @@ import 'package:planpal_flutter/presentation/pages/experience/global_search_page
     deferred as explore_page;
 import 'package:planpal_flutter/presentation/pages/home/home_page.dart'
     deferred as home_page;
+import 'package:planpal_flutter/presentation/pages/friends/friends_page.dart'
+    deferred as friends_page;
+import 'package:planpal_flutter/presentation/pages/friends/publication_preview_page.dart'
+    deferred as publication_page;
 import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart'
     deferred as notifications_page;
 import 'package:planpal_flutter/presentation/pages/plans/plans_list_page.dart'
@@ -90,6 +94,22 @@ GoRouter createAppRouter(AuthProvider auth) {
             builder: (_, _) => _DeferredRoutePage(
               loadLibrary: groups_page.loadLibrary,
               builder: () => groups_page.GroupPage(),
+            ),
+          ),
+          GoRoute(
+            path: '/friends',
+            builder: (_, _) => _DeferredRoutePage(
+              loadLibrary: friends_page.loadLibrary,
+              builder: () => friends_page.FriendsPage(),
+            ),
+          ),
+          GoRoute(
+            path: '/journeys/:id',
+            builder: (_, state) => _DeferredRoutePage(
+              loadLibrary: publication_page.loadLibrary,
+              builder: () => publication_page.PublicationPreviewPage(
+                id: state.pathParameters['id']!,
+              ),
             ),
           ),
           GoRoute(

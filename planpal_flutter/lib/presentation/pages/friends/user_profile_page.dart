@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,6 +33,11 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
   bool _actionLoading = false;
   bool _profileAccessDenied = false;
   String? _accessDeniedMessage;
+  List<Map<String, dynamic>> _publications = const [];
+  bool _publicationsLoading = true;
+  bool _publicationsError = false;
+  String? _nextPublicationsUrl;
+  bool _loadingMorePublications = false;
 
   @override
   void initState() {
@@ -69,6 +75,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
         _user = profile;
       });
       await _loadFriendshipStatus();
+      await _loadPublications();
     } catch (error) {
       if (!mounted) return;
 
@@ -100,6 +107,125 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
           ),
         );
       }
+    }
+  }
+
+  Future<void> _loadPublications() async {
+    if (mounted) setState(() => _publicationsLoading = true);
+    try {
+      final data = await ref
+          .read(friendRepositoryProvider)
+          .getPublishedProfile(widget.user.id);
+      if (!mounted) return;
+      setState(() {
+        _publications = (data['publications'] as List? ?? const [])
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+        _nextPublicationsUrl = data['next']?.toString();
+        _publicationsLoading = false;
+        _publicationsError = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _publicationsLoading = false;
+          _publicationsError = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMorePublications() async {
+    final nextUrl = _nextPublicationsUrl;
+    if (nextUrl == null || _loadingMorePublications) return;
+    setState(() => _loadingMorePublications = true);
+    try {
+      final data = await ref
+          .read(friendRepositoryProvider)
+          .getPublishedProfile(_user.id, nextPageUrl: nextUrl);
+      if (!mounted) return;
+      setState(() {
+        _publications.addAll(
+          (data['publications'] as List? ?? const []).map(
+            (item) => Map<String, dynamic>.from(item as Map),
+          ),
+        );
+        _nextPublicationsUrl = data['next']?.toString();
+        _loadingMorePublications = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loadingMorePublications = false);
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        ErrorDisplayService.getUserFriendlyMessage(error),
+      );
+    }
+  }
+
+  Future<void> _inviteToTrip() async {
+    final controller = TextEditingController();
+    final name = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: 680),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              context.l10n.t('friend_trip.invite_title'),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            Text(context.l10n.t('friend_trip.invite_hint')),
+            const SizedBox(height: 20),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 120,
+              decoration: InputDecoration(
+                labelText: context.l10n.t('friend_trip.name'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) Navigator.pop(sheetContext, value);
+              },
+              child: Text(context.l10n.t('friend_trip.send')),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (name == null || !mounted) return;
+    setState(() => _actionLoading = true);
+    try {
+      await ref
+          .read(friendRepositoryProvider)
+          .inviteFriendToTrip(_user.id, name);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.t('friend_trip.sent'))),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        ErrorDisplayService.getUserFriendlyMessage(error),
+      );
+    } finally {
+      if (mounted) setState(() => _actionLoading = false);
     }
   }
 
@@ -517,6 +643,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                 PopupMenuButton<String>(
                   onSelected: (value) {
                     switch (value) {
+                      case 'unfriend':
+                        _unfriend();
+                        break;
                       case 'block':
                         _blockUser();
                         break;
@@ -526,6 +655,11 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                     }
                   },
                   itemBuilder: (context) => [
+                    if (_friendshipStatus == 'accepted')
+                      PopupMenuItem(
+                        value: 'unfriend',
+                        child: Text(context.l10n.t('user_profile.unfriend')),
+                      ),
                     if (_friendshipStatus != 'blocked')
                       PopupMenuItem(
                         value: 'block',
@@ -645,7 +779,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                     style: const TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                   const SizedBox(height: 8),
-                  if (_user.isOnline)
+                  if (_user.isOnline && _friendshipStatus == 'accepted')
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -674,6 +808,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
           ],
           const SizedBox(height: 24),
           _buildProfileInfo(),
+          _buildPublishedJourneys(),
         ],
       ),
     );
@@ -744,50 +879,10 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
 
     switch (_friendshipStatus) {
       case 'accepted':
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.success,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.t('user_profile.friends'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: _actionLoading ? null : _unfriend,
-              icon: _actionLoading
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.person_remove),
-              label: Text(l10n.t('user_profile.unfriend')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.error,
-                foregroundColor: colors.onError,
-              ),
-            ),
-          ],
+        return FilledButton.icon(
+          onPressed: _actionLoading ? null : _inviteToTrip,
+          icon: const Icon(Icons.route_outlined),
+          label: Text(l10n.t('friend_trip.plan_together')),
         );
       case 'pending_sent':
         return OutlinedButton.icon(
@@ -870,6 +965,8 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
   Widget _buildProfileInfo() {
     final theme = Theme.of(context);
     final l10n = context.l10n;
+    final isOwnProfile = ref.read(authNotifierProvider).user?.id == _user.id;
+    final canSeePresence = isOwnProfile || _friendshipStatus == 'accepted';
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -905,7 +1002,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                     l10n.t('profile.username'),
                     '@${_user.username}',
                   ),
-                  if (_user.email != null) ...[
+                  if (isOwnProfile && _user.email != null) ...[
                     const Divider(),
                     _buildInfoRow(
                       Icons.email,
@@ -913,24 +1010,28 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                       _user.email!,
                     ),
                   ],
-                  const Divider(),
-                  _buildInfoRow(
-                    Icons.circle,
-                    l10n.t('user_profile.status'),
-                    _user.isOnline
-                        ? l10n.t('user_profile.online')
-                        : l10n.t('friends.offline'),
-                    valueColor: _user.isOnline
-                        ? AppColors.success
-                        : theme.colorScheme.onSurfaceVariant,
-                  ),
+                  if (canSeePresence) ...[
+                    const Divider(),
+                    _buildInfoRow(
+                      Icons.circle,
+                      l10n.t('user_profile.status'),
+                      _user.isOnline
+                          ? l10n.t('user_profile.online')
+                          : l10n.t('friends.offline'),
+                      valueColor: _user.isOnline
+                          ? AppColors.success
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
                   const Divider(),
                   _buildInfoRow(
                     Icons.calendar_today,
                     l10n.t('user_profile.joined'),
                     _formatDate(_user.dateJoined),
                   ),
-                  if (_user.lastSeen != null && !_user.isOnline) ...[
+                  if (canSeePresence &&
+                      _user.lastSeen != null &&
+                      !_user.isOnline) ...[
                     const Divider(),
                     _buildInfoRow(
                       Icons.access_time,
@@ -943,6 +1044,94 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPublishedJourneys() {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.xl,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.t('published.journeys'),
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(l10n.t('published.profile_hint')),
+          const SizedBox(height: 16),
+          if (_publicationsLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_publicationsError)
+            OutlinedButton.icon(
+              onPressed: _loadPublications,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(l10n.t('common.retry')),
+            )
+          else if (_publications.isEmpty)
+            JourneySurface(child: Text(l10n.t('published.empty')))
+          else
+            ..._publications.map((item) {
+              final highlights = (item['highlights'] as List? ?? const []);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: JourneySurface(
+                  onTap: () => context.push('/journeys/${item['id']}'),
+                  semanticLabel: item['title']?.toString() ?? '',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['destination']?.toString() ?? '',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        item['title']?.toString() ?? '',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(item['summary']?.toString() ?? ''),
+                      if (highlights.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        ...highlights.map((highlight) {
+                          final data = Map<String, dynamic>.from(
+                            highlight as Map,
+                          );
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text('- ${data['title']}'),
+                          );
+                        }),
+                      ],
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Text(l10n.t('published.view_journey')),
+                          const Spacer(),
+                          const Icon(Icons.arrow_forward_rounded),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          if (_nextPublicationsUrl != null)
+            TextButton(
+              onPressed: _loadingMorePublications
+                  ? null
+                  : _loadMorePublications,
+              child: Text(l10n.t('published.load_more')),
+            ),
+        ],
       ),
     );
   }

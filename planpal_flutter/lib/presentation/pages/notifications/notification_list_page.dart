@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:planpal_flutter/core/dtos/notification_model.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/notifications_provider.dart';
@@ -194,7 +195,14 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
           (notification) => NotificationItem(
             key: ValueKey(notification.id),
             notification: notification,
-            onTap: notification.isUnread
+            onTap: notification.type == 'FRIEND_TRIP_INVITE'
+                ? () async {
+                    if (notification.isUnread) {
+                      await _markAsRead(notification.id);
+                    }
+                    if (context.mounted) context.push('/friends');
+                  }
+                : notification.isUnread
                 ? () => _markAsRead(notification.id)
                 : null,
           ),

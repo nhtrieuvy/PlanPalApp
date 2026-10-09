@@ -25,6 +25,9 @@ class PlanPermission(BasePermission):
     
     def has_object_permission(self, request, view, obj):
         user = request.user
+
+        if request.method == 'DELETE':
+            return obj.creator_id == user.id
                 
         if obj.creator == user:
             return True
@@ -42,10 +45,7 @@ class PlanActivityPermission(BasePermission):
             if plan_id:
                 try:
                     plan = Plan.objects.select_related('group').get(id=plan_id)
-                    if plan.is_group_plan():
-                        return plan.creator == request.user or plan.group.is_admin(request.user)
-                    else:
-                        return plan.creator == request.user
+                    return plan.can_edit_by_id(request.user.id)
                 except Plan.DoesNotExist:
                     return False
         return True  
@@ -74,13 +74,7 @@ class PlanActivityPermission(BasePermission):
         return False
     
     def _can_modify_activity(self, user, plan):
-        if plan.creator == user:
-            return True
-        
-        if plan.is_group_plan() and plan.group:
-            return plan.group.is_admin(user)
-        
-        return False
+        return plan.can_edit_by_id(user.id)
 
 
 class CanJoinPlan(BasePermission):
@@ -123,15 +117,6 @@ class CanModifyPlan(BasePermission):
     """Only plan creator or group admin can modify a plan."""
     
     def has_object_permission(self, request, view, obj):
-        plan = obj
-        user = request.user
-        
-        if plan.creator == user:
-            return True
-        
-        if plan.plan_type == 'group' and plan.group:
-            return plan.group.is_admin(user)
-        
-        return False
+        return obj.can_edit_by_id(request.user.id)
 
 
