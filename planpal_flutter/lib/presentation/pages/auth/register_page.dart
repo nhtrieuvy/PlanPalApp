@@ -1,14 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:getwidget/getwidget.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
+import 'package:planpal_flutter/presentation/pages/auth/auth_journey_shell.dart';
 import 'package:planpal_flutter/presentation/pages/auth/email_verification_page.dart';
+import 'package:planpal_flutter/presentation/widgets/common/x_file_image.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -30,7 +31,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
-  File? _avatarImage;
+  int _currentStep = 0;
+  XFile? _avatarImage;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -57,7 +59,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
       if (image != null) {
         setState(() {
-          _avatarImage = File(image.path);
+          _avatarImage = image;
         });
       }
     } catch (_) {
@@ -104,7 +106,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           backgroundColor: AppColors.success,
         ),
       );
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context, rootNavigator: true).pushReplacement(
         MaterialPageRoute(builder: (_) => EmailVerificationPage(email: email)),
       );
     } catch (e) {
@@ -118,319 +120,276 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      AuthFormViewport(child: _buildRegistrationForm(context));
+
+  Widget _buildRegistrationForm(BuildContext context) {
+    final theme = Theme.of(context);
     final l10n = context.l10n;
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: AppColors.primaryGradient,
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 620),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.t('auth.register_title'),
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              l10n.t(
+                'auth.step_progress',
+                params: {'current': '${_currentStep + 1}', 'total': '3'},
+              ),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            LinearProgressIndicator(value: (_currentStep + 1) / 3),
+            const SizedBox(height: AppSpacing.xl),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: KeyedSubtree(
+                key: ValueKey(_currentStep),
+                child: _buildCurrentStep(context),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
               children: [
-                const SizedBox(height: 40),
-                Column(
-                  children: [
-                    Icon(
-                      Icons.person_add_outlined,
-                      size: 80,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      l10n.t('auth.register_title'),
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l10n.t('auth.register_subtitle'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 40),
-                GFCard(
-                  padding: const EdgeInsets.all(24),
-                  margin: const EdgeInsets.all(0),
-                  elevation: 8,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  color: Theme.of(context).colorScheme.surface,
-                  content: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Center(
-                          child: GestureDetector(
-                            onTap: _pickAvatar,
-                            child: Container(
-                              width: 100,
-                              height: 100,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.primary.withValues(alpha: 0.1),
-                                border: Border.all(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  width: 2,
-                                ),
-                              ),
-                              child: _avatarImage != null
-                                  ? ClipOval(
-                                      child: Image.file(
-                                        _avatarImage!,
-                                        fit: BoxFit.cover,
-                                        width: 100,
-                                        height: 100,
-                                      ),
-                                    )
-                                  : Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(
-                                          Icons.add_a_photo_outlined,
-                                          size: 32,
-                                          color: AppColors.primary,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          l10n.t('auth.add_photo'),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        _buildTextField(
-                          controller: _usernameController,
-                          label: l10n.t('auth.username'),
-                          icon: Icons.person_outline,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return l10n.t(
-                                'auth.validation_username_required',
-                              );
-                            }
-                            if (value.trim().length < 2) {
-                              return l10n.t('auth.validation_username_short');
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          controller: _emailController,
-                          label: l10n.t('auth.email'),
-                          icon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return l10n.t('auth.validation_email_required');
-                            }
-                            if (!RegExp(
-                              r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                            ).hasMatch(value.trim())) {
-                              return l10n.t('auth.validation_email_invalid');
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildTextField(
-                                controller: _firstNameController,
-                                label: l10n.t('auth.first_name'),
-                                icon: Icons.badge_outlined,
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return l10n.t(
-                                      'auth.validation_first_name_required',
-                                    );
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildTextField(
-                                controller: _lastNameController,
-                                label: l10n.t('auth.last_name'),
-                                icon: Icons.badge_outlined,
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return l10n.t(
-                                      'auth.validation_last_name_required',
-                                    );
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          controller: _phoneController,
-                          label: l10n.t('auth.phone_optional'),
-                          icon: Icons.phone_outlined,
-                          keyboardType: TextInputType.phone,
-                          validator: (value) {
-                            if (value != null && value.trim().isNotEmpty) {
-                              final phone = value.trim();
-                              if (!RegExp(r'^[0-9+\-\s()]+$').hasMatch(phone)) {
-                                return l10n.t('auth.validation_phone_invalid');
-                              }
-                              final digits = phone.replaceAll(
-                                RegExp(r'\D'),
-                                '',
-                              );
-                              if (digits.length < 9 || digits.length > 15) {
-                                return l10n.t('auth.validation_phone_length');
-                              }
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        _buildPasswordField(
-                          controller: _passwordController,
-                          label: l10n.t('auth.password'),
-                          isVisible: _isPasswordVisible,
-                          onToggle: () {
-                            setState(() {
-                              _isPasswordVisible = !_isPasswordVisible;
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return l10n.t(
-                                'auth.validation_password_required',
-                              );
-                            }
-                            if (value.length < 8) {
-                              return l10n.t('auth.validation_password_short');
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        _buildPasswordField(
-                          controller: _confirmPasswordController,
-                          label: l10n.t('auth.confirm_password'),
-                          isVisible: _isConfirmPasswordVisible,
-                          onToggle: () {
-                            setState(() {
-                              _isConfirmPasswordVisible =
-                                  !_isConfirmPasswordVisible;
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return l10n.t(
-                                'auth.validation_confirm_password_required',
-                              );
-                            }
-                            if (value != _passwordController.text) {
-                              return l10n.t(
-                                'auth.validation_confirm_password_mismatch',
-                              );
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                        GFButton(
-                          onPressed: _isLoading ? null : _register,
-                          text: _isLoading
-                              ? l10n.t('auth.registering')
-                              : l10n.t('auth.register'),
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          size: GFSize.LARGE,
-                          shape: GFButtonShape.pills,
-                          color: AppColors.primary,
-                          disabledColor: Colors.grey,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ],
+                if (_currentStep > 0) ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () => setState(() => _currentStep--),
+                      child: Text(l10n.t('wizard.back')),
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _isLoading ? null : _handlePrimaryAction,
+                    child: _isLoading
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            _currentStep == 2
+                                ? l10n.t('auth.register')
+                                : l10n.t('wizard.next'),
+                          ),
+                  ),
                 ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${l10n.t('auth.have_account')} ',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 16,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.of(context).pushReplacementNamed('/login');
-                      },
-                      child: Text(
-                        l10n.t('auth.login'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 40),
               ],
             ),
-          ),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton(
+              onPressed: _isLoading
+                  ? null
+                  : () => context.go(authSwitchLocation(context, '/login')),
+              child: Text(
+                '${l10n.t('auth.have_account')} ${l10n.t('auth.login')}',
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildCurrentStep(BuildContext context) {
+    final l10n = context.l10n;
+    if (_currentStep == 0) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _stepHeading(
+            context,
+            'auth.step_identity',
+            'auth.step_identity_hint',
+          ),
+          _buildTextField(
+            controller: _firstNameController,
+            label: l10n.t('auth.first_name'),
+            icon: Icons.badge_outlined,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? l10n.t('auth.validation_first_name_required')
+                : null,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _buildTextField(
+            controller: _lastNameController,
+            label: l10n.t('auth.last_name'),
+            icon: Icons.badge_outlined,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? l10n.t('auth.validation_last_name_required')
+                : null,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _buildTextField(
+            controller: _emailController,
+            label: l10n.t('auth.email'),
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return l10n.t('auth.validation_email_required');
+              }
+              if (!RegExp(
+                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+              ).hasMatch(value.trim())) {
+                return l10n.t('auth.validation_email_invalid');
+              }
+              return null;
+            },
+          ),
+        ],
+      );
+    }
+    if (_currentStep == 1) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _stepHeading(context, 'auth.step_account', 'auth.step_account_hint'),
+          _buildTextField(
+            controller: _usernameController,
+            label: l10n.t('auth.username'),
+            icon: Icons.person_outline,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return l10n.t('auth.validation_username_required');
+              }
+              return value.trim().length < 2
+                  ? l10n.t('auth.validation_username_short')
+                  : null;
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _buildPasswordField(
+            controller: _passwordController,
+            label: l10n.t('auth.password'),
+            isVisible: _isPasswordVisible,
+            onToggle: () =>
+                setState(() => _isPasswordVisible = !_isPasswordVisible),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return l10n.t('auth.validation_password_required');
+              }
+              return value.length < 8
+                  ? l10n.t('auth.validation_password_short')
+                  : null;
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _buildPasswordField(
+            controller: _confirmPasswordController,
+            label: l10n.t('auth.confirm_password'),
+            isVisible: _isConfirmPasswordVisible,
+            onToggle: () => setState(
+              () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible,
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return l10n.t('auth.validation_confirm_password_required');
+              }
+              return value != _passwordController.text
+                  ? l10n.t('auth.validation_confirm_password_mismatch')
+                  : null;
+            },
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _stepHeading(context, 'auth.step_profile', 'auth.step_profile_hint'),
+        Center(
+          child: Semantics(
+            button: true,
+            label: l10n.t('auth.add_photo'),
+            child: InkWell(
+              onTap: _pickAvatar,
+              borderRadius: BorderRadius.circular(60),
+              child: CircleAvatar(
+                radius: 50,
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: _avatarImage != null
+                    ? ClipOval(
+                        child: XFileImage(
+                          file: _avatarImage!,
+                          fit: BoxFit.cover,
+                          width: 100,
+                          height: 100,
+                        ),
+                      )
+                    : const Icon(Icons.add_a_photo_outlined, size: 32),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _buildTextField(
+          controller: _phoneController,
+          label: l10n.t('auth.phone_optional'),
+          icon: Icons.phone_outlined,
+          keyboardType: TextInputType.phone,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) return null;
+            final phone = value.trim();
+            if (!RegExp(r'^[0-9+\-\s()]+$').hasMatch(phone)) {
+              return l10n.t('auth.validation_phone_invalid');
+            }
+            final digits = phone.replaceAll(RegExp(r'\D'), '');
+            return digits.length < 9 || digits.length > 15
+                ? l10n.t('auth.validation_phone_length')
+                : null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _stepHeading(BuildContext context, String titleKey, String hintKey) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.t(titleKey),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            context.l10n.t(hintKey),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handlePrimaryAction() {
+    if (!_formKey.currentState!.validate()) return;
+    if (_currentStep < 2) {
+      setState(() => _currentStep++);
+      return;
+    }
+    _register();
   }
 
   Widget _buildTextField({

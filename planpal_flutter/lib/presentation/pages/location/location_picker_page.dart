@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/maps/planpal_map.dart';
+import 'package:planpal_flutter/core/platform/platform_capabilities.dart';
 import 'package:planpal_flutter/core/repositories/location_repository.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
@@ -292,7 +293,13 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
         MapCoordinate(position.latitude, position.longitude),
       );
     } catch (_) {
-      _showSnackBar(l10n.t('location_picker.current_location_error'));
+      _showSnackBar(
+        l10n.t(
+          PlatformCapabilities.locationRequiresSecureContext
+              ? 'map.web_location_requirements'
+              : 'location_picker.current_location_error',
+        ),
+      );
     }
   }
 
@@ -547,7 +554,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
               children: [
                 const Padding(
                   padding: EdgeInsets.only(top: 2),
-                  child: Icon(Icons.place, color: Colors.redAccent),
+                  child: Icon(Icons.place, color: AppColors.accent),
                 ),
                 const SizedBox(width: 10),
                 Expanded(

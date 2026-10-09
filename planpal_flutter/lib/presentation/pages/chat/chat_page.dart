@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:cross_file/cross_file.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,12 +20,18 @@ import '../../widgets/chat/message_bubble.dart';
 import '../../widgets/chat/message_input.dart';
 import '../../widgets/chat/typing_indicator.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../../widgets/layout/responsive_content.dart';
 import '../experience/live_location_page.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
   final Conversation conversation;
+  final bool showBackButton;
 
-  const ChatPage({super.key, required this.conversation});
+  const ChatPage({
+    super.key,
+    required this.conversation,
+    this.showBackButton = true,
+  });
 
   @override
   ConsumerState<ChatPage> createState() => _ChatPageState();
@@ -172,7 +178,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
       unawaited(messagesNotifier.refresh());
     }
 
-    ref.invalidate(conversationListProvider);
+    unawaited(
+      ref.read(conversationListProvider.notifier).refresh(silent: true),
+    );
   }
 
   String? _extractSenderId(Map<String, dynamic> data) {
@@ -262,7 +270,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
     }
   }
 
-  Future<void> _sendImage(File imageFile) async {
+  Future<void> _sendImage(XFile imageFile) async {
     final failureMessage = context.l10n.t('chat.send_image_failed');
     try {
       final success = await ref
@@ -302,7 +310,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
     }
   }
 
-  Future<void> _sendFile(File file, String _) async {
+  Future<void> _sendFile(XFile file, String _) async {
     final failureMessage = context.l10n.t('chat.send_file_failed');
     try {
       final success = await ref
@@ -441,21 +449,25 @@ class _ChatPageState extends ConsumerState<ChatPage>
       appBar: _buildAppBar(theme),
       body: RefreshablePageWrapper(
         onRefresh: onRefresh,
-        child: Column(
-          children: [
-            _buildConnectionStatus(theme),
-            Expanded(child: _buildMessagesList()),
-            _buildTypingIndicator(),
-            MessageInput(
-              onSendMessage: _sendMessage,
-              onSendImage: _sendImage,
-              onSendLocation: _sendLocation,
-              onSendFile: _sendFile,
-              onStartTyping: _onTypingStart,
-              onStopTyping: _onTypingStop,
-              isEnabled: true,
-            ),
-          ],
+        child: ResponsiveContent(
+          mediumMaxWidth: 820,
+          expandedMaxWidth: 960,
+          child: Column(
+            children: [
+              _buildConnectionStatus(theme),
+              Expanded(child: _buildMessagesList()),
+              _buildTypingIndicator(),
+              MessageInput(
+                onSendMessage: _sendMessage,
+                onSendImage: _sendImage,
+                onSendLocation: _sendLocation,
+                onSendFile: _sendFile,
+                onStartTyping: _onTypingStart,
+                onStopTyping: _onTypingStop,
+                isEnabled: true,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -465,13 +477,16 @@ class _ChatPageState extends ConsumerState<ChatPage>
     return AppBar(
       backgroundColor: theme.colorScheme.surface,
       elevation: 0,
-      leading: IconButton(
-        onPressed: () => Navigator.of(context).pop(),
-        icon: Icon(
-          PhosphorIcons.arrowLeft(),
-          color: theme.colorScheme.onSurface,
-        ),
-      ),
+      automaticallyImplyLeading: false,
+      leading: widget.showBackButton
+          ? IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: Icon(
+                PhosphorIcons.arrowLeft(),
+                color: theme.colorScheme.onSurface,
+              ),
+            )
+          : null,
       title: Row(
         children: [
           _buildConversationAvatar(),
@@ -482,7 +497,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
               children: [
                 Text(
                   _conversation.displayName,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: theme.colorScheme.onSurface,
@@ -532,16 +547,18 @@ class _ChatPageState extends ConsumerState<ChatPage>
   }
 
   Widget _buildConversationAvatar() {
+    final palette = AppColors.avatarPalette(
+      _conversation.id.isNotEmpty
+          ? _conversation.id
+          : _conversation.displayName,
+      Theme.of(context).brightness,
+    );
     return Container(
       width: 40,
       height: 40,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: AppColors.primaryGradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: palette.background,
       ),
       child: _conversation.avatarUrl.isNotEmpty
           ? ClipOval(
@@ -549,15 +566,15 @@ class _ChatPageState extends ConsumerState<ChatPage>
                 _conversation.avatarUrl,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  return _buildAvatarPlaceholder();
+                  return _buildAvatarPlaceholder(palette);
                 },
               ),
             )
-          : _buildAvatarPlaceholder(),
+          : _buildAvatarPlaceholder(palette),
     );
   }
 
-  Widget _buildAvatarPlaceholder() {
+  Widget _buildAvatarPlaceholder(AvatarPalette palette) {
     final displayName = _conversation.displayName;
     final avatarText = displayName.isNotEmpty
         ? displayName.substring(0, 1).toUpperCase()
@@ -566,10 +583,10 @@ class _ChatPageState extends ConsumerState<ChatPage>
     return Center(
       child: Text(
         avatarText,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: palette.foreground,
         ),
       ),
     );
@@ -579,7 +596,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
     if (_conversation.isDirect) {
       return Text(
         _conversation.isOtherUserOnline ? 'Online' : 'Offline',
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 12,
           color: _conversation.isOtherUserOnline
               ? AppColors.success
@@ -591,7 +608,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
     final memberCount = _conversation.participants.length;
     return Text(
       '$memberCount members',
-      style: GoogleFonts.inter(
+      style: GoogleFonts.manrope(
         fontSize: 12,
         color: theme.colorScheme.onSurface.withAlpha(150),
       ),

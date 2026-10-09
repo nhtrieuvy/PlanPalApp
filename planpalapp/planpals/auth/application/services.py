@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List, Optional, Tuple, Any
 from uuid import UUID
+from django.db import transaction
 
 from planpals.shared.base_service import BaseService
 from planpals.shared.cache import CacheKeys, CacheTTL
@@ -309,7 +310,12 @@ class UserService(BaseService):
             target_id=target_user.id,
         )
         handler = auth_factories.get_block_user_handler()
-        return handler.handle(cmd)
+        with transaction.atomic():
+            result = handler.handle(cmd)
+            if result[0]:
+                from planpals.auth.application.friend_trips import cancel_pending_between
+                cancel_pending_between(current_user, target_user)
+            return result
     
     @classmethod
     def unfriend_user(cls, current_user, target_user) -> Tuple[bool, str]:
@@ -319,7 +325,11 @@ class UserService(BaseService):
             target_user_id=target_user.id,
         )
         handler = auth_factories.get_unfriend_handler()
-        result = handler.handle(cmd)
+        with transaction.atomic():
+            result = handler.handle(cmd)
+            if result[0]:
+                from planpals.auth.application.friend_trips import cancel_pending_between
+                cancel_pending_between(current_user, target_user)
         cls._invalidate_user_cache(current_user.id)
         cls._invalidate_user_cache(target_user.id)
         return result

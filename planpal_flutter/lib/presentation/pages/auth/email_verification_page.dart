@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:getwidget/getwidget.dart';
+import 'package:go_router/go_router.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
+import 'package:planpal_flutter/presentation/widgets/design_system/journey_ui.dart';
 
 class EmailVerificationPage extends ConsumerStatefulWidget {
   const EmailVerificationPage({super.key, required this.email});
@@ -46,7 +48,7 @@ class _EmailVerificationPageState extends ConsumerState<EmailVerificationPage> {
           backgroundColor: AppColors.success,
         ),
       );
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+      context.go('/login');
     } catch (e) {
       if (!mounted) return;
       ErrorDisplayService.handleError(context, e);
@@ -85,143 +87,101 @@ class _EmailVerificationPageState extends ConsumerState<EmailVerificationPage> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: AppColors.primaryGradient,
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: GFCard(
-                  padding: const EdgeInsets.all(24),
-                  margin: EdgeInsets.zero,
-                  elevation: 8,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  color: Theme.of(context).colorScheme.surface,
-                  content: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Icon(
-                          Icons.mark_email_read_outlined,
-                          size: 72,
-                          color: AppColors.primary,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: JourneySurface(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(
+                        Icons.mark_email_read_outlined,
+                        size: 72,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
+                        l10n.t('auth.verify_email_title'),
+                        textAlign: TextAlign.center,
+                        style: textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
-                        const SizedBox(height: 20),
-                        Text(
-                          l10n.t('auth.verify_email_title'),
-                          textAlign: TextAlign.center,
-                          style: textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        l10n.t(
+                          'auth.verify_email_subtitle',
+                          params: {'email': widget.email},
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          l10n.t(
-                            'auth.verify_email_subtitle',
-                            params: {'email': widget.email},
-                          ),
-                          textAlign: TextAlign.center,
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.72),
-                          ),
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        const SizedBox(height: 28),
-                        TextFormField(
-                          controller: _codeController,
-                          keyboardType: TextInputType.number,
-                          textInputAction: TextInputAction.done,
-                          textAlign: TextAlign.center,
-                          style: textTheme.headlineMedium?.copyWith(
-                            letterSpacing: 8,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(6),
-                          ],
-                          decoration: InputDecoration(
-                            labelText: l10n.t('auth.verification_code'),
-                            hintText: '000000',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                color: AppColors.primary,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          validator: (value) {
-                            final code = (value ?? '').trim();
-                            if (code.length != 6) {
-                              return l10n.t('auth.verify_email_code_required');
-                            }
-                            return null;
-                          },
-                          onFieldSubmitted: (_) =>
-                              _isVerifying ? null : _verify(),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      TextFormField(
+                        controller: _codeController,
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.done,
+                        textAlign: TextAlign.center,
+                        style: textTheme.headlineMedium?.copyWith(
+                          letterSpacing: 8,
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(height: 24),
-                        GFButton(
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: l10n.t('auth.verification_code'),
+                          hintText: '000000',
+                        ),
+                        validator: (value) {
+                          final code = (value ?? '').trim();
+                          return code.length != 6
+                              ? l10n.t('auth.verify_email_code_required')
+                              : null;
+                        },
+                        onFieldSubmitted: (_) {
+                          if (!_isVerifying) _verify();
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      SizedBox(
+                        height: AppSize.controlHeight,
+                        child: FilledButton(
                           onPressed: _isVerifying ? null : _verify,
-                          text: _isVerifying
-                              ? l10n.t('auth.verifying')
-                              : l10n.t('auth.verify_email_action'),
-                          textStyle: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                          size: GFSize.LARGE,
-                          shape: GFButtonShape.pills,
-                          color: AppColors.primary,
-                          disabledColor: Colors.grey,
                           child: _isVerifying
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
+                              ? const SizedBox.square(
+                                  dimension: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
                                   ),
                                 )
-                              : null,
+                              : Text(l10n.t('auth.verify_email_action')),
                         ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: _isResending ? null : _resend,
-                          child: Text(
-                            _isResending
-                                ? l10n.t('auth.resending_code')
-                                : l10n.t('auth.resend_code'),
-                          ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      TextButton(
+                        onPressed: _isResending ? null : _resend,
+                        child: Text(
+                          _isResending
+                              ? l10n.t('auth.resending_code')
+                              : l10n.t('auth.resend_code'),
                         ),
-                        TextButton(
-                          onPressed: () => Navigator.of(
-                            context,
-                          ).pushNamedAndRemoveUntil('/login', (_) => false),
-                          child: Text(l10n.t('auth.back_to_login')),
-                        ),
-                      ],
-                    ),
+                      ),
+                      TextButton(
+                        onPressed: () => context.go('/login'),
+                        child: Text(l10n.t('auth.back_to_login')),
+                      ),
+                    ],
                   ),
                 ),
               ),

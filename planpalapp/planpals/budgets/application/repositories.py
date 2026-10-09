@@ -173,6 +173,10 @@ class ExpenseRepository(ABC):
         ...
 
     @abstractmethod
+    def soft_delete(self, expense_id: UUID, *, deleted_by_user_id: UUID) -> None:
+        ...
+
+    @abstractmethod
     def get_category_totals(self, plan_id: UUID) -> Sequence[tuple[str, Decimal]]:
         ...
 

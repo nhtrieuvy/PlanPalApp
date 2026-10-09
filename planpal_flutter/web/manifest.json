@@ -1,12 +1,12 @@
 {
-    "name": "planpal_flutter",
-    "short_name": "planpal_flutter",
+    "name": "PlanPal - Journey Together",
+    "short_name": "PlanPal",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#F7F4ED",
+    "theme_color": "#062B28",
+    "description": "Plan journeys, make decisions and create shared travel memories together.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

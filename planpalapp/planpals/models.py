@@ -23,6 +23,7 @@ from planpals.auth.infrastructure.models import (  # noqa: F401
     FriendshipQuerySet,
     FriendshipRejection,
     Friendship,
+    FriendTripInvitation,
 )
 
 # Groups infrastructure models (ORM)
@@ -37,6 +38,7 @@ from planpals.groups.infrastructure.models import (  # noqa: F401
 from planpals.plans.infrastructure.models import (  # noqa: F401
     PlanQuerySet,
     Plan,
+    PlanPublication,
     PlanActivity,
 )
 
@@ -94,9 +96,9 @@ from planpals.experience.infrastructure.models import (  # noqa: F401
 __all__ = [
     'BaseModel',
     'UserQuerySet', 'UserManager', 'User',
-    'FriendshipQuerySet', 'FriendshipRejection', 'Friendship',
+    'FriendshipQuerySet', 'FriendshipRejection', 'Friendship', 'FriendTripInvitation',
     'GroupQuerySet', 'Group', 'GroupMembershipQuerySet', 'GroupMembership',
-    'PlanQuerySet', 'Plan', 'PlanActivity',
+    'PlanQuerySet', 'Plan', 'PlanPublication', 'PlanActivity',
     'AvailabilityPoll', 'AvailabilityOption', 'AvailabilityVote',
     'PlanWorkItem', 'PlanComment', 'CommentMention', 'CommentReaction',
     'ConversationQuerySet', 'Conversation', 'ChatMessageQuerySet', 'ChatMessage', 'MessageReadStatus',

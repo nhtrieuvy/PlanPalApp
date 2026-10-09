@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/riverpod/group_invite_providers.dart';
@@ -8,7 +9,6 @@ import '../../../core/services/api_error.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/ui_states/ui_states.dart';
-import 'group_details_page.dart';
 
 class GroupInviteCodeJoinPage extends ConsumerStatefulWidget {
   const GroupInviteCodeJoinPage({super.key});
@@ -162,7 +162,7 @@ class _JoinResult extends StatelessWidget {
       children: [
         Icon(
           isPending ? Icons.hourglass_top_rounded : Icons.check_circle_rounded,
-          color: isPending ? Colors.orange : AppColors.success,
+          color: isPending ? AppColors.warning : AppColors.success,
           size: 64,
         ),
         const SizedBox(height: 16),
@@ -180,11 +180,7 @@ class _JoinResult extends StatelessWidget {
         const SizedBox(height: 24),
         if (!isPending)
           FilledButton(
-            onPressed: () => Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => GroupDetailsPage(id: result.group.id),
-              ),
-            ),
+            onPressed: () => context.go('/groups/${result.group.id}'),
             child: Text(context.l10n.t('group_join.open_group')),
           )
         else

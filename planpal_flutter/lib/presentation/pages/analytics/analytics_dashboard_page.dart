@@ -11,6 +11,7 @@ import 'package:planpal_flutter/presentation/widgets/analytics/analytics_kpi_car
 import 'package:planpal_flutter/presentation/widgets/analytics/analytics_time_series_chart.dart';
 import 'package:planpal_flutter/presentation/widgets/analytics/analytics_top_entities_card.dart';
 import 'package:planpal_flutter/presentation/widgets/common/refreshable_page_wrapper.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
 
 class AnalyticsDashboardPage extends ConsumerStatefulWidget {
@@ -78,20 +79,35 @@ class _AnalyticsDashboardPageState
           ),
           data: (summary) => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.zero,
             children: [
-              _buildHero(context, summary),
-              const SizedBox(height: 20),
-              _buildRangeSelector(context, range),
-              const SizedBox(height: 20),
-              _buildKpiGrid(context, summary),
-              const SizedBox(height: 20),
-              _buildTrendSection(context, selectedMetric, timeSeriesAsync),
-              const SizedBox(height: 20),
-              _buildTotalsCard(context, summary),
-              const SizedBox(height: 20),
-              _buildTopEntitiesSection(context, topEntitiesAsync),
-              const SizedBox(height: 32),
+              ResponsiveContent(
+                mediumMaxWidth: 960,
+                expandedMaxWidth: 1440,
+                compactPadding: const EdgeInsets.all(16),
+                mediumPadding: const EdgeInsets.all(24),
+                expandedPadding: const EdgeInsets.fromLTRB(32, 20, 32, 40),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHero(context, summary),
+                    const SizedBox(height: 20),
+                    _buildRangeSelector(context, range),
+                    const SizedBox(height: 20),
+                    _buildKpiGrid(context, summary),
+                    const SizedBox(height: 20),
+                    _buildTrendSection(
+                      context,
+                      selectedMetric,
+                      timeSeriesAsync,
+                    ),
+                    const SizedBox(height: 20),
+                    _buildTotalsCard(context, summary),
+                    const SizedBox(height: 20),
+                    _buildTopEntitiesSection(context, topEntitiesAsync),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -106,11 +122,7 @@ class _AnalyticsDashboardPageState
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF0F4C81),
-            Color(0xFF2B7A78),
-            Color(0xFF7EC8E3),
-          ],
+          colors: [Color(0xFF0F4C81), Color(0xFF2B7A78), Color(0xFF7EC8E3)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -177,57 +189,73 @@ class _AnalyticsDashboardPageState
 
   Widget _buildKpiGrid(BuildContext context, AnalyticsSummary summary) {
     final l10n = context.l10n;
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 14,
-      mainAxisSpacing: 14,
-      childAspectRatio: 1,
-      children: [
-        AnalyticsKpiCard(
-          metric: summary.dau,
-          accentColor: AppColors.info,
-          label: l10n.analyticsMetricLabel(AnalyticsMetricKey.dau.apiValue),
+    final cards = <Widget>[
+      AnalyticsKpiCard(
+        metric: summary.dau,
+        accentColor: AppColors.info,
+        label: l10n.analyticsMetricLabel(AnalyticsMetricKey.dau.apiValue),
+      ),
+      AnalyticsKpiCard(
+        metric: summary.mau,
+        accentColor: AppColors.secondary,
+        label: l10n.analyticsMetricLabel(AnalyticsMetricKey.mau.apiValue),
+      ),
+      AnalyticsKpiCard(
+        metric: summary.planCreationRate,
+        accentColor: AppColors.success,
+        percentage: true,
+        label: l10n.analyticsMetricLabel(
+          AnalyticsMetricKey.planCreationRate.apiValue,
         ),
-        AnalyticsKpiCard(
-          metric: summary.mau,
-          accentColor: AppColors.secondary,
-          label: l10n.analyticsMetricLabel(AnalyticsMetricKey.mau.apiValue),
+      ),
+      AnalyticsKpiCard(
+        metric: summary.planCompletionRate,
+        accentColor: AppColors.warning,
+        percentage: true,
+        label: l10n.analyticsMetricLabel(
+          AnalyticsMetricKey.planCompletionRate.apiValue,
         ),
-        AnalyticsKpiCard(
-          metric: summary.planCreationRate,
-          accentColor: AppColors.success,
-          percentage: true,
-          label: l10n.analyticsMetricLabel(
-            AnalyticsMetricKey.planCreationRate.apiValue,
+      ),
+      AnalyticsKpiCard(
+        metric: summary.groupJoinRate,
+        accentColor: AppColors.primary,
+        percentage: true,
+        label: l10n.analyticsMetricLabel(
+          AnalyticsMetricKey.groupJoinRate.apiValue,
+        ),
+      ),
+      AnalyticsKpiCard(
+        metric: summary.notificationOpenRate,
+        accentColor: AppColors.error,
+        percentage: true,
+        label: l10n.analyticsMetricLabel(
+          AnalyticsMetricKey.notificationOpenRate.apiValue,
+        ),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final columnCount = width >= 1080
+            ? 3
+            : width >= 360
+            ? 2
+            : 1;
+
+        return GridView.builder(
+          itemCount: cards.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columnCount,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            mainAxisExtent: 164,
           ),
-        ),
-        AnalyticsKpiCard(
-          metric: summary.planCompletionRate,
-          accentColor: AppColors.warning,
-          percentage: true,
-          label: l10n.analyticsMetricLabel(
-            AnalyticsMetricKey.planCompletionRate.apiValue,
-          ),
-        ),
-        AnalyticsKpiCard(
-          metric: summary.groupJoinRate,
-          accentColor: AppColors.primary,
-          percentage: true,
-          label: l10n.analyticsMetricLabel(
-            AnalyticsMetricKey.groupJoinRate.apiValue,
-          ),
-        ),
-        AnalyticsKpiCard(
-          metric: summary.notificationOpenRate,
-          accentColor: AppColors.error,
-          percentage: true,
-          label: l10n.analyticsMetricLabel(
-            AnalyticsMetricKey.notificationOpenRate.apiValue,
-          ),
-        ),
-      ],
+          itemBuilder: (_, index) => cards[index],
+        );
+      },
     );
   }
 
@@ -256,9 +284,9 @@ class _AnalyticsDashboardPageState
                 child: ChoiceChip(
                   label: Text(l10n.analyticsMetricLabel(metric.apiValue)),
                   selected: selectedMetric == metric,
-                  onSelected: (_) => ref
-                      .read(analyticsChartMetricProvider.notifier)
-                      .state = metric,
+                  onSelected: (_) =>
+                      ref.read(analyticsChartMetricProvider.notifier).state =
+                          metric,
                 ),
               );
             }).toList(),
@@ -272,7 +300,8 @@ class _AnalyticsDashboardPageState
           ),
           error: (error, _) => AppError(
             message: ErrorDisplayService.getUserFriendlyMessage(error),
-            onRetry: () => ref.read(analyticsTimeSeriesProvider.notifier).refresh(),
+            onRetry: () =>
+                ref.read(analyticsTimeSeriesProvider.notifier).refresh(),
             retryLabel: l10n.t('common.retry'),
           ),
           data: (series) {
@@ -298,7 +327,10 @@ class _AnalyticsDashboardPageState
   Widget _buildTotalsCard(BuildContext context, AnalyticsSummary summary) {
     final l10n = context.l10n;
     final rows = [
-      (l10n.t('analytics.total_plans_created'), '${summary.totals.plansCreated}'),
+      (
+        l10n.t('analytics.total_plans_created'),
+        '${summary.totals.plansCreated}',
+      ),
       (
         l10n.t('analytics.total_plans_completed'),
         '${summary.totals.plansCompleted}',
@@ -332,7 +364,9 @@ class _AnalyticsDashboardPageState
           const SizedBox(height: 14),
           for (var index = 0; index < rows.length; index += 1)
             Padding(
-              padding: EdgeInsets.only(bottom: index == rows.length - 1 ? 0 : 12),
+              padding: EdgeInsets.only(
+                bottom: index == rows.length - 1 ? 0 : 12,
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -345,9 +379,9 @@ class _AnalyticsDashboardPageState
                   ),
                   Text(
                     rows[index].$2,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -369,7 +403,8 @@ class _AnalyticsDashboardPageState
       ),
       error: (error, _) => AppError(
         message: ErrorDisplayService.getUserFriendlyMessage(error),
-        onRetry: () => ref.read(analyticsTopEntitiesProvider.notifier).refresh(),
+        onRetry: () =>
+            ref.read(analyticsTopEntitiesProvider.notifier).refresh(),
         retryLabel: l10n.t('common.retry'),
       ),
       data: (snapshot) => Column(

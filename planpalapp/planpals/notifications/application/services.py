@@ -306,6 +306,14 @@ class NotificationService:
                 return 'Join request rejected', f'Your request to join "{group_name}" was rejected.'
             return 'Group invite', f'{actor_name} invited you to join "{group_name}".'
 
+        if notification_type == NotificationType.FRIEND_TRIP_INVITE.value:
+            event = str(data.get('event') or 'created')
+            if event == 'accepted':
+                return 'Trip invitation accepted', f'{actor_name} accepted "{group_name}".'
+            if event == 'declined':
+                return 'Trip invitation declined', f'{actor_name} declined "{group_name}".'
+            return 'Plan a trip together', f'{actor_name} invited you to plan "{group_name}".'
+
         if notification_type == NotificationType.ROLE_CHANGED.value:
             new_role = str(data.get('new_role') or '').upper() or 'UPDATED'
             return 'Role updated', f'Your role in "{group_name}" is now {new_role}.'

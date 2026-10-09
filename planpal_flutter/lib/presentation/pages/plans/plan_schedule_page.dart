@@ -3,15 +3,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/plan_activity.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/maps/planpal_map.dart';
 import 'package:planpal_flutter/core/riverpod/activity_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/activity_websocket_service.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
+import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 import 'package:planpal_flutter/presentation/pages/plans/activity_form_page.dart';
 
 import '../../widgets/activities/activity_details_dialog.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
+import '../../widgets/design_system/journey_ui.dart';
+import '../../widgets/layout/responsive_content.dart';
 import '../../../shared/ui_states/ui_states.dart';
+
+final _selectedScheduleActivityProvider = StateProvider.autoDispose
+    .family<String?, String>((ref, planId) => null);
+final _scheduleMapVisibleProvider = StateProvider.autoDispose
+    .family<bool, String>((ref, planId) => false);
 
 class PlanSchedulePage extends ConsumerWidget {
   final String planId;
@@ -72,7 +82,11 @@ class PlanSchedulePage extends ConsumerWidget {
                 }).toList(),
               ),
       ),
-      body: _buildBody(context, ref, scheduleAsync, realtime),
+      body: ResponsiveContent(
+        mediumMaxWidth: 900,
+        expandedMaxWidth: 1120,
+        child: _buildBody(context, ref, scheduleAsync, realtime),
+      ),
       floatingActionButton: state?.permissions?['can_add_activity'] == true
           ? FloatingActionButton(
               onPressed: () => _openCreateActivity(context, ref),
@@ -173,25 +187,187 @@ class PlanSchedulePage extends ConsumerWidget {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
+    final selectedId = ref.watch(_selectedScheduleActivityProvider(planId));
+    final mapVisible = ref.watch(_scheduleMapVisibleProvider(planId));
+    final locatedActivities = activities
+        .where(
+          (activity) => activity.latitude != null && activity.longitude != null,
+        )
+        .toList();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final canShowMap =
+            constraints.maxWidth >= 980 && locatedActivities.isNotEmpty;
+        final showMap = canShowMap && mapVisible;
+        final timeline = _buildActivityTimeline(
+          context,
+          ref,
+          activities: activities,
+          canEdit: canEdit,
+          highlights: highlights,
+          selectedId: selectedId,
+        );
+        return Column(
+          children: [
+            if (canShowMap)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        ref
+                                .read(
+                                  _scheduleMapVisibleProvider(planId).notifier,
+                                )
+                                .state =
+                            !mapVisible,
+                    icon: Icon(
+                      showMap ? Icons.view_agenda_outlined : Icons.map_outlined,
+                    ),
+                    label: Text(
+                      showMap
+                          ? context.l10n.t('plan.hide_map')
+                          : context.l10n.t('plan.show_map'),
+                    ),
+                  ),
+                ),
+              ),
+            Expanded(
+              child: showMap
+                  ? Row(
+                      children: [
+                        Expanded(flex: 6, child: timeline),
+                        VerticalDivider(
+                          width: 1,
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                        Expanded(
+                          flex: 5,
+                          child: _ScheduleMapPane(
+                            activities: locatedActivities,
+                            selectedId: selectedId,
+                            onSelect: (activityId) =>
+                                ref
+                                        .read(
+                                          _selectedScheduleActivityProvider(
+                                            planId,
+                                          ).notifier,
+                                        )
+                                        .state =
+                                    activityId,
+                          ),
+                        ),
+                      ],
+                    )
+                  : timeline,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildActivityTimeline(
+    BuildContext context,
+    WidgetRef ref, {
+    required List<PlanActivity> activities,
+    required bool canEdit,
+    required Map<String, ActivityRealtimeHighlight> highlights,
+    required String? selectedId,
+  }) {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        96,
+      ),
       itemCount: activities.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final activity = activities[index];
-        return _ActivityCard(
-          activity: activity,
-          highlight: highlights[activity.id],
-          onTap: () => _showActivityDetails(
-            context,
-            ref,
-            activity,
-            canEdit: canEdit,
-            highlight: highlights[activity.id],
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              JourneyRouteMarker(
+                icon: _activityTypeIcon(activity.activityType),
+                isFirst: index == 0,
+                isLast: index == activities.length - 1,
+                completed: activity.isCompleted,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: MouseRegion(
+                    onEnter: (_) =>
+                        ref
+                                .read(
+                                  _selectedScheduleActivityProvider(
+                                    planId,
+                                  ).notifier,
+                                )
+                                .state =
+                            activity.id,
+                    child: _ActivityCard(
+                      activity: activity,
+                      selected: selectedId == activity.id,
+                      highlight: highlights[activity.id],
+                      onTap: () {
+                        ref
+                                .read(
+                                  _selectedScheduleActivityProvider(
+                                    planId,
+                                  ).notifier,
+                                )
+                                .state =
+                            activity.id;
+                        _showActivityDetails(
+                          context,
+                          ref,
+                          activity,
+                          canEdit: canEdit,
+                          highlight: highlights[activity.id],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
+  }
+
+  IconData _activityTypeIcon(String activityType) {
+    switch (activityType) {
+      case 'eating':
+        return Icons.restaurant_rounded;
+      case 'resting':
+        return Icons.hotel_rounded;
+      case 'moving':
+        return Icons.directions_transit_rounded;
+      case 'sightseeing':
+        return Icons.photo_camera_rounded;
+      case 'shopping':
+        return Icons.shopping_bag_rounded;
+      case 'entertainment':
+        return Icons.local_activity_rounded;
+      case 'event':
+        return Icons.event_rounded;
+      case 'sport':
+        return Icons.sports_rounded;
+      case 'study':
+        return Icons.school_rounded;
+      case 'work':
+        return Icons.work_outline_rounded;
+      default:
+        return Icons.place_rounded;
+    }
   }
 
   Future<void> _showActivityDetails(
@@ -241,7 +417,7 @@ class PlanSchedulePage extends ConsumerWidget {
               },
             ),
           ),
-          backgroundColor: Colors.orange,
+          backgroundColor: AppColors.warning,
         ),
       );
     }
@@ -303,7 +479,7 @@ class PlanSchedulePage extends ConsumerWidget {
               params: {'title': activity.title},
             ),
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
         ),
       );
       await ref.read(activityProvider(planId).notifier).refresh();
@@ -320,7 +496,7 @@ class PlanSchedulePage extends ConsumerWidget {
               },
             ),
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -370,104 +546,256 @@ class _StatisticsCard extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Card(
-      margin: const EdgeInsets.all(16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              context.l10n.t('schedule.stats_title'),
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _StatItem(
-                    label: context.l10n.t('plan.activities'),
-                    value: '${statistics!['total_activities'] ?? 0}',
-                    icon: Icons.event,
-                    color: Colors.blue,
-                  ),
-                ),
-                Expanded(
-                  child: _StatItem(
-                    label: context.l10n.t('activity_details.completed'),
-                    value: '${statistics!['completed_activities'] ?? 0}',
-                    icon: Icons.check_circle,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _StatItem(
-                    label: context.l10n.t(
-                      'analytics.metric.plan_completion_rate',
-                    ),
-                    value:
-                        '${((statistics!['completion_rate'] as num?) ?? 0).toStringAsFixed(1)}%',
-                    icon: Icons.pie_chart,
-                    color: Colors.orange,
-                  ),
-                ),
-                Expanded(
-                  child: _StatItem(
-                    label: context.l10n.t('activity_details.time'),
-                    value:
-                        statistics!['total_duration_display']?.toString() ??
-                        '0m',
-                    icon: Icons.access_time,
-                    color: Colors.purple,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.xs,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          JourneySectionHeader(
+            title: context.l10n.t('schedule.stats_title'),
+            icon: Icons.route_rounded,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          JourneyMetricStrip(
+            metrics: [
+              JourneyMetricData(
+                label: context.l10n.t('plan.activities'),
+                value: '${statistics!['total_activities'] ?? 0}',
+                icon: Icons.event_note_rounded,
+              ),
+              JourneyMetricData(
+                label: context.l10n.t('activity_details.completed'),
+                value: '${statistics!['completed_activities'] ?? 0}',
+                icon: Icons.check_circle_outline_rounded,
+                emphasis: true,
+              ),
+              JourneyMetricData(
+                label: context.l10n.t('analytics.metric.plan_completion_rate'),
+                value:
+                    '${((statistics!['completion_rate'] as num?) ?? 0).toStringAsFixed(1)}%',
+                icon: Icons.donut_large_rounded,
+              ),
+              JourneyMetricData(
+                label: context.l10n.t('activity_details.time'),
+                value:
+                    statistics!['total_duration_display']?.toString() ?? '0m',
+                icon: Icons.schedule_rounded,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _StatItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _StatItem({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
+class _ScheduleMapPane extends StatefulWidget {
+  const _ScheduleMapPane({
+    required this.activities,
+    required this.selectedId,
+    required this.onSelect,
   });
+
+  final List<PlanActivity> activities;
+  final String? selectedId;
+  final ValueChanged<String> onSelect;
+
+  @override
+  State<_ScheduleMapPane> createState() => _ScheduleMapPaneState();
+}
+
+class _ScheduleMapPaneState extends State<_ScheduleMapPane> {
+  PlanPalMapController? _controller;
+
+  PlanActivity get _selected {
+    for (final activity in widget.activities) {
+      if (activity.id == widget.selectedId) return activity;
+    }
+    return widget.activities.first;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ScheduleMapPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedId != widget.selectedId) _focusSelected();
+  }
+
+  Future<void> _focusSelected() async {
+    final activity = _selected;
+    final latitude = activity.latitude;
+    final longitude = activity.longitude;
+    if (latitude == null || longitude == null) return;
+    await _controller?.animateCamera(
+      MapCameraUpdate.newCoordinateZoom(
+        MapCoordinate(latitude, longitude),
+        14.5,
+      ),
+    );
+  }
+
+  void _move(int delta) {
+    final current = widget.activities.indexWhere(
+      (activity) => activity.id == _selected.id,
+    );
+    final target = (current + delta)
+        .clamp(0, widget.activities.length - 1)
+        .toInt();
+    widget.onSelect(widget.activities[target].id);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final selected = _selected;
+    final pins = widget.activities
+        .map(
+          (activity) => MapPin(
+            id: activity.id,
+            position: MapCoordinate(activity.latitude!, activity.longitude!),
+            title: activity.title,
+            subtitle: activity.locationName,
+          ),
+        )
+        .toSet();
+    return Stack(
       children: [
-        Icon(icon, color: color, size: 28),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
+        Positioned.fill(
+          child: PlanPalMap(
+            initialCameraPosition: MapCameraPosition(
+              target: MapCoordinate(selected.latitude!, selected.longitude!),
+              zoom: 13.5,
+            ),
+            pins: pins,
+            onMapCreated: (controller) {
+              _controller = controller;
+              _focusSelected();
+            },
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-          textAlign: TextAlign.center,
+        Positioned(
+          top: AppSpacing.md,
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).colorScheme.surface.withValues(alpha: .94),
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.map_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      context.l10n.t('plan.itinerary_map'),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    context.l10n.t(
+                      'plan.mapped_places',
+                      params: {'count': '${widget.activities.length}'},
+                    ),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          bottom: AppSpacing.md,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).colorScheme.surface.withValues(alpha: .96),
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.shadow.withValues(alpha: .12),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: context.l10n.t('plan.previous_place'),
+                    onPressed: widget.activities.first.id == selected.id
+                        ? null
+                        : () => _move(-1),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selected.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          selected.locationName ??
+                              selected.locationAddress ??
+                              '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: context.l10n.t('plan.next_place'),
+                    onPressed: widget.activities.last.id == selected.id
+                        ? null
+                        : () => _move(1),
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -478,57 +806,39 @@ class _ActivityCard extends StatelessWidget {
   final PlanActivity activity;
   final ActivityRealtimeHighlight? highlight;
   final VoidCallback onTap;
+  final bool selected;
 
   const _ActivityCard({
     required this.activity,
     required this.onTap,
+    this.selected = false,
     this.highlight,
   });
 
   @override
   Widget build(BuildContext context) {
-    final accentColor = highlight != null
-        ? Colors.amber
-        : _getActivityTypeColor(activity.activityType);
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: highlight != null ? 4 : 2,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: accentColor.withValues(
-                alpha: highlight != null ? 0.8 : 0.3,
-              ),
-              width: highlight != null ? 2.5 : 2,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context),
-                if (highlight != null) ...[
-                  const SizedBox(height: 8),
-                  _buildRealtimeNote(context),
-                ],
-                const SizedBox(height: 8),
-                _buildTitle(),
-                if (activity.description != null &&
-                    activity.description!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _buildDescription(),
-                ],
-                const SizedBox(height: 8),
-                _buildInfoRow(context),
-              ],
-            ),
-          ),
-        ),
+    return JourneySurface(
+      onTap: onTap,
+      selected: selected || highlight != null,
+      semanticLabel: activity.title,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(context),
+          if (highlight != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            _buildRealtimeNote(context),
+          ],
+          const SizedBox(height: AppSpacing.xs),
+          _buildTitle(context),
+          if (activity.description != null &&
+              activity.description!.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
+            _buildDescription(context),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          _buildInfoRow(context),
+        ],
       ),
     );
   }
@@ -558,12 +868,12 @@ class _ActivityCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.1),
+              color: AppColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
               Icons.check_circle,
-              color: Colors.green,
+              color: AppColors.success,
               size: 16,
             ),
           ),
@@ -616,22 +926,25 @@ class _ActivityCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTitle() {
+  Widget _buildTitle(BuildContext context) {
     return Text(
       activity.title,
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w800,
         decoration: activity.isCompleted ? TextDecoration.lineThrough : null,
-        color: activity.isCompleted ? Colors.grey[600] : null,
+        color: activity.isCompleted
+            ? Theme.of(context).colorScheme.onSurfaceVariant
+            : null,
       ),
     );
   }
 
-  Widget _buildDescription() {
+  Widget _buildDescription(BuildContext context) {
     return Text(
       activity.description!,
-      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
@@ -650,7 +963,6 @@ class _ActivityCard extends StatelessWidget {
           _buildInfoChip(Icons.attach_money, activity.costDisplay),
         if (activity.durationMinutes != null && activity.durationMinutes! > 0)
           _buildInfoChip(Icons.timer, '${activity.durationMinutes}m'),
-        _buildInfoChip(Icons.layers, 'v${activity.version}'),
       ],
     );
   }
@@ -659,12 +971,12 @@ class _ActivityCard extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: Colors.grey[600]),
+        Icon(icon, size: 14),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
             text,
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            style: const TextStyle(fontSize: 12),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -675,27 +987,27 @@ class _ActivityCard extends StatelessWidget {
   Color _getActivityTypeColor(String activityType) {
     switch (activityType) {
       case 'eating':
-        return Colors.orange;
+        return AppColors.accent;
       case 'resting':
-        return Colors.blue;
+        return AppColors.info;
       case 'moving':
-        return Colors.purple;
+        return AppColors.secondary;
       case 'sightseeing':
-        return Colors.green;
+        return AppColors.success;
       case 'shopping':
-        return Colors.pink;
+        return AppColors.warning;
       case 'entertainment':
-        return Colors.red;
+        return AppColors.accentDark;
       case 'event':
-        return Colors.indigo;
+        return AppColors.primary;
       case 'sport':
-        return Colors.teal;
+        return AppColors.secondaryDark;
       case 'study':
-        return Colors.brown;
+        return AppColors.warning;
       case 'work':
-        return Colors.grey;
+        return AppColors.neutral600;
       default:
-        return Colors.grey;
+        return AppColors.neutral600;
     }
   }
 }

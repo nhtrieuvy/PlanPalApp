@@ -1,24 +1,22 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:getwidget/getwidget.dart';
+import 'package:go_router/go_router.dart';
 import 'package:planpal_flutter/core/dtos/group_summary.dart';
 import 'package:planpal_flutter/core/dtos/plan_summary.dart';
-import 'package:planpal_flutter/core/localization/app_locale.dart';
+import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/providers.dart';
+import 'package:planpal_flutter/core/responsive/app_breakpoints.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import 'package:planpal_flutter/presentation/pages/chat/conversation_list_page.dart';
-import 'package:planpal_flutter/presentation/pages/friends/friend_search_page.dart';
-import 'package:planpal_flutter/presentation/pages/location/current_location_map_page.dart';
-import 'package:planpal_flutter/presentation/pages/experience/global_search_page.dart';
-import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart';
-import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
-import 'package:planpal_flutter/presentation/pages/users/group_invite_code_join_page.dart';
-import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 import 'package:planpal_flutter/presentation/pages/users/plan_form_page.dart';
 import 'package:planpal_flutter/presentation/widgets/common/refreshable_page_wrapper.dart';
+import 'package:planpal_flutter/presentation/widgets/design_system/journey_ui.dart';
+import 'package:planpal_flutter/presentation/widgets/design_system/planpal_brand.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
 
 class HomePage extends StatelessWidget {
@@ -69,24 +67,30 @@ class _HomeContentState extends ConsumerState<_HomeContent>
   Widget build(BuildContext context) {
     final plansAsync = ref.watch(plansNotifierProvider);
     final groupsAsync = ref.watch(groupsNotifierProvider);
+    final unreadCount = ref.watch(unreadCountProvider).valueOrNull ?? 0;
     final l10n = context.l10n;
-    final offlineSync = ref.watch(offlineSyncProvider);
 
     final isLoading = plansAsync.isLoading || groupsAsync.isLoading;
     final error = plansAsync.error ?? groupsAsync.error;
     final recentPlans = (plansAsync.valueOrNull?.items ?? []).take(5).toList();
     final activeGroups = (groupsAsync.valueOrNull ?? []).take(5).toList();
+    final nextTrip = _findNextTrip(recentPlans);
+    final otherPlans = recentPlans
+        .where((plan) => plan.id != nextTrip?.id)
+        .toList();
 
     return Scaffold(
-      drawer: _buildDrawer(context),
       body: RefreshablePageWrapper(
         onRefresh: onRefresh,
         child: CustomScrollView(
           slivers: [
             _buildSliverAppBar(context),
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+              child: ResponsiveContent(
+                expandedMaxWidth: 1240,
+                compactPadding: const EdgeInsets.all(16),
+                mediumPadding: const EdgeInsets.all(24),
+                expandedPadding: const EdgeInsets.all(32),
                 child: isLoading && recentPlans.isEmpty && activeGroups.isEmpty
                     ? const Padding(
                         padding: EdgeInsets.only(top: 24, bottom: 80),
@@ -104,44 +108,58 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildGreetingSection(context),
-                          if (offlineSync.pendingCount > 0) ...[
-                            const SizedBox(height: 12),
-                            Card(
-                              child: ListTile(
-                                leading: offlineSync.isSyncing
-                                    ? const SizedBox.square(
-                                        dimension: 22,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.cloud_off_outlined),
-                                title: Text(
-                                  l10n.t(
-                                    'offline.pending_title',
-                                    params: {
-                                      'count': offlineSync.pendingCount
-                                          .toString(),
-                                    },
+                          const _OfflineSyncStatus(),
+                          const SizedBox(height: 24),
+                          if (AppBreakpoints.isExpanded(context) &&
+                              nextTrip != null)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: _buildNextAdventure(context, nextTrip),
+                                ),
+                                if (unreadCount > 0) ...[
+                                  const SizedBox(width: AppSpacing.lg),
+                                  Expanded(
+                                    child: _buildAttentionCard(
+                                      context,
+                                      unreadCount,
+                                    ),
                                   ),
-                                ),
-                                subtitle: Text(l10n.t('offline.pending_hint')),
-                                trailing: IconButton(
-                                  tooltip: l10n.t('common.retry'),
-                                  onPressed: offlineSync.isSyncing
-                                      ? null
-                                      : offlineSync.flush,
-                                  icon: const Icon(Icons.sync),
-                                ),
-                              ),
-                            ),
+                                ],
+                              ],
+                            )
+                          else ...[
+                            if (nextTrip != null)
+                              _buildNextAdventure(context, nextTrip),
+                            if (unreadCount > 0) ...[
+                              const SizedBox(height: AppSpacing.lg),
+                              _buildAttentionCard(context, unreadCount),
+                            ],
                           ],
                           const SizedBox(height: 24),
-                          _buildQuickActions(context),
-                          const SizedBox(height: 24),
-                          _buildRecentPlans(context, recentPlans),
-                          const SizedBox(height: 24),
-                          _buildActiveGroups(context, activeGroups),
+                          if (AppBreakpoints.isExpanded(context))
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: _buildRecentPlans(context, otherPlans),
+                                ),
+                                const SizedBox(width: 24),
+                                Expanded(
+                                  child: _buildActiveGroups(
+                                    context,
+                                    activeGroups,
+                                  ),
+                                ),
+                              ],
+                            )
+                          else ...[
+                            _buildRecentPlans(context, otherPlans),
+                            const SizedBox(height: 24),
+                            _buildActiveGroups(context, activeGroups),
+                          ],
                           const SizedBox(height: 100),
                         ],
                       ),
@@ -153,312 +171,296 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildDrawerHeader(context),
-            _buildDrawerMenuItems(context),
-            const Spacer(),
-            _buildDrawerFooter(context),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSliverAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 200,
-      floating: false,
       pinned: true,
-      leading: Builder(
-        builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-        ),
+      automaticallyImplyLeading: false,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      surfaceTintColor: Colors.transparent,
+      title: PlanPalLogo(
+        height: 38,
+        onTap: () => context.go(kIsWeb ? '/' : '/welcome'),
       ),
       actions: [
+        if (AppBreakpoints.isCompact(context))
+          IconButton(
+            tooltip: context.l10n.t('home.conversations'),
+            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            onPressed: () => context.push('/conversations'),
+          ),
         IconButton(
           tooltip: context.l10n.t('search.title'),
-          icon: const Icon(Icons.search, color: Colors.white),
-          onPressed: () => Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const GlobalSearchPage())),
+          icon: const Icon(Icons.search),
+          onPressed: () => context.push('/explore'),
         ),
         Consumer(
           builder: (context, ref, child) {
             final unreadCount = ref.watch(unreadCountProvider).valueOrNull ?? 0;
             return IconButton(
               icon: _buildNotificationBadge(
-                child: const Icon(
-                  Icons.notifications_none,
-                  color: Colors.white,
-                ),
+                child: const Icon(Icons.notifications_none),
                 count: unreadCount,
                 badgeColor: AppColors.error,
               ),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const NotificationListPage(),
-                ),
-              ),
-            );
-          },
-        ),
-        Consumer(
-          builder: (context, ref, child) {
-            final isDark = ref.watch(isDarkModeProvider);
-            return IconButton(
-              icon: Icon(
-                isDark ? Icons.light_mode : Icons.dark_mode,
-                color: Colors.white,
-              ),
-              onPressed: () =>
-                  ref.read(themeNotifierProvider.notifier).toggleTheme(),
+              onPressed: () => context.push('/notifications'),
             );
           },
         ),
       ],
-      flexibleSpace: FlexibleSpaceBar(
-        title: Text(
-          context.l10n.t('common.app_name'),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+    );
+  }
+
+  PlanSummary? _findNextTrip(List<PlanSummary> plans) {
+    for (final plan in plans) {
+      if (plan.isOngoing || plan.isUpcoming) return plan;
+    }
+    return plans.isEmpty ? null : plans.first;
+  }
+
+  Widget _buildAttentionCard(BuildContext context, int unreadCount) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        JourneySectionHeader(
+          title: context.l10n.t('home.needs_attention'),
+          icon: Icons.notifications_active_outlined,
         ),
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: AppColors.primaryGradient,
-            ),
-          ),
-          child: Stack(
+        const SizedBox(height: AppSpacing.sm),
+        JourneySurface(
+          semanticLabel: context.l10n.t('home.review_updates'),
+          onTap: () => context.push('/notifications'),
+          child: Row(
             children: [
-              Positioned(
-                top: 60,
-                right: -50,
-                child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.2),
-                  ),
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: colors.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                ),
+                child: Icon(
+                  Icons.mark_email_unread_outlined,
+                  color: colors.onTertiaryContainer,
                 ),
               ),
-              Positioned(
-                bottom: -30,
-                left: -30,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n.t(
+                        'home.unread_updates',
+                        params: {'count': unreadCount.toString()},
+                      ),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      context.l10n.t('home.review_updates'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const Icon(Icons.arrow_forward_rounded),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildDrawerHeader(BuildContext context) {
-    final user = ref.read(authNotifierProvider).user;
-    final l10n = context.l10n;
-    return DrawerHeader(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: AppColors.primaryGradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  Widget _buildNextAdventure(BuildContext context, PlanSummary plan) {
+    final theme = Theme.of(context);
+    // Keep the trip hero readable independently from the dynamic scheme's
+    // primary/onPrimary pair. In particular, light themes must not render a
+    // pale primary surface with white trip details.
+    final heroBackground = theme.brightness == Brightness.dark
+        ? AppColors.oceanTeal
+        : AppColors.primaryDark;
+    const heroForeground = Colors.white;
+    final heroMutedForeground = heroForeground.withValues(alpha: .82);
+    final now = DateTime.now();
+    final departure = plan.startDate;
+    final daysUntilDeparture = departure == null
+        ? null
+        : DateTime(
+            departure.year,
+            departure.month,
+            departure.day,
+          ).difference(DateTime(now.year, now.month, now.day)).inDays;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        JourneySectionHeader(
+          title: context.l10n.t('home.next_adventure'),
+          icon: Icons.explore_outlined,
         ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-            ),
-            child: ClipOval(
-              child: user != null && user.avatarUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: user.avatarUrl!,
-                      width: 64,
-                      height: 64,
-                      fit: BoxFit.cover,
-                      placeholder: (c, u) => Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                      ),
-                      errorWidget: (c, u, e) => Container(
-                        color: Colors.grey[100],
-                        child: Center(
-                          child: Text(
-                            user.initials.isNotEmpty ? user.initials : '?',
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey,
+        const SizedBox(height: AppSpacing.sm),
+        Semantics(
+          button: true,
+          label: plan.title,
+          child: Material(
+            color: heroBackground,
+            borderRadius: BorderRadius.circular(AppRadius.sheet),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => context.push('/plans/${plan.id}'),
+              child: JourneyPathBackdrop(
+                color: heroForeground,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  plan.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(
+                                        color: heroForeground,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                ),
+                                if (plan.groupName?.isNotEmpty == true) ...[
+                                  const SizedBox(height: AppSpacing.xxs),
+                                  Text(
+                                    plan.groupName!,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: heroMutedForeground,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                        ),
+                          if (daysUntilDeparture != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: AppSpacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: heroForeground.withValues(alpha: .16),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.control,
+                                ),
+                              ),
+                              child: Text(
+                                daysUntilDeparture <= 0
+                                    ? context.l10n.t('home.departure_today')
+                                    : context.l10n.t(
+                                        'home.days_to_go',
+                                        params: {
+                                          'count': daysUntilDeparture
+                                              .toString(),
+                                        },
+                                      ),
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: heroForeground,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                    )
-                  : Container(
-                      color: Colors.grey[100],
-                      child: Center(
-                        child: Text(
-                          user?.initials ?? '?',
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
+                      const SizedBox(height: AppSpacing.xl),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_month_outlined,
+                            size: 18,
+                            color: heroForeground,
                           ),
-                        ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              _tripDateLabel(context, plan),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: heroForeground,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            context.l10n.t(
+                              'home.activity_progress',
+                              params: {
+                                'count': plan.activitiesCount.toString(),
+                              },
+                            ),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: heroMutedForeground,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            user?.fullName ?? l10n.t('common.not_logged_in'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          if (user != null && user.email != null && user.email!.isNotEmpty)
-            Text(
-              user.email!,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDrawerMenuItems(BuildContext context) {
-    final l10n = context.l10n;
-    return Column(
-      children: [
-        Consumer(
-          builder: (context, ref, child) {
-            final unreadCount = ref.watch(unreadCountProvider).valueOrNull ?? 0;
-
-            return ListTile(
-              leading: _buildNotificationBadge(
-                child: const Icon(Icons.notifications_outlined),
-                count: unreadCount,
-                badgeColor: AppColors.primary,
-              ),
-              title: Text(l10n.t('home.notifications')),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const NotificationListPage(),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 17,
+                            backgroundColor: heroForeground,
+                            foregroundColor: heroBackground,
+                            backgroundImage:
+                                plan.creator.avatarUrl?.isNotEmpty == true
+                                ? CachedNetworkImageProvider(
+                                    plan.creator.avatarUrl!,
+                                  )
+                                : null,
+                            child: plan.creator.avatarUrl?.isNotEmpty == true
+                                ? null
+                                : Text(plan.creator.initials),
+                          ),
+                          const Spacer(),
+                          Text(
+                            context.l10n.t('home.continue_planning'),
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: heroForeground,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 18,
+                            color: heroForeground,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                );
-                if (!mounted) return;
-                ref.invalidate(unreadCountProvider);
-              },
-            );
-          },
-        ),
-        Consumer(
-          builder: (context, ref, child) {
-            final unreadCount = ref.watch(totalUnreadCountProvider);
-
-            return ListTile(
-              leading: _buildNotificationBadge(
-                child: const Icon(Icons.chat_bubble),
-                count: unreadCount,
+                ),
               ),
-              title: Text(l10n.t('home.conversations')),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ConversationListPage(),
-                  ),
-                );
-                if (!mounted) return;
-                ref.invalidate(conversationListProvider);
-              },
-            );
-          },
-        ),
-        ListTile(
-          leading: const Icon(Icons.groups),
-          title: Text(l10n.t('home.groups')),
-          onTap: () {
-            Navigator.of(context).pop();
-            Navigator.of(context).pushNamed('/group');
-          },
-        ),
-        ListTile(
-          leading: const Icon(Icons.event_note),
-          title: Text(l10n.t('home.plans')),
-          onTap: () {
-            Navigator.of(context).pop();
-            Navigator.of(context).pushNamed('/plan');
-          },
-        ),
-        if ((ref.read(authNotifierProvider).user?.isStaff ?? false))
-          ListTile(
-            leading: const Icon(Icons.insights),
-            title: Text(l10n.t('home.analytics')),
-            onTap: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pushNamed('/analytics');
-            },
+            ),
           ),
-        ListTile(
-          leading: const Icon(Icons.language_rounded),
-          title: Text(l10n.t('common.language')),
-          subtitle: Text(
-            l10n.languageName(ref.watch(currentAppLanguageProvider).code),
-          ),
-          onTap: () => _showLanguageSheet(context),
-        ),
-        ListTile(
-          leading: const Icon(Icons.person),
-          title: Text(l10n.t('home.profile')),
-          onTap: () {
-            Navigator.of(context).pop();
-            Navigator.of(context).pushNamed('/profile');
-          },
         ),
       ],
     );
   }
 
-  Widget _buildDrawerFooter(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Text(
-        context.l10n.t('home.copyright'),
-        style: const TextStyle(color: Colors.grey, fontSize: 12),
-        textAlign: TextAlign.center,
-      ),
-    );
+  String _tripDateLabel(BuildContext context, PlanSummary plan) {
+    if (plan.startDate == null) return context.l10n.t('plan.no_date');
+    final start = AppFormatters.shortDate(context, plan.startDate!);
+    if (plan.endDate == null) return start;
+    return '$start - ${AppFormatters.shortDate(context, plan.endDate!)}';
   }
 
   Widget _buildGreetingSection(BuildContext context) {
@@ -478,150 +480,44 @@ class _HomeContentState extends ConsumerState<_HomeContent>
       greetingIcon = Icons.nights_stay;
     }
 
-    return GFCard(
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.all(0),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(AppRadius.control),
+          ),
+          child: Icon(
+            greetingIcon,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(greetingIcon, color: AppColors.primary, size: 28),
-              const SizedBox(width: 12),
               Text(
                 greeting,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                l10n.t('home.ready_for_trip'),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            l10n.t('home.ready_for_trip'),
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActions(BuildContext context) {
-    final l10n = context.l10n;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.t('home.quick_actions'),
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: _handleQuickCreatePlan,
-                child: _buildQuickActionCard(
-                  color: AppColors.primary,
-                  icon: Icons.add_location_alt,
-                  label: l10n.t('home.create_plan'),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const GroupInviteCodeJoinPage(),
-                    ),
-                  );
-                },
-                child: _buildQuickActionCard(
-                  color: AppColors.secondary,
-                  icon: Icons.group_add,
-                  label: l10n.t('home.join_group'),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const FriendSearchPage(),
-                    ),
-                  );
-                },
-                child: _buildQuickActionCard(
-                  color: AppColors.success,
-                  icon: Icons.person_search,
-                  label: l10n.t('home.find_friends'),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const CurrentLocationMapPage(),
-                    ),
-                  );
-                },
-                child: _buildQuickActionCard(
-                  color: AppColors.warning,
-                  icon: Icons.map,
-                  label: l10n.t('home.map'),
-                ),
-              ),
-            ),
-          ],
         ),
       ],
-    );
-  }
-
-  Widget _buildQuickActionCard({
-    required Color color,
-    required IconData icon,
-    required String label,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 
@@ -643,7 +539,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pushNamed('/plan'),
+              onPressed: () => context.push('/plans'),
               child: Text(l10n.t('common.view_all')),
             ),
           ],
@@ -665,46 +561,12 @@ class _HomeContentState extends ConsumerState<_HomeContent>
               itemCount: recentPlans.length,
               itemBuilder: (context, index) {
                 final plan = recentPlans[index];
-                return GestureDetector(
-                  onTap: () async {
-                    final id = plan.id;
-                    if (id.isEmpty) return;
-
-                    final result = await Navigator.of(context)
-                        .push<Map<String, dynamic>>(
-                          MaterialPageRoute(
-                            builder: (_) => PlanDetailsPage(id: id),
-                          ),
-                        );
-                    if (!mounted) return;
-
-                    if (result != null) {
-                      if (result['action'] == 'delete' && result['id'] == id) {
-                        ref.read(plansNotifierProvider.notifier).removePlan(id);
-                      }
-
-                      if ((result['action'] == 'updated' ||
-                              result['action'] == 'edit') &&
-                          result['plan'] is Map) {
-                        try {
-                          final updated = PlanSummary.fromJson(
-                            Map<String, dynamic>.from(result['plan'] as Map),
-                          );
-                          ref
-                              .read(plansNotifierProvider.notifier)
-                              .updatePlan(updated);
-                        } catch (_) {
-                          // Ignore malformed return payload.
-                        }
-                      }
-                    }
-                  },
-                  child: _buildPlanCardItem(
-                    context,
-                    index,
-                    plan,
-                    totalCount: recentPlans.length,
-                  ),
+                return _buildPlanCardItem(
+                  context,
+                  index,
+                  plan,
+                  totalCount: recentPlans.length,
+                  onTap: () => _openRecentPlan(plan),
                 );
               },
             ),
@@ -731,7 +593,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pushNamed('/group'),
+              onPressed: () => context.push('/groups'),
               child: Text(l10n.t('common.view_all')),
             ),
           ],
@@ -750,18 +612,13 @@ class _HomeContentState extends ConsumerState<_HomeContent>
             itemCount: activeGroups.length,
             itemBuilder: (context, index) {
               final group = activeGroups[index];
-              return GestureDetector(
+              return _buildGroupCardItem(
+                context,
+                index,
+                group,
                 onTap: () {
-                  final id = group.id;
-                  if (id.isNotEmpty) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => GroupDetailsPage(id: id),
-                      ),
-                    );
-                  }
+                  if (group.id.isNotEmpty) context.push('/groups/${group.id}');
                 },
-                child: _buildGroupCardItem(context, index, group),
               );
             },
           ),
@@ -769,11 +626,37 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     );
   }
 
+  Future<void> _openRecentPlan(PlanSummary plan) async {
+    final id = plan.id;
+    if (id.isEmpty) return;
+
+    final result = await context.push<Map<String, dynamic>>('/plans/$id');
+    if (!mounted || result == null) return;
+
+    if (result['action'] == 'delete' && result['id'] == id) {
+      ref.read(plansNotifierProvider.notifier).removePlan(id);
+      return;
+    }
+
+    if ((result['action'] == 'updated' || result['action'] == 'edit') &&
+        result['plan'] is Map) {
+      try {
+        final updated = PlanSummary.fromJson(
+          Map<String, dynamic>.from(result['plan'] as Map),
+        );
+        ref.read(plansNotifierProvider.notifier).updatePlan(updated);
+      } catch (_) {
+        // Ignore malformed return payload.
+      }
+    }
+  }
+
   Widget _buildPlanCardItem(
     BuildContext context,
     int index,
     PlanSummary plan, {
     required int totalCount,
+    VoidCallback? onTap,
   }) {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
@@ -784,12 +667,10 @@ class _HomeContentState extends ConsumerState<_HomeContent>
     return Container(
       width: 280,
       margin: EdgeInsets.only(right: index == totalCount - 1 ? 0 : 16),
-      child: GFCard(
+      child: JourneySurface(
+        onTap: onTap,
         padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.all(0),
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -800,7 +681,7 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                     color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.event, color: color, size: 20),
+                  child: Icon(Icons.near_me_outlined, color: color, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -818,11 +699,13 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                       ),
                       if (plan.startDate != null || plan.endDate != null)
                         Text(
-                          plan.dateRange,
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
+                          _tripDateLabel(context, plan),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
                     ],
                   ),
@@ -836,18 +719,40 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                   'home.group_prefix',
                   params: {'group': plan.groupName!},
                 ),
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-            const SizedBox(height: 12),
+            const Spacer(),
+            JourneyRouteProgress(
+              completedStops: plan.isCompleted
+                  ? 3
+                  : plan.isOngoing
+                  ? 2
+                  : plan.isUpcoming
+                  ? 1
+                  : 0,
+              color: color,
+            ),
+            const SizedBox(height: 10),
             Row(
               children: [
-                Icon(Icons.event_note, size: 16, color: Colors.grey[600]),
+                Icon(
+                  Icons.route_outlined,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 4),
                 Text(
-                  plan.activitiesCountText,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  context.l10n.t(
+                    'home.activity_progress',
+                    params: {'count': plan.activitiesCount.toString()},
+                  ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const Spacer(),
                 Container(
@@ -887,8 +792,9 @@ class _HomeContentState extends ConsumerState<_HomeContent>
   Widget _buildGroupCardItem(
     BuildContext context,
     int index,
-    GroupSummary group,
-  ) {
+    GroupSummary group, {
+    VoidCallback? onTap,
+  }) {
     final colors = AppColors.cardColors;
     final color = colors[index % colors.length];
     final name = group.name.isNotEmpty
@@ -897,12 +803,10 @@ class _HomeContentState extends ConsumerState<_HomeContent>
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: GFCard(
+      child: JourneySurface(
+        onTap: onTap,
         padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.all(0),
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content: Row(
+        child: Row(
           children: [
             Container(
               width: 50,
@@ -951,7 +855,9 @@ class _HomeContentState extends ConsumerState<_HomeContent>
                   const SizedBox(height: 4),
                   Text(
                     group.memberCountText,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -1007,57 +913,45 @@ class _HomeContentState extends ConsumerState<_HomeContent>
       ],
     );
   }
+}
 
-  Future<void> _showLanguageSheet(BuildContext context) async {
+class _OfflineSyncStatus extends ConsumerWidget {
+  const _OfflineSyncStatus();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pendingCount = ref.watch(
+      offlineSyncProvider.select((service) => service.pendingCount),
+    );
+    final isSyncing = ref.watch(
+      offlineSyncProvider.select((service) => service.isSyncing),
+    );
+    if (pendingCount == 0) return const SizedBox.shrink();
     final l10n = context.l10n;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return Consumer(
-          builder: (context, ref, child) {
-            final currentLanguage = ref.watch(currentAppLanguageProvider);
-            return SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    title: Text(
-                      l10n.t('home.language_sheet_title'),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  _LanguageTile(
-                    label: l10n.t('common.language_vietnamese'),
-                    selected: currentLanguage == AppLanguage.vietnamese,
-                    onTap: () async {
-                      await ref
-                          .read(localeNotifierProvider.notifier)
-                          .setLanguage(AppLanguage.vietnamese);
-                      if (!sheetContext.mounted) return;
-                      Navigator.of(sheetContext).pop();
-                    },
-                  ),
-                  _LanguageTile(
-                    label: l10n.t('common.language_english'),
-                    selected: currentLanguage == AppLanguage.english,
-                    onTap: () async {
-                      await ref
-                          .read(localeNotifierProvider.notifier)
-                          .setLanguage(AppLanguage.english);
-                      if (!sheetContext.mounted) return;
-                      Navigator.of(sheetContext).pop();
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Card(
+        child: ListTile(
+          leading: isSyncing
+              ? const SizedBox.square(
+                  dimension: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.cloud_off_outlined),
+          title: Text(
+            l10n.t(
+              'offline.pending_title',
+              params: {'count': pendingCount.toString()},
+            ),
+          ),
+          subtitle: Text(l10n.t('offline.pending_hint')),
+          trailing: IconButton(
+            tooltip: l10n.t('common.retry'),
+            onPressed: isSyncing ? null : ref.read(offlineSyncProvider).flush,
+            icon: const Icon(Icons.sync),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1073,36 +967,6 @@ class _ActiveDot extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppColors.success,
         shape: BoxShape.circle,
-      ),
-    );
-  }
-}
-
-class _LanguageTile extends StatelessWidget {
-  const _LanguageTile({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final Future<void> Function() onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      title: Text(
-        label,
-        style: TextStyle(
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-        ),
-      ),
-      trailing: AnimatedOpacity(
-        opacity: selected ? 1 : 0,
-        duration: const Duration(milliseconds: 160),
-        child: const Icon(Icons.check_rounded, color: AppColors.primary),
       ),
     );
   }

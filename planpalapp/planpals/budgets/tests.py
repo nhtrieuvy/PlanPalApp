@@ -580,6 +580,128 @@ class BudgetTrackingTests(TestCase):
         self.assertEqual(corrected.expense.corrects_expense_id, original.id)
         self.assertEqual(corrected.summary.total_spent, Decimal('300.00'))
         self.assertEqual(corrected.summary.expense_count, 1)
+        balances = self.budget_service.get_balances(self.plan.id, self.owner)
+        by_user = {item.user_id: item for item in balances.balances}
+        self.assertEqual(balances.total_expenses, Decimal('300.00'))
+        self.assertEqual(by_user[self.owner.id].net_balance, Decimal('150.00'))
+        self.assertEqual(by_user[self.member.id].net_balance, Decimal('-150.00'))
+
+    def test_expense_correction_can_change_payer_and_payment_contributions(self):
+        original = self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='100.00',
+            category='Food',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+        ).expense
+        self.client.force_authenticate(self.owner)
+        url = reverse(
+            'plan-expense-corrections',
+            kwargs={'plan_id': self.plan.id, 'expense_id': original.id},
+        )
+        reassigned = self.client.post(url, {
+            'amount': '100.00',
+            'category': 'Food',
+            'reason': 'Member paid instead',
+            'paid_by_user_id': str(self.member.id),
+        }, format='json')
+        self.assertEqual(reassigned.status_code, status.HTTP_201_CREATED)
+        reassigned_id = reassigned.data['expense']['id']
+        self.assertEqual(reassigned.data['expense']['paid_by_user_id'], self.member.id)
+        self.assertEqual(Expense.objects.get(id=original.id).paid_by_user_id, self.owner.id)
+        balances = self.budget_service.get_balances(self.plan.id, self.owner)
+        by_user = {item.user_id: item for item in balances.balances}
+        self.assertEqual(by_user[self.owner.id].net_balance, Decimal('-50.00'))
+        self.assertEqual(by_user[self.member.id].net_balance, Decimal('50.00'))
+
+        shared = self.client.post(reverse(
+            'plan-expense-corrections',
+            kwargs={'plan_id': self.plan.id, 'expense_id': reassigned_id},
+        ), {
+            'amount': '100.00',
+            'category': 'Food',
+            'reason': 'Both contributed',
+            'payments': [
+                {'user_id': str(self.owner.id), 'amount': '30.00'},
+                {'user_id': str(self.member.id), 'amount': '70.00'},
+            ],
+        }, format='json')
+        self.assertEqual(shared.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(shared.data['expense']['paid_by_user_id'], self.member.id)
+        self.assertEqual(len(shared.data['expense']['payments']), 2)
+        balances = self.budget_service.get_balances(self.plan.id, self.owner)
+        by_user = {item.user_id: item for item in balances.balances}
+        self.assertEqual(balances.total_expenses, Decimal('100.00'))
+        self.assertEqual(by_user[self.owner.id].net_balance, Decimal('-20.00'))
+        self.assertEqual(by_user[self.member.id].net_balance, Decimal('20.00'))
+
+    def test_expense_correction_rejects_non_member_payer(self):
+        original = self.budget_service.add_expense(
+            self.plan.id, self.owner, amount='100.00', category='Food',
+        ).expense
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(reverse(
+            'plan-expense-corrections',
+            kwargs={'plan_id': self.plan.id, 'expense_id': original.id},
+        ), {
+            'amount': '100.00',
+            'category': 'Food',
+            'reason': 'Invalid payer',
+            'paid_by_user_id': str(self.outsider.id),
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Expense.objects.count(), 1)
+
+    def test_expense_and_settlement_inherit_budget_currency(self):
+        self.client.force_authenticate(self.owner)
+        budget_url = reverse('plan-budget', kwargs={'plan_id': self.plan.id})
+        expense_url = reverse('plan-expenses', kwargs={'plan_id': self.plan.id})
+        self.assertEqual(self.client.post(
+            budget_url, {'total_budget': '1000.00', 'currency': 'USD'}, format='json'
+        ).status_code, status.HTTP_200_OK)
+        expense = self.client.post(expense_url, {
+            'amount': '100.00',
+            'category': 'Food',
+            'participants': [
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+        }, format='json')
+        self.assertEqual(expense.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Expense.objects.get().currency, 'USD')
+        self.assertEqual(self.client.post(expense_url, {
+            'amount': '10.00', 'category': 'Food', 'currency': 'VND',
+        }, format='json').status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.client.force_authenticate(self.member)
+        settlement_url = reverse('settlements')
+        settlement = self.client.post(settlement_url, {
+            'plan_id': str(self.plan.id),
+            'from_user_id': str(self.member.id),
+            'to_user_id': str(self.owner.id),
+            'amount': '50.00',
+        }, format='json')
+        self.assertEqual(settlement.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Settlement.objects.get().currency, 'USD')
+        self.assertEqual(self.client.post(settlement_url, {
+            'plan_id': str(self.plan.id),
+            'from_user_id': str(self.member.id),
+            'to_user_id': str(self.owner.id),
+            'amount': '10.00',
+            'currency': 'VND',
+        }, format='json').status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.client.force_authenticate(self.owner)
+        self.assertEqual(self.client.post(
+            budget_url, {'total_budget': '1200.00'}, format='json'
+        ).status_code, status.HTTP_200_OK)
+        self.assertEqual(Budget.objects.get(plan=self.plan).currency, 'USD')
+        self.assertEqual(self.client.post(
+            budget_url, {'total_budget': '1200.00', 'currency': 'VND'}, format='json'
+        ).status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_recurring_expense_generation_is_advanced_after_one_occurrence(self):
         next_run = timezone.now() + timedelta(days=1)
@@ -734,18 +856,60 @@ class BudgetTrackingTests(TestCase):
                 'category': 'Restaurant',
                 'description': 'Correct total',
                 'reason': 'Receipt was read incorrectly',
+                'split_strategy': 'exact',
+                'participants': [
+                    {'user_id': str(self.owner.id), 'amount': '50.00'},
+                    {'user_id': str(self.member.id), 'amount': '100.00'},
+                ],
             },
             format='json',
         )
         self.assertEqual(correction_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(correction_response.data['expense']['entry_type'], 'correction')
+        self.assertEqual(correction_response.data['expense']['split_strategy'], 'exact')
+        self.assertEqual(len(correction_response.data['expense']['participants']), 2)
         self.assertEqual(correction_response.data['summary']['total_spent'], Decimal('150.00'))
+
+        expenses_response = self.client.get(
+            reverse('plan-expenses', kwargs={'plan_id': self.plan.id}),
+        )
+        self.assertEqual(expenses_response.data['count'], 1)
+        self.assertEqual(expenses_response.data['results'][0]['id'], correction_response.data['expense']['id'])
 
         insights_response = self.client.get(
             reverse('plan-finance-insights', kwargs={'plan_id': self.plan.id}),
         )
         self.assertEqual(insights_response.status_code, status.HTTP_200_OK)
         self.assertEqual(insights_response.data['categories'][0]['category'], 'Restaurant')
+
+    def test_expense_delete_recalculates_ledger_and_keeps_audit_record(self):
+        expense = self.budget_service.add_expense(
+            self.plan.id,
+            self.member,
+            amount='125.00',
+            category='Transport',
+        ).expense
+        self.client.force_authenticate(self.member)
+
+        response = self.client.delete(
+            reverse(
+                'plan-expense-detail',
+                kwargs={'plan_id': self.plan.id, 'expense_id': expense.id},
+            ),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(
+            self.budget_service.get_budget_summary(self.plan.id, self.owner).total_spent,
+            Decimal('0.00'),
+        )
+        self.assertIsNotNone(Expense.objects.get(id=expense.id).deleted_at)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action=AuditAction.DELETE_EXPENSE.value,
+                resource_id=self.plan.id,
+            ).exists()
+        )
 
     def test_outsider_cannot_read_settlements_or_finance_insights(self):
         self.client.force_authenticate(self.outsider)

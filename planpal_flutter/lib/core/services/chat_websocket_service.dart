@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/reconnect_policy.dart';
+import 'package:planpal_flutter/core/services/websocket_auth_service.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import 'package:flutter/foundation.dart';
@@ -170,7 +171,8 @@ class ChatWebSocketService {
     try {
       _setConnectionState(ConnectionState.connecting);
 
-      final wsUrl = '$baseWsUrl/ws/chat/$_conversationId/?token=$_token';
+      final authQuery = await webSocketAuthQuery(_token!);
+      final wsUrl = '$baseWsUrl/ws/chat/$_conversationId/?$authQuery';
 
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 

@@ -16,6 +16,7 @@ class Endpoints {
   // OAuth2 endpoints
   static const String token = '/o/token/';
   static String get logout => _v1('/auth/logout/');
+  static String get websocketTicket => _v1('/auth/websocket-ticket/');
 
   // User endpoints
   static String get register => _v1('/users/');
@@ -44,6 +45,12 @@ class Endpoints {
 
   // Dynamic endpoints
   static String planDetails(String planId) => _v1('/plans/$planId/');
+  static String planPublication(String planId) =>
+      _v1('/plans/$planId/publication/');
+  static String publishedProfile(String userId) =>
+      _v1('/users/$userId/published-profile/');
+  static String publicationPreview(String publicationId) =>
+      _v1('/publications/$publicationId/');
   static String planActivitiesByDate(String planId, String date) =>
       _v1('/plans/$planId/activities_by_date/?date=$date');
   static String planSchedule(String planId) => _v1('/plans/$planId/schedule/');
@@ -51,6 +58,8 @@ class Endpoints {
   static String planCancel(String planId) => _v1('/plans/$planId/cancel/');
   static String planBudget(String planId) => _v1('/plans/$planId/budget/');
   static String planExpenses(String planId) => _v1('/plans/$planId/expenses/');
+  static String planExpense(String planId, String expenseId) =>
+      _v1('/plans/$planId/expenses/$expenseId/');
   static String planBalances(String planId) => _v1('/plans/$planId/balances/');
   static String planFinanceInsights(String planId) =>
       _v1('/plans/$planId/finance-insights/');
@@ -64,8 +73,7 @@ class Endpoints {
       _v1('/groups/$groupId/availability-polls/');
   static String availabilityPollVote(String pollId) =>
       _v1('/availability-polls/$pollId/vote/');
-  static String groupPolls(String groupId) =>
-      _v1('/groups/$groupId/polls/');
+  static String groupPolls(String groupId) => _v1('/groups/$groupId/polls/');
   static String groupPollVote(String pollId) =>
       _v1('/group-polls/$pollId/vote/');
   static String groupPollClose(String pollId) =>
@@ -136,6 +144,9 @@ class Endpoints {
   // Friendship endpoints
   static String get friendRequest => _v1('/friends/request/');
   static String get friendRequests => _v1('/friends/requests/');
+  static String get friendTripInvitations => _v1('/friends/trip-invitations/');
+  static String friendTripDecision(String invitationId) =>
+      _v1('/friends/trip-invitations/$invitationId/decision/');
   static String get friends => _v1('/friends/');
   static String friendRequestAction(String requestId) =>
       _v1('/friends/requests/$requestId/action/');

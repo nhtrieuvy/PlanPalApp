@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,9 @@ import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
+import 'package:planpal_flutter/presentation/widgets/design_system/journey_ui.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 
 class UserProfilePage extends ConsumerStatefulWidget {
   final UserSummary user;
@@ -29,6 +33,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
   bool _actionLoading = false;
   bool _profileAccessDenied = false;
   String? _accessDeniedMessage;
+  List<Map<String, dynamic>> _publications = const [];
+  bool _publicationsLoading = true;
+  bool _publicationsError = false;
+  String? _nextPublicationsUrl;
+  bool _loadingMorePublications = false;
+  bool _checkingProfileAccess = false;
 
   @override
   void initState() {
@@ -51,12 +61,14 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
-    _checkProfileAccess();
+    _checkProfileAccess(silent: true);
   }
 
-  Future<void> _checkProfileAccess() async {
+  Future<void> _checkProfileAccess({bool silent = false}) async {
+    if (_checkingProfileAccess) return;
+    _checkingProfileAccess = true;
     final l10n = context.l10n;
-    setState(() => _loading = true);
+    if (!silent) setState(() => _loading = true);
     try {
       final profile = await ref
           .read(friendRepositoryProvider)
@@ -64,8 +76,11 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
       if (!mounted) return;
       setState(() {
         _user = profile;
+        _profileAccessDenied = false;
+        _accessDeniedMessage = null;
       });
-      await _loadFriendshipStatus();
+      await _syncFriendshipStatus(stopLoading: !silent);
+      await _loadPublications(silent: silent);
     } catch (error) {
       if (!mounted) return;
 
@@ -82,8 +97,8 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
         return;
       }
 
-      setState(() => _loading = false);
-      if (mounted) {
+      if (!silent) setState(() => _loading = false);
+      if (!silent && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -97,6 +112,127 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
           ),
         );
       }
+    } finally {
+      _checkingProfileAccess = false;
+    }
+  }
+
+  Future<void> _loadPublications({bool silent = false}) async {
+    if (!silent && mounted) setState(() => _publicationsLoading = true);
+    try {
+      final data = await ref
+          .read(friendRepositoryProvider)
+          .getPublishedProfile(widget.user.id);
+      if (!mounted) return;
+      setState(() {
+        _publications = (data['publications'] as List? ?? const [])
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+        _nextPublicationsUrl = data['next']?.toString();
+        _publicationsLoading = false;
+        _publicationsError = false;
+      });
+    } catch (_) {
+      if (mounted && !silent) {
+        setState(() {
+          _publicationsLoading = false;
+          _publicationsError = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMorePublications() async {
+    final nextUrl = _nextPublicationsUrl;
+    if (nextUrl == null || _loadingMorePublications) return;
+    setState(() => _loadingMorePublications = true);
+    try {
+      final data = await ref
+          .read(friendRepositoryProvider)
+          .getPublishedProfile(_user.id, nextPageUrl: nextUrl);
+      if (!mounted) return;
+      setState(() {
+        _publications.addAll(
+          (data['publications'] as List? ?? const []).map(
+            (item) => Map<String, dynamic>.from(item as Map),
+          ),
+        );
+        _nextPublicationsUrl = data['next']?.toString();
+        _loadingMorePublications = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loadingMorePublications = false);
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        ErrorDisplayService.getUserFriendlyMessage(error),
+      );
+    }
+  }
+
+  Future<void> _inviteToTrip() async {
+    final controller = TextEditingController();
+    final name = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: 680),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              context.l10n.t('friend_trip.invite_title'),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            Text(context.l10n.t('friend_trip.invite_hint')),
+            const SizedBox(height: 20),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 120,
+              decoration: InputDecoration(
+                labelText: context.l10n.t('friend_trip.name'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) Navigator.pop(sheetContext, value);
+              },
+              child: Text(context.l10n.t('friend_trip.send')),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (name == null || !mounted) return;
+    setState(() => _actionLoading = true);
+    try {
+      await ref
+          .read(friendRepositoryProvider)
+          .inviteFriendToTrip(_user.id, name);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.t('friend_trip.sent'))),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        ErrorDisplayService.getUserFriendlyMessage(error),
+      );
+    } finally {
+      if (mounted) setState(() => _actionLoading = false);
     }
   }
 
@@ -509,13 +645,14 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
     return Scaffold(
       appBar: AppBar(
         title: Text(_user.fullName),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
         actions: !isOwnProfile && !_profileAccessDenied
             ? [
                 PopupMenuButton<String>(
                   onSelected: (value) {
                     switch (value) {
+                      case 'unfriend':
+                        _unfriend();
+                        break;
                       case 'block':
                         _blockUser();
                         break;
@@ -525,12 +662,20 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                     }
                   },
                   itemBuilder: (context) => [
+                    if (_friendshipStatus == 'accepted')
+                      PopupMenuItem(
+                        value: 'unfriend',
+                        child: Text(context.l10n.t('user_profile.unfriend')),
+                      ),
                     if (_friendshipStatus != 'blocked')
                       PopupMenuItem(
                         value: 'block',
                         child: Row(
                           children: [
-                            const Icon(Icons.block, color: Colors.red),
+                            Icon(
+                              Icons.block,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
                             const SizedBox(width: 8),
                             Text(context.l10n.t('user_profile.menu_block')),
                           ],
@@ -541,7 +686,10 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                         value: 'unblock',
                         child: Row(
                           children: [
-                            const Icon(Icons.check_circle, color: Colors.green),
+                            const Icon(
+                              Icons.check_circle,
+                              color: AppColors.success,
+                            ),
                             const SizedBox(width: 8),
                             Text(context.l10n.t('user_profile.menu_unblock')),
                           ],
@@ -552,9 +700,13 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
               ]
             : null,
       ),
-      body: _profileAccessDenied
-          ? _buildAccessDeniedView()
-          : _buildProfileContent(),
+      body: ResponsiveContent(
+        mediumMaxWidth: 760,
+        expandedMaxWidth: 960,
+        child: _profileAccessDenied
+            ? _buildAccessDeniedView()
+            : _buildProfileContent(),
+      ),
     );
   }
 
@@ -610,54 +762,51 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
             width: double.infinity,
             height: 200,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.primary,
-                  AppColors.primary.withValues(alpha: 0.8),
-                ],
-              ),
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppRadius.sheet),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildAvatar(),
-                const SizedBox(height: 16),
-                Text(
-                  _user.fullName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+            child: JourneyPathBackdrop(
+              color: Colors.white,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildAvatar(),
+                  const SizedBox(height: 16),
+                  Text(
+                    _user.fullName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '@${_user.username}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                if (_user.isOnline)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      context.l10n.t('user_profile.online'),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                  const SizedBox(height: 4),
+                  Text(
+                    '@${_user.username}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_user.isOnline && _friendshipStatus == 'accepted')
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.success,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Text(
+                        context.l10n.t('user_profile.online'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           if (!isOwnProfile) ...[
@@ -666,6 +815,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
           ],
           const SizedBox(height: 24),
           _buildProfileInfo(),
+          _buildPublishedJourneys(),
         ],
       ),
     );
@@ -736,50 +886,10 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
 
     switch (_friendshipStatus) {
       case 'accepted':
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.green,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.t('user_profile.friends'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: _actionLoading ? null : _unfriend,
-              icon: _actionLoading
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.person_remove),
-              label: Text(l10n.t('user_profile.unfriend')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.error,
-                foregroundColor: colors.onError,
-              ),
-            ),
-          ],
+        return FilledButton.icon(
+          onPressed: _actionLoading ? null : _inviteToTrip,
+          icon: const Icon(Icons.route_outlined),
+          label: Text(l10n.t('friend_trip.plan_together')),
         );
       case 'pending_sent':
         return OutlinedButton.icon(
@@ -862,26 +972,30 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
   Widget _buildProfileInfo() {
     final theme = Theme.of(context);
     final l10n = context.l10n;
+    final isOwnProfile = ref.read(authNotifierProvider).user?.id == _user.id;
+    final canSeePresence = isOwnProfile || _friendshipStatus == 'accepted';
 
     return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: JourneySurface(
+        padding: EdgeInsets.zero,
+        child: ExpansionTile(
+          leading: const Icon(Icons.account_circle_outlined),
+          title: Text(
             l10n.t('user_profile.personal_info'),
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 16),
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          subtitle: Text(l10n.t('user_profile.personal_info_hint')),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
+              ),
               child: Column(
                 children: [
                   _buildInfoRow(
@@ -895,7 +1009,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                     l10n.t('profile.username'),
                     '@${_user.username}',
                   ),
-                  if (_user.email != null) ...[
+                  if (isOwnProfile && _user.email != null) ...[
                     const Divider(),
                     _buildInfoRow(
                       Icons.email,
@@ -903,22 +1017,28 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                       _user.email!,
                     ),
                   ],
-                  const Divider(),
-                  _buildInfoRow(
-                    Icons.circle,
-                    l10n.t('user_profile.status'),
-                    _user.isOnline
-                        ? l10n.t('user_profile.online')
-                        : l10n.t('friends.offline'),
-                    valueColor: _user.isOnline ? Colors.green : Colors.grey,
-                  ),
+                  if (canSeePresence) ...[
+                    const Divider(),
+                    _buildInfoRow(
+                      Icons.circle,
+                      l10n.t('user_profile.status'),
+                      _user.isOnline
+                          ? l10n.t('user_profile.online')
+                          : l10n.t('friends.offline'),
+                      valueColor: _user.isOnline
+                          ? AppColors.success
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
                   const Divider(),
                   _buildInfoRow(
                     Icons.calendar_today,
                     l10n.t('user_profile.joined'),
                     _formatDate(_user.dateJoined),
                   ),
-                  if (_user.lastSeen != null && !_user.isOnline) ...[
+                  if (canSeePresence &&
+                      _user.lastSeen != null &&
+                      !_user.isOnline) ...[
                     const Divider(),
                     _buildInfoRow(
                       Icons.access_time,
@@ -929,7 +1049,95 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPublishedJourneys() {
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.xl,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.t('published.journeys'),
+            style: Theme.of(context).textTheme.titleLarge,
           ),
+          const SizedBox(height: 8),
+          Text(l10n.t('published.profile_hint')),
+          const SizedBox(height: 16),
+          if (_publicationsLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_publicationsError)
+            OutlinedButton.icon(
+              onPressed: _loadPublications,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(l10n.t('common.retry')),
+            )
+          else if (_publications.isEmpty)
+            JourneySurface(child: Text(l10n.t('published.empty')))
+          else
+            ..._publications.map((item) {
+              final highlights = (item['highlights'] as List? ?? const []);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: JourneySurface(
+                  onTap: () => context.push('/journeys/${item['id']}'),
+                  semanticLabel: item['title']?.toString() ?? '',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['destination']?.toString() ?? '',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        item['title']?.toString() ?? '',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(item['summary']?.toString() ?? ''),
+                      if (highlights.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        ...highlights.map((highlight) {
+                          final data = Map<String, dynamic>.from(
+                            highlight as Map,
+                          );
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text('- ${data['title']}'),
+                          );
+                        }),
+                      ],
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Text(l10n.t('published.view_journey')),
+                          const Spacer(),
+                          const Icon(Icons.arrow_forward_rounded),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          if (_nextPublicationsUrl != null)
+            TextButton(
+              onPressed: _loadingMorePublications
+                  ? null
+                  : _loadMorePublications,
+              child: Text(l10n.t('published.load_more')),
+            ),
         ],
       ),
     );
@@ -941,11 +1149,12 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
     String value, {
     Color? valueColor,
   }) {
+    final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Colors.grey[600]),
+          Icon(icon, size: 20, color: colors.onSurfaceVariant),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -954,7 +1163,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                 Text(
                   label,
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: colors.onSurfaceVariant,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -963,7 +1172,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
                 Text(
                   value,
                   style: TextStyle(
-                    color: valueColor ?? Colors.black87,
+                    color: valueColor ?? colors.onSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),

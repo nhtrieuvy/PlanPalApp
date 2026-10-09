@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:planpal_flutter/core/dtos/group_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
@@ -8,8 +9,8 @@ import 'package:planpal_flutter/core/riverpod/conversation_providers.dart';
 import 'package:planpal_flutter/core/riverpod/collaboration_providers.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -23,17 +24,17 @@ import '../../../core/dtos/conversation.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../../core/services/reconnect_policy.dart';
+import '../../../core/services/websocket_auth_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../widgets/audit/audit_log_list.dart';
+import '../../widgets/layout/responsive_content.dart';
 import '../../../shared/ui_states/ui_states.dart';
 import '../../../shared/widgets/widgets.dart';
 import 'plan_form_page.dart';
-import 'plan_details_page.dart';
 import 'group_form_page.dart';
 import 'group_invite_management_page.dart';
 import '../collaboration/group_availability_page.dart';
 import '../experience/group_polls_page.dart';
-import '../chat/chat_page.dart';
 
 class GroupDetailsPage extends ConsumerStatefulWidget {
   final String id;
@@ -41,6 +42,60 @@ class GroupDetailsPage extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<GroupDetailsPage> createState() => _GroupDetailsPageState();
+}
+
+enum _GroupSection { overview, trips, decisions, members }
+
+class _GroupSectionBar extends StatelessWidget {
+  const _GroupSectionBar({required this.selected, required this.onSelected});
+
+  final _GroupSection selected;
+  final ValueChanged<_GroupSection> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <(_GroupSection, IconData, String)>[
+      (
+        _GroupSection.overview,
+        Icons.explore_outlined,
+        context.l10n.t('group_details.tab_overview'),
+      ),
+      (
+        _GroupSection.trips,
+        Icons.route_outlined,
+        context.l10n.t('group_details.tab_trips'),
+      ),
+      (
+        _GroupSection.decisions,
+        Icons.how_to_vote_outlined,
+        context.l10n.t('group_details.tab_decisions'),
+      ),
+      (
+        _GroupSection.members,
+        Icons.people_outline_rounded,
+        context.l10n.t('group_details.tab_members'),
+      ),
+    ];
+    return SizedBox(
+      width: double.infinity,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final item in items) ...[
+              ChoiceChip(
+                avatar: Icon(item.$2, size: 18),
+                label: Text(item.$3),
+                selected: selected == item.$1,
+                onSelected: (_) => onSelected(item.$1),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
@@ -51,6 +106,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
   bool isLoadingPlans = false;
   bool _isDeletingGroup = false;
   int _auditRefreshSignal = 0;
+  _GroupSection _selectedSection = _GroupSection.overview;
   String? error;
   bool _hasChanges = false;
   WebSocketChannel? _groupChannel;
@@ -101,7 +157,8 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     await _groupChannel?.sink.close(ws_status.goingAway);
 
     try {
-      final wsUrl = '$baseWsUrl/ws/groups/${widget.id}/?token=$token';
+      final authQuery = await webSocketAuthQuery(token);
+      final wsUrl = '$baseWsUrl/ws/groups/${widget.id}/?$authQuery';
       final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
       await channel.ready;
       if (!mounted) {
@@ -240,8 +297,6 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
       );
 
       if (picked != null) {
-        final coverFile = File(picked.path);
-
         // Show loading dialog
         if (!mounted) return;
         showDialog(
@@ -255,7 +310,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
         final req = UpdateGroupRequest();
         await ref
             .read(groupRepositoryProvider)
-            .updateGroup(widget.id, req, coverImage: coverFile);
+            .updateGroup(widget.id, req, coverImage: picked);
 
         // Close loading dialog
         if (!mounted) return;
@@ -404,13 +459,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                         fit: BoxFit.cover,
                       ),
                     )
-                  : const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: AppColors.primaryGradient,
-                      ),
-                    ),
+                  : const BoxDecoration(color: AppColors.primary),
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -515,72 +564,111 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
         onRefresh: onRefresh,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              _buildAdminCard(adminAvatar, adminName, adminInitials),
-              const SizedBox(height: 16),
-              if (desc?.isNotEmpty == true)
-                _buildInfoCard(
-                  context.l10n.t('plan.description'),
-                  desc!,
-                  Icons.description_outlined,
-                ),
-              const SizedBox(height: 16),
-              _buildMembersCard(membersCount, members),
-              const SizedBox(height: 16),
-              _buildPlansCard(g),
-              const SizedBox(height: 16),
-              Card(
-                child: ListTile(
-                  leading: Icon(
-                    Icons.event_available_outlined,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  title: Text(
-                    context.l10n.t('collaboration.availability_title'),
-                  ),
-                  subtitle: Text(
-                    context.l10n.t('collaboration.availability_subtitle'),
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => GroupAvailabilityPage(
-                        groupId: g.id,
-                        canManage: g.canCreatePlan,
+          child: ResponsiveContent(
+            mediumMaxWidth: 820,
+            expandedMaxWidth: 1120,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final overviewColumn = Column(
+                  children: [
+                    _buildAdminCard(adminAvatar, adminName, adminInitials),
+                    if (desc?.isNotEmpty == true) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      _buildInfoCard(
+                        context.l10n.t('plan.description'),
+                        desc!,
+                        Icons.description_outlined,
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.md),
+                    AuditLogList(
+                      title: context.l10n.t('group_details.audit_log_title'),
+                      resourceType: 'group',
+                      resourceId: g.id,
+                      refreshSignal: _auditRefreshSignal,
+                    ),
+                  ],
+                );
+                final tripsColumn = Column(children: [_buildPlansCard(g)]);
+                final decisionsColumn = Column(
+                  children: [
+                    Card(
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.event_available_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: Text(
+                          context.l10n.t('collaboration.availability_title'),
+                        ),
+                        subtitle: Text(
+                          context.l10n.t('collaboration.availability_subtitle'),
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => GroupAvailabilityPage(
+                              groupId: g.id,
+                              canManage: g.canCreatePlan,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Card(
-                child: ListTile(
-                  leading: Icon(
-                    Icons.poll_outlined,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  title: Text(context.l10n.t('polls.title')),
-                  subtitle: Text(context.l10n.t('polls.group_subtitle')),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => GroupPollsPage(groupId: g.id),
+                    const SizedBox(height: AppSpacing.sm),
+                    Card(
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.poll_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: Text(context.l10n.t('polls.title')),
+                        subtitle: Text(context.l10n.t('polls.group_subtitle')),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => GroupPollsPage(groupId: g.id),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              AuditLogList(
-                title: context.l10n.t('group_details.audit_log_title'),
-                resourceType: 'group',
-                resourceId: g.id,
-                refreshSignal: _auditRefreshSignal,
-              ),
-              const SizedBox(height: 24),
-              _buildActionButtons(context, g),
-              const SizedBox(height: 100), // Extra space for scrolling
-            ],
+                  ],
+                );
+                final membersColumn = Column(
+                  children: [
+                    _buildMembersCard(membersCount, members),
+                    const SizedBox(height: AppSpacing.lg),
+                    _buildActionButtons(context, g),
+                  ],
+                );
+
+                return Column(
+                  children: [
+                    _GroupSectionBar(
+                      selected: _selectedSection,
+                      onSelected: (section) =>
+                          setState(() => _selectedSection = section),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AnimatedSwitcher(
+                      duration: AppMotion.standard,
+                      switchInCurve: AppMotion.enter,
+                      switchOutCurve: AppMotion.exit,
+                      child: KeyedSubtree(
+                        key: ValueKey(_selectedSection),
+                        child: switch (_selectedSection) {
+                          _GroupSection.overview => overviewColumn,
+                          _GroupSection.trips => tripsColumn,
+                          _GroupSection.decisions => decisionsColumn,
+                          _GroupSection.members => membersColumn,
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 100),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -601,9 +689,6 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     final isAdmin = groupData!.admin.id == currentUser?.id;
 
     return Card(
-      elevation: 2,
-      shadowColor: Colors.black26,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -672,26 +757,22 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
+                    color: AppColors.info.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: Colors.blue.withValues(alpha: 0.3),
+                      color: AppColors.info.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 16,
-                        color: Colors.blue[700],
-                      ),
+                      Icon(Icons.info_outline, size: 16, color: AppColors.info),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           context.l10n.t('group_details.tap_member_remove'),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.blue[700],
+                            color: AppColors.info,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -739,157 +820,164 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                   final canManageThisMember =
                       isCurrentUserAdmin && !isSelf && !isMemberAdmin;
 
-                  return GestureDetector(
-                    onTap: canManageThisMember
-                        ? () => _showMemberOptions(member, role)
-                        : null,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: canManageThisMember
-                            ? Border.all(
-                                color: Colors.grey.withValues(alpha: 0.3),
-                              )
-                            : null,
-                      ),
-                      padding: const EdgeInsets.all(4),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Stack(
-                            children: [
-                              CircleAvatar(
-                                radius: 28,
-                                backgroundColor: AppColors.primary.withValues(
-                                  alpha: 0.1,
+                  return MouseRegion(
+                    cursor: canManageThisMember
+                        ? SystemMouseCursors.click
+                        : SystemMouseCursors.basic,
+                    child: GestureDetector(
+                      onTap: canManageThisMember
+                          ? () => _showMemberOptions(member, role)
+                          : null,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: canManageThisMember
+                              ? Border.all(
+                                  color: AppColors.neutral500.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 28,
+                                  backgroundColor: AppColors.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  backgroundImage: avatar.isNotEmpty
+                                      ? CachedNetworkImageProvider(avatar)
+                                      : null,
+                                  child: avatar.isEmpty
+                                      ? Text(
+                                          initials,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                          ),
+                                        )
+                                      : null,
                                 ),
-                                backgroundImage: avatar.isNotEmpty
-                                    ? CachedNetworkImageProvider(avatar)
-                                    : null,
-                                child: avatar.isEmpty
-                                    ? Text(
-                                        initials,
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
+                                // Admin badge
+                                if (isMemberAdmin)
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.warning,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 2,
                                         ),
-                                      )
-                                    : null,
-                              ),
-                              // Admin badge
-                              if (isMemberAdmin)
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
+                                      ),
+                                      padding: const EdgeInsets.all(2),
+                                      child: const Icon(
+                                        Icons.star,
+                                        size: 12,
                                         color: Colors.white,
-                                        width: 2,
                                       ),
                                     ),
-                                    padding: const EdgeInsets.all(2),
-                                    child: const Icon(
-                                      Icons.star,
-                                      size: 12,
-                                      color: Colors.white,
-                                    ),
                                   ),
-                                ),
-                              if (isPlanCreator)
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
+                                if (isPlanCreator)
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.all(2),
+                                      child: const Icon(
+                                        Icons.event_note,
+                                        size: 12,
                                         color: Colors.white,
-                                        width: 2,
                                       ),
                                     ),
-                                    padding: const EdgeInsets.all(2),
-                                    child: const Icon(
-                                      Icons.event_note,
-                                      size: 12,
-                                      color: Colors.white,
-                                    ),
                                   ),
-                                ),
-                              // Remove indicator for admin
-                              if (isCurrentUserAdmin && !isSelf)
-                                Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
+                                // Remove indicator for admin
+                                if (isCurrentUserAdmin && !isSelf)
+                                  Positioned(
+                                    top: 0,
+                                    right: 0,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppColors.error,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.all(2),
+                                      child: const Icon(
+                                        Icons.remove,
+                                        size: 10,
                                         color: Colors.white,
-                                        width: 1,
                                       ),
                                     ),
-                                    padding: const EdgeInsets.all(2),
-                                    child: const Icon(
-                                      Icons.remove,
-                                      size: 10,
-                                      color: Colors.white,
-                                    ),
                                   ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          SizedBox(
-                            width: 72,
-                            child: Text(
-                              display,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 12),
+                              ],
                             ),
-                          ),
-                          Text(
-                            _roleLabel(role),
-                            maxLines: 1,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: isMemberAdmin
-                                  ? Colors.orange
-                                  : isPlanCreator
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                              fontWeight: isMemberAdmin || isPlanCreator
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                          if (canManageThisMember)
+                            const SizedBox(height: 4),
                             SizedBox(
                               width: 72,
                               child: Text(
-                                context.l10n.t('group_details.tap_to_remove'),
+                                display,
                                 maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                  fontStyle: FontStyle.italic,
-                                ),
+                                style: const TextStyle(fontSize: 12),
                               ),
                             ),
-                        ],
+                            Text(
+                              _roleLabel(role),
+                              maxLines: 1,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: isMemberAdmin
+                                    ? AppColors.warning
+                                    : isPlanCreator
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                fontWeight: isMemberAdmin || isPlanCreator
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                            if (canManageThisMember)
+                              SizedBox(
+                                width: 72,
+                                child: Text(
+                                  context.l10n.t('group_details.tap_to_remove'),
+                                  maxLines: 1,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -939,9 +1027,6 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      elevation: 2,
-      shadowColor: Colors.black26,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
@@ -1001,9 +1086,6 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     final canCreatePlan = g.canCreatePlanForUser(currentUserId);
 
     return Card(
-      elevation: 2,
-      shadowColor: Colors.black26,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1063,7 +1145,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey,
+                      color: AppColors.neutral500,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1102,36 +1184,32 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
     // debug: log plan id before navigating to details
     // ignore: avoid_print
     print('GroupDetails: navigating to plan id=${plan.id}');
-    Navigator.of(context)
-        .push<Map<String, dynamic>>(
-          MaterialPageRoute(builder: (context) => PlanDetailsPage(id: plan.id)),
-        )
-        .then((result) {
-          if (!mounted) return;
-          if (result == null) return;
+    context.push<Map<String, dynamic>>('/plans/${plan.id}').then((result) {
+      if (!mounted) return;
+      if (result == null) return;
 
-          if (result['action'] == 'delete' && result['id'] == plan.id) {
-            setState(() {
-              groupPlans = groupPlans.where((p) => p.id != plan.id).toList();
-              _auditRefreshSignal++;
-            });
-          }
-
-          if ((result['action'] == 'updated' || result['action'] == 'edit') &&
-              result['plan'] is Map) {
-            try {
-              final updated = PlanSummary.fromJson(
-                Map<String, dynamic>.from(result['plan'] as Map),
-              );
-              setState(() {
-                groupPlans = groupPlans
-                    .map((p) => p.id == updated.id ? updated : p)
-                    .toList();
-                _auditRefreshSignal++;
-              });
-            } catch (_) {}
-          }
+      if (result['action'] == 'delete' && result['id'] == plan.id) {
+        setState(() {
+          groupPlans = groupPlans.where((p) => p.id != plan.id).toList();
+          _auditRefreshSignal++;
         });
+      }
+
+      if ((result['action'] == 'updated' || result['action'] == 'edit') &&
+          result['plan'] is Map) {
+        try {
+          final updated = PlanSummary.fromJson(
+            Map<String, dynamic>.from(result['plan'] as Map),
+          );
+          setState(() {
+            groupPlans = groupPlans
+                .map((p) => p.id == updated.id ? updated : p)
+                .toList();
+            _auditRefreshSignal++;
+          });
+        } catch (_) {}
+      }
+    });
   }
 
   void _navigateToGroupChat(GroupModel group) async {
@@ -1150,11 +1228,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
       );
 
       if (mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => ChatPage(conversation: conversation),
-          ),
-        );
+        context.push('/conversations/${conversation.id}');
       }
     } catch (e) {
       if (mounted) {
@@ -1271,7 +1345,7 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                   onPressed: _isDeletingGroup
                       ? null
                       : () => _confirmDeleteGroup(g),
-                  backgroundColor: Colors.redAccent,
+                  backgroundColor: AppColors.error,
                   foregroundColor: Colors.white,
                   icon: _isDeletingGroup
                       ? const SizedBox(
@@ -1624,18 +1698,18 @@ class _GroupDetailsPageState extends ConsumerState<GroupDetailsPage>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
+                  color: AppColors.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.person_remove,
-                  color: Colors.red,
+                  color: AppColors.error,
                   size: 20,
                 ),
               ),
               title: Text(
                 context.l10n.t('group_details.member_options_remove'),
-                style: TextStyle(color: Colors.red),
+                style: const TextStyle(color: AppColors.error),
               ),
               subtitle: Text(
                 context.l10n.t(

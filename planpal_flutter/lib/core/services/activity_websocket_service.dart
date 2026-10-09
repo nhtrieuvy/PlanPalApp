@@ -8,6 +8,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/reconnect_policy.dart';
+import 'package:planpal_flutter/core/services/websocket_auth_service.dart';
 
 enum ActivitySocketConnectionState {
   disconnected,
@@ -124,7 +125,8 @@ class ActivityWebSocketService {
             ? ActivitySocketConnectionState.reconnecting
             : ActivitySocketConnectionState.connecting,
       );
-      final wsUrl = '$baseWsUrl/ws/plans/$planId/?token=$_token';
+      final authQuery = await webSocketAuthQuery(_token!);
+      final wsUrl = '$baseWsUrl/ws/plans/$planId/?$authQuery';
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
       await _channel!.ready;
       _setConnectionState(ActivitySocketConnectionState.connected);

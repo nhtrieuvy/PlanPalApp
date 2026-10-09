@@ -8,6 +8,7 @@ import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 import 'package:planpal_flutter/presentation/pages/budget/add_expense_form.dart';
 import 'package:planpal_flutter/presentation/pages/budget/balances_page.dart';
 import 'package:planpal_flutter/presentation/pages/budget/expense_list_page.dart';
@@ -15,7 +16,9 @@ import 'package:planpal_flutter/presentation/widgets/budget/budget_breakdown_car
 import 'package:planpal_flutter/presentation/widgets/budget/budget_summary_card.dart';
 import 'package:planpal_flutter/presentation/widgets/budget/budget_trend_chart.dart';
 import 'package:planpal_flutter/presentation/widgets/common/refreshable_page_wrapper.dart';
+import 'package:planpal_flutter/presentation/widgets/design_system/journey_ui.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 
 class BudgetOverviewPage extends ConsumerStatefulWidget {
   final String planId;
@@ -59,7 +62,11 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
             onRetry: _refresh,
             retryLabel: l10n.t('common.retry'),
           ),
-          data: (summary) => _buildContent(context, summary),
+          data: (summary) => ResponsiveContent(
+            mediumMaxWidth: 860,
+            expandedMaxWidth: 1120,
+            child: _buildContent(context, summary),
+          ),
         ),
       ),
     );
@@ -69,25 +76,13 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
     final insightsAsync = ref.watch(financeInsightsProvider(widget.planId));
     final recurringAsync = ref.watch(recurringExpensesProvider(widget.planId));
     final currentUserId = ref.watch(authNotifierProvider).user?.id;
-    return ListView(
-      padding: const EdgeInsets.all(20),
+    final primaryContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          widget.planTitle,
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          context.l10n.t('budget.track_description'),
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 20),
         BudgetSummaryCard(summary: summary),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
+        _buildActions(context, summary),
+        const SizedBox(height: AppSpacing.md),
         insightsAsync.when(
           loading: () => const LinearProgressIndicator(),
           error: (_, __) => const SizedBox.shrink(),
@@ -99,7 +94,7 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
           data: (items) => items.isEmpty
               ? const SizedBox.shrink()
               : Padding(
-                  padding: const EdgeInsets.only(top: 16),
+                  padding: const EdgeInsets.only(top: AppSpacing.md),
                   child: _RecurringExpensesCard(
                     items: items,
                     canManageBudget: widget.canManageBudget,
@@ -108,33 +103,75 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
                   ),
                 ),
         ),
-        const SizedBox(height: 20),
-        _buildActions(context, summary),
-        const SizedBox(height: 16),
+      ],
+    );
+    final analysisContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        JourneySectionHeader(
+          title: context.l10n.t('budget.finance_insights'),
+          icon: Icons.query_stats_rounded,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         BudgetTrendChart(points: summary.trend),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.md),
         BudgetBreakdownCard(
           items: summary.breakdown,
           currency: summary.currency,
         ),
       ],
     );
+
+    return LayoutBuilder(
+      builder: (context, constraints) => ListView(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+        children: [
+          JourneyPageHeader(
+            eyebrow: context.l10n.t('budget.overview_title'),
+            title: widget.planTitle,
+            subtitle: context.l10n.t('budget.track_description'),
+            leadingIcon: Icons.account_balance_wallet_outlined,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: constraints.maxWidth >= 900
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 6, child: primaryContent),
+                      const SizedBox(width: AppSpacing.lg),
+                      Expanded(flex: 5, child: analysisContent),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      primaryContent,
+                      const SizedBox(height: AppSpacing.xl),
+                      analysisContent,
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildActions(BuildContext context, BudgetModel summary) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
       children: [
-        FilledButton.icon(
-          onPressed: _openAddExpense,
-          icon: const Icon(Icons.add_card_rounded),
-          label: Text(context.l10n.t('budget.add_expense')),
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: _openAddExpense,
+            icon: const Icon(Icons.add_card_rounded),
+            label: Text(context.l10n.t('budget.add_expense')),
+          ),
         ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
+        const SizedBox(width: AppSpacing.sm),
+        IconButton.outlined(
           onPressed: () => _showBudgetActions(context, summary),
+          tooltip: context.l10n.t('common.manage'),
           icon: const Icon(Icons.tune_rounded),
-          label: Text(context.l10n.t('common.manage')),
         ),
       ],
     );
@@ -158,9 +195,9 @@ class _BudgetOverviewPageState extends ConsumerState<BudgetOverviewPage> {
             children: [
               Text(
                 context.l10n.t('common.manage'),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
               ListTile(

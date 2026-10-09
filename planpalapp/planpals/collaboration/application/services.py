@@ -356,7 +356,8 @@ class CollaborationService:
 
     @staticmethod
     def _ics_escape(value):
-        return str(value or '').replace('\\', '\\\\').replace(';', '\\;').replace(',', '\\,').replace('\n', '\\n')
+        normalized = str(value or '').replace('\r\n', '\n').replace('\r', '\n')
+        return normalized.replace('\\', '\\\\').replace(';', '\\;').replace(',', '\\,').replace('\n', '\\n')
 
     @staticmethod
     def _ics_datetime(value):

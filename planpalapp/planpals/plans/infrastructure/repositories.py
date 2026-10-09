@@ -62,8 +62,7 @@ class DjangoPlanRepository(PlanRepository):
         return qs.order_by('-created_at')
 
     def get_public_plans(self, exclude_user_id: UUID = None, search: str = None) -> Any:
-        qs = Plan.objects.filter(
-            is_public=True,
+        qs = Plan.objects.public().filter(
             status__in=['upcoming', 'ongoing'],
         ).select_related('creator', 'group')
         if exclude_user_id:

@@ -120,7 +120,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
                         children: [
                           Text(
                             _getTypingText(),
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 14,
                               color: colorScheme.onSurfaceVariant,
                               fontStyle: FontStyle.italic,

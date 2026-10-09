@@ -10,6 +10,7 @@ import 'package:planpal_flutter/presentation/pages/budget/add_expense_form.dart'
 import 'package:planpal_flutter/presentation/pages/budget/expense_detail_page.dart';
 import 'package:planpal_flutter/presentation/widgets/budget/expense_item.dart';
 import 'package:planpal_flutter/presentation/widgets/common/refreshable_page_wrapper.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
 
 class ExpenseListPage extends ConsumerStatefulWidget {
@@ -92,24 +93,28 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
         icon: const Icon(Icons.add_rounded),
         label: Text(l10n.t('budget.add_expense')),
       ),
-      body: Column(
-        children: [
-          _buildFilterBar(context),
-          Expanded(
-            child: RefreshablePageWrapper(
-              onRefresh: _refresh,
-              child: expensesAsync.when(
-                loading: () => const AppSkeleton.list(itemCount: 6),
-                error: (error, _) => AppError(
-                  message: ErrorDisplayService.getUserFriendlyMessage(error),
-                  onRetry: _refresh,
-                  retryLabel: l10n.t('common.retry'),
+      body: ResponsiveContent(
+        mediumMaxWidth: 800,
+        expandedMaxWidth: 960,
+        child: Column(
+          children: [
+            _buildFilterBar(context),
+            Expanded(
+              child: RefreshablePageWrapper(
+                onRefresh: _refresh,
+                child: expensesAsync.when(
+                  loading: () => const AppSkeleton.list(itemCount: 6),
+                  error: (error, _) => AppError(
+                    message: ErrorDisplayService.getUserFriendlyMessage(error),
+                    onRetry: _refresh,
+                    retryLabel: l10n.t('common.retry'),
+                  ),
+                  data: (data) => _buildContent(context, data, currency),
                 ),
-                data: (data) => _buildContent(context, data, currency),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -186,7 +191,7 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
           borderRadius: BorderRadius.circular(20),
           onTap: () async {
             final result = await Navigator.of(context)
-                .push<ExpenseCreateResult>(
+                .push<bool>(
                   MaterialPageRoute(
                     builder: (_) => ExpenseDetailPage(expense: expense),
                   ),

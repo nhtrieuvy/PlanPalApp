@@ -59,7 +59,6 @@ urlpatterns = [
     path('o/', include('oauth2_provider.urls',
                        namespace='oauth2_provider')),
     
-    re_path(r'^ckeditor/', include('ckeditor_uploader.urls')),
 ]
 
 # API docs are available in DEBUG or when explicitly enabled in production.

@@ -45,7 +45,7 @@ class PlanBudgetView(APIView):
             plan_id,
             request.user,
             total_budget=serializer.validated_data['total_budget'],
-            currency=serializer.validated_data.get('currency', 'VND'),
+            currency=serializer.validated_data.get('currency'),
         )
         return Response(
             BudgetSummarySerializer.from_summary(summary),
@@ -89,7 +89,7 @@ class PlanExpenseListCreateView(APIView):
             category=serializer.validated_data['category'],
             description=serializer.validated_data.get('description', ''),
             paid_by_user_id=serializer.validated_data.get('paid_by_user_id'),
-            currency=serializer.validated_data.get('currency', 'VND'),
+            currency=serializer.validated_data.get('currency'),
             split_strategy=serializer.validated_data.get('split_strategy', 'equal'),
             participants=serializer.validated_data.get('participants') or None,
             payments=serializer.validated_data.get('payments') or None,
@@ -154,7 +154,7 @@ class SettlementCreateView(APIView):
             from_user_id=serializer.validated_data['from_user_id'],
             to_user_id=serializer.validated_data['to_user_id'],
             amount=serializer.validated_data['amount'],
-            currency=serializer.validated_data.get('currency', 'VND'),
+            currency=serializer.validated_data.get('currency'),
             status='pending',
             note=serializer.validated_data.get('note', ''),
             payment_note=serializer.validated_data.get('payment_note', ''),
@@ -201,11 +201,23 @@ class PlanExpenseCorrectionView(APIView):
             payment_note=serializer.validated_data.get('payment_note', ''),
             reason=serializer.validated_data['reason'],
             receipt=serializer.validated_data.get('receipt'),
+            paid_by_user_id=serializer.validated_data.get('paid_by_user_id'),
+            payments=serializer.validated_data.get('payments'),
+            split_strategy=serializer.validated_data.get('split_strategy'),
+            participants=serializer.validated_data.get('participants'),
         )
         return Response(
             ExpenseCreateResponseSerializer.from_result(result),
             status=status.HTTP_201_CREATED,
         )
+
+
+class PlanExpenseDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, plan_id, expense_id):
+        get_budget_service().delete_expense(plan_id, expense_id, request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PlanFinanceInsightsView(APIView):

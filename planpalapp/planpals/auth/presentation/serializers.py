@@ -132,13 +132,17 @@ class UserSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'first_name', 'last_name', 'email',
+            'id', 'username', 'first_name', 'last_name',
             'is_online', 'online_status', 'avatar_url', 'has_avatar',
             'date_joined', 'last_seen'
         ]
     
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        if not self.context.get('show_presence', False):
+            data['is_online'] = False
+            data['online_status'] = 'hidden'
+            data['last_seen'] = None
         data['full_name'] = instance.get_full_name() or instance.username
         data['initials'] = self._get_initials(instance)
         return data

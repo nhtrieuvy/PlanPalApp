@@ -31,7 +31,9 @@ class PlanService(BaseService):
                    start_date=None, end_date=None,
                    is_public: bool = False):
         """Delegate to CreatePlanHandler, then schedule Celery tasks."""
-        normalized_is_public = True if (plan_type == 'group' or group is not None) else is_public
+        normalized_is_public = (
+            group.visibility == 'public' if group is not None else is_public
+        )
         cmd = CreatePlanCommand(
             creator_id=creator.id,
             title=title,
@@ -62,7 +64,7 @@ class PlanService(BaseService):
         """Delegate to UpdatePlanHandler, then reschedule Celery tasks."""
         sanitized_data = dict(data)
         if plan.is_group_plan() and 'is_public' in sanitized_data:
-            sanitized_data['is_public'] = True
+            sanitized_data['is_public'] = plan.group.visibility == 'public'
 
         # Determine whether schedule-affecting fields are changing
         old_start = getattr(plan, 'start_date', None)
@@ -410,7 +412,7 @@ class PlanService(BaseService):
     
     @classmethod
     def can_view_plan(cls, plan, user) -> bool:
-        if plan.is_public:
+        if plan.is_discoverable:
             return True
         
         if plan.creator == user:
@@ -420,13 +422,7 @@ class PlanService(BaseService):
     
     @classmethod
     def can_edit_plan(cls, plan, user) -> bool:
-        if plan.creator == user:
-            return True
-        
-        if plan.is_group_plan() and plan.group:
-            return plan.group.is_admin(user)
-        
-        return False
+        return bool(user and plan.can_edit_by_id(user.id))
     
     @classmethod
     def get_plan_statistics(cls, plan) -> Dict[str, Any]:

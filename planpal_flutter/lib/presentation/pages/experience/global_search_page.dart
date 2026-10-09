@@ -2,16 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:planpal_flutter/core/dtos/experience_models.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/conversation_providers.dart';
 import 'package:planpal_flutter/core/riverpod/experience_providers.dart';
-import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/presentation/pages/chat/conversation_list_page.dart';
-import 'package:planpal_flutter/presentation/pages/chat/chat_page.dart';
-import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
-import 'package:planpal_flutter/presentation/pages/users/plan_details_page.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
 
 class GlobalSearchPage extends ConsumerStatefulWidget {
@@ -73,34 +71,38 @@ class _GlobalSearchPageState extends ConsumerState<GlobalSearchPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(context.l10n.t('search.title'))),
-    body: Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: SearchBar(
-            controller: _controller,
-            hintText: context.l10n.t('search.hint'),
-            leading: const Icon(Icons.search),
-            trailing: [
-              if (_controller.text.isNotEmpty)
-                IconButton(
-                  onPressed: () {
-                    _controller.clear();
-                    _onChanged('');
-                  },
-                  icon: const Icon(Icons.close),
-                ),
-            ],
-            onChanged: (value) {
-              setState(() {});
-              _onChanged(value);
-            },
-            onSubmitted: _search,
+    body: ResponsiveContent(
+      mediumMaxWidth: 760,
+      expandedMaxWidth: 900,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SearchBar(
+              controller: _controller,
+              hintText: context.l10n.t('search.hint'),
+              leading: const Icon(Icons.search),
+              trailing: [
+                if (_controller.text.isNotEmpty)
+                  IconButton(
+                    onPressed: () {
+                      _controller.clear();
+                      _onChanged('');
+                    },
+                    icon: const Icon(Icons.close),
+                  ),
+              ],
+              onChanged: (value) {
+                setState(() {});
+                _onChanged(value);
+              },
+              onSubmitted: _search,
+            ),
           ),
-        ),
-        if (_loading) const LinearProgressIndicator(minHeight: 2),
-        Expanded(child: _content()),
-      ],
+          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          Expanded(child: _content()),
+        ],
+      ),
     ),
   );
 
@@ -164,25 +166,15 @@ class _GlobalSearchPageState extends ConsumerState<GlobalSearchPage> {
 
   Future<void> _open(SearchResultItem item) async {
     if (item.type == 'plan') {
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => PlanDetailsPage(id: item.id)));
+      await context.push('/plans/${item.id}');
       return;
     }
     if (item.type == 'group') {
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => GroupDetailsPage(id: item.id)));
+      await context.push('/groups/${item.id}');
       return;
     }
     try {
-      final conversation = await ref
-          .read(conversationRepositoryProvider)
-          .getConversation(item.id);
-      if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ChatPage(conversation: conversation)),
-      );
+      await context.push('/conversations/${item.id}');
     } catch (_) {
       if (!mounted) return;
       ref.invalidate(conversationListProvider);

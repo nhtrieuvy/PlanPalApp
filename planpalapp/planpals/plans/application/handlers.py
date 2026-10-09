@@ -175,10 +175,8 @@ class UpdatePlanHandler(BaseCommandHandler[UpdatePlanCommand, Any]):
             raise PlanNotFoundException()
 
         # Business rule: only creator or group admins can edit
-        if str(plan.creator_id) != str(command.user_id):
-            # Check if user is group admin (if group plan)
-            if not (plan.group and plan.group.is_admin_by_id(command.user_id)):
-                raise NotPlanOwnerException()
+        if not plan.can_edit_by_id(command.user_id):
+            raise NotPlanOwnerException()
 
         # Business rule: can't edit completed/cancelled plans
         if plan.status == 'completed':
@@ -368,6 +366,9 @@ class AddActivityHandler(BaseCommandHandler[AddActivityCommand, Any]):
         if not plan:
             raise PlanNotFoundException()
 
+        if not plan.can_edit_by_id(command.user_id):
+            raise CannotModifyActivityException()
+
         if plan.status in ('completed', 'cancelled'):
             if plan.status == 'completed':
                 raise PlanCompletedException()
@@ -439,9 +440,8 @@ class UpdateActivityHandler(BaseCommandHandler[UpdateActivityCommand, Any]):
             raise ActivityNotFoundException()
 
         plan = activity.plan
-        if str(plan.creator_id) != str(command.user_id):
-            if not (plan.group and plan.group.is_admin_by_id(command.user_id)):
-                raise CannotModifyActivityException()
+        if not plan.can_edit_by_id(command.user_id):
+            raise CannotModifyActivityException()
 
         if not command.force:
             if command.version is None:
@@ -543,9 +543,8 @@ class RemoveActivityHandler(BaseCommandHandler[RemoveActivityCommand, bool]):
             raise ActivityNotFoundException()
 
         plan = activity.plan
-        if str(plan.creator_id) != str(command.user_id):
-            if not (plan.group and plan.group.is_admin_by_id(command.user_id)):
-                raise CannotModifyActivityException()
+        if not plan.can_edit_by_id(command.user_id):
+            raise CannotModifyActivityException()
 
         plan_id = str(activity.plan_id)
         title = activity.title
@@ -581,9 +580,8 @@ class ToggleActivityCompletionHandler(BaseCommandHandler[ToggleActivityCompletio
             raise ActivityNotFoundException()
 
         plan = activity.plan
-        if str(plan.creator_id) != str(command.user_id):
-            if not (plan.group and plan.group.is_admin_by_id(command.user_id)):
-                raise CannotModifyActivityException()
+        if not plan.can_edit_by_id(command.user_id):
+            raise CannotModifyActivityException()
 
         previous_completed = activity.is_completed
         activity.is_completed = not activity.is_completed

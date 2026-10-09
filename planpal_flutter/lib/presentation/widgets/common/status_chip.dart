@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_design_tokens.dart';
 
 /// A reusable status chip widget for displaying plan statuses, activity types, etc.
 class StatusChip extends StatelessWidget {
@@ -59,8 +60,8 @@ class StatusChip extends StatelessWidget {
     this.outlined = false,
     this.fontSize,
     this.padding,
-  }) : backgroundColor = Colors.green,
-       textColor = Colors.white;
+  }) : backgroundColor = AppColors.success,
+       textColor = AppColors.success;
 
   /// Creates an error-styled chip
   const StatusChip.error({
@@ -71,8 +72,8 @@ class StatusChip extends StatelessWidget {
     this.outlined = false,
     this.fontSize,
     this.padding,
-  }) : backgroundColor = Colors.red,
-       textColor = Colors.white;
+  }) : backgroundColor = AppColors.error,
+       textColor = AppColors.error;
 
   /// Creates a warning-styled chip
   const StatusChip.warning({
@@ -83,14 +84,13 @@ class StatusChip extends StatelessWidget {
     this.outlined = false,
     this.fontSize,
     this.padding,
-  }) : backgroundColor = Colors.orange,
-       textColor = Colors.white;
+  }) : backgroundColor = AppColors.warning,
+       textColor = AppColors.warning;
 
   @override
   Widget build(BuildContext context) {
     final defaultBackgroundColor = backgroundColor ?? AppColors.primary;
-    final defaultTextColor =
-        textColor ?? (outlined ? defaultBackgroundColor : Colors.white);
+    final defaultTextColor = textColor ?? defaultBackgroundColor;
     final defaultFontSize = fontSize ?? 12;
     final defaultPadding =
         padding ?? const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
@@ -102,7 +102,7 @@ class StatusChip extends StatelessWidget {
             ? Colors.transparent
             : defaultBackgroundColor.withValues(alpha: 0.1),
         border: outlined ? Border.all(color: defaultBackgroundColor) : null,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -126,7 +126,7 @@ class StatusChip extends StatelessWidget {
     if (onTap != null) {
       chip = InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         child: chip,
       );
     }
@@ -138,20 +138,20 @@ class StatusChip extends StatelessWidget {
   static Color _getPlanStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'upcoming':
-        return Colors.blue;
+        return AppColors.info;
       case 'ongoing':
-        return Colors.green;
+        return AppColors.success;
       case 'completed':
-        return Colors.grey;
+        return AppColors.neutral600;
       case 'cancelled':
-        return Colors.red;
+        return AppColors.error;
       default:
         return AppColors.primary;
     }
   }
 
   static Color _getPlanStatusTextColor(String status) {
-    return Colors.white;
+    return _getPlanStatusColor(status);
   }
 
   static IconData _getPlanStatusIcon(String status) {
@@ -173,19 +173,19 @@ class StatusChip extends StatelessWidget {
   static Color _getActivityTypeColor(String activityType) {
     switch (activityType.toLowerCase()) {
       case 'sightseeing':
-        return Colors.blue;
+        return AppColors.info;
       case 'dining':
-        return Colors.orange;
+        return AppColors.accent;
       case 'accommodation':
-        return Colors.purple;
+        return AppColors.secondary;
       case 'transportation':
-        return Colors.green;
+        return AppColors.success;
       case 'entertainment':
-        return Colors.pink;
+        return AppColors.accentDark;
       case 'shopping':
-        return Colors.amber;
+        return AppColors.warning;
       default:
-        return Colors.grey;
+        return AppColors.neutral600;
     }
   }
 

@@ -1181,16 +1181,16 @@ class SystemRegressionTests(TestCase):
         plan.refresh_from_db()
         self.assertEqual(plan.status, 'ongoing')
 
-    def test_group_plan_create_forces_public_visibility(self):
-        group = self._create_group_with_owner('Always Public Group')
+    def test_group_plan_create_inherits_private_group_visibility(self):
+        group = self._create_group_with_owner('Private Group')
         now = timezone.now() + timedelta(days=1)
 
         self.client.force_authenticate(self.owner)
         response = self.client.post(
             reverse('plan-list'),
             {
-                'title': 'Group Plan Must Be Public',
-                'description': 'Visibility should be forced by backend',
+                'title': 'Private Group Plan',
+                'description': 'Visibility follows the group',
                 'plan_type': 'group',
                 'group_id': str(group.id),
                 'is_public': False,
@@ -1201,11 +1201,11 @@ class SystemRegressionTests(TestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(response.data['is_public'])
+        self.assertFalse(response.data['is_public'])
 
         created_plan = Plan.objects.get(id=response.data['id'])
         self.assertEqual(created_plan.plan_type, 'group')
-        self.assertTrue(created_plan.is_public)
+        self.assertFalse(created_plan.is_public)
 
     def test_activity_create_and_update_are_written_to_plan_audit_log(self):
         now = timezone.now() + timedelta(days=1)
@@ -1376,7 +1376,7 @@ class SystemRegressionTests(TestCase):
         )
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(create_response.data['creator']['id'], str(self.friend_a.id))
-        self.assertTrue(create_response.data['is_public'])
+        self.assertFalse(create_response.data['is_public'])
 
     def test_set_member_role_handler_invalidates_cached_group_detail_permissions(self):
         from planpals.groups.application.commands import SetMemberRoleCommand
@@ -1451,8 +1451,8 @@ class SystemRegressionTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_group_plan_update_cannot_be_made_private(self):
-        group = self._create_group_with_owner('Public Group Update Guard')
+    def test_group_plan_update_preserves_group_visibility(self):
+        group = self._create_group_with_owner('Private Group Update Guard')
         plan = Plan.objects.create(
             title='Existing Group Plan',
             creator=self.owner,
@@ -1470,10 +1470,10 @@ class SystemRegressionTests(TestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.data['is_public'])
+        self.assertFalse(response.data['is_public'])
 
         plan.refresh_from_db()
-        self.assertTrue(plan.is_public)
+        self.assertFalse(plan.is_public)
 
     def test_analytics_summary_cache_refreshes_after_aggregate(self):
         plan = Plan.objects.create(
