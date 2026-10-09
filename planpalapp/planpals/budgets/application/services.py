@@ -283,6 +283,8 @@ class BudgetService:
         payment_note: str = '',
         reason: str,
         receipt=None,
+        paid_by_user_id=None,
+        payments: list[dict[str, Any]] | None = None,
         split_strategy: str | None = None,
         participants: list[dict[str, Any]] | None = None,
     ) -> ExpenseCreationResult:
@@ -300,22 +302,33 @@ class BudgetService:
         if not normalized_reason:
             raise ValidationError({'reason': 'A correction reason is required'})
         corrected_amount = self._normalize_positive_amount(amount, 'amount')
+        if paid_by_user_id is not None and payments is not None:
+            raise ValidationError({'payments': 'Provide either one payer or payment contributions'})
         current_payments = current.payments or (
             ExpensePaymentCreateData(user_id=current.paid_by_user_id, amount=current.amount),
         )
         current_participants = current.participants or (
             ExpenseParticipantCreateData(user_id=current.paid_by_user_id, owed_amount=current.amount),
         )
-        payment_amounts = self._rescale_amounts(
-            [item.amount for item in current_payments],
-            current.amount,
-            corrected_amount,
-        )
-        payments = tuple(
-            ExpensePaymentCreateData(user_id=item.user_id, amount=value)
-            for item, value in zip(current_payments, payment_amounts)
-        )
-        payment_map = {item.user_id: item.amount for item in payments}
+        if paid_by_user_id is not None or payments is not None:
+            corrected_payments, corrected_payer_id = self._calculate_payments(
+                plan=plan,
+                amount=corrected_amount,
+                paid_by_user_id=paid_by_user_id or current.paid_by_user_id,
+                raw_payments=payments or [],
+            )
+        else:
+            payment_amounts = self._rescale_amounts(
+                [item.amount for item in current_payments],
+                current.amount,
+                corrected_amount,
+            )
+            corrected_payments = tuple(
+                ExpensePaymentCreateData(user_id=item.user_id, amount=value)
+                for item, value in zip(current_payments, payment_amounts)
+            )
+            corrected_payer_id = current.paid_by_user_id
+        payment_map = {item.user_id: item.amount for item in corrected_payments}
         normalized_strategy = split_strategy or current.split_strategy
         if participants is None:
             owed_amounts = self._rescale_amounts(
@@ -343,7 +356,7 @@ class BudgetService:
             ExpenseCreateData(
                 plan_id=plan_uuid,
                 user_id=current.user_id,
-                paid_by_user_id=current.paid_by_user_id,
+                paid_by_user_id=corrected_payer_id,
                 amount=corrected_amount,
                 currency=current.currency,
                 category=self._normalize_category(category),
@@ -353,7 +366,7 @@ class BudgetService:
                 copy_receipt_from_expense_id=current.id,
                 split_strategy=normalized_strategy,
                 participants=participant_items,
-                payments=payments,
+                payments=corrected_payments,
                 entry_type='correction',
                 corrects_expense_id=current.id,
                 correction_reason=normalized_reason,
@@ -377,6 +390,8 @@ class BudgetService:
                     'amount': corrected.amount,
                     'currency': corrected.currency,
                     'category': corrected.category,
+                    'previous_paid_by_user_id': current.paid_by_user_id,
+                    'paid_by_user_id': corrected_payer_id,
                     'reason': normalized_reason,
                 },
             )

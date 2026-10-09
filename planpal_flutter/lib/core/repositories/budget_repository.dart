@@ -287,6 +287,8 @@ class BudgetRepository {
     String description = '',
     String paymentNote = '',
     XFile? receiptFile,
+    String? paidByUserId,
+    List<ExpensePaymentInput>? payments,
     String? splitStrategy,
     List<ExpenseParticipantInput>? participants,
   }) async {
@@ -297,6 +299,9 @@ class BudgetRepository {
         'description': description,
         'payment_note': paymentNote,
         'reason': reason,
+        if (paidByUserId != null) 'paid_by_user_id': paidByUserId,
+        if (payments != null)
+          'payments': payments.map((item) => item.toJson()).toList(),
         if (splitStrategy != null) 'split_strategy': splitStrategy,
         if (participants != null)
           'participants': participants.map((item) => item.toJson()).toList(),
@@ -307,6 +312,7 @@ class BudgetRepository {
               ...payload,
               if (participants != null)
                 'participants': jsonEncode(payload['participants']),
+              if (payments != null) 'payments': jsonEncode(payload['payments']),
               'receipt': await multipartFromXFile(receiptFile),
             });
       final Response res = await _auth.requestWithAutoRefresh(

@@ -21,6 +21,26 @@ import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.d
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../shared/ui_states/ui_states.dart';
 
+final _friendsPageSnapshotProvider = StateProvider<_FriendsPageSnapshot?>(
+  (_) => null,
+);
+
+class _FriendsPageSnapshot {
+  const _FriendsPageSnapshot({
+    required this.ownerId,
+    required this.friends,
+    required this.requests,
+    required this.sentRequests,
+    required this.tripInvitations,
+  });
+
+  final String ownerId;
+  final List<UserSummary> friends;
+  final List<Friendship> requests;
+  final List<Friendship> sentRequests;
+  final List<Map<String, dynamic>> tripInvitations;
+}
+
 class FriendsPage extends ConsumerStatefulWidget {
   const FriendsPage({super.key});
 
@@ -41,6 +61,10 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
 
   bool _loadingFriends = false;
   bool _loadingRequests = false;
+  bool _fetchingFriends = false;
+  bool _fetchingRequests = false;
+  bool _hasLoadedFriends = false;
+  bool _hasLoadedRequests = false;
   String? _friendsError;
   String? _requestsError;
   List<UserSummary> _friends = [];
@@ -55,9 +79,22 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
+    final snapshot = ref.read(_friendsPageSnapshotProvider);
+    final ownerId = ref.read(authNotifierProvider).user?.id;
+    final hasSnapshot = snapshot != null && snapshot.ownerId == ownerId;
+    if (hasSnapshot) {
+      _friends = List.of(snapshot.friends);
+      _friendRequests = List.of(snapshot.requests);
+      _sentRequests = List.of(snapshot.sentRequests);
+      _tripInvitations = List.of(snapshot.tripInvitations);
+      _hasLoadedFriends = true;
+      _hasLoadedRequests = true;
+    } else if (snapshot != null) {
+      ref.read(_friendsPageSnapshotProvider.notifier).state = null;
+    }
     _setupPresenceUpdates();
     _startPresenceRefreshTimer();
-    _loadData();
+    _loadData(silent: hasSnapshot);
   }
 
   @override
@@ -74,7 +111,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     _connectPresenceSocket();
-    _loadData();
+    unawaited(_loadData(silent: true));
   }
 
   void _setupPresenceUpdates() {
@@ -126,22 +163,40 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
 
   @override
   Future<void> onRefresh() async {
-    await _loadData();
+    await _loadData(silent: true);
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool silent = false}) async {
     await Future.wait([
-      _loadFriends(),
-      _loadFriendRequests(),
+      _loadFriends(silent: silent),
+      _loadFriendRequests(silent: silent),
       _loadSentRequests(),
       _loadTripInvitations(),
     ]);
   }
 
+  void _cacheSnapshot() {
+    if (!_hasLoadedFriends || !_hasLoadedRequests) return;
+    final ownerId = ref.read(authNotifierProvider).user?.id;
+    if (ownerId == null) return;
+    ref
+        .read(_friendsPageSnapshotProvider.notifier)
+        .state = _FriendsPageSnapshot(
+      ownerId: ownerId,
+      friends: List.of(_friends),
+      requests: List.of(_friendRequests),
+      sentRequests: List.of(_sentRequests),
+      tripInvitations: List.of(_tripInvitations),
+    );
+  }
+
   Future<void> _loadSentRequests() async {
     try {
       final requests = await _friendRepo.getSentRequests();
-      if (mounted) setState(() => _sentRequests = requests);
+      if (mounted) {
+        setState(() => _sentRequests = requests);
+        _cacheSnapshot();
+      }
     } catch (_) {
       // Incoming requests and friends remain usable during a partial failure.
     }
@@ -150,7 +205,10 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
   Future<void> _loadTripInvitations() async {
     try {
       final invitations = await _friendRepo.getTripInvitations();
-      if (mounted) setState(() => _tripInvitations = invitations);
+      if (mounted) {
+        setState(() => _tripInvitations = invitations);
+        _cacheSnapshot();
+      }
     } catch (_) {
       // Keep previously loaded invitations on transient network errors.
     }
@@ -175,6 +233,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       await _friendRepo.cancelFriendRequest(request.id);
       if (mounted) {
         setState(() => _sentRequests.removeWhere((r) => r.id == request.id));
+        _cacheSnapshot();
       }
     } catch (error) {
       if (mounted) ErrorDisplayService.handleError(context, error);
@@ -182,7 +241,8 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
   }
 
   Future<void> _loadFriends({bool silent = false}) async {
-    if (silent && _loadingFriends) return;
+    if (_fetchingFriends) return;
+    _fetchingFriends = true;
     if (!silent) {
       setState(() {
         _loadingFriends = true;
@@ -195,7 +255,10 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       setState(() {
         _friends = friends;
         _loadingFriends = false;
+        _friendsError = null;
+        _hasLoadedFriends = true;
       });
+      _cacheSnapshot();
     } catch (error) {
       if (!mounted) return;
       if (silent) return;
@@ -203,27 +266,39 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
         _loadingFriends = false;
         _friendsError = ErrorDisplayService.getUserFriendlyMessage(error);
       });
+    } finally {
+      _fetchingFriends = false;
     }
   }
 
-  Future<void> _loadFriendRequests() async {
-    setState(() {
-      _loadingRequests = true;
-      _requestsError = null;
-    });
+  Future<void> _loadFriendRequests({bool silent = false}) async {
+    if (_fetchingRequests) return;
+    _fetchingRequests = true;
+    if (!silent) {
+      setState(() {
+        _loadingRequests = true;
+        _requestsError = null;
+      });
+    }
     try {
       final requests = await _friendRepo.getPendingRequests();
       if (!mounted) return;
       setState(() {
         _friendRequests = requests.toList();
         _loadingRequests = false;
+        _requestsError = null;
+        _hasLoadedRequests = true;
       });
+      _cacheSnapshot();
     } catch (error) {
       if (!mounted) return;
+      if (silent) return;
       setState(() {
         _loadingRequests = false;
         _requestsError = ErrorDisplayService.getUserFriendlyMessage(error);
       });
+    } finally {
+      _fetchingRequests = false;
     }
   }
 
@@ -236,6 +311,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
           _friendRequests.removeWhere((item) => item.id == request.id);
           _friends.add(request.friend);
         });
+        _cacheSnapshot();
         ErrorDisplayService.showSuccessSnackbar(
           context,
           context.l10n.t('friends.accept_success'),
@@ -255,6 +331,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
         setState(() {
           _friendRequests.removeWhere((item) => item.id == request.id);
         });
+        _cacheSnapshot();
         ErrorDisplayService.showSuccessSnackbar(
           context,
           context.l10n.t('friends.reject_success'),
@@ -272,7 +349,7 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
       MaterialPageRoute(builder: (_) => UserProfilePage(user: user)),
     );
     if (!mounted) return;
-    await _loadFriends();
+    await _loadFriends(silent: true);
   }
 
   @override
@@ -506,53 +583,66 @@ class _FriendsPageState extends ConsumerState<FriendsPage>
   Widget _buildFriendTile(UserSummary friend) {
     final l10n = context.l10n;
     return JourneySurface(
-      padding: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       onTap: () => _onUserTap(friend),
       semanticLabel: friend.fullName,
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: _buildAvatar(friend),
-        title: Text(
-          friend.fullName,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '@${friend.username}',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
+      child: Row(
+        children: [
+          _buildAvatar(friend),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.circle,
-                  size: 8,
-                  color: friend.isOnline
-                      ? AppColors.success
-                      : Theme.of(context).colorScheme.outline,
-                ),
-                const SizedBox(width: 6),
                 Text(
-                  friend.isOnline
-                      ? l10n.t('friends.online')
-                      : l10n.t('friends.offline'),
-                  style: TextStyle(
-                    color: friend.isOnline
-                        ? AppColors.success
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                  friend.fullName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
                   ),
+                ),
+                Text(
+                  '@${friend.username}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.circle,
+                      size: 8,
+                      color: friend.isOnline
+                          ? AppColors.success
+                          : Theme.of(context).colorScheme.outline,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      friend.isOnline
+                          ? l10n.t('friends.online')
+                          : l10n.t('friends.offline'),
+                      style: TextStyle(
+                        color: friend.isOnline
+                            ? AppColors.success
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-        trailing: const Icon(Icons.arrow_forward_rounded, size: 20),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          const Icon(Icons.arrow_forward_rounded, size: 20),
+        ],
       ),
     );
   }

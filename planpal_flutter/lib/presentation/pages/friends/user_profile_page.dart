@@ -38,6 +38,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
   bool _publicationsError = false;
   String? _nextPublicationsUrl;
   bool _loadingMorePublications = false;
+  bool _checkingProfileAccess = false;
 
   @override
   void initState() {
@@ -60,12 +61,14 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
-    _checkProfileAccess();
+    _checkProfileAccess(silent: true);
   }
 
-  Future<void> _checkProfileAccess() async {
+  Future<void> _checkProfileAccess({bool silent = false}) async {
+    if (_checkingProfileAccess) return;
+    _checkingProfileAccess = true;
     final l10n = context.l10n;
-    setState(() => _loading = true);
+    if (!silent) setState(() => _loading = true);
     try {
       final profile = await ref
           .read(friendRepositoryProvider)
@@ -73,9 +76,11 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
       if (!mounted) return;
       setState(() {
         _user = profile;
+        _profileAccessDenied = false;
+        _accessDeniedMessage = null;
       });
-      await _loadFriendshipStatus();
-      await _loadPublications();
+      await _syncFriendshipStatus(stopLoading: !silent);
+      await _loadPublications(silent: silent);
     } catch (error) {
       if (!mounted) return;
 
@@ -92,8 +97,8 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
         return;
       }
 
-      setState(() => _loading = false);
-      if (mounted) {
+      if (!silent) setState(() => _loading = false);
+      if (!silent && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -107,11 +112,13 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
           ),
         );
       }
+    } finally {
+      _checkingProfileAccess = false;
     }
   }
 
-  Future<void> _loadPublications() async {
-    if (mounted) setState(() => _publicationsLoading = true);
+  Future<void> _loadPublications({bool silent = false}) async {
+    if (!silent && mounted) setState(() => _publicationsLoading = true);
     try {
       final data = await ref
           .read(friendRepositoryProvider)
@@ -126,7 +133,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage>
         _publicationsError = false;
       });
     } catch (_) {
-      if (mounted) {
+      if (mounted && !silent) {
         setState(() {
           _publicationsLoading = false;
           _publicationsError = true;

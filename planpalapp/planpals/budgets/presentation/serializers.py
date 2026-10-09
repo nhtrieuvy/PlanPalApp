@@ -112,6 +112,7 @@ class RecurringExpenseStatusSerializer(serializers.Serializer):
 
 class ExpenseCorrectionSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0.01)
+    paid_by_user_id = serializers.UUIDField(required=False)
     category = serializers.CharField(max_length=100)
     description = serializers.CharField(required=False, allow_blank=True, default='')
     payment_note = serializers.CharField(required=False, allow_blank=True, default='', max_length=2000)
@@ -126,18 +127,29 @@ class ExpenseCorrectionSerializer(serializers.Serializer):
         required=False,
         allow_empty=False,
     )
+    payments = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_empty=False,
+    )
 
     def to_internal_value(self, data):
         mutable = data.copy() if hasattr(data, 'copy') else dict(data)
-        value = mutable.get('participants')
-        if isinstance(value, str):
-            try:
-                mutable['participants'] = json.loads(value)
-            except json.JSONDecodeError as exc:
-                raise serializers.ValidationError(
-                    {'participants': 'Invalid JSON value'}
-                ) from exc
+        for key in ('participants', 'payments'):
+            value = mutable.get(key)
+            if isinstance(value, str):
+                try:
+                    mutable[key] = json.loads(value)
+                except json.JSONDecodeError as exc:
+                    raise serializers.ValidationError({key: 'Invalid JSON value'}) from exc
         return super().to_internal_value(mutable)
+
+    def validate(self, attrs):
+        if 'paid_by_user_id' in attrs and 'payments' in attrs:
+            raise serializers.ValidationError(
+                {'payments': 'Provide either one payer or payment contributions'}
+            )
+        return attrs
 
     def validate_receipt(self, value):
         return _validate_finance_attachment(value)

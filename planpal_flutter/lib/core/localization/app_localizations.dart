@@ -846,6 +846,8 @@ class AppLocalizations {
       'budget.payment_contributions_hint':
           'Enter only the amounts actually paid. Their total must match the bill.',
       'budget.payment_total_preview': 'Paid {total} of {amount}',
+      'budget.payment_auto_scale_hint':
+          'Contributions will scale with the new total unless you edit them.',
       'budget.validation_payment_required':
           'Enter at least one payment contribution.',
       'budget.validation_payment_amount':
@@ -2222,6 +2224,8 @@ class AppLocalizations {
       'budget.payment_contributions_hint':
           'Chỉ nhập số tiền đã thực trả. Tổng phải bằng giá trị hóa đơn.',
       'budget.payment_total_preview': 'Đã trả {total} trên {amount}',
+      'budget.payment_auto_scale_hint':
+          'Các khoản đóng góp sẽ tự điều chỉnh theo tổng mới nếu bạn không sửa chúng.',
       'budget.validation_payment_required':
           'Hãy nhập ít nhất một khoản đã trả.',
       'budget.validation_payment_amount': 'Mỗi khoản đã trả phải lớn hơn 0.',

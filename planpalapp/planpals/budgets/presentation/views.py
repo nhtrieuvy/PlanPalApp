@@ -201,6 +201,8 @@ class PlanExpenseCorrectionView(APIView):
             payment_note=serializer.validated_data.get('payment_note', ''),
             reason=serializer.validated_data['reason'],
             receipt=serializer.validated_data.get('receipt'),
+            paid_by_user_id=serializer.validated_data.get('paid_by_user_id'),
+            payments=serializer.validated_data.get('payments'),
             split_strategy=serializer.validated_data.get('split_strategy'),
             participants=serializer.validated_data.get('participants'),
         )

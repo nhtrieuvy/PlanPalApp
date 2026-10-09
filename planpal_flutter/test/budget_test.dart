@@ -5,14 +5,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:planpal_flutter/core/auth/auth_session.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/dtos/plan_model.dart';
 import 'package:planpal_flutter/core/dtos/user_summary.dart';
 import 'package:planpal_flutter/core/repositories/budget_repository.dart';
+import 'package:planpal_flutter/core/repositories/plan_repository.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/budget_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/presentation/pages/budget/budget_overview_page.dart';
 import 'package:planpal_flutter/presentation/pages/budget/balances_page.dart';
 import 'package:planpal_flutter/presentation/pages/budget/expense_detail_page.dart';
+import 'package:planpal_flutter/presentation/widgets/forms/app_select_field.dart';
 import 'test_app.dart';
 
 void main() {
@@ -60,6 +63,8 @@ void main() {
     required String id,
     required double amount,
     required String category,
+    List<ExpenseParticipantModel> participants = const [],
+    List<ExpensePaymentModel> payments = const [],
   }) {
     final user = UserSummary(
       id: 'user-1',
@@ -95,8 +100,8 @@ void main() {
       correctionReason: '',
       recurrenceId: null,
       occurrenceAt: null,
-      participants: const [],
-      payments: const [],
+      participants: participants,
+      payments: payments,
       createdAt: DateTime(2026, 4, 5, 10),
       updatedAt: null,
     );
@@ -180,6 +185,139 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Edit participants'), findsOneWidget);
+  });
+
+  testWidgets('expense correction submits the selected payer', (tester) async {
+    final member = UserSummary.fromJson(const {
+      'id': 'user-2',
+      'username': 'member',
+      'full_name': 'Group Member',
+      'initials': 'GM',
+    });
+    final expense = buildExpense(
+      id: 'exp-payer',
+      amount: 60000,
+      category: 'Food',
+      participants: [
+        ExpenseParticipantModel(
+          id: 'participant-2',
+          expenseId: 'exp-payer',
+          userId: member.id,
+          user: member,
+          owedAmount: 60000,
+          settledAmount: 0,
+          balance: -60000,
+        ),
+      ],
+    );
+    final repository = FakeBudgetRepository(summary: summary);
+    final auth = AuthProvider();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          budgetRepositoryProvider.overrideWithValue(repository),
+          planRepositoryProvider.overrideWithValue(
+            _UnavailablePlanRepository(auth),
+          ),
+        ],
+        child: buildLocalizedTestApp(ExpenseDetailPage(expense: expense)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Correct expense'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(AppSelectField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Group Member').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).last, 'Member paid');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(repository.correctedPaidByUserId, 'user-2');
+    expect(repository.correctedPayments, isNull);
+  });
+
+  testWidgets('expense correction keeps multiple payer contributions', (
+    tester,
+  ) async {
+    final owner = UserSummary.fromJson(const {
+      'id': 'user-1',
+      'username': 'owner',
+      'full_name': 'Plan Owner',
+    });
+    final member = UserSummary.fromJson(const {
+      'id': 'user-2',
+      'username': 'member',
+      'full_name': 'Group Member',
+    });
+    final expense = buildExpense(
+      id: 'exp-shared',
+      amount: 60000,
+      category: 'Food',
+      payments: [
+        ExpensePaymentModel(
+          id: 'payment-1',
+          expenseId: 'exp-shared',
+          userId: owner.id,
+          user: owner,
+          amount: 30000,
+          createdAt: DateTime(2026, 4, 5),
+        ),
+        ExpensePaymentModel(
+          id: 'payment-2',
+          expenseId: 'exp-shared',
+          userId: member.id,
+          user: member,
+          amount: 30000,
+          createdAt: DateTime(2026, 4, 5),
+        ),
+      ],
+    );
+    final repository = FakeBudgetRepository(summary: summary);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          budgetRepositoryProvider.overrideWithValue(repository),
+          planRepositoryProvider.overrideWithValue(
+            _UnavailablePlanRepository(AuthProvider()),
+          ),
+        ],
+        child: buildLocalizedTestApp(ExpenseDetailPage(expense: expense)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Correct expense'));
+    await tester.pumpAndSettle();
+    expect(find.text('More than one person paid'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Plan Owner'),
+      '20000',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Group Member'),
+      '40000',
+    );
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).last, 'Both paid');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(repository.correctedPaidByUserId, isNull);
+    expect(repository.correctedPayments?.length, 2);
+    expect(repository.correctedPayments?.map((item) => item.userId).toSet(), {
+      'user-1',
+      'user-2',
+    });
+    expect(repository.correctedPayments?.map((item) => item.amount).toList(), [
+      20000,
+      40000,
+    ]);
   });
 
   test('expensesProvider appends the next page', () async {
@@ -305,12 +443,42 @@ class FakeBudgetRepository extends BudgetRepository {
   final BudgetModel summary;
   final List<ExpensePageResponse> pages;
   final BalanceSummaryModel? balanceSummary;
+  String? correctedPaidByUserId;
+  List<ExpensePaymentInput>? correctedPayments;
 
   FakeBudgetRepository({
     required this.summary,
     this.pages = const [],
     this.balanceSummary,
   }) : super(AuthProvider());
+
+  @override
+  Future<ExpenseCreateResult> correctExpense(
+    String planId,
+    String expenseId, {
+    required double amount,
+    required String category,
+    required String reason,
+    String description = '',
+    String paymentNote = '',
+    XFile? receiptFile,
+    String? paidByUserId,
+    List<ExpensePaymentInput>? payments,
+    String? splitStrategy,
+    List<ExpenseParticipantInput>? participants,
+  }) async {
+    correctedPaidByUserId = paidByUserId;
+    correctedPayments = payments;
+    return ExpenseCreateResult(
+      expense: buildFakeExpense(
+        id: 'corrected',
+        amount: amount,
+        category: category,
+      ),
+      summary: summary,
+      warnings: const [],
+    );
+  }
 
   @override
   Future<BudgetModel> getBudget(String planId) async => summary;
@@ -486,4 +654,12 @@ class FakeBudgetRepository extends BudgetRepository {
       updatedAt: null,
     );
   }
+}
+
+class _UnavailablePlanRepository extends PlanRepository {
+  _UnavailablePlanRepository(super.auth);
+
+  @override
+  Future<PlanModel> getPlanDetail(String id) async =>
+      throw StateError('Plan detail is unavailable in this widget test');
 }

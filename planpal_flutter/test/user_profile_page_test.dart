@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -149,6 +152,45 @@ void main() {
       expect(find.text('Add friend'), findsNothing);
     },
   );
+
+  testWidgets('keeps profile actions visible while resuming in background', (
+    tester,
+  ) async {
+    final auth = AuthProvider()
+      ..setUser(buildCurrentUser(id: 'self', username: 'self'));
+    final profileUser = buildUserSummary(
+      id: 'friend-3',
+      username: 'friend3',
+      fullName: 'Friend Three',
+    );
+    final refresh = Completer<UserSummary>();
+    final repository = _FakeFriendRepository(
+      auth,
+      profileUser: profileUser,
+      initialDetails: const {'status': 'friends'},
+      refreshProfile: refresh.future,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith((ref) => auth),
+          friendRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: buildLocalizedTestApp(UserProfilePage(user: profileUser)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Plan a trip together'), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    expect(find.text('Plan a trip together'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    refresh.complete(profileUser);
+    await tester.pumpAndSettle();
+  });
 }
 
 class _FakeFriendRepository extends FriendRepository {
@@ -158,17 +200,24 @@ class _FakeFriendRepository extends FriendRepository {
     required this.initialDetails,
     this.afterSendFailureDetails,
     this.throwAlreadyFriendsOnSend = false,
+    this.refreshProfile,
   });
 
   final UserSummary profileUser;
   final Map<String, dynamic>? initialDetails;
   final Map<String, dynamic>? afterSendFailureDetails;
   final bool throwAlreadyFriendsOnSend;
+  final Future<UserSummary>? refreshProfile;
 
   int _friendshipDetailsCallCount = 0;
+  int _profileCallCount = 0;
 
   @override
   Future<UserSummary> getUserProfile(String userId) async {
+    _profileCallCount += 1;
+    if (_profileCallCount > 1 && refreshProfile != null) {
+      return refreshProfile!;
+    }
     return profileUser;
   }
 

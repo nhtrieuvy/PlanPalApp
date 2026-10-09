@@ -10,6 +10,7 @@ import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
+import 'package:planpal_flutter/presentation/widgets/forms/app_select_field.dart';
 import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 
 class ExpenseDetailPage extends ConsumerWidget {
@@ -203,6 +204,8 @@ class ExpenseDetailPage extends ConsumerWidget {
             paymentNote: draft.paymentNote,
             reason: draft.reason,
             receiptFile: draft.receiptFile,
+            paidByUserId: draft.paidByUserId,
+            payments: draft.payments,
             splitStrategy: draft.splitStrategy,
             participants: draft.participants,
           );
@@ -218,6 +221,7 @@ class ExpenseDetailPage extends ConsumerWidget {
   Future<List<UserSummary>> _loadParticipants(WidgetRef ref) async {
     final users = <String, UserSummary>{
       expense.paidByUser.id: expense.paidByUser,
+      for (final payment in expense.payments) payment.user.id: payment.user,
       for (final participant in expense.participants)
         participant.user.id: participant.user,
     };
@@ -333,6 +337,8 @@ class _ExpenseCorrectionDraft {
     required this.reason,
     required this.splitStrategy,
     required this.participants,
+    this.paidByUserId,
+    this.payments,
     this.receiptFile,
   });
 
@@ -343,6 +349,8 @@ class _ExpenseCorrectionDraft {
   final String reason;
   final String splitStrategy;
   final List<ExpenseParticipantInput> participants;
+  final String? paidByUserId;
+  final List<ExpensePaymentInput>? payments;
   final XFile? receiptFile;
 }
 
@@ -374,8 +382,12 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
   XFile? _receiptFile;
   String? _receiptName;
   late String _splitStrategy;
+  late String? _paidByUserId;
+  late bool _hasMultiplePayers;
+  bool _paymentChoiceChanged = false;
   late final Set<String> _selectedParticipantIds;
   final Map<String, TextEditingController> _splitControllers = {};
+  final Map<String, TextEditingController> _paymentControllers = {};
   late _ExpenseCorrectionSection _section;
 
   @override
@@ -391,6 +403,8 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
         ? _ExpenseCorrectionSection.participants
         : _ExpenseCorrectionSection.details;
     _splitStrategy = widget.expense.splitStrategy;
+    _paidByUserId = widget.expense.paidByUserId;
+    _hasMultiplePayers = widget.expense.payments.length > 1;
     _selectedParticipantIds = widget.expense.participants
         .map((item) => item.user.id)
         .toSet();
@@ -398,6 +412,17 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
       _selectedParticipantIds.addAll(widget.members.map((item) => item.id));
     }
     for (final member in widget.members) {
+      final contribution = widget.expense.payments
+          .where((item) => item.user.id == member.id)
+          .firstOrNull;
+      _paymentControllers[member.id] = TextEditingController(
+        text: contribution != null
+            ? contribution.amount.toStringAsFixed(2)
+            : widget.expense.payments.isEmpty &&
+                  member.id == widget.expense.paidByUserId
+            ? widget.expense.amount.toStringAsFixed(2)
+            : '',
+      );
       ExpenseParticipantModel? participant;
       for (final item in widget.expense.participants) {
         if (item.user.id == member.id) {
@@ -422,6 +447,9 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
     _paymentNote.dispose();
     _reason.dispose();
     for (final controller in _splitControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _paymentControllers.values) {
       controller.dispose();
     }
     super.dispose();
@@ -573,6 +601,7 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
         TextFormField(
           controller: _amount,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             labelText: context.l10n.t('budget.amount'),
           ),
@@ -583,6 +612,46 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
                 : null;
           },
         ),
+        const SizedBox(height: 12),
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: Text(context.l10n.t('budget.multiple_payers')),
+          subtitle: Text(context.l10n.t('budget.multiple_payers_description')),
+          value: _hasMultiplePayers,
+          onChanged: (enabled) => setState(() {
+            _paymentChoiceChanged = true;
+            if (enabled && !_hasMultiplePayers) {
+              for (final entry in _paymentControllers.entries) {
+                entry.value.text = entry.key == _paidByUserId
+                    ? _amount.text.trim()
+                    : '';
+              }
+            }
+            _hasMultiplePayers = enabled;
+          }),
+        ),
+        const SizedBox(height: 8),
+        if (_hasMultiplePayers)
+          _buildPaymentContributions(context)
+        else
+          AppSelectField<String>(
+            label: context.l10n.t('budget.paid_by'),
+            value: _paidByUserId,
+            prefixIcon: Icons.account_balance_wallet_outlined,
+            hintText: context.l10n.t('budget.select_payer'),
+            options: widget.members
+                .map(
+                  (member) => AppSelectOption(
+                    value: member.id,
+                    label: _memberName(member),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() {
+              _paidByUserId = value;
+              _paymentChoiceChanged = true;
+            }),
+          ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _category,
@@ -693,10 +762,79 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
     );
   }
 
+  Widget _buildPaymentContributions(BuildContext context) {
+    final l10n = context.l10n;
+    final total = widget.members.fold<double>(
+      0,
+      (sum, member) =>
+          sum +
+          (double.tryParse(_paymentControllers[member.id]?.text.trim() ?? '') ??
+              0),
+    );
+    final amount = double.tryParse(_amount.text.trim()) ?? 0;
+    final balanced = total > 0 && (total - amount).abs() <= 0.01;
+    final willRescale =
+        !_paymentChoiceChanged && (amount - widget.expense.amount).abs() > 0.01;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.t('budget.payment_contributions'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        ...widget.members.map(
+          (member) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: TextFormField(
+              controller: _paymentControllers[member.id],
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              onChanged: (_) => setState(() => _paymentChoiceChanged = true),
+              decoration: InputDecoration(
+                labelText: _memberName(member),
+                prefixIcon: const Icon(Icons.payments_outlined),
+                hintText: '0',
+              ),
+            ),
+          ),
+        ),
+        Text(
+          willRescale
+              ? l10n.t('budget.payment_auto_scale_hint')
+              : l10n.t(
+                  'budget.payment_total_preview',
+                  params: {
+                    'total': total.toStringAsFixed(2),
+                    'amount': amount.toStringAsFixed(2),
+                  },
+                ),
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: willRescale || balanced
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.error,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _memberName(UserSummary member) {
+    if (member.fullName.trim().isNotEmpty) return member.fullName;
+    if (member.username.trim().isNotEmpty) return member.username;
+    return member.id;
+  }
+
   void _selectSection(Set<_ExpenseCorrectionSection> sections) {
     final next = sections.first;
     if (next == _ExpenseCorrectionSection.participants &&
         !(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    if (next == _ExpenseCorrectionSection.participants && !_validatePayer()) {
       return;
     }
     setState(() => _section = next);
@@ -704,11 +842,13 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
 
   void _continueToParticipants() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!_validatePayer()) return;
     setState(() => _section = _ExpenseCorrectionSection.participants);
   }
 
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!widget.participantsOnly && !_validatePayer()) return;
     final participantError = _validateParticipants();
     if (participantError != null) {
       ErrorDisplayService.showErrorSnackbar(context, participantError);
@@ -723,10 +863,61 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
         reason: _reason.text.trim(),
         splitStrategy: _splitStrategy,
         participants: _buildParticipantInputs(),
+        paidByUserId:
+            widget.participantsOnly ||
+                _hasMultiplePayers ||
+                !_paymentChoiceChanged
+            ? null
+            : _paidByUserId,
+        payments:
+            widget.participantsOnly ||
+                !_hasMultiplePayers ||
+                !_paymentChoiceChanged
+            ? null
+            : _buildPaymentInputs(),
         receiptFile: _receiptFile,
       ),
     );
   }
+
+  bool _validatePayer() {
+    String? error;
+    if (!_hasMultiplePayers) {
+      if (_paidByUserId == null ||
+          !widget.members.any((member) => member.id == _paidByUserId)) {
+        error = context.l10n.t('budget.validation_payer_required');
+      }
+    } else if (_paymentChoiceChanged) {
+      final payments = _buildPaymentInputs();
+      final hasInvalidAmount = widget.members.any((member) {
+        final raw = _paymentControllers[member.id]?.text.trim() ?? '';
+        if (raw.isEmpty) return false;
+        final value = double.tryParse(raw);
+        return value == null || value <= 0;
+      });
+      final amount = double.tryParse(_amount.text.trim()) ?? 0;
+      if (hasInvalidAmount) {
+        error = context.l10n.t('budget.validation_payment_amount');
+      } else if (payments.isEmpty) {
+        error = context.l10n.t('budget.validation_payment_required');
+      } else if ((payments.fold<double>(0, (sum, item) => sum + item.amount) -
+                  amount)
+              .abs() >
+          0.01) {
+        error = context.l10n.t('budget.validation_payment_total');
+      }
+    }
+    if (error == null) return true;
+    ErrorDisplayService.showErrorSnackbar(context, error);
+    return false;
+  }
+
+  List<ExpensePaymentInput> _buildPaymentInputs() => [
+    for (final member in widget.members)
+      if (double.tryParse(_paymentControllers[member.id]?.text.trim() ?? '')
+          case final value? when value > 0)
+        ExpensePaymentInput(userId: member.id, amount: value),
+  ];
 
   Widget _buildParticipantRow(UserSummary member) {
     final selected = _selectedParticipantIds.contains(member.id);
