@@ -1,7 +1,9 @@
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import Mock
 from uuid import uuid4
 
+from kombu.exceptions import OperationalError
 from django.test import TestCase
 from django.core.cache import cache
 from django.urls import reverse
@@ -83,6 +85,51 @@ class BudgetTrackingTests(TestCase):
             is_public=False,
         )
         self.budget_service.initialize_plan_budget(self.plan.id)
+
+    def test_expense_remains_saved_when_notification_broker_fails(self):
+        dispatch = Mock(side_effect=OperationalError('Redis quota exhausted'))
+        self.budget_service.expense_notification_dispatcher = dispatch
+
+        with self.captureOnCommitCallbacks(execute=True):
+            result = self.budget_service.add_expense(
+                self.plan.id,
+                self.owner,
+                amount='100.00',
+                category='Food',
+                participants=[
+                    {'user_id': str(self.owner.id)},
+                    {'user_id': str(self.member.id)},
+                ],
+            )
+
+        dispatch.assert_called_once_with(result.expense.id)
+        self.assertTrue(Expense.objects.filter(id=result.expense.id).exists())
+
+    def test_settlement_remains_saved_when_notification_broker_fails(self):
+        self.budget_service.add_expense(
+            self.plan.id,
+            self.owner,
+            amount='100.00',
+            category='Food',
+            participants=[
+                {'user_id': str(self.owner.id)},
+                {'user_id': str(self.member.id)},
+            ],
+        )
+        dispatch = Mock(side_effect=OperationalError('Redis quota exhausted'))
+        self.budget_service.settlement_notification_dispatcher = dispatch
+
+        with self.captureOnCommitCallbacks(execute=True):
+            settlement = self.budget_service.create_settlement(
+                plan_id=self.plan.id,
+                actor=self.member,
+                from_user_id=self.member.id,
+                to_user_id=self.owner.id,
+                amount='50.00',
+            )
+
+        dispatch.assert_called_once_with(settlement.id, 'requested')
+        self.assertTrue(Settlement.objects.filter(id=settlement.id).exists())
 
     def test_budget_mutations_invalidate_budget_and_plan_summary_cache(self):
         budget_key = CacheKeys.budget_summary(self.plan.id)

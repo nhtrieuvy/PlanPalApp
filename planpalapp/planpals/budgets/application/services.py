@@ -261,7 +261,8 @@ class BudgetService:
         self.invalidate_budget_cache(plan_uuid)
         if self.expense_notification_dispatcher:
             transaction.on_commit(
-                lambda: self.expense_notification_dispatcher(expense.id)
+                lambda: self.expense_notification_dispatcher(expense.id),
+                robust=True,
             )
 
         return ExpenseCreationResult(
@@ -625,7 +626,8 @@ class BudgetService:
 
         if self.settlement_notification_dispatcher:
             transaction.on_commit(
-                lambda: self.settlement_notification_dispatcher(settlement.id, 'requested')
+                lambda: self.settlement_notification_dispatcher(settlement.id, 'requested'),
+                robust=True,
             )
 
         self.invalidate_budget_cache(plan_uuid)
@@ -706,7 +708,8 @@ class BudgetService:
         self.invalidate_budget_cache(current.plan_id)
         if self.settlement_notification_dispatcher:
             transaction.on_commit(
-                lambda: self.settlement_notification_dispatcher(updated.id, target_status)
+                lambda: self.settlement_notification_dispatcher(updated.id, target_status),
+                robust=True,
             )
         return updated
 

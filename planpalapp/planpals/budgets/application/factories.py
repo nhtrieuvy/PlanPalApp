@@ -56,7 +56,9 @@ def get_expense_notification_dispatcher():
     from planpals.budgets.infrastructure.tasks import process_expense_notifications_task
 
     def dispatch(expense_id) -> None:
-        process_expense_notifications_task.delay(str(expense_id))
+        process_expense_notifications_task.apply_async(
+            args=[str(expense_id)], retry=False, ignore_result=True,
+        )
 
     return dispatch
 
@@ -65,6 +67,8 @@ def get_settlement_notification_dispatcher():
     from planpals.budgets.infrastructure.tasks import process_settlement_notification_task
 
     def dispatch(settlement_id, event: str) -> None:
-        process_settlement_notification_task.delay(str(settlement_id), event)
+        process_settlement_notification_task.apply_async(
+            args=[str(settlement_id), event], retry=False, ignore_result=True,
+        )
 
     return dispatch

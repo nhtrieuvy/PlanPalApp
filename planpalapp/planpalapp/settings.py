@@ -745,6 +745,7 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True  # Re-queue if worker killed mid-task
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 200   # Recycle workers to prevent memory leaks
 CELERY_BROKER_TRANSPORT_OPTIONS = {
     'visibility_timeout': 3600,   # 1 h — must exceed longest ETA
+    'polling_interval': 20,   # Kombu >= 5.6: reduce idle Redis BRPOP calls.
     'max_retries': 3,
     'interval_start': 0,
     'interval_step': 0.2,
