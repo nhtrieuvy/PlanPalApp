@@ -53,6 +53,7 @@ class AuditLogModel extends Equatable {
     AuditActionOption(value: 'UPDATE_BUDGET', label: 'Update Budget'),
     AuditActionOption(value: 'CREATE_EXPENSE', label: 'Create Expense'),
     AuditActionOption(value: 'UPDATE_EXPENSE', label: 'Update Expense'),
+    AuditActionOption(value: 'DELETE_EXPENSE', label: 'Delete Expense'),
     AuditActionOption(
       value: 'SETTLEMENT_REQUESTED',
       label: 'Settlement Requested',

@@ -3,17 +3,21 @@ import 'dart:convert';
 import 'dart:typed_data';
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:getwidget/getwidget.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 import '../../../core/dtos/plan_model.dart';
 import '../../../core/dtos/plan_activity.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../widgets/audit/audit_log_list.dart';
+import '../../widgets/layout/responsive_content.dart';
+import '../../widgets/design_system/journey_ui.dart';
 import '../../../shared/ui_states/ui_states.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../plans/activity_form_page.dart';
@@ -24,6 +28,7 @@ import 'package:planpal_flutter/core/riverpod/collaboration_providers.dart';
 import 'package:planpal_flutter/presentation/pages/collaboration/plan_collaboration_page.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:planpal_flutter/core/files/safe_file_name.dart';
 
 class PlanDetailsPage extends ConsumerStatefulWidget {
   final String id;
@@ -33,11 +38,70 @@ class PlanDetailsPage extends ConsumerStatefulWidget {
   ConsumerState<PlanDetailsPage> createState() => _PlanDetailsPageState();
 }
 
+enum _TripDetailSection { overview, itinerary, decisions, more }
+
+class _TripDetailSectionBar extends StatelessWidget {
+  const _TripDetailSectionBar({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final _TripDetailSection selected;
+  final ValueChanged<_TripDetailSection> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <(_TripDetailSection, IconData, String)>[
+      (
+        _TripDetailSection.overview,
+        Icons.explore_outlined,
+        context.l10n.t('plan.section_overview'),
+      ),
+      (
+        _TripDetailSection.itinerary,
+        Icons.route_outlined,
+        context.l10n.t('plan.section_itinerary'),
+      ),
+      (
+        _TripDetailSection.decisions,
+        Icons.how_to_vote_outlined,
+        context.l10n.t('plan.section_decisions'),
+      ),
+      (
+        _TripDetailSection.more,
+        Icons.more_horiz_rounded,
+        context.l10n.t('plan.section_more'),
+      ),
+    ];
+
+    return Semantics(
+      label: context.l10n.t('plan.trip_sections'),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SegmentedButton<_TripDetailSection>(
+          showSelectedIcon: false,
+          segments: [
+            for (final item in items)
+              ButtonSegment<_TripDetailSection>(
+                value: item.$1,
+                icon: Icon(item.$2, size: 18),
+                label: Text(item.$3),
+              ),
+          ],
+          selected: {selected},
+          onSelectionChanged: (value) => onSelected(value.first),
+        ),
+      ),
+    );
+  }
+}
+
 class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
     with RefreshablePage<PlanDetailsPage> {
   PlanModel? _detail;
   Object? _error;
   bool _loading = true;
+  _TripDetailSection _selectedSection = _TripDetailSection.overview;
 
   @override
   void initState() {
@@ -170,6 +234,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
     }
 
     final p = _detail!;
+    final isOwner = ref.read(authNotifierProvider).user?.id == p.creator.id;
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: NestedScrollView(
@@ -179,15 +244,42 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             actions: [
+              IconButton(
+                onPressed: () => _navigateToSchedule(p.id),
+                tooltip: context.l10n.t('plan.schedule_tooltip'),
+                icon: const Icon(Icons.route_rounded),
+              ),
               PopupMenuButton<String>(
                 onSelected: (value) => _handlePlanningAction(value, p),
                 itemBuilder: (context) => [
+                  if (isOwner && p.isPersonalPlan && p.isCompleted)
+                    PopupMenuItem(
+                      value: 'publication',
+                      child: ListTile(
+                        leading: const Icon(Icons.auto_stories_outlined),
+                        title: Text(context.l10n.t('published.manage')),
+                      ),
+                    ),
                   if (p.canEdit)
                     PopupMenuItem(
                       value: 'clone',
                       child: ListTile(
                         leading: const Icon(Icons.copy_all_outlined),
                         title: Text(context.l10n.t('collaboration.clone_plan')),
+                      ),
+                    ),
+                  if (isOwner)
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.delete_outline_rounded,
+                          color: theme.colorScheme.error,
+                        ),
+                        title: Text(
+                          context.l10n.t('plan.delete'),
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
                       ),
                     ),
                   PopupMenuItem(
@@ -209,19 +301,48 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                 ],
               ),
             ],
-            background: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: AppColors.primaryGradient,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.event_note,
-                  size: 80,
-                  color: Colors.white.withAlpha(75),
+            background: JourneyPathBackdrop(
+              color: Colors.white,
+              child: ColoredBox(
+                color: AppColors.primary,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(28, 28, 28, 54),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (p.groupName?.isNotEmpty == true) ...[
+                            Text(
+                              p.groupName!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: Colors.white.withValues(alpha: .82),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                          ],
+                          JourneyRouteProgress(
+                            completedStops: _journeyStage(p),
+                            color: Colors.white,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            _tripDateLabel(context, p),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: .9),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -231,321 +352,266 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
           onRefresh: onRefresh,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildCreatorCard(
-                  p.creator.avatarForDisplay,
-                  (p.creator.fullName.isNotEmpty
-                      ? p.creator.fullName
-                      : p.creator.username),
-                ),
-                const SizedBox(height: 16),
-                _buildMetaCard(
-                  theme: theme,
-                  statusCode: p.status,
-                  statusLabel: p.statusDisplay.isNotEmpty
-                      ? p.statusDisplay
-                      : p.status,
-                  planType: p.planType,
-                  isPublic: p.isPublic,
-                  durationDisplay: p.durationDisplay,
-                  activitiesCount: p.activitiesCount,
-                  totalEstimatedCost: p.totalEstimatedCost,
-                  groupName: p.groupName ?? '',
-                ),
-                const SizedBox(height: 16),
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            child: ResponsiveContent(
+              mediumMaxWidth: 820,
+              expandedMaxWidth: 1120,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _TripDetailSectionBar(
+                    selected: _selectedSection,
+                    onSelected: (section) =>
+                        setState(() => _selectedSection = section),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.success.withAlpha(20),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.account_balance_wallet_rounded,
-                            color: AppColors.success,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
+                  const SizedBox(height: AppSpacing.md),
+                  if (_selectedSection == _TripDetailSection.overview) ...[
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final creator = _buildCreatorCard(
+                          p.creator.avatarForDisplay,
+                          (p.creator.fullName.isNotEmpty
+                              ? p.creator.fullName
+                              : p.creator.username),
+                        );
+                        final metadata = _buildMetaCard(
+                          theme: theme,
+                          statusCode: p.status,
+                          statusLabel: p.statusDisplay.isNotEmpty
+                              ? p.statusDisplay
+                              : p.status,
+                          planType: p.planType,
+                          isPublic: p.isPublic,
+                          durationDisplay: p.durationDisplay,
+                          activitiesCount: p.activitiesCount,
+                          totalEstimatedCost: p.totalEstimatedCost,
+                          groupName: p.groupName ?? '',
+                        );
+                        if (constraints.maxWidth >= 760) {
+                          return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                context.l10n.t('plan.budget_card_title'),
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                context.l10n.t('plan.budget_card_description'),
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey[700],
-                                ),
-                              ),
+                              Expanded(child: creator),
+                              const SizedBox(width: 16),
+                              Expanded(flex: 2, child: metadata),
                             ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        OutlinedButton(
-                          onPressed: () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => BudgetOverviewPage(
-                                  planId: p.id,
-                                  planTitle: p.title,
-                                  canManageBudget: p.canEdit,
-                                ),
-                              ),
-                            );
-                            if (!mounted) return;
-                            await _load(refresh: true);
-                          },
-                          child: Text(context.l10n.t('common.open')),
-                        ),
-                      ],
+                          );
+                        }
+                        return Column(
+                          children: [
+                            creator,
+                            const SizedBox(height: 16),
+                            metadata,
+                          ],
+                        );
+                      },
                     ),
-                  ),
-                ),
-                if (p.description != null && p.description!.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _buildInfoCard(
-                    icon: Icons.description,
-                    title: context.l10n.t('plan.description'),
-                    subtitle: p.description!,
-                    color: AppColors.primary,
-                    theme: theme,
-                  ),
-                ],
-                if (p.startDate != null || p.endDate != null) ...[
-                  const SizedBox(height: 16),
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.info.withAlpha(25),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.schedule,
-                                  color: AppColors.info,
-                                  size: 20,
-                                ),
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.success.withAlpha(20),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              const SizedBox(width: 12),
-                              Text(
-                                context.l10n.t('plan.time'),
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              child: const Icon(
+                                Icons.account_balance_wallet_rounded,
+                                color: AppColors.success,
+                                size: 24,
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          if (p.startDate != null)
-                            _buildDateRow(
-                              icon: Icons.play_arrow,
-                              label: context.l10n.t('plan.start'),
-                              date: AppFormatters.fullDateTime(
-                                context,
-                                p.startDate!,
-                              ),
-                              theme: theme,
                             ),
-                          if (p.startDate != null && p.endDate != null)
-                            const SizedBox(height: 12),
-                          if (p.endDate != null)
-                            _buildDateRow(
-                              icon: Icons.stop,
-                              label: context.l10n.t('plan.end'),
-                              date: AppFormatters.fullDateTime(
-                                context,
-                                p.endDate!,
-                              ),
-                              theme: theme,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-                if (p.activities.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _buildActivitiesCard(theme: theme, activities: p.activities),
-                ],
-                const SizedBox(height: 16),
-                Card(
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.groups_2_outlined,
-                      color: theme.colorScheme.primary,
-                    ),
-                    title: Text(context.l10n.t('collaboration.title')),
-                    subtitle: Text(
-                      context.l10n.t('collaboration.plan_subtitle'),
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PlanCollaborationPage(plan: p),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                AuditLogList(
-                  title: context.l10n.t('plan.audit_log_title'),
-                  resourceType: 'plan',
-                  resourceId: p.id,
-                ),
-                if (p.canEdit && p.isUpcoming) ...[
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _confirmCancelPlan(p),
-                      icon: const Icon(Icons.cancel_outlined),
-                      label: Text(context.l10n.t('plan.cancel_plan')),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.colorScheme.error,
-                        side: BorderSide(color: theme.colorScheme.error),
-                      ),
-                    ),
-                  ),
-                ],
-                if (p.canEdit) ...[
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            // Edit button: open edit form and refresh details on success
-                            final result = await Navigator.of(context)
-                                .push<Map<String, dynamic>>(
-                                  MaterialPageRoute(
-                                    builder: (context) => PlanFormPage(
-                                      initial: {
-                                        'id': p.id,
-                                        'title': p.title,
-                                        'description': p.description,
-                                        'start_date': p.startDate
-                                            ?.toIso8601String(),
-                                        'end_date': p.endDate
-                                            ?.toIso8601String(),
-                                        'is_public': p.isPublic,
-                                        'plan_type': p.planType,
-                                        'group_id': p.group?.id,
-                                      },
-                                    ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    context.l10n.t('plan.budget_card_title'),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w700),
                                   ),
-                                );
-                            if (result != null &&
-                                result['action'] == 'updated') {
-                              // reload details from API and return updated result to caller
-                              await _load(refresh: true);
-                              if (!mounted) return;
-                              ErrorDisplayService.showSuccessSnackbar(
-                                context,
-                                context.l10n.t('plan.updated_success'),
-                              );
-                              Navigator.of(context).pop({
-                                'action': 'updated',
-                                'plan': result['plan'],
-                              });
-                              return;
-                            }
-                          },
-                          icon: const Icon(Icons.edit_outlined),
-                          label: Text(context.l10n.t('plan.edit')),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (dialogContext) => AlertDialog(
-                                title: Text(
-                                  context.l10n.t('plan.delete_title'),
-                                ),
-                                content: Text(
-                                  context.l10n.t(
-                                    'plan.delete_confirm',
-                                    params: {'title': p.title},
-                                  ),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(dialogContext, false),
-                                    child: Text(
-                                      context.l10n.t('common.cancel'),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    context.l10n.t(
+                                      'plan.budget_card_description',
                                     ),
-                                  ),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.error,
-                                      foregroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.onError,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
                                     ),
-                                    onPressed: () =>
-                                        Navigator.pop(dialogContext, true),
-                                    child: Text(context.l10n.t('plan.delete')),
                                   ),
                                 ],
                               ),
-                            );
-                            if (confirm != true) return;
-                            try {
-                              await ref
-                                  .read(planRepositoryProvider)
-                                  .deletePlan(p.id);
-                              if (!mounted) return;
-                              Navigator.of(
-                                context,
-                              ).pop({'action': 'delete', 'id': p.id});
-                              ErrorDisplayService.showSuccessSnackbar(
-                                context,
-                                context.l10n.t('plan.deleted_success'),
-                              );
-                            } catch (e) {
-                              if (!mounted) return;
-                              ErrorDisplayService.handleError(
-                                context,
-                                e,
-                                showDialog: true,
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.delete_outline),
-                          label: Text(context.l10n.t('plan.delete')),
+                            ),
+                            const SizedBox(width: 12),
+                            OutlinedButton(
+                              onPressed: () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => BudgetOverviewPage(
+                                      planId: p.id,
+                                      planTitle: p.title,
+                                      canManageBudget: p.canEdit,
+                                    ),
+                                  ),
+                                );
+                                if (!mounted) return;
+                                await _load(refresh: true);
+                              },
+                              child: Text(context.l10n.t('common.open')),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (p.description != null && p.description!.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _buildInfoCard(
+                        icon: Icons.description,
+                        title: context.l10n.t('plan.description'),
+                        subtitle: p.description!,
+                        color: AppColors.primary,
+                        theme: theme,
+                      ),
+                    ],
+                    if (p.startDate != null || p.endDate != null) ...[
+                      const SizedBox(height: 16),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.info.withAlpha(25),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.schedule,
+                                      color: AppColors.info,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    context.l10n.t('plan.time'),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              if (p.startDate != null)
+                                _buildDateRow(
+                                  icon: Icons.play_arrow,
+                                  label: context.l10n.t('plan.start'),
+                                  date: AppFormatters.fullDateTime(
+                                    context,
+                                    p.startDate!,
+                                  ),
+                                  theme: theme,
+                                ),
+                              if (p.startDate != null && p.endDate != null)
+                                const SizedBox(height: 12),
+                              if (p.endDate != null)
+                                _buildDateRow(
+                                  icon: Icons.stop,
+                                  label: context.l10n.t('plan.end'),
+                                  date: AppFormatters.fullDateTime(
+                                    context,
+                                    p.endDate!,
+                                  ),
+                                  theme: theme,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                  if (_selectedSection == _TripDetailSection.itinerary) ...[
+                    JourneySectionHeader(
+                      title: context.l10n.t('plan.section_itinerary'),
+                      subtitle: context.l10n.t('plan.itinerary_hint'),
+                      icon: Icons.route_outlined,
+                      trailing: TextButton.icon(
+                        onPressed: () => _navigateToSchedule(p.id),
+                        icon: const Icon(Icons.map_outlined),
+                        label: Text(context.l10n.t('plan.open_schedule_map')),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    if (p.activities.isNotEmpty)
+                      _buildActivitiesCard(
+                        theme: theme,
+                        activities: p.activities,
+                      )
+                    else
+                      AppEmpty(
+                        icon: Icons.route_outlined,
+                        title: context.l10n.t('plan.no_activities'),
+                        description: context.l10n.t(
+                          'plan.no_activities_description',
+                        ),
+                        actionLabel: context.l10n.t(
+                          'plan.add_activity_tooltip',
+                        ),
+                        onAction: () => _navigateToCreateActivity(p.id),
+                      ),
+                  ],
+                  if (_selectedSection == _TripDetailSection.decisions) ...[
+                    JourneySectionHeader(
+                      title: context.l10n.t('plan.section_decisions'),
+                      subtitle: context.l10n.t('collaboration.plan_subtitle'),
+                      icon: Icons.how_to_vote_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    JourneySurface(
+                      padding: EdgeInsets.zero,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PlanCollaborationPage(plan: p),
+                        ),
+                      ),
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.groups_2_outlined,
+                          color: theme.colorScheme.primary,
+                        ),
+                        title: Text(context.l10n.t('collaboration.title')),
+                        subtitle: Text(
+                          context.l10n.t('plan.decisions_description'),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                      ),
+                    ),
+                  ],
+                  if (_selectedSection == _TripDetailSection.more) ...[
+                    JourneySectionHeader(
+                      title: context.l10n.t('plan.section_more'),
+                      subtitle: context.l10n.t('plan.more_hint'),
+                      icon: Icons.tune_rounded,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    AuditLogList(
+                      title: context.l10n.t('plan.audit_log_title'),
+                      resourceType: 'plan',
+                      resourceId: p.id,
+                    ),
+                    if (p.canEdit && p.isUpcoming) ...[
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _confirmCancelPlan(p),
+                          icon: const Icon(Icons.cancel_outlined),
+                          label: Text(context.l10n.t('plan.cancel_plan')),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: theme.colorScheme.error,
                             side: BorderSide(color: theme.colorScheme.error),
@@ -553,36 +619,88 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                         ),
                       ),
                     ],
-                  ),
+                    if (p.canEdit) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                // Edit button: open edit form and refresh details on success
+                                final result = await Navigator.of(context)
+                                    .push<Map<String, dynamic>>(
+                                      MaterialPageRoute(
+                                        builder: (context) => PlanFormPage(
+                                          initial: {
+                                            'id': p.id,
+                                            'title': p.title,
+                                            'description': p.description,
+                                            'start_date': p.startDate
+                                                ?.toIso8601String(),
+                                            'end_date': p.endDate
+                                                ?.toIso8601String(),
+                                            'is_public': p.isPublic,
+                                            'plan_type': p.planType,
+                                            'group_id': p.group?.id,
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                if (result != null &&
+                                    result['action'] == 'updated') {
+                                  // reload details from API and return updated result to caller
+                                  await _load(refresh: true);
+                                  if (!mounted) return;
+                                  ErrorDisplayService.showSuccessSnackbar(
+                                    context,
+                                    context.l10n.t('plan.updated_success'),
+                                  );
+                                  Navigator.of(context).pop({
+                                    'action': 'updated',
+                                    'plan': result['plan'],
+                                  });
+                                  return;
+                                }
+                              },
+                              icon: const Icon(Icons.edit_outlined),
+                              label: Text(context.l10n.t('plan.edit')),
+                            ),
+                          ),
+                          if (isOwner) const SizedBox(width: 12),
+                          if (isOwner)
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _confirmDeletePlan(p),
+                                icon: const Icon(Icons.delete_outline),
+                                label: Text(context.l10n.t('plan.delete')),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: theme.colorScheme.error,
+                                  side: BorderSide(
+                                    color: theme.colorScheme.error,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                  const SizedBox(height: 20),
                 ],
-                const SizedBox(height: 20),
-              ],
+              ),
             ),
           ),
         ),
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            onPressed: () => _navigateToSchedule(p.id),
-            backgroundColor: AppColors.info,
-            foregroundColor: Colors.white,
-            heroTag: "schedule",
-            tooltip: context.l10n.t('plan.schedule_tooltip'),
-            child: const Icon(Icons.calendar_view_day),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton(
-            onPressed: () => _navigateToCreateActivity(p.id),
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            heroTag: "add_activity",
-            tooltip: context.l10n.t('plan.add_activity_tooltip'),
-            child: const Icon(Icons.add),
-          ),
-        ],
-      ),
+      floatingActionButton: _selectedSection == _TripDetailSection.itinerary
+          ? FloatingActionButton.extended(
+              onPressed: () => _navigateToCreateActivity(p.id),
+              heroTag: 'add_activity',
+              tooltip: context.l10n.t('plan.add_activity_tooltip'),
+              icon: const Icon(Icons.add_rounded),
+              label: Text(context.l10n.t('plan.add_activity_tooltip')),
+            )
+          : null,
     );
   }
 
@@ -605,6 +723,25 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
         });
   }
 
+  String _tripDateLabel(BuildContext context, PlanModel plan) {
+    final start = plan.startDate;
+    final end = plan.endDate;
+    if (start != null && end != null) {
+      return '${AppFormatters.shortDate(context, start)} - '
+          '${AppFormatters.shortDate(context, end)}';
+    }
+    if (start != null) return AppFormatters.shortDate(context, start);
+    if (end != null) return AppFormatters.shortDate(context, end);
+    return context.l10n.t('plan.no_date');
+  }
+
+  int _journeyStage(PlanModel plan) {
+    if (plan.status == 'completed') return 3;
+    if (plan.status == 'ongoing' || plan.status == 'active') return 2;
+    if (plan.status == 'upcoming') return 1;
+    return 0;
+  }
+
   void _navigateToSchedule(String planId) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -620,10 +757,185 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
   Future<void> _handlePlanningAction(String action, PlanModel plan) async {
     if (action == 'clone') {
       await _clonePlan(plan);
+    } else if (action == 'delete') {
+      await _confirmDeletePlan(plan);
+    } else if (action == 'publication') {
+      await _managePublication(plan);
     } else if (action == 'ics') {
       await _shareIcs(plan);
     } else if (action == 'google') {
       await _showCalendarLinks(plan);
+    }
+  }
+
+  Future<void> _managePublication(PlanModel plan) async {
+    final repo = ref.read(planRepositoryProvider);
+    Map<String, dynamic>? current;
+    try {
+      current = await repo.getPublication(plan.id);
+    } catch (error) {
+      if (mounted) ErrorDisplayService.handleError(context, error);
+      return;
+    }
+    if (!mounted) return;
+    final destination = TextEditingController(
+      text: current?['destination']?.toString() ?? '',
+    );
+    final summary = TextEditingController(
+      text: current?['summary']?.toString() ?? '',
+    );
+    final selectedIds = <String>{
+      for (final id in current?['highlight_ids'] as List? ?? const [])
+        id.toString(),
+    };
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: 680),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 640,
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.8,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    context.l10n.t('published.manage'),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(context.l10n.t('published.owner_hint')),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: destination,
+                    maxLength: 120,
+                    decoration: InputDecoration(
+                      labelText: context.l10n.t('published.destination'),
+                    ),
+                  ),
+                  TextField(
+                    controller: summary,
+                    maxLength: 500,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: context.l10n.t('published.summary'),
+                    ),
+                  ),
+                  if (plan.activities.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(context.l10n.t('published.highlights')),
+                    ...plan.activities.map(
+                      (activity) => CheckboxListTile(
+                        title: Text(activity.title),
+                        value: selectedIds.contains(activity.id),
+                        onChanged: (selected) {
+                          setSheetState(() {
+                            if (selected == true && selectedIds.length < 5) {
+                              selectedIds.add(activity.id);
+                            } else if (selected == false) {
+                              selectedIds.remove(activity.id);
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () {
+                      if (destination.text.trim().isNotEmpty &&
+                          summary.text.trim().isNotEmpty) {
+                        Navigator.pop(sheetContext, 'publish');
+                      }
+                    },
+                    child: Text(context.l10n.t('published.publish')),
+                  ),
+                  if (current != null)
+                    TextButton(
+                      onPressed: () => Navigator.pop(sheetContext, 'unpublish'),
+                      child: Text(context.l10n.t('published.unpublish')),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final destinationValue = destination.text.trim();
+    final summaryValue = summary.text.trim();
+    destination.dispose();
+    summary.dispose();
+    if (result == null || !mounted) return;
+    try {
+      if (result == 'publish') {
+        await repo.publishPlan(
+          plan.id,
+          destination: destinationValue,
+          summary: summaryValue,
+          highlightIds: selectedIds.toList(),
+        );
+      } else {
+        await repo.unpublishPlan(plan.id);
+      }
+      if (!mounted) return;
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t('published.updated'),
+      );
+    } catch (error) {
+      if (mounted) ErrorDisplayService.handleError(context, error);
+    }
+  }
+
+  Future<void> _confirmDeletePlan(PlanModel plan) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.t('plan.delete_title')),
+        content: Text(
+          context.l10n.t('plan.delete_confirm', params: {'title': plan.title}),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.l10n.t('common.cancel')),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.l10n.t('plan.delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    try {
+      await ref.read(planRepositoryProvider).deletePlan(plan.id);
+      if (!mounted) return;
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t('plan.deleted_success'),
+      );
+      Navigator.of(context).pop({'action': 'delete', 'id': plan.id});
+    } catch (error) {
+      if (!mounted) return;
+      ErrorDisplayService.handleError(context, error, showDialog: true);
     }
   }
 
@@ -717,9 +1029,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
         context,
         context.l10n.t('collaboration.clone_success'),
       );
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => PlanDetailsPage(id: cloned.id)));
+      await context.push('/plans/${cloned.id}');
     } catch (error) {
       if (mounted) ErrorDisplayService.handleError(context, error);
     } finally {
@@ -736,7 +1046,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
         XFile.fromData(
           Uint8List.fromList(utf8.encode(content)),
           mimeType: 'text/calendar',
-          name: '${plan.title}.ics',
+          name: '${safeFileName(plan.title, fallback: 'planpal-plan')}.ics',
         ),
       ], subject: plan.title);
     } catch (error) {
@@ -778,7 +1088,16 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                 onTap: () async {
                   final uri = Uri.tryParse(link['url']?.toString() ?? '');
                   if (uri != null) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    final launched = await launchUrl(
+                      uri,
+                      mode: LaunchMode.externalApplication,
+                    );
+                    if (!launched && mounted) {
+                      ErrorDisplayService.showErrorSnackbar(
+                        context,
+                        context.l10n.t('common.open_link_failed'),
+                      );
+                    }
                   }
                 },
               ),
@@ -813,13 +1132,13 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
   }) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: Colors.grey[600]),
+        Icon(icon, size: 18, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 12),
         Text(
           '$label:',
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w500,
-            color: Colors.grey[700],
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(width: 8),
@@ -858,7 +1177,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
         statusIcon = Icons.cancel;
         break;
       default:
-        statusColor = Colors.grey;
+        statusColor = theme.colorScheme.onSurfaceVariant;
         statusIcon = Icons.info;
     }
 
@@ -888,9 +1207,8 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
   }
 
   Widget _buildCreatorCard(String avatarUrl, String name) {
+    final theme = Theme.of(context);
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
@@ -909,7 +1227,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                         height: 48,
                         fit: BoxFit.cover,
                         placeholder: (c, u) => Container(
-                          color: Colors.grey[200],
+                          color: theme.colorScheme.surfaceContainerHighest,
                           child: const Center(
                             child: SizedBox(
                               width: 18,
@@ -938,10 +1256,10 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                 children: [
                   Text(
                     context.l10n.t('plan.creator'),
-                    style: TextStyle(
+                    style: theme.textTheme.bodySmall?.copyWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -973,8 +1291,6 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
     required String groupName,
   }) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1031,7 +1347,9 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                       ? context.l10n.t('plan.public')
                       : context.l10n.t('plan.private'),
                   icon: isPublic ? Icons.public : Icons.lock,
-                  color: isPublic ? AppColors.success : Colors.grey,
+                  color: isPublic
+                      ? AppColors.success
+                      : theme.colorScheme.onSurfaceVariant,
                 ),
                 if (durationDisplay.isNotEmpty)
                   _buildChip(
@@ -1105,8 +1423,6 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
   }) {
     final display = activities.take(5).toList();
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1182,7 +1498,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                                 child: Text(
                                   type,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey[600],
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -1192,7 +1508,7 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
                                 child: Text(
                                   timeRange,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey[700],
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -1206,15 +1522,16 @@ class _PlanDetailsPageState extends ConsumerState<PlanDetailsPage>
             if (activities.length > display.length)
               Align(
                 alignment: Alignment.centerLeft,
-                child: GFButton(
-                  onPressed: () {},
-                  size: GFSize.SMALL,
-                  type: GFButtonType.outline,
-                  shape: GFButtonShape.pills,
+                child: OutlinedButton.icon(
+                  onPressed: () => _navigateToSchedule(widget.id),
                   icon: const Icon(Icons.more_horiz, size: 16),
-                  text: context.l10n.t(
-                    'plan.view_more',
-                    params: {'count': '${activities.length - display.length}'},
+                  label: Text(
+                    context.l10n.t(
+                      'plan.view_more',
+                      params: {
+                        'count': '${activities.length - display.length}',
+                      },
+                    ),
                   ),
                 ),
               ),

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:planpal_flutter/core/dtos/notification_model.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/notifications_provider.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 import 'package:planpal_flutter/presentation/widgets/common/refreshable_page_wrapper.dart';
 import 'package:planpal_flutter/presentation/widgets/notifications/notification_item.dart';
 import 'package:planpal_flutter/presentation/pages/notifications/notification_preferences_page.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 
 class NotificationListPage extends ConsumerStatefulWidget {
   const NotificationListPage({super.key});
@@ -97,26 +100,30 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
             ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildFilterBar(context),
-          Expanded(
-            child: RefreshablePageWrapper(
-              onRefresh: onRefresh,
-              child: notificationsAsync.when(
-                loading: () => const AppSkeleton.list(itemCount: 6),
-                error: (error, _) => AppError(
-                  message: ErrorDisplayService.getUserFriendlyMessage(error),
-                  onRetry: () {
-                    onRefresh();
-                  },
-                  retryLabel: l10n.t('common.retry'),
+      body: ResponsiveContent(
+        mediumMaxWidth: 820,
+        expandedMaxWidth: 960,
+        child: Column(
+          children: [
+            _buildFilterBar(context),
+            Expanded(
+              child: RefreshablePageWrapper(
+                onRefresh: onRefresh,
+                child: notificationsAsync.when(
+                  loading: () => const AppSkeleton.list(itemCount: 6),
+                  error: (error, _) => AppError(
+                    message: ErrorDisplayService.getUserFriendlyMessage(error),
+                    onRetry: () {
+                      onRefresh();
+                    },
+                    retryLabel: l10n.t('common.retry'),
+                  ),
+                  data: (data) => _buildContent(context, data),
                 ),
-                data: (data) => _buildContent(context, data),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -134,10 +141,7 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
             value: false,
           ),
           const SizedBox(width: 8),
-          _buildFilterChip(
-            label: context.l10n.t('common.read'),
-            value: true,
-          ),
+          _buildFilterChip(label: context.l10n.t('common.read'), value: true),
         ],
       ),
     );
@@ -158,7 +162,7 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          SizedBox(height: 120),
+          const SizedBox(height: 72),
           AppEmpty(
             icon: Icons.notifications_none_rounded,
             title: context.l10n.t('notifications.empty_title'),
@@ -168,27 +172,76 @@ class _NotificationListPageState extends ConsumerState<NotificationListPage>
       );
     }
 
-    return ListView.builder(
+    final today = <NotificationModel>[];
+    final earlier = <NotificationModel>[];
+    final now = DateTime.now();
+    for (final item in data.items) {
+      final created = item.createdAt.toLocal();
+      if (created.year == now.year &&
+          created.month == now.month &&
+          created.day == now.day) {
+        today.add(item);
+      } else {
+        earlier.add(item);
+      }
+    }
+
+    final children = <Widget>[];
+    void addSection(String title, List<NotificationModel> items) {
+      if (items.isEmpty) return;
+      children.add(_buildSectionLabel(context, title));
+      children.addAll(
+        items.map(
+          (notification) => NotificationItem(
+            key: ValueKey(notification.id),
+            notification: notification,
+            onTap: notification.type == 'FRIEND_TRIP_INVITE'
+                ? () async {
+                    if (notification.isUnread) {
+                      await _markAsRead(notification.id);
+                    }
+                    if (context.mounted) context.push('/friends');
+                  }
+                : notification.isUnread
+                ? () => _markAsRead(notification.id)
+                : null,
+          ),
+        ),
+      );
+    }
+
+    addSection(context.l10n.t('notifications.today'), today);
+    addSection(context.l10n.t('notifications.earlier'), earlier);
+    if (data.isLoadingMore) {
+      children.add(
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    return ListView(
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: data.items.length + (data.isLoadingMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= data.items.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
+      children: children,
+    );
+  }
 
-        final notification = data.items[index];
-        return NotificationItem(
-          key: ValueKey(notification.id),
-          notification: notification,
-          onTap: notification.isUnread
-              ? () => _markAsRead(notification.id)
-              : null,
-        );
-      },
+  Widget _buildSectionLabel(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.xs,
+      ),
+      child: Text(
+        title,
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+      ),
     );
   }
 

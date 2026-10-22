@@ -1,10 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/dtos/notification_model.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/notifications_provider.dart';
+import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
+import 'package:planpal_flutter/core/services/firebase_runtime_config.dart';
+import 'package:planpal_flutter/core/services/firebase_service.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
 
 class NotificationPreferencesPage extends ConsumerStatefulWidget {
@@ -19,6 +24,7 @@ class _NotificationPreferencesPageState
     extends ConsumerState<NotificationPreferencesPage> {
   NotificationPreferenceModel? _draft;
   bool _saving = false;
+  bool _enablingWebPush = false;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +42,11 @@ class _NotificationPreferencesPageState
         ),
         data: (value) {
           _draft ??= value;
-          return _buildForm(_draft!);
+          return ResponsiveContent(
+            mediumMaxWidth: 680,
+            expandedMaxWidth: 760,
+            child: _buildForm(_draft!),
+          );
         },
       ),
     );
@@ -44,9 +54,41 @@ class _NotificationPreferencesPageState
 
   Widget _buildForm(NotificationPreferenceModel value) {
     final theme = Theme.of(context);
+    final webPushEnabled = FirebaseService.instance.currentToken != null;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (kIsWeb) ...[
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.install_desktop_outlined),
+              title: Text(
+                context.l10n.t('notification_settings.web_push_title'),
+              ),
+              subtitle: Text(
+                context.l10n.t('notification_settings.web_push_hint'),
+              ),
+              trailing: FilledButton(
+                onPressed: _enablingWebPush || webPushEnabled
+                    ? null
+                    : _enableWebPush,
+                child: _enablingWebPush
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        context.l10n.t(
+                          webPushEnabled
+                              ? 'notification_settings.web_push_active'
+                              : 'notification_settings.web_push_enable',
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         Card(
           child: Column(
             children: [
@@ -201,6 +243,43 @@ class _NotificationPreferencesPageState
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _enableWebPush() async {
+    if (!FirebaseRuntimeConfig.webPushConfigured) {
+      ErrorDisplayService.showErrorSnackbar(
+        context,
+        context.l10n.t('notification_settings.web_push_not_configured'),
+      );
+      return;
+    }
+    final token = ref.read(authNotifierProvider).token;
+    if (token == null) return;
+    setState(() => _enablingWebPush = true);
+    try {
+      final registered = await FirebaseService.instance.registerToken(token);
+      if (!mounted) return;
+      if (registered) {
+        ErrorDisplayService.showSuccessSnackbar(
+          context,
+          context.l10n.t('notification_settings.web_push_enabled'),
+        );
+      } else {
+        ErrorDisplayService.showErrorSnackbar(
+          context,
+          context.l10n.t('notification_settings.web_push_denied'),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ErrorDisplayService.showErrorSnackbar(
+          context,
+          context.l10n.t('notification_settings.web_push_failed'),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _enablingWebPush = false);
     }
   }
 }

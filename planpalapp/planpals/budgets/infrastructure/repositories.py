@@ -85,7 +85,10 @@ class DjangoExpenseRepository(ExpenseRepository):
     def _effective_queryset():
         # A correction is a complete replacement entry. Only leaf entries affect
         # totals; ancestors remain immutable for audit and rollback inspection.
-        return Expense.objects.filter(corrections__isnull=True)
+        return Expense.objects.filter(
+            corrections__isnull=True,
+            deleted_at__isnull=True,
+        )
 
     def create_expense(self, data: ExpenseCreateData) -> ExpenseEntity:
         receipt = data.receipt
@@ -149,7 +152,7 @@ class DjangoExpenseRepository(ExpenseRepository):
 
     def list_expenses(self, plan_id: UUID, filters: ExpenseFilters) -> ExpensePage:
         queryset = (
-            Expense.objects
+            self._effective_queryset()
             .filter(plan_id=plan_id)
             .select_related('user', 'paid_by_user')
             .prefetch_related('participants__user', 'payments__user')
@@ -197,6 +200,7 @@ class DjangoExpenseRepository(ExpenseRepository):
             ExpensePayment.objects.filter(
                 expense__plan_id=plan_id,
                 expense__corrections__isnull=True,
+                expense__deleted_at__isnull=True,
             )
             .values('user_id', 'user__username')
             .annotate(
@@ -264,7 +268,7 @@ class DjangoExpenseRepository(ExpenseRepository):
 
     def list_expenses_for_balances(self, plan_id: UUID) -> Sequence[ExpenseEntity]:
         rows = (
-            Expense.objects
+            self._effective_queryset()
             .filter(plan_id=plan_id)
             .select_related('user', 'paid_by_user')
             .prefetch_related('participants__user', 'payments__user')
@@ -294,6 +298,12 @@ class DjangoExpenseRepository(ExpenseRepository):
             .first()
         )
         return self._to_entity(row) if row else None
+
+    def soft_delete(self, expense_id: UUID, *, deleted_by_user_id: UUID) -> None:
+        self._effective_queryset().filter(id=expense_id).update(
+            deleted_at=timezone.now(),
+            deleted_by_id=deleted_by_user_id,
+        )
 
     def get_category_totals(self, plan_id: UUID) -> Sequence[tuple[str, Decimal]]:
         rows = (

@@ -6,6 +6,9 @@ import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/collaboration_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
+import 'package:planpal_flutter/presentation/widgets/design_system/journey_ui.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 
 class PlanCollaborationPage extends ConsumerWidget {
   final PlanModel plan;
@@ -38,12 +41,16 @@ class PlanCollaborationPage extends ConsumerWidget {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            _WorkItemsTab(plan: plan, type: 'task'),
-            _WorkItemsTab(plan: plan, type: 'checklist'),
-            _CommentsTab(plan: plan),
-          ],
+        body: ResponsiveContent(
+          mediumMaxWidth: 880,
+          expandedMaxWidth: 1080,
+          child: TabBarView(
+            children: [
+              _WorkItemsTab(plan: plan, type: 'task'),
+              _WorkItemsTab(plan: plan, type: 'checklist'),
+              _CommentsTab(plan: plan),
+            ],
+          ),
         ),
       ),
     );
@@ -99,42 +106,41 @@ class _WorkItemsTab extends ConsumerWidget {
                 .length;
             final progress = completed / items.length;
             return ListView.separated(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.md),
               itemCount: items.length + 1,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppSpacing.xs),
               itemBuilder: (context, index) {
                 if (index == 0) {
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            context.l10n.t(
-                              'collaboration.progress',
-                              params: {
-                                'done': '$completed',
-                                'total': '${items.length}',
-                              },
-                            ),
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                  return JourneySurface(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          context.l10n.t(
+                            'collaboration.progress',
+                            params: {
+                              'done': '$completed',
+                              'total': '${items.length}',
+                            },
                           ),
-                          const SizedBox(height: 10),
-                          LinearProgressIndicator(
-                            value: progress,
-                            minHeight: 8,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ],
-                      ),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 8,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                      ],
                     ),
                   );
                 }
                 final item = items[index - 1];
                 final canToggle =
                     plan.canEdit || item.assignee?.id == currentUserId;
-                return Card(
+                return JourneySurface(
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     leading: Checkbox(
                       value: item.status == 'done',
@@ -323,9 +329,9 @@ class _CreateWorkItemSheetState extends State<_CreateWorkItemSheet> {
   void _submit() {
     final title = _titleController.text.trim();
     if (title.isEmpty) return;
-    Navigator.of(context).pop(
-      _WorkItemDraft(title: title, assigneeId: _assigneeId, dueAt: _dueAt),
-    );
+    Navigator.of(
+      context,
+    ).pop(_WorkItemDraft(title: title, assigneeId: _assigneeId, dueAt: _dueAt));
   }
 
   @override
@@ -348,9 +354,9 @@ class _CreateWorkItemSheetState extends State<_CreateWorkItemSheet> {
                     ? 'collaboration.add_task'
                     : 'collaboration.add_checklist',
               ),
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -378,8 +384,7 @@ class _CreateWorkItemSheetState extends State<_CreateWorkItemSheet> {
                   ChoiceChip(
                     label: Text(member.fullName),
                     selected: _assigneeId == member.id,
-                    onSelected: (_) =>
-                        setState(() => _assigneeId = member.id),
+                    onSelected: (_) => setState(() => _assigneeId = member.id),
                   ),
               ],
             ),
@@ -455,17 +460,16 @@ class _CommentsTabState extends ConsumerState<_CommentsTab> {
                       ],
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       itemCount: comments.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: AppSpacing.xs),
                       itemBuilder: (context, index) {
                         final comment = comments[index];
-                        return Card(
-                          color: comment.isPinned
-                              ? Theme.of(context).colorScheme.secondaryContainer
-                              : null,
+                        return JourneySurface(
+                          selected: comment.isPinned,
                           child: Padding(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.all(AppSpacing.xxs),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [

@@ -1,0 +1,11 @@
+{
+  "name": "planpal-web-deployment",
+  "private": true,
+  "scripts": {
+    "preview": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.149.0"
+  }
+}

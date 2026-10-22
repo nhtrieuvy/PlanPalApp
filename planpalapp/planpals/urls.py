@@ -6,11 +6,17 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from planpals.auth.presentation.views import (
-    OAuth2LogoutView, UserViewSet,
+    OAuth2LogoutView, WebSocketTicketView, UserViewSet,
     FriendRequestView, FriendRequestListView, FriendRequestActionView, FriendsListView,
 )
 from planpals.audit.presentation.views import AuditLogViewSet
 from planpals.plans.presentation.views import PlanViewSet, PlanActivityViewSet
+from planpals.plans.presentation.publications import (
+    PublishedProfileView, PlanPublicationView, PublicationPreviewView,
+)
+from planpals.auth.presentation.friend_trips import (
+    FriendTripListCreateView, FriendTripDecisionView,
+)
 from planpals.groups.presentation.views import (
     GroupInviteListCreateView,
     GroupInviteRevokeView,
@@ -29,6 +35,7 @@ from planpals.budgets.presentation.views import (
     PlanBudgetView,
     PlanExpenseListCreateView,
     PlanExpenseCorrectionView,
+    PlanExpenseDetailView,
     PlanFinanceInsightsView,
     PlanRecurringExpenseListView,
     PlanRecurringExpenseStatusView,
@@ -75,8 +82,18 @@ router.register(r'notifications', NotificationViewSet, basename='notification')
 router.register(r'analytics', AnalyticsViewSet, basename='analytics')
 
 urlpatterns = [
+    path('friends/trip-invitations/', FriendTripListCreateView.as_view()),
+    path('friends/trip-invitations/<uuid:invitation_id>/decision/', FriendTripDecisionView.as_view()),
+    path('users/<uuid:user_id>/published-profile/', PublishedProfileView.as_view()),
+    path('plans/<uuid:plan_id>/publication/', PlanPublicationView.as_view()),
+    path('publications/<uuid:publication_id>/', PublicationPreviewView.as_view()),
     # OAuth2 Authentication endpoints
     path('auth/logout/', OAuth2LogoutView.as_view(), name='oauth2_logout'),
+    path(
+        'auth/websocket-ticket/',
+        WebSocketTicketView.as_view(),
+        name='websocket-ticket',
+    ),
     
     # Friendship endpoints (class-based views)
     path('friends/request/', FriendRequestView.as_view(), name='friend_request'),
@@ -91,6 +108,7 @@ urlpatterns = [
     path('location/place-details/', LocationPlaceDetailsView.as_view(), name='location_place_details'),
     path('plans/<uuid:plan_id>/budget/', PlanBudgetView.as_view(), name='plan-budget'),
     path('plans/<uuid:plan_id>/expenses/', PlanExpenseListCreateView.as_view(), name='plan-expenses'),
+    path('plans/<uuid:plan_id>/expenses/<uuid:expense_id>/', PlanExpenseDetailView.as_view(), name='plan-expense-detail'),
     path('plans/<uuid:plan_id>/balances/', PlanBalancesView.as_view(), name='plan-balances'),
     path('plans/<uuid:plan_id>/finance-insights/', PlanFinanceInsightsView.as_view(), name='plan-finance-insights'),
     path('plans/<uuid:plan_id>/recurring-expenses/', PlanRecurringExpenseListView.as_view(), name='plan-recurring-expenses'),

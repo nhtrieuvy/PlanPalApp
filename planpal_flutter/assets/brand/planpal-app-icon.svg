@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">PlanPal app icon</title><rect width="512" height="512" fill="#062B28"/><path d="M141 390V229C141 130 224 80 347 80" fill="none" stroke="#FFFDF8" stroke-width="64" stroke-linecap="round"/><path d="M141 390C224 390 215 294 286 282H337C405 282 444 229 444 161C444 109 407 80 347 80" fill="none" stroke="#69D8C9" stroke-width="64" stroke-linecap="round"/>
+  <circle cx="141" cy="229" r="44" fill="#FFFDF8"/><circle cx="141" cy="229" r="15" fill="#062B28"/><circle cx="347" cy="80" r="44" fill="#FFFDF8"/><circle cx="347" cy="80" r="15" fill="#062B28"/><circle cx="141" cy="390" r="47" fill="#FF7358"/><circle cx="141" cy="390" r="16" fill="#062B28"/>
+</svg>

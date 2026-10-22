@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 160" role="img" aria-labelledby="title">
+  <title id="title">PlanPal</title>
+  <defs><linearGradient id="deep" x1="28" y1="92" x2="112" y2="22" gradientUnits="userSpaceOnUse"><stop stop-color="#087C73"/><stop offset="1" stop-color="#004D49"/></linearGradient><linearGradient id="mint" x1="39" y1="132" x2="139" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#52CFC1"/><stop offset="1" stop-color="#80E1D2"/></linearGradient></defs>
+  <path d="M40 127V75C40 43 67 27 107 27" fill="none" stroke="url(#deep)" stroke-width="22" stroke-linecap="round"/><path d="M40 127C67 127 64 96 87 92H104C126 92 139 75 139 53C139 36 127 27 107 27" fill="none" stroke="url(#mint)" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="40" cy="75" r="15" fill="#087C73"/><circle cx="40" cy="75" r="5" fill="#FFFDF8"/><circle cx="107" cy="27" r="15" fill="#00635D"/><circle cx="107" cy="27" r="5" fill="#FFFDF8"/><circle cx="40" cy="127" r="16" fill="#FF7358"/><circle cx="40" cy="127" r="5.5" fill="#FFFDF8"/>
+  <text x="164" y="102" fill="#082F2C" font-family="Manrope, sans-serif" font-size="72" font-weight="700" letter-spacing="-3">Plan</text><text x="328" y="102" fill="#078B82" font-family="Manrope, sans-serif" font-size="72" font-weight="700" letter-spacing="-3">Pal</text>
+</svg>

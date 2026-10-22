@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:cross_file/cross_file.dart';
 import 'package:intl/intl.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
 import 'package:planpal_flutter/core/dtos/user_summary.dart';
@@ -44,7 +46,7 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
   final int _recurrenceInterval = 1;
   DateTime? _nextRunAt;
   DateTime? _recurrenceEndAt;
-  String? _receiptPath;
+  XFile? _receiptFile;
   String? _receiptName;
   int _currentStep = 0;
 
@@ -330,7 +332,7 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
           TextButton.icon(
             onPressed: () => setState(() {
               _receiptName = null;
-              _receiptPath = null;
+              _receiptFile = null;
             }),
             icon: const Icon(Icons.close_rounded),
             label: Text(l10n.t('budget.remove_receipt')),
@@ -402,10 +404,11 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      withData: kIsWeb,
     );
     final file = result?.files.single;
-    if (file?.path == null || !mounted) return;
-    if ((file!.size) > 10 * 1024 * 1024) {
+    if (file == null || (!kIsWeb && file.path == null) || !mounted) return;
+    if (file.size > 10 * 1024 * 1024) {
       ErrorDisplayService.showErrorSnackbar(
         context,
         context.l10n.t('budget.receipt_too_large'),
@@ -413,7 +416,7 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
       return;
     }
     setState(() {
-      _receiptPath = file.path;
+      _receiptFile = file.xFile;
       _receiptName = file.name;
     });
   }
@@ -616,7 +619,7 @@ class _AddExpenseFormState extends ConsumerState<AddExpenseForm> {
             participants: participantInputs,
             payments: paymentInputs,
             paymentNote: _paymentNoteController.text.trim(),
-            receiptPath: _receiptPath,
+            receiptFile: _receiptFile,
             recurrence: _isRecurring && _nextRunAt != null
                 ? RecurrenceInput(
                     frequency: _recurrenceFrequency,

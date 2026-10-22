@@ -20,6 +20,7 @@ class FirebaseService {
 
   FirebaseMessaging? _messaging;
   String? _currentToken;
+  String? _backendAuthToken;
   bool _initialized = false;
   Future<bool>? _initializing;
   StreamSubscription<String>? _tokenRefreshSub;
@@ -36,6 +37,11 @@ class FirebaseService {
         !FirebaseRuntimeConfig.isSupportedPlatform) {
       _lastInitializationError =
           'Firebase messaging is disabled for this build.';
+      return false;
+    }
+    if (!FirebaseRuntimeConfig.webPushConfigured) {
+      _lastInitializationError =
+          'FIREBASE_WEB_VAPID_KEY is required for web push notifications.';
       return false;
     }
 
@@ -68,9 +74,11 @@ class FirebaseService {
       _messaging = FirebaseMessaging.instance;
       await _messaging!.setAutoInitEnabled(true);
 
-      await _initializeLocalNotifications();
+      if (!kIsWeb) {
+        await _initializeLocalNotifications();
+      }
 
-      if (defaultTargetPlatform == TargetPlatform.android) {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
         try {
           final permissionStatus = await Permission.notification.status;
 
@@ -83,7 +91,7 @@ class FirebaseService {
         }
       }
 
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
         await _messaging!.requestPermission(
           alert: true,
           badge: true,
@@ -91,7 +99,6 @@ class FirebaseService {
         );
       }
 
-      await _getFCMTokenWithRetry();
       _setupMessageHandlers();
 
       _initialized = true;
@@ -114,11 +121,17 @@ class FirebaseService {
       try {
         await Future.delayed(Duration(milliseconds: 500 + (attempt * 500)));
 
-        _currentToken = await _messaging!.getToken();
+        _currentToken = await _messaging!.getToken(
+          vapidKey: kIsWeb ? FirebaseRuntimeConfig.webVapidKey : null,
+        );
 
         if (_currentToken != null) {
           _tokenRefreshSub ??= _messaging!.onTokenRefresh.listen((newToken) {
             _currentToken = newToken;
+            final authToken = _backendAuthToken;
+            if (authToken != null) {
+              unawaited(_registerTokenWithBackend(authToken, newToken));
+            }
           });
           return _currentToken;
         }
@@ -212,25 +225,50 @@ class FirebaseService {
       return false;
     }
 
+    if (kIsWeb) {
+      final settings = await _messaging!.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+          settings.authorizationStatus != AuthorizationStatus.provisional) {
+        _lastInitializationError =
+            'Notification permission was not granted by the browser.';
+        return false;
+      }
+    }
+
     _currentToken ??= await _getFCMTokenWithRetry();
 
     if (_currentToken == null) {
       return false;
     }
 
+    _backendAuthToken = authToken;
+    return _registerTokenWithBackend(authToken, _currentToken!);
+  }
+
+  Future<bool> _registerTokenWithBackend(
+    String authToken,
+    String fcmToken,
+  ) async {
     try {
       final api = ApiClient(token: authToken);
       final response = await api.dio.post(
         Endpoints.registerDeviceToken,
         data: {
-          'fcm_token': _currentToken,
-          'platform': defaultTargetPlatform == TargetPlatform.iOS
+          'fcm_token': fcmToken,
+          'platform': kIsWeb
+              ? 'web'
+              : defaultTargetPlatform == TargetPlatform.iOS
               ? 'ios'
               : 'android',
         },
       );
 
       if (response.statusCode == 200) {
+        _lastInitializationError = null;
         return true;
       }
       return false;
@@ -245,7 +283,11 @@ class FirebaseService {
     // If subscriptions already exist, don't register again
     if (_onMessageSub != null || _onMessageOpenedAppSub != null) return;
 
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    if (!kIsWeb) {
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
+      );
+    }
 
     _onMessageSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       try {
@@ -433,6 +475,7 @@ class FirebaseService {
   /// Reset service (call on logout)
   void reset() {
     _currentToken = null;
+    _backendAuthToken = null;
     _initialized = false;
     _messaging = null;
     // Cancel subscriptions to avoid leaks and allow re-registration

@@ -42,13 +42,13 @@ class CustomSearchBar extends StatelessWidget {
         enabled: enabled,
         autofocus: autofocus,
         onChanged: onChanged,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 16,
           color: theme.colorScheme.onSurface,
         ),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: GoogleFonts.inter(
+          hintStyle: GoogleFonts.manrope(
             fontSize: 16,
             color: theme.colorScheme.onSurface.withAlpha(125),
           ),

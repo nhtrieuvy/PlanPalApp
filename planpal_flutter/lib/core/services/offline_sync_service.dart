@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:planpal_flutter/core/auth/auth_session.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:planpal_flutter/core/storage/offline_storage.dart';
 
 class OfflineMutation {
   const OfflineMutation({
@@ -55,27 +55,31 @@ class OfflineMutation {
 }
 
 class OfflineSyncService extends ChangeNotifier {
-  OfflineSyncService(this._preferences, this._auth);
+  OfflineSyncService(this._storage, this._auth) {
+    _activeUserScope = _currentUserScope;
+    _auth.addListener(_handleAuthChanged);
+  }
 
   static const _queuePrefix = 'offline_sync_queue';
   static const _deadLetterPrefix = 'offline_sync_dead_letters';
   static const _draftPrefix = 'offline_draft';
 
-  final SharedPreferences _preferences;
+  final OfflineStorage _storage;
   final AuthProvider _auth;
   Timer? _timer;
   bool _syncing = false;
+  Future<void> _queueWrite = Future<void>.value();
   int _pendingCount = 0;
   int _mutationSequence = 0;
+  late String _activeUserScope;
 
   bool get isSyncing => _syncing;
   int get pendingCount => _pendingCount;
 
   void start() {
-    _timer ??= Timer.periodic(
-      const Duration(seconds: 20),
-      (_) => unawaited(flush()),
-    );
+    _timer ??= Timer.periodic(const Duration(seconds: 20), (_) {
+      if (_pendingCount > 0) unawaited(flush());
+    });
     _refreshCount();
     unawaited(flush());
   }
@@ -88,19 +92,22 @@ class OfflineSyncService extends ChangeNotifier {
     required String path,
     required Map<String, dynamic> data,
   }) async {
-    final queue = _loadQueue();
+    final scope = _userScope;
     final mutationId = id ?? newMutationId();
-    if (queue.any((item) => item.id == mutationId)) return;
-    queue.add(
-      OfflineMutation(
-        id: mutationId,
-        method: method.toUpperCase(),
-        path: path,
-        data: data,
-        createdAt: DateTime.now().toUtc(),
-      ),
-    );
-    await _saveQueue(queue);
+    await _withQueueWrite(() async {
+      final queue = _loadQueue(scope);
+      if (queue.any((item) => item.id == mutationId)) return;
+      queue.add(
+        OfflineMutation(
+          id: mutationId,
+          method: method.toUpperCase(),
+          path: path,
+          data: data,
+          createdAt: DateTime.now().toUtc(),
+        ),
+      );
+      await _saveQueue(scope, queue);
+    });
     unawaited(flush());
   }
 
@@ -109,13 +116,17 @@ class OfflineSyncService extends ChangeNotifier {
 
   Future<void> flush() async {
     if (_syncing || !_auth.isLoggedIn) return;
-    final queue = _loadQueue();
-    if (queue.isEmpty) return;
+    final scope = _userScope;
+    final queue = await _withQueueWrite(() async => _loadQueue(scope));
+    if (queue.isEmpty) {
+      _refreshCount();
+      return;
+    }
     _syncing = true;
     notifyListeners();
-    final remaining = <OfflineMutation>[];
-    final deadLetters = _loadDeadLetters();
     try {
+      final remaining = <OfflineMutation>[];
+      final deadLetters = _loadDeadLetters(scope);
       for (var index = 0; index < queue.length; index++) {
         final mutation = queue[index];
         try {
@@ -144,21 +155,28 @@ class OfflineSyncService extends ChangeNotifier {
           break;
         }
       }
-      await _saveQueue(remaining);
-      await _saveDeadLetters(deadLetters.take(50).toList());
+      await _withQueueWrite(() async {
+        if (scope != _userScope || !_auth.isLoggedIn) return;
+        final snapshotIds = queue.map((item) => item.id).toSet();
+        final newlyQueued = _loadQueue(
+          scope,
+        ).where((item) => !snapshotIds.contains(item.id));
+        await _saveDeadLetters(scope, deadLetters.take(50).toList());
+        await _saveQueue(scope, [...remaining, ...newlyQueued]);
+      });
     } finally {
       _syncing = false;
       _refreshCount();
-      notifyListeners();
+      if (!_syncing) notifyListeners();
     }
   }
 
   Future<void> saveDraft(String scope, Map<String, dynamic> draft) async {
-    await _preferences.setString(_draftKey(scope), jsonEncode(draft));
+    await _storage.setString(_draftKey(scope), jsonEncode(draft));
   }
 
   Map<String, dynamic>? loadDraft(String scope) {
-    final raw = _preferences.getString(_draftKey(scope));
+    final raw = _storage.getString(_draftKey(scope));
     if (raw == null || raw.isEmpty) return null;
     try {
       return Map<String, dynamic>.from(jsonDecode(raw) as Map);
@@ -167,15 +185,16 @@ class OfflineSyncService extends ChangeNotifier {
     }
   }
 
-  Future<void> clearDraft(String scope) =>
-      _preferences.remove(_draftKey(scope));
+  Future<void> clearDraft(String scope) => _storage.remove(_draftKey(scope));
 
-  List<OfflineMutation> _loadQueue() => _decodeList(_queueKey);
-  List<OfflineMutation> _loadDeadLetters() => _decodeList(_deadLetterKey);
+  List<OfflineMutation> _loadQueue(String scope) =>
+      _decodeList(_queueKeyFor(scope));
+  List<OfflineMutation> _loadDeadLetters(String scope) =>
+      _decodeList(_deadLetterKeyFor(scope));
 
   List<OfflineMutation> _decodeList(String key) {
     try {
-      final raw = jsonDecode(_preferences.getString(key) ?? '[]') as List;
+      final raw = jsonDecode(_storage.getString(key) ?? '[]') as List;
       return raw
           .whereType<Map>()
           .map(
@@ -187,35 +206,57 @@ class OfflineSyncService extends ChangeNotifier {
     }
   }
 
-  Future<void> _saveQueue(List<OfflineMutation> items) async {
-    await _preferences.setString(
-      _queueKey,
+  Future<void> _saveQueue(String scope, List<OfflineMutation> items) async {
+    await _storage.setString(
+      _queueKeyFor(scope),
       jsonEncode(items.map((item) => item.toJson()).toList()),
     );
     _refreshCount();
   }
 
-  Future<void> _saveDeadLetters(List<OfflineMutation> items) =>
-      _preferences.setString(
-        _deadLetterKey,
+  Future<void> _saveDeadLetters(String scope, List<OfflineMutation> items) =>
+      _storage.setString(
+        _deadLetterKeyFor(scope),
         jsonEncode(items.map((item) => item.toJson()).toList()),
       );
 
+  Future<T> _withQueueWrite<T>(Future<T> Function() action) async {
+    final previous = _queueWrite;
+    final completed = Completer<void>();
+    _queueWrite = completed.future;
+    await previous;
+    try {
+      return await action();
+    } finally {
+      completed.complete();
+    }
+  }
+
   void _refreshCount() {
-    final count = _loadQueue().length;
+    final count = _loadQueue(_userScope).length;
     if (count == _pendingCount) return;
     _pendingCount = count;
     notifyListeners();
   }
 
-  String get _userScope => _auth.user?.id ?? 'anonymous';
-  String get _queueKey => '$_queuePrefix:$_userScope';
-  String get _deadLetterKey => '$_deadLetterPrefix:$_userScope';
+  String get _currentUserScope => _auth.user?.id ?? 'anonymous';
+  String get _userScope => _activeUserScope;
+  String _queueKeyFor(String scope) => '$_queuePrefix:$scope';
+  String _deadLetterKeyFor(String scope) => '$_deadLetterPrefix:$scope';
   String _draftKey(String scope) => '$_draftPrefix:$_userScope:$scope';
+
+  void _handleAuthChanged() {
+    final nextScope = _currentUserScope;
+    if (nextScope == _activeUserScope) return;
+    _activeUserScope = nextScope;
+    _refreshCount();
+    if (_auth.isLoggedIn) unawaited(flush());
+  }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _auth.removeListener(_handleAuthChanged);
     super.dispose();
   }
 }

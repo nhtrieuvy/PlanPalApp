@@ -126,7 +126,7 @@ class ActivityDetailsDialog extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.8),
+                      color: AppColors.success.withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -239,7 +239,11 @@ class ActivityDetailsDialog extends StatelessWidget {
           if (activity.startTime != null)
             Row(
               children: [
-                const Icon(Icons.play_arrow, size: 16, color: Colors.green),
+                const Icon(
+                  Icons.play_arrow,
+                  size: 16,
+                  color: AppColors.success,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   context.l10n.t(
@@ -259,7 +263,7 @@ class ActivityDetailsDialog extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.stop, size: 16, color: Colors.red),
+                const Icon(Icons.stop, size: 16, color: AppColors.error),
                 const SizedBox(width: 4),
                 Text(
                   context.l10n.t(
@@ -281,7 +285,7 @@ class ActivityDetailsDialog extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.timer, size: 16, color: Colors.blue),
+                const Icon(Icons.timer, size: 16, color: AppColors.info),
                 const SizedBox(width: 4),
                 Text(
                   context.l10n.t(
@@ -350,7 +354,7 @@ class ActivityDetailsDialog extends StatelessWidget {
           ],
         ],
       ),
-      color: Colors.green,
+      color: AppColors.success,
     );
   }
 
@@ -410,7 +414,7 @@ class ActivityDetailsDialog extends StatelessWidget {
   Widget _buildCostInfo(BuildContext context) {
     final hasCost =
         activity.estimatedCost != null && activity.estimatedCost! > 0;
-    final valueColor = hasCost ? Colors.orange : Colors.green;
+    final valueColor = hasCost ? AppColors.warning : AppColors.success;
     return _buildInfoCard(
       context: context,
       icon: Icons.attach_money,
@@ -429,7 +433,7 @@ class ActivityDetailsDialog extends StatelessWidget {
           color: valueColor,
         ),
       ),
-      color: hasCost ? Colors.orange : Colors.green,
+      color: hasCost ? AppColors.warning : AppColors.success,
     );
   }
 
@@ -444,7 +448,7 @@ class ActivityDetailsDialog extends StatelessWidget {
 
   Widget _buildStatusInfo(BuildContext context) {
     final completed = activity.isCompleted;
-    final statusColor = completed ? Colors.green : Colors.orange;
+    final statusColor = completed ? AppColors.success : AppColors.warning;
     return _buildInfoCard(
       context: context,
       icon: completed ? Icons.check_circle : Icons.radio_button_unchecked,
@@ -469,7 +473,7 @@ class ActivityDetailsDialog extends StatelessWidget {
           ),
         ],
       ),
-      color: completed ? Colors.green : Colors.orange,
+      color: completed ? AppColors.success : AppColors.warning,
     );
   }
 
@@ -482,7 +486,7 @@ class ActivityDetailsDialog extends StatelessWidget {
         'v${activity.version}',
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
-      color: Colors.blueGrey,
+      color: AppColors.neutral600,
     );
   }
 
@@ -570,7 +574,7 @@ class ActivityDetailsDialog extends StatelessWidget {
                 Navigator.of(context).pop();
                 _showDeleteConfirmation(context);
               },
-              icon: const Icon(Icons.delete, color: Colors.red),
+              icon: const Icon(Icons.delete, color: AppColors.error),
               tooltip: context.l10n.t('activity_details.delete_tooltip'),
             ),
           ],
@@ -660,27 +664,27 @@ class ActivityDetailsDialog extends StatelessWidget {
   Color _getActivityTypeColor(String activityType) {
     switch (activityType) {
       case 'eating':
-        return Colors.orange;
+        return AppColors.accent;
       case 'resting':
-        return Colors.blue;
+        return AppColors.secondary;
       case 'moving':
-        return Colors.purple;
+        return AppColors.primary;
       case 'sightseeing':
-        return Colors.green;
+        return AppColors.success;
       case 'shopping':
-        return Colors.pink;
+        return AppColors.accentDark;
       case 'entertainment':
-        return Colors.red;
+        return AppColors.warning;
       case 'event':
-        return Colors.indigo;
+        return AppColors.secondaryDark;
       case 'sport':
-        return Colors.teal;
+        return AppColors.primaryLight;
       case 'study':
-        return Colors.brown;
+        return AppColors.neutral700;
       case 'work':
-        return Colors.grey;
+        return AppColors.neutral600;
       default:
-        return Colors.grey;
+        return AppColors.neutral500;
     }
   }
 }

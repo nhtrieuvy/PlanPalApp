@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:planpal_flutter/core/dtos/experience_models.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/maps/planpal_map.dart';
+import 'package:planpal_flutter/core/platform/platform_capabilities.dart';
 import 'package:planpal_flutter/core/riverpod/experience_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/presentation/widgets/forms/app_select_field.dart';
@@ -207,7 +208,9 @@ class _LiveLocationPageState extends ConsumerState<LiveLocationPage> {
       if (mounted) {
         ErrorDisplayService.showErrorSnackbar(
           context,
-          ErrorDisplayService.getUserFriendlyMessage(error),
+          PlatformCapabilities.locationRequiresSecureContext
+              ? context.l10n.t('map.web_location_requirements')
+              : ErrorDisplayService.getUserFriendlyMessage(error),
         );
       }
     } finally {

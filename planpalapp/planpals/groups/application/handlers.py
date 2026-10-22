@@ -166,6 +166,13 @@ class UpdateGroupHandler(BaseCommandHandler[UpdateGroupCommand, Any]):
                 setattr(group, k, v)
             group = self.group_repo.save(group)
 
+            if visibility is not None:
+                from planpals.plans.infrastructure.models import Plan
+
+                Plan.objects.filter(group_id=group.id).update(
+                    is_public=visibility == 'public'
+                )
+
             if self.audit_service:
                 self.audit_service.log_action(
                     user=command.user_id,

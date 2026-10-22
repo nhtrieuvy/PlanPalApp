@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +14,7 @@ import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/riverpod/storage_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/presentation/widgets/forms/form_wizard_scaffold.dart';
+import 'package:planpal_flutter/presentation/widgets/common/x_file_image.dart';
 
 class GroupFormPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initial;
@@ -30,8 +30,8 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
   bool _submitting = false;
-  File? _avatarFile;
-  File? _coverFile;
+  XFile? _avatarFile;
+  XFile? _coverFile;
   String _visibility = 'private';
   List<UserSummary> _availableFriends = [];
   final Set<UserSummary> _selectedMembers = {};
@@ -405,65 +405,72 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
 
   Widget _buildAvatarPicker(bool isEdit) {
     final colorScheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: () async {
-        final picked = await ImagePicker().pickImage(
-          source: ImageSource.gallery,
-          maxWidth: 300,
-          maxHeight: 300,
-          imageQuality: 85,
-        );
-        if (picked != null) {
-          setState(() {
-            _avatarFile = File(picked.path);
-          });
-        }
-      },
-      child: CircleAvatar(
-        radius: 40,
-        backgroundColor: colorScheme.surfaceContainerHighest,
-        child: _avatarFile != null
-            ? ClipOval(
-                child: Image.file(
-                  _avatarFile!,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                ),
-              )
-            : (isEdit && widget.initial != null)
-            ? (() {
-                final url =
-                    (widget.initial!['avatar_url'] ??
-                            widget.initial!['avatar_thumb'])
-                        ?.toString();
-                if (url != null && url.isNotEmpty) {
-                  return ClipOval(
-                    child: CachedNetworkImage(
-                      imageUrl: url,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Icon(
-                        Icons.group,
-                        size: 40,
-                        color: colorScheme.onSurfaceVariant,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () async {
+          final picked = await ImagePicker().pickImage(
+            source: ImageSource.gallery,
+            maxWidth: 300,
+            maxHeight: 300,
+            imageQuality: 85,
+          );
+          if (picked != null) {
+            setState(() {
+              _avatarFile = picked;
+            });
+          }
+        },
+        child: CircleAvatar(
+          radius: 40,
+          backgroundColor: colorScheme.surfaceContainerHighest,
+          child: _avatarFile != null
+              ? ClipOval(
+                  child: XFileImage(
+                    file: _avatarFile!,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              : (isEdit && widget.initial != null)
+              ? (() {
+                  final url =
+                      (widget.initial!['avatar_url'] ??
+                              widget.initial!['avatar_thumb'])
+                          ?.toString();
+                  if (url != null && url.isNotEmpty) {
+                    return ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: url,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Icon(
+                          Icons.group,
+                          size: 40,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        errorWidget: (context, url, error) => Icon(
+                          Icons.group,
+                          size: 40,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                      errorWidget: (context, url, error) => Icon(
-                        Icons.group,
-                        size: 40,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                    );
+                  }
+                  return Icon(
+                    Icons.group,
+                    size: 40,
+                    color: colorScheme.onSurfaceVariant,
                   );
-                }
-                return Icon(
+                })()
+              : Icon(
                   Icons.group,
                   size: 40,
                   color: colorScheme.onSurfaceVariant,
-                );
-              })()
-            : Icon(Icons.group, size: 40, color: colorScheme.onSurfaceVariant),
+                ),
+        ),
       ),
     );
   }
@@ -471,87 +478,90 @@ class _GroupFormPageState extends ConsumerState<GroupFormPage> {
   Widget _buildCoverPicker() {
     final l10n = context.l10n;
     final colorScheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: () async {
-        final picked = await ImagePicker().pickImage(
-          source: ImageSource.gallery,
-          maxWidth: 1200,
-          maxHeight: 400,
-          imageQuality: 85,
-        );
-        if (picked != null) {
-          setState(() {
-            _coverFile = File(picked.path);
-          });
-        }
-      },
-      child: Container(
-        width: double.infinity,
-        height: 120,
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colorScheme.outlineVariant),
-        ),
-        child: _coverFile != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(_coverFile!, fit: BoxFit.cover),
-              )
-            : (widget.initial?['cover_image_url'] != null &&
-                  widget.initial!['cover_image_url'].toString().isNotEmpty)
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
-                  imageUrl: widget.initial!['cover_image_url'],
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.landscape,
-                        size: 40,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        l10n.t('group_form.cover_loading'),
-                        style: TextStyle(color: colorScheme.onSurfaceVariant),
-                      ),
-                    ],
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () async {
+          final picked = await ImagePicker().pickImage(
+            source: ImageSource.gallery,
+            maxWidth: 1200,
+            maxHeight: 400,
+            imageQuality: 85,
+          );
+          if (picked != null) {
+            setState(() {
+              _coverFile = picked;
+            });
+          }
+        },
+        child: Container(
+          width: double.infinity,
+          height: 120,
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: _coverFile != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: XFileImage(file: _coverFile!, fit: BoxFit.cover),
+                )
+              : (widget.initial?['cover_image_url'] != null &&
+                    widget.initial!['cover_image_url'].toString().isNotEmpty)
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: widget.initial!['cover_image_url'],
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.landscape,
+                          size: 40,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          l10n.t('group_form.cover_loading'),
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                    errorWidget: (context, url, error) => Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.landscape,
+                          size: 40,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          l10n.t('group_form.cover_pick'),
+                          style: TextStyle(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
                   ),
-                  errorWidget: (context, url, error) => Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.landscape,
-                        size: 40,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        l10n.t('group_form.cover_pick'),
-                        style: TextStyle(color: colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.landscape,
+                      size: 40,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.t('group_form.cover_pick'),
+                      style: TextStyle(color: colorScheme.onSurfaceVariant),
+                    ),
+                  ],
                 ),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.landscape,
-                    size: 40,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.t('group_form.cover_pick'),
-                    style: TextStyle(color: colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
+        ),
       ),
     );
   }

@@ -18,21 +18,170 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="PlanPal brings group itineraries, decisions, conversations and trip details into one shared place. Plan together and travel better on web and mobile.">
+  <meta name="keywords" content="group travel planner, collaborative itinerary, trip planning, travel poll, PlanPal">
+  <meta name="robots" content="index, follow">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="PlanPal - Plan together. Travel better.">
+  <meta property="og:description" content="One shared place for group itineraries, decisions and travel-day coordination.">
+  <meta property="og:image" content="icons/Icon-512.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="PlanPal - Plan together. Travel better.">
+  <meta name="twitter:description" content="One shared place for group itineraries, decisions and travel-day coordination.">
+  <meta name="theme-color" content="#081A19">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="planpal_flutter">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="PlanPal">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="alternate icon" type="image/png" href="favicon.png"/>
 
-  <title>planpal_flutter</title>
+  <title>PlanPal - Plan together. Travel better.</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    :root,
+    [data-theme="light"] {
+      --bg-primary: #F7F4ED;
+      --bg-secondary: #EFE9DD;
+      --surface: #FFFDF8;
+      --surface-raised: #FFFFFF;
+      --surface-interactive: #E4F3EF;
+      --text-primary: #172724;
+      --text-secondary: #435651;
+      --text-muted: #667772;
+      --brand-primary: #0B6B62;
+      --brand-secondary: #287E9A;
+      --brand-accent: #F47A5A;
+      --border-default: #D7DDD8;
+      --border-strong: #A8B6B0;
+      --success: #2B8A67;
+      --warning: #D68A22;
+      --danger: #C94F4F;
+      --info: #367FA3;
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #081A19;
+      --bg-secondary: #0D2422;
+      --surface: #122C29;
+      --surface-raised: #193632;
+      --surface-interactive: #20423D;
+      --text-primary: #F2F5EF;
+      --text-secondary: #C5D2CD;
+      --text-muted: #95AAA3;
+      --brand-primary: #7DD6C5;
+      --brand-secondary: #8BC8DA;
+      --brand-accent: #FF9B82;
+      --border-default: #31524D;
+      --border-strong: #58756E;
+      --success: #72D0A9;
+      --warning: #F3B865;
+      --danger: #FFA8A8;
+      --info: #8BC8DA;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg-primary: #081A19;
+      }
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg-primary);
+    }
+
+    #planpal-startup {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: var(--text-primary);
+      font-family: sans-serif;
+      background: var(--bg-primary);
+      transition: opacity 180ms ease;
+    }
+
+    #planpal-startup[hidden] {
+      display: none;
+    }
+
+    .startup-content {
+      width: min(360px, 100%);
+      text-align: center;
+    }
+
+    .startup-mark {
+      width: 44px;
+      height: 44px;
+      margin: 0 auto 20px;
+      border: 4px solid var(--border-default);
+      border-top-color: var(--brand-primary);
+      border-radius: 50%;
+      animation: startup-spin 800ms linear infinite;
+    }
+
+    .startup-title {
+      margin: 0 0 8px;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .startup-message {
+      margin: 0;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .startup-retry {
+      display: none;
+      min-height: 44px;
+      margin: 20px auto 0;
+      padding: 0 20px;
+      border: 0;
+      border-radius: 12px;
+      color: #FFFFFF;
+      background: var(--brand-primary);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #planpal-startup[data-error="true"] .startup-mark {
+      animation: none;
+      border-color: var(--danger);
+    }
+
+    #planpal-startup[data-error="true"] .startup-retry {
+      display: block;
+    }
+
+    @keyframes startup-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .startup-mark { animation: none; }
+    }
+  </style>
 </head>
 <body>
+  <div id="planpal-startup" role="status" aria-live="polite">
+    <div class="startup-content">
+      <div class="startup-mark" aria-hidden="true"></div>
+      <h1 class="startup-title">PlanPal</h1>
+      <p class="startup-message">Đang chuẩn bị hành trình của bạn...</p>
+      <button class="startup-retry" type="button">Thử lại</button>
+    </div>
+  </div>
+  <script src="planpal_bootstrap.js" defer></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

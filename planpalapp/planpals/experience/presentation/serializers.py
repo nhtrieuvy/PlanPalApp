@@ -37,6 +37,15 @@ class GroupPollSerializer:
                 'id': str(option.id),
                 'text': option.text,
                 'vote_count': vote_count,
+                'voters': [
+                    {
+                        'id': str(vote.user_id),
+                        'username': vote.user.username,
+                        'full_name': vote.user.get_full_name() or vote.user.username,
+                        'avatar_url': getattr(vote.user, 'avatar_url', ''),
+                    }
+                    for vote in votes
+                ],
             })
         return {
             'id': str(poll.id),

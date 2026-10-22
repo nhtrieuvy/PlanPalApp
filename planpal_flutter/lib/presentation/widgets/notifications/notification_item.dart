@@ -192,6 +192,7 @@ class NotificationItem extends StatelessWidget {
         );
       case 'GROUP_JOIN':
       case 'GROUP_INVITE':
+      case 'FRIEND_TRIP_INVITE':
         return const _NotificationStyle(
           icon: Icons.groups_rounded,
           color: AppColors.secondary,

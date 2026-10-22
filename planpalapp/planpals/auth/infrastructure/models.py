@@ -258,7 +258,8 @@ class User(AbstractUser, BaseModel):
         return Plan.objects.filter(
             Q(creator=self) |  # Own plans
             Q(group__members=self) |  # Group plans
-            Q(is_public=True)  # Public plans
+            Q(is_public=True, plan_type='personal') |
+            Q(is_public=True, plan_type='group', group__visibility='public')
         ).select_related('group', 'creator').distinct().order_by('-created_at')
     
     @property
@@ -481,7 +482,7 @@ class FriendshipRejection(BaseModel):
         return f"Rejection: {self.friendship} by {self.rejected_by.username} at {self.created_at}"
 
 
-class Friendship(BaseModel):    
+class Friendship(BaseModel):
     PENDING = 'pending'
     ACCEPTED = 'accepted'
     REJECTED = 'rejected'
@@ -664,3 +665,48 @@ class Friendship(BaseModel):
     @classmethod
     def cleanup_old_rejected_friendships(cls, days: int = 180) -> Tuple[int, Dict[str, int]]:
         return cls.objects.cleanup_old_rejected(days)
+
+
+class FriendTripInvitation(BaseModel):
+    PENDING = 'pending'
+    ACCEPTED = 'accepted'
+    DECLINED = 'declined'
+    CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (PENDING, 'Pending'), (ACCEPTED, 'Accepted'),
+        (DECLINED, 'Declined'), (CANCELLED, 'Cancelled'),
+    ]
+
+    friendship = models.ForeignKey(
+        Friendship, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='trip_invitations'
+    )
+    sender = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='sent_trip_invitations'
+    )
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='received_trip_invitations'
+    )
+    name = models.CharField(max_length=120)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=PENDING)
+    group = models.OneToOneField(
+        'planpals.Group', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='friend_trip_invitation'
+    )
+    pending_key = models.UUIDField(unique=True, null=True, blank=True)
+
+    class Meta:
+        app_label = 'planpals'
+        db_table = 'planpal_friend_trip_invitations'
+        indexes = [models.Index(fields=['recipient', 'status', 'created_at'])]
+
+    def clean(self):
+        super().clean()
+        if self.sender_id == self.recipient_id:
+            raise ValidationError('Cannot invite yourself.')
+        if self.friendship_id and self.friendship.status != Friendship.ACCEPTED:
+            raise ValidationError('Only accepted friends can plan a trip together.')
+        if self.friendship_id and {
+            self.sender_id, self.recipient_id
+        } != {self.friendship.user_a_id, self.friendship.user_b_id}:
+            raise ValidationError('Invitation participants must be friends.')

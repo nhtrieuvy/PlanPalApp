@@ -1,20 +1,65 @@
 from datetime import datetime, time, timezone as datetime_timezone
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from datetime import timedelta
 from unittest.mock import patch
 
-from django.test import TestCase, override_settings
+from django.db import close_old_connections
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from planpals.auth.infrastructure.models import User
 from planpals.chat.infrastructure.models import Conversation
 from planpals.experience.infrastructure.models import GroupPoll, LiveLocationShare
+from planpals.experience.infrastructure.repositories import DjangoExperienceRepository
 from planpals.experience.infrastructure.realtime import ExperienceRealtimePublisher
 from planpals.groups.infrastructure.models import Group, GroupMembership
 from planpals.notifications.infrastructure.models import NotificationPreference
 from planpals.notifications.infrastructure.repositories import (
     DjangoNotificationRepository,
 )
+
+
+class LiveLocationConcurrencyTests(TransactionTestCase):
+    def test_concurrent_starts_leave_only_one_active_share(self):
+        user = User.objects.create_user(
+            username='location-concurrent', password='password123'
+        )
+        conversation = Conversation.objects.create(
+            conversation_type='direct', user_a=user,
+            user_b=User.objects.create_user(
+                username='location-peer', password='password123'
+            ),
+        )
+        barrier = Barrier(2)
+
+        def start(mutation_id):
+            close_old_connections()
+            try:
+                barrier.wait(timeout=10)
+                return DjangoExperienceRepository().create_live_location(
+                    conversation.id,
+                    user.id,
+                    {
+                        'latitude': '10.762622',
+                        'longitude': '106.660172',
+                        'expires_at': timezone.now() + timedelta(minutes=30),
+                        'client_mutation_id': mutation_id,
+                    },
+                ).id
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(start, 'concurrent-1')
+            second = pool.submit(start, 'concurrent-2')
+            self.assertNotEqual(first.result(timeout=20), second.result(timeout=20))
+
+        self.assertEqual(LiveLocationShare.objects.count(), 2)
+        self.assertEqual(LiveLocationShare.objects.filter(is_active=True).count(), 1)
 
 
 @override_settings(
@@ -105,6 +150,11 @@ class ExperienceApiTests(TestCase):
             vote_url, {'option_ids': [second_id]}, format='json'
         )
         self.assertEqual(result.json()['selected_option_ids'], [second_id])
+        selected_option = next(
+            option for option in result.json()['options']
+            if option['id'] == second_id
+        )
+        self.assertEqual(selected_option['voters'][0]['id'], str(self.member.id))
 
     def test_live_location_requires_consent_and_is_idempotent(self):
         url = reverse(

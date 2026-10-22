@@ -31,6 +31,7 @@ from planpals.auth.presentation.permissions import (
 from planpals.auth.application.services import UserService
 from planpals.auth.infrastructure.email_verification import EmailVerificationService
 from planpals.auth.infrastructure.oauth2_utils import OAuth2ResponseFormatter
+from planpals.auth.infrastructure.websocket_ticket import WebSocketTicketService
 from planpals.shared.paginators import (
     StandardResultsPagination, SearchResultsPagination,
     ActivityCursorPagination
@@ -274,11 +275,9 @@ class UserViewSet(viewsets.GenericViewSet,
         
         users_queryset = UserService.search_users(query, request.user)
         
-        blocked_by_user_ids = Friendship.objects.filter(
+        blocked_user_ids = Friendship.objects.filter(
             models.Q(user_a=request.user) | models.Q(user_b=request.user),
             status=Friendship.BLOCKED
-        ).exclude(
-            initiator=request.user
         ).values_list(
             models.Case(
                 models.When(user_a=request.user, then='user_b'),
@@ -286,7 +285,7 @@ class UserViewSet(viewsets.GenericViewSet,
             ), 
             flat=True
         )
-        users_queryset = users_queryset.exclude(id__in=blocked_by_user_ids)
+        users_queryset = users_queryset.exclude(id__in=blocked_user_ids)
         
         paginator = SearchResultsPagination()
         paginator.set_search_query(query)
@@ -409,7 +408,13 @@ class UserViewSet(viewsets.GenericViewSet,
         
         self.check_object_permissions(request, user)
         
-        serializer = UserSummarySerializer(user, context={'request': request})
+        serializer = UserSummarySerializer(
+            user,
+            context={
+                'request': request,
+                'show_presence': Friendship.are_friends(request.user, user),
+            },
+        )
         return Response(serializer.data)
     
     @action(detail=True, methods=['get'])
@@ -495,17 +500,31 @@ class FriendRequestView(generics.CreateAPIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class WebSocketTicketView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        ticket = WebSocketTicketService.issue(request.user.id)
+        return Response({
+            'ticket': ticket,
+            'expires_in': WebSocketTicketService.ttl_seconds(),
+        })
+
+
 class FriendRequestListView(generics.ListAPIView):
     serializer_class = FriendshipSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultsPagination
     def get_queryset(self):
-        return Friendship.objects.filter(
+        queryset = Friendship.objects.filter(
             models.Q(user_a=self.request.user) | models.Q(user_b=self.request.user),
             status=Friendship.PENDING
-        ).exclude(
-            initiator=self.request.user
-        ).select_related('user_a', 'user_b', 'initiator').order_by('-created_at')
+        )
+        if self.request.query_params.get('direction') == 'sent':
+            queryset = queryset.filter(initiator=self.request.user)
+        else:
+            queryset = queryset.exclude(initiator=self.request.user)
+        return queryset.select_related('user_a', 'user_b', 'initiator').order_by('-created_at')
     
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -518,7 +537,7 @@ class FriendRequestActionView(APIView):
     
     def post(self, request, request_id):
         action = request.data.get('action')
-        allowed_actions = ['accept', 'reject']
+        allowed_actions = ['accept', 'reject', 'cancel']
         
         if action not in allowed_actions:
             return Response(
@@ -526,34 +545,43 @@ class FriendRequestActionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        friendship = get_object_or_404(
-            Friendship.objects.filter(
+        queryset = Friendship.objects.filter(
                 id=request_id,
                 status=Friendship.PENDING
             ).filter(
                 models.Q(user_a=request.user) | models.Q(user_b=request.user)
-            ).exclude(
-                initiator=request.user
             ).select_related('user_a', 'user_b', 'initiator')
-        )
+        if action == 'cancel':
+            queryset = queryset.filter(initiator=request.user)
+        else:
+            queryset = queryset.exclude(initiator=request.user)
+        friendship = get_object_or_404(queryset)
         
         initiator = friendship.initiator
         
         try:
             with transaction.atomic():
-                if action == 'accept':
+                if action == 'cancel':
+                    success, message = UserService.cancel_friend_request(
+                        request.user, friendship.get_other_user(request.user)
+                    )
+                elif action == 'accept':
                     success, message = UserService.accept_friend_request(request.user, initiator)
                 else:
                     success, message = UserService.reject_friend_request(request.user, initiator)
 
                 if not success:
                     return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
-                
-                friendship.refresh_from_db()
+
+                if action == 'cancel':
+                    return Response({'message': message})
                 
                 return Response({
                     'message': message,
-                    'friendship': FriendshipSerializer(friendship, context={'request': request}).data
+                    'friendship': FriendshipSerializer(
+                        Friendship.objects.get(id=friendship.id),
+                        context={'request': request},
+                    ).data,
                 })
                     
         except (ValidationError, PermissionDenied) as e:
@@ -572,3 +600,8 @@ class FriendsListView(generics.ListAPIView):
     
     def get_queryset(self):
         return User.objects.friends_of(self.request.user).with_counts()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['show_presence'] = True
+        return context

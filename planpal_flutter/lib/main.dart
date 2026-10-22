@@ -1,45 +1,45 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planpal_flutter/core/localization/app_locale.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
-import 'package:planpal_flutter/presentation/pages/plans/plans_list_page.dart';
-import 'package:planpal_flutter/presentation/pages/analytics/analytics_dashboard_page.dart';
-import 'package:planpal_flutter/presentation/pages/notifications/notification_list_page.dart';
-import 'package:planpal_flutter/presentation/pages/users/profile_page.dart';
-import 'package:planpal_flutter/presentation/pages/users/group_page.dart';
 import 'package:planpal_flutter/core/theme/app_theme.dart';
 import 'package:planpal_flutter/core/auth/auth_session.dart';
+import 'package:planpal_flutter/core/routing/app_router.dart';
 import 'package:planpal_flutter/core/riverpod/providers.dart';
 import 'package:planpal_flutter/core/services/firebase_service.dart';
-import 'package:planpal_flutter/presentation/pages/home/home_page.dart';
-import 'package:planpal_flutter/presentation/pages/auth/login_page.dart';
-import 'package:planpal_flutter/presentation/pages/auth/register_page.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' as maplibre;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:planpal_flutter/core/storage/offline_storage_factory.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load();
-
+  // Brand fonts are bundled so typography remains stable offline and in PWA.
+  GoogleFonts.config.allowRuntimeFetching = false;
   // Must be configured before the first native map platform view is created.
   // Android emulators can render the default Virtual Display as a black map.
-  maplibre.MapLibreMap.useHybridComposition = true;
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    maplibre.MapLibreMap.useHybridComposition = true;
+  }
 
   // Pre-initialize SharedPreferences for synchronous access
   final prefs = await SharedPreferences.getInstance();
+  final offlineStorage = await createOfflineStorage(prefs);
 
   // Initialize providers before runApp
-  final authProvider = AuthProvider();
+  final authProvider = AuthProvider(offlineStorage: offlineStorage);
 
   runApp(
     // Riverpod ProviderScope wraps everything — overrides inject pre-init instances
     ProviderScope(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
+        offlineStorageProvider.overrideWithValue(offlineStorage),
         authNotifierProvider.overrideWith((ref) => authProvider),
       ],
       child: const PlanPalApp(),
@@ -56,8 +56,8 @@ class PlanPalApp extends ConsumerStatefulWidget {
 
 class _PlanPalAppState extends ConsumerState<PlanPalApp>
     with WidgetsBindingObserver {
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   late final Future<void> _bootstrapFuture;
+  GoRouter? _router;
 
   @override
   void initState() {
@@ -104,8 +104,28 @@ class _PlanPalAppState extends ConsumerState<PlanPalApp>
         final isBootstrapping =
             snapshot.connectionState != ConnectionState.done;
 
-        return MaterialApp(
-          navigatorKey: _navigatorKey,
+        if (isBootstrapping) {
+          return MaterialApp(
+            onGenerateTitle: (context) => context.l10n.t('common.app_name'),
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeMode,
+            locale: locale,
+            supportedLocales: AppLocaleStore.supportedLocales,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            home: const _StartupPage(),
+          );
+        }
+
+        _router ??= createAppRouter(authProvider);
+        return MaterialApp.router(
+          routerConfig: _router,
           onGenerateTitle: (context) => context.l10n.t('common.app_name'),
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
@@ -119,21 +139,6 @@ class _PlanPalAppState extends ConsumerState<PlanPalApp>
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          home: isBootstrapping
-              ? const _StartupPage()
-              : (authProvider.isLoggedIn
-                    ? const HomePage()
-                    : const LoginPage()),
-          routes: {
-            '/login': (context) => const LoginPage(),
-            '/register': (context) => const RegisterPage(),
-            '/home': (context) => const HomePage(),
-            '/group': (context) => const GroupPage(),
-            '/plan': (context) => const PlansListPage(),
-            '/analytics': (context) => const AnalyticsDashboardPage(),
-            '/notifications': (context) => const NotificationListPage(),
-            '/profile': (context) => ProfilePage(),
-          },
         );
       },
     );
@@ -190,7 +195,9 @@ class _StartupPage extends StatelessWidget {
 /// Initialize Firebase on app startup if user is logged in
 Future<void> _initializeFirebaseOnStartup(String authToken) async {
   try {
-    final registered = await FirebaseService.instance.registerToken(authToken);
+    final registered = kIsWeb
+        ? await FirebaseService.instance.initialize()
+        : await FirebaseService.instance.registerToken(authToken);
     if (!registered) {
       final error = FirebaseService.instance.lastInitializationError;
       if (error != null && error.isNotEmpty) {

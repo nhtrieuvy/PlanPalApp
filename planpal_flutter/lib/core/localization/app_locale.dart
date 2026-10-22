@@ -12,10 +12,7 @@ enum AppLanguage {
 
 class AppLocaleStore {
   static const Locale fallbackLocale = Locale('vi');
-  static const List<Locale> supportedLocales = [
-    Locale('vi'),
-    Locale('en'),
-  ];
+  static const List<Locale> supportedLocales = [Locale('vi'), Locale('en')];
 
   static Locale _currentLocale = fallbackLocale;
 

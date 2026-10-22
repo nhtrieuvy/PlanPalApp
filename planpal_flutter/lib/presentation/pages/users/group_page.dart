@@ -1,13 +1,16 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:planpal_flutter/core/dtos/group_summary.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/groups_notifier.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
-import 'package:planpal_flutter/presentation/pages/users/group_details_page.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 import 'package:planpal_flutter/presentation/pages/users/group_form_page.dart';
+import 'package:planpal_flutter/presentation/widgets/design_system/journey_ui.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 
 import '../../widgets/common/refreshable_page_wrapper.dart';
 import '../../../shared/ui_states/ui_states.dart';
@@ -124,13 +127,28 @@ class _GroupPageState extends ConsumerState<GroupPage>
         if (groups.isEmpty) {
           return _buildEmpty();
         }
-        return ListView.builder(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          itemCount: groups.length,
-          itemBuilder: (context, index) {
-            return _buildGroupCard(groups[index], index, theme);
-          },
+        return ResponsiveContent(
+          mediumMaxWidth: 820,
+          expandedMaxWidth: 1180,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 760 ? 2 : 1;
+              return GridView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: AppSpacing.sm,
+                  crossAxisSpacing: AppSpacing.sm,
+                  mainAxisExtent: 174,
+                ),
+                itemCount: groups.length,
+                itemBuilder: (context, index) {
+                  return _buildGroupCard(groups[index], index, theme);
+                },
+              );
+            },
+          ),
         );
       },
     );
@@ -143,92 +161,69 @@ class _GroupPageState extends ConsumerState<GroupPage>
     final description = group.description;
     final membersCount = group.memberCount;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        elevation: 2,
-        shadowColor: Colors.black26,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => _handleGroupTap(group),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _buildAvatar(group, name, index),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          if (description != null && description.isNotEmpty)
-                            Text(
-                              description,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: colorScheme.outlineVariant),
+    return JourneySurface(
+      onTap: () => _handleGroupTap(group),
+      semanticLabel: name,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _buildAvatar(context, group, name),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  name,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.people_alt_outlined,
-                        size: 20,
-                        color: AppColors.secondary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        l10n.memberCountLabel(membersCount),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        Icons.arrow_forward_ios,
-                        size: 16,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
+              ),
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: 20,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              description?.isNotEmpty == true
+                  ? description!
+                  : l10n.t('groups.no_description'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-        ),
+          Row(
+            children: [
+              Icon(
+                Icons.people_alt_outlined,
+                size: 18,
+                color: colorScheme.secondary,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                l10n.memberCountLabel(membersCount),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildAvatar(GroupSummary group, String name, int index) {
+  Widget _buildAvatar(BuildContext context, GroupSummary group, String name) {
     final initials = name
         .trim()
         .split(RegExp(r'\s+'))
@@ -237,6 +232,10 @@ class _GroupPageState extends ConsumerState<GroupPage>
         .join()
         .toUpperCase();
     final avatar = group.avatarUrl;
+    final palette = AppColors.avatarPalette(
+      group.id.isNotEmpty ? group.id : name,
+      Theme.of(context).brightness,
+    );
 
     if (avatar.isNotEmpty) {
       return ClipRRect(
@@ -246,33 +245,30 @@ class _GroupPageState extends ConsumerState<GroupPage>
           width: 56,
           height: 56,
           fit: BoxFit.cover,
-          placeholder: (context, url) => Container(
-            width: 56,
-            height: 56,
-            color: AppColors.getCardColor(index).withAlpha(25),
-          ),
+          placeholder: (context, url) =>
+              Container(width: 56, height: 56, color: palette.background),
           errorWidget: (context, url, error) =>
-              _buildAvatarFallback(initials, index),
+              _buildAvatarFallback(initials, palette),
         ),
       );
     }
 
-    return _buildAvatarFallback(initials, index);
+    return _buildAvatarFallback(initials, palette);
   }
 
-  Widget _buildAvatarFallback(String initials, int index) {
+  Widget _buildAvatarFallback(String initials, AvatarPalette palette) {
     return Container(
       width: 56,
       height: 56,
       decoration: BoxDecoration(
-        color: AppColors.getCardColor(index).withAlpha(25),
+        color: palette.background,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Center(
         child: Text(
           initials,
           style: TextStyle(
-            color: AppColors.getCardColor(index),
+            color: palette.foreground,
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
@@ -285,9 +281,7 @@ class _GroupPageState extends ConsumerState<GroupPage>
     final id = group.id;
     if (id.isEmpty) return;
 
-    final action = await Navigator.of(context).push<Map<String, dynamic>>(
-      MaterialPageRoute(builder: (_) => GroupDetailsPage(id: id)),
-    );
+    final action = await context.push<Map<String, dynamic>>('/groups/$id');
 
     if (!mounted) return;
     await ref.read(groupsNotifierProvider.notifier).refreshSilently();

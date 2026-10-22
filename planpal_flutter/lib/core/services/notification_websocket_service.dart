@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:planpal_flutter/core/dtos/notification_model.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 import 'package:planpal_flutter/core/services/reconnect_policy.dart';
+import 'package:planpal_flutter/core/services/websocket_auth_service.dart';
 import 'package:planpal_flutter/core/utils/server_datetime.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -147,7 +148,8 @@ class NotificationWebSocketService {
 
     try {
       _setConnectionState(NotificationConnectionState.connecting);
-      final wsUrl = '$baseWsUrl/ws/user/?token=$_token';
+      final authQuery = await webSocketAuthQuery(_token!);
+      final wsUrl = '$baseWsUrl/ws/user/?$authQuery';
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
       await _channel!.ready;
 

@@ -16,8 +16,16 @@ from planpals.collaboration.infrastructure.models import (
     PlanWorkItem,
 )
 from planpals.collaboration.infrastructure.realtime import CollaborationRealtimePublisher
+from planpals.collaboration.application.services import CollaborationService
 from planpals.groups.infrastructure.models import Group, GroupMembership
 from planpals.plans.infrastructure.models import Plan, PlanActivity
+
+
+class IcsEscapingTests(SimpleTestCase):
+    def test_crlf_and_cr_cannot_inject_calendar_properties(self):
+        escaped = CollaborationService._ics_escape('Trip\r\nATTENDEE:evil\rPlace')
+        self.assertEqual(escaped, 'Trip\\nATTENDEE:evil\\nPlace')
+        self.assertNotIn('\r', escaped)
 
 
 class CollaborationApiTests(TestCase):
@@ -88,6 +96,15 @@ class CollaborationApiTests(TestCase):
             vote_url, {'option_id': option_id, 'status': 'maybe'}, format='json'
         )
         self.assertEqual(changed_vote.status_code, status.HTTP_200_OK)
+        refreshed = self.client.get(url)
+        changed_option = next(
+            option for option in refreshed.data[0]['options']
+            if option['id'] == option_id
+        )
+        self.assertEqual(changed_option['votes'][0]['status'], 'maybe')
+        self.assertEqual(
+            changed_option['votes'][0]['user']['id'], str(self.member.id)
+        )
 
         AvailabilityPoll.objects.filter(id=poll_id).update(is_closed=True)
         closed = self.client.post(vote_url, {'option_id': option_id, 'status': 'maybe'}, format='json')

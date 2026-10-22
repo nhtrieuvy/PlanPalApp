@@ -1,7 +1,7 @@
-import 'dart:io';
-
+import 'package:cross_file/cross_file.dart';
 import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/auth/auth_session.dart';
+import 'package:planpal_flutter/core/files/upload_file.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 
@@ -97,27 +97,20 @@ class GroupRepository {
 
   Future<GroupModel> createGroup(
     CreateGroupRequest request, {
-    File? avatar,
-    File? coverImage,
+    XFile? avatar,
+    XFile? coverImage,
   }) async {
     try {
-      final Response res = await auth.requestWithAutoRefresh((c) {
+      final Response res = await auth.requestWithAutoRefresh((c) async {
         if (avatar != null || coverImage != null) {
           final formMap = <String, dynamic>{...request.toJson()};
           if (avatar != null) {
-            formMap['avatar'] = MultipartFile.fromFileSync(
-              avatar.path,
-              filename: avatar.path.split(Platform.pathSeparator).last,
-            );
+            formMap['avatar'] = await multipartFromXFile(avatar);
           }
           if (coverImage != null) {
-            formMap['cover_image'] = MultipartFile.fromFileSync(
-              coverImage.path,
-              filename: coverImage.path.split(Platform.pathSeparator).last,
-            );
+            formMap['cover_image'] = await multipartFromXFile(coverImage);
           }
-          final form = FormData.fromMap(formMap);
-          return c.dio.post(Endpoints.groups, data: form);
+          return c.dio.post(Endpoints.groups, data: FormData.fromMap(formMap));
         }
         return c.dio.post(Endpoints.groups, data: request.toJson());
       });
@@ -139,27 +132,23 @@ class GroupRepository {
   Future<GroupModel> updateGroup(
     String id,
     UpdateGroupRequest request, {
-    File? avatar,
-    File? coverImage,
+    XFile? avatar,
+    XFile? coverImage,
   }) async {
     try {
-      final Response res = await auth.requestWithAutoRefresh((c) {
+      final Response res = await auth.requestWithAutoRefresh((c) async {
         if (avatar != null || coverImage != null) {
           final formMap = <String, dynamic>{...request.toJson()};
           if (avatar != null) {
-            formMap['avatar'] = MultipartFile.fromFileSync(
-              avatar.path,
-              filename: avatar.path.split(Platform.pathSeparator).last,
-            );
+            formMap['avatar'] = await multipartFromXFile(avatar);
           }
           if (coverImage != null) {
-            formMap['cover_image'] = MultipartFile.fromFileSync(
-              coverImage.path,
-              filename: coverImage.path.split(Platform.pathSeparator).last,
-            );
+            formMap['cover_image'] = await multipartFromXFile(coverImage);
           }
-          final form = FormData.fromMap(formMap);
-          return c.dio.patch(Endpoints.groupDetails(id), data: form);
+          return c.dio.patch(
+            Endpoints.groupDetails(id),
+            data: FormData.fromMap(formMap),
+          );
         }
         return c.dio.patch(Endpoints.groupDetails(id), data: request.toJson());
       });

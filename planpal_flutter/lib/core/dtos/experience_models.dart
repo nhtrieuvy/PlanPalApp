@@ -65,20 +65,56 @@ class GroupPollOptionModel extends Equatable {
     required this.id,
     required this.text,
     required this.voteCount,
+    this.voters = const [],
   });
   final String id;
   final String text;
   final int voteCount;
+  final List<GroupPollVoterModel> voters;
 
   factory GroupPollOptionModel.fromJson(Map<String, dynamic> json) =>
       GroupPollOptionModel(
         id: json['id']?.toString() ?? '',
         text: json['text']?.toString() ?? '',
         voteCount: int.tryParse(json['vote_count']?.toString() ?? '') ?? 0,
+        voters: (json['voters'] as List? ?? const [])
+            .whereType<Map>()
+            .map(
+              (item) =>
+                  GroupPollVoterModel.fromJson(Map<String, dynamic>.from(item)),
+            )
+            .toList(),
       );
 
   @override
-  List<Object?> get props => [id, text, voteCount];
+  List<Object?> get props => [id, text, voteCount, voters];
+}
+
+class GroupPollVoterModel extends Equatable {
+  const GroupPollVoterModel({
+    required this.id,
+    required this.username,
+    required this.fullName,
+    required this.avatarUrl,
+  });
+
+  final String id;
+  final String username;
+  final String fullName;
+  final String avatarUrl;
+
+  factory GroupPollVoterModel.fromJson(Map<String, dynamic> json) =>
+      GroupPollVoterModel(
+        id: json['id']?.toString() ?? '',
+        username: json['username']?.toString() ?? '',
+        fullName: json['full_name']?.toString() ?? '',
+        avatarUrl: json['avatar_url']?.toString() ?? '',
+      );
+
+  String get displayName => fullName.isNotEmpty ? fullName : username;
+
+  @override
+  List<Object?> get props => [id, username, fullName, avatarUrl];
 }
 
 class GroupPollModel extends Equatable {

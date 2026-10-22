@@ -151,7 +151,8 @@ fly secrets set `
 Deploy and verify:
 
 ```powershell
-fly deploy -a planpal-backend
+fly deploy --ha=false -a planpal-backend
+fly scale count 1 -a planpal-backend
 fly status -a planpal-backend
 fly logs -a planpal-backend
 Invoke-WebRequest https://planpal-backend.fly.dev/health/live

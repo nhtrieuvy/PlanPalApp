@@ -59,8 +59,8 @@ class BudgetSummaryCard extends StatelessWidget {
                           ? l10n.t(
                               'budget.summary_spent',
                               params: {
-                                'value':
-                                    summary.spentPercentage.toStringAsFixed(1),
+                                'value': summary.spentPercentage
+                                    .toStringAsFixed(1),
                               },
                             )
                           : l10n.t('budget.summary_no_budget'),

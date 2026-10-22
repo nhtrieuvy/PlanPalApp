@@ -73,9 +73,12 @@ class NetworkAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final defaultBackgroundColor =
-        backgroundColor ?? AppColors.primary.withValues(alpha: 0.1);
-    final defaultTextColor = textColor ?? AppColors.primary;
+    final palette = AppColors.avatarPalette(
+      initials,
+      Theme.of(context).brightness,
+    );
+    final defaultBackgroundColor = backgroundColor ?? palette.background;
+    final defaultTextColor = textColor ?? palette.foreground;
     final defaultFontSize = fontSize ?? (size * 0.4);
 
     Widget avatar = Container(
@@ -86,7 +89,7 @@ class NetworkAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         border: showBorder
             ? Border.all(
-                color: borderColor ?? AppColors.primary,
+                color: borderColor ?? palette.foreground,
                 width: borderWidth,
               )
             : null,
@@ -119,7 +122,7 @@ class NetworkAvatar extends StatelessWidget {
         placeholder: (context, url) => Container(
           width: size,
           height: size,
-          color: Colors.grey[200],
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           child: Center(
             child: SizedBox(
               width: size * 0.3,

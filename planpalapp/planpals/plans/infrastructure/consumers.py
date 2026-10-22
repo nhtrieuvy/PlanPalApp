@@ -73,7 +73,7 @@ class PlanConsumer(BaseRealtimeConsumer):
                 return plan.group.members.filter(id=user_id).exists()
 
             # Public plans are accessible to everyone
-            if plan.is_public:
+            if plan.is_discoverable:
                 return True
 
             return False

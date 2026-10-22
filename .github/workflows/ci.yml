@@ -75,3 +75,9 @@ jobs:
         run: flutter analyze
       - name: Flutter tests
         run: flutter test
+      - name: Web release build
+        run: >-
+          flutter build web --release
+          --dart-define=APP_ENV=production
+          --dart-define=GOONG_MAPTILES_KEY=ci-public-placeholder
+          --dart-define=FIREBASE_WEB_VAPID_KEY=ci-public-placeholder

@@ -9,6 +9,92 @@ class FriendRepository {
   final AuthProvider auth;
   FriendRepository(this.auth);
 
+  Future<Map<String, dynamic>> getPublishedProfile(
+    String userId, {
+    String? nextPageUrl,
+  }) async {
+    final res = await auth.requestWithAutoRefresh(
+      (c) => c.getPaginated(
+        Endpoints.publishedProfile(userId),
+        pageUrl: nextPageUrl,
+      ),
+    );
+    if (res.statusCode == 200) {
+      return Map<String, dynamic>.from(res.data);
+    }
+    throw buildApiException(res);
+  }
+
+  Future<Map<String, dynamic>> getPublicationPreview(
+    String publicationId,
+  ) async {
+    final res = await auth.requestWithAutoRefresh(
+      (c) => c.dio.get(Endpoints.publicationPreview(publicationId)),
+    );
+    if (res.statusCode == 200) {
+      return Map<String, dynamic>.from(res.data);
+    }
+    throw buildApiException(res);
+  }
+
+  Future<List<Map<String, dynamic>>> getTripInvitations() async {
+    final res = await auth.requestWithAutoRefresh(
+      (c) => c.dio.get(Endpoints.friendTripInvitations),
+    );
+    if (res.statusCode == 200) {
+      return (res.data as List)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+    }
+    throw buildApiException(res);
+  }
+
+  Future<Map<String, dynamic>> inviteFriendToTrip(
+    String friendId,
+    String name,
+  ) async {
+    final res = await auth.requestWithAutoRefresh(
+      (c) => c.dio.post(
+        Endpoints.friendTripInvitations,
+        data: {'friend_id': friendId, 'name': name},
+      ),
+    );
+    if (res.statusCode == 201) return Map<String, dynamic>.from(res.data);
+    throw buildApiException(res);
+  }
+
+  Future<Map<String, dynamic>> decideTripInvitation(
+    String invitationId,
+    String decision,
+  ) async {
+    final res = await auth.requestWithAutoRefresh(
+      (c) => c.dio.post(
+        Endpoints.friendTripDecision(invitationId),
+        data: {'decision': decision},
+      ),
+    );
+    if (res.statusCode == 200) return Map<String, dynamic>.from(res.data);
+    throw buildApiException(res);
+  }
+
+  Future<List<Friendship>> getSentRequests() async {
+    final res = await auth.requestWithAutoRefresh(
+      (c) => c.dio.get(
+        Endpoints.friendRequests,
+        queryParameters: {'direction': 'sent'},
+      ),
+    );
+    if (res.statusCode == 200) {
+      return ((res.data as Map)['results'] as List)
+          .map((item) => Friendship.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+    }
+    throw buildApiException(res);
+  }
+
+  Future<bool> cancelFriendRequest(String requestId) =>
+      _handleFriendRequestAction(requestId, 'cancel');
+
   Never _throwApiError(Response res) => throw buildApiException(res);
 
   /// Search users for friend requests

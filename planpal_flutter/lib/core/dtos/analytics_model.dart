@@ -1,12 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:planpal_flutter/core/utils/server_datetime.dart';
 
-enum AnalyticsRangeOption {
-  last7Days,
-  last30Days,
-  last90Days,
-  last180Days,
-}
+enum AnalyticsRangeOption { last7Days, last30Days, last90Days, last180Days }
 
 extension AnalyticsRangeOptionX on AnalyticsRangeOption {
   String get apiValue {
@@ -263,7 +258,9 @@ class AnalyticsTimeSeries extends Equatable {
       range: json['range']?.toString() ?? '30d',
       points: rawPoints
           .whereType<Map>()
-          .map((item) => TimeSeriesPoint.fromJson(Map<String, dynamic>.from(item)))
+          .map(
+            (item) => TimeSeriesPoint.fromJson(Map<String, dynamic>.from(item)),
+          )
           .toList(),
     );
   }
@@ -320,13 +317,15 @@ class AnalyticsTopEntities extends Equatable {
       plans: rawPlans
           .whereType<Map>()
           .map(
-            (item) => TopAnalyticsEntity.fromJson(Map<String, dynamic>.from(item)),
+            (item) =>
+                TopAnalyticsEntity.fromJson(Map<String, dynamic>.from(item)),
           )
           .toList(),
       groups: rawGroups
           .whereType<Map>()
           .map(
-            (item) => TopAnalyticsEntity.fromJson(Map<String, dynamic>.from(item)),
+            (item) =>
+                TopAnalyticsEntity.fromJson(Map<String, dynamic>.from(item)),
           )
           .toList(),
     );

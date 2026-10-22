@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/services/offline_sync_service.dart';
+import 'package:planpal_flutter/core/storage/offline_storage.dart';
 
 /// Secure storage for tokens
 final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
@@ -17,9 +18,15 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   );
 });
 
+final offlineStorageProvider = Provider<OfflineStorage>((ref) {
+  throw UnimplementedError(
+    'offlineStorageProvider must be overridden with an initialized instance',
+  );
+});
+
 final offlineSyncProvider = ChangeNotifierProvider<OfflineSyncService>((ref) {
   final service = OfflineSyncService(
-    ref.watch(sharedPreferencesProvider),
+    ref.watch(offlineStorageProvider),
     ref.read(authNotifierProvider),
   );
   ref.onDispose(service.dispose);

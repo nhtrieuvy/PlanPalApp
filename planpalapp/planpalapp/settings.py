@@ -98,8 +98,11 @@ if IS_PRODUCTION and not ALLOWED_HOSTS:
 
 PLANPAL_DEEP_LINK_SCHEME = os.getenv('PLANPAL_DEEP_LINK_SCHEME', 'planpal')
 PLANPAL_WEB_BASE_URL = os.getenv('PLANPAL_WEB_BASE_URL', 'https://planpal.app')
+FRONTEND_ORIGIN = os.getenv('FRONTEND_ORIGIN', PLANPAL_WEB_BASE_URL).rstrip('/')
 
 CSRF_TRUSTED_ORIGINS = _env_list('CSRF_TRUSTED_ORIGINS')
+if FRONTEND_ORIGIN and FRONTEND_ORIGIN not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(FRONTEND_ORIGIN)
 
 # Application definition
 
@@ -118,8 +121,6 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'cloudinary',
     'oauth2_provider',
-    'ckeditor',
-    'ckeditor_uploader',
     'channels',  # Django Channels for WebSocket
     
     'planpals',
@@ -318,6 +319,8 @@ CORS_ALLOW_ALL_ORIGINS = _env_flag(
     'CORS_ALLOW_ALL_ORIGINS', default=PLANPAL_ENV == 'local'
 )
 CORS_ALLOWED_ORIGINS = _env_list('CORS_ALLOWED_ORIGINS')
+if FRONTEND_ORIGIN and FRONTEND_ORIGIN not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(FRONTEND_ORIGIN)
 if IS_PRODUCTION and CORS_ALLOW_ALL_ORIGINS:
     raise ImproperlyConfigured(
         'CORS_ALLOW_ALL_ORIGINS must be false in production.'
@@ -608,6 +611,13 @@ USE_REDIS_CHANNELS = False if IS_TEST_ENV else _env_flag(
     'USE_REDIS_CHANNELS', default=bool(CHANNEL_REDIS_URL)
 )
 
+# Browser clients exchange their bearer token over HTTPS for a short-lived,
+# single-use ticket before opening a WebSocket. Native token query auth remains
+# available temporarily for backward-compatible mobile releases.
+WEBSOCKET_TICKET_TTL_SECONDS = int(
+    os.getenv('WEBSOCKET_TICKET_TTL_SECONDS', '45')
+)
+
 # ============================================================================
 # DJANGO CACHE (Redis via django-redis)
 # ============================================================================
@@ -735,6 +745,7 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True  # Re-queue if worker killed mid-task
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 200   # Recycle workers to prevent memory leaks
 CELERY_BROKER_TRANSPORT_OPTIONS = {
     'visibility_timeout': 3600,   # 1 h — must exceed longest ETA
+    'polling_interval': 20,   # Kombu >= 5.6: reduce idle Redis BRPOP calls.
     'max_retries': 3,
     'interval_start': 0,
     'interval_step': 0.2,

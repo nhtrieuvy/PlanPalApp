@@ -190,7 +190,7 @@ mixin RefreshablePage<T extends StatefulWidget> on State<T> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(ErrorDisplayService.getUserFriendlyMessage(error)),
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: AppColors.error,
           ),
         );
       }

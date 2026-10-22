@@ -1,12 +1,17 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/dtos/user_summary.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
+import 'package:planpal_flutter/presentation/widgets/forms/app_select_field.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 
 class ExpenseDetailPage extends ConsumerWidget {
   final ExpenseModel expense;
@@ -22,104 +27,169 @@ class ExpenseDetailPage extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l10n.t('budget.expense_detail')),
         actions: [
-          IconButton(
-            tooltip: l10n.t('budget.correct_expense'),
-            onPressed: () => _correctExpense(context, ref),
-            icon: const Icon(Icons.edit_note_rounded),
+          PopupMenuButton<String>(
+            tooltip: l10n.t('common.more'),
+            onSelected: (value) {
+              if (value == 'delete') _deleteExpense(context, ref);
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delete_outline_rounded,
+                      color: colorScheme.error,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      l10n.t('budget.delete_expense'),
+                      style: TextStyle(color: colorScheme.error),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        children: [
-          _HeroSummary(expense: expense),
-          const SizedBox(height: 20),
-          _InfoCard(
-            title: l10n.t('wizard.details'),
-            icon: Icons.receipt_long_outlined,
-            children: [
-              _InfoRow(
-                icon: Icons.category_outlined,
-                label: l10n.t('budget.category'),
-                value: expense.category,
+      body: ResponsiveContent(
+        mediumMaxWidth: 720,
+        expandedMaxWidth: 840,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          children: [
+            _HeroSummary(expense: expense),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: () => _correctExpense(context, ref),
+                icon: const Icon(Icons.edit_note_rounded),
+                label: Text(l10n.t('budget.correct_expense')),
               ),
-              _InfoRow(
-                icon: Icons.call_split_outlined,
-                label: l10n.t('budget.split_strategy'),
-                value: _localizedSplitStrategy(l10n, expense.splitStrategy),
-              ),
-              if (expense.description.trim().isNotEmpty)
+            ),
+            const SizedBox(height: 20),
+            _InfoCard(
+              title: l10n.t('wizard.details'),
+              icon: Icons.receipt_long_outlined,
+              children: [
                 _InfoRow(
-                  icon: Icons.notes_outlined,
-                  label: l10n.t('budget.description'),
-                  value: expense.description,
+                  icon: Icons.category_outlined,
+                  label: l10n.t('budget.category'),
+                  value: expense.category,
                 ),
-              if (expense.paymentNote.trim().isNotEmpty)
                 _InfoRow(
-                  icon: Icons.payments_outlined,
-                  label: l10n.t('budget.payment_note'),
-                  value: expense.paymentNote,
+                  icon: Icons.call_split_outlined,
+                  label: l10n.t('budget.split_strategy'),
+                  value: _localizedSplitStrategy(l10n, expense.splitStrategy),
                 ),
-              if (expense.entryType == 'correction')
-                _InfoRow(
-                  icon: Icons.history_rounded,
-                  label: l10n.t('budget.corrected_entry'),
-                  value: expense.correctionReason,
-                ),
-              if (expense.receiptUrl != null)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.attach_file_rounded),
-                  title: Text(l10n.t('budget.receipt')),
-                  trailing: const Icon(Icons.open_in_new_rounded),
-                  onTap: () => launchUrl(
-                    Uri.parse(expense.receiptUrl!),
-                    mode: LaunchMode.externalApplication,
+                if (expense.description.trim().isNotEmpty)
+                  _InfoRow(
+                    icon: Icons.notes_outlined,
+                    label: l10n.t('budget.description'),
+                    value: expense.description,
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _InfoCard(
-            title: l10n.t('budget.payment_contributions'),
-            icon: Icons.account_balance_wallet_outlined,
-            children: _paymentRows(context, l10n),
-          ),
-          const SizedBox(height: 16),
-          _InfoCard(
-            title: l10n.t('budget.participants'),
-            icon: Icons.group_outlined,
-            children: expense.participants
-                .map(
+                if (expense.paymentNote.trim().isNotEmpty)
+                  _InfoRow(
+                    icon: Icons.payments_outlined,
+                    label: l10n.t('budget.payment_note'),
+                    value: expense.paymentNote,
+                  ),
+                if (expense.entryType == 'correction')
+                  _InfoRow(
+                    icon: Icons.history_rounded,
+                    label: l10n.t('budget.corrected_entry'),
+                    value: expense.correctionReason,
+                  ),
+                if (expense.receiptUrl != null)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.attach_file_rounded),
+                    title: Text(l10n.t('budget.receipt')),
+                    trailing: const Icon(Icons.open_in_new_rounded),
+                    onTap: () => launchUrl(
+                      Uri.parse(expense.receiptUrl!),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _InfoCard(
+              title: l10n.t('budget.payment_contributions'),
+              icon: Icons.account_balance_wallet_outlined,
+              children: _paymentRows(context, l10n),
+            ),
+            const SizedBox(height: 16),
+            _InfoCard(
+              title: l10n.t('budget.participants'),
+              icon: Icons.group_outlined,
+              children: [
+                ...expense.participants.map(
                   (participant) => _ParticipantRow(
                     participant: participant,
                     currency: expense.currency,
                   ),
-                )
-                .toList(),
-          ),
-          if (expense.participants.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                l10n.t('budget.breakdown_empty'),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                ),
+                const Divider(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        _correctExpense(context, ref, participantsOnly: true),
+                    icon: const Icon(Icons.group_add_outlined),
+                    label: Text(l10n.t('budget.edit_participants')),
+                  ),
+                ),
+              ],
+            ),
+            if (expense.participants.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  l10n.t('budget.breakdown_empty'),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Future<void> _correctExpense(BuildContext context, WidgetRef ref) async {
+  Future<void> _correctExpense(
+    BuildContext context,
+    WidgetRef ref, {
+    bool participantsOnly = false,
+  }) async {
+    final membersFuture = _loadParticipants(ref);
+    final isWide = MediaQuery.sizeOf(context).width >= 600;
     final draft = await showModalBottomSheet<_ExpenseCorrectionDraft>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _ExpenseCorrectionSheet(expense: expense),
+      showDragHandle: true,
+      constraints: isWide ? const BoxConstraints(maxWidth: 760) : null,
+      builder: (_) => FutureBuilder<List<UserSummary>>(
+        future: membersFuture,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const SizedBox(
+              height: 280,
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          return _ExpenseCorrectionSheet(
+            expense: expense,
+            members: snapshot.data!,
+            participantsOnly: participantsOnly,
+          );
+        },
+      ),
     );
     if (draft == null || !context.mounted) return;
     try {
@@ -133,10 +203,75 @@ class ExpenseDetailPage extends ConsumerWidget {
             description: draft.description,
             paymentNote: draft.paymentNote,
             reason: draft.reason,
-            receiptPath: draft.receiptPath,
+            receiptFile: draft.receiptFile,
+            paidByUserId: draft.paidByUserId,
+            payments: draft.payments,
+            splitStrategy: draft.splitStrategy,
+            participants: draft.participants,
           );
       if (!context.mounted) return;
       Navigator.of(context).pop(result);
+    } catch (error) {
+      if (context.mounted) {
+        ErrorDisplayService.handleError(context, error, showDialog: true);
+      }
+    }
+  }
+
+  Future<List<UserSummary>> _loadParticipants(WidgetRef ref) async {
+    final users = <String, UserSummary>{
+      expense.paidByUser.id: expense.paidByUser,
+      for (final payment in expense.payments) payment.user.id: payment.user,
+      for (final participant in expense.participants)
+        participant.user.id: participant.user,
+    };
+    try {
+      final plan = await ref
+          .read(planRepositoryProvider)
+          .getPlanDetail(expense.planId);
+      users[plan.creator.id] = plan.creator;
+      for (final collaborator in plan.collaborators) {
+        users[collaborator.id] = collaborator;
+      }
+    } catch (_) {
+      // Current expense members still allow a safe correction when plan detail
+      // is temporarily unavailable.
+    }
+    return users.values.toList();
+  }
+
+  Future<void> _deleteExpense(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.t('budget.delete_expense_title')),
+        content: Text(
+          context.l10n.t(
+            'budget.delete_expense_description',
+            params: {'category': expense.category},
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(context.l10n.t('common.cancel')),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(context.l10n.t('common.delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await ref
+          .read(budgetRepositoryProvider)
+          .deleteExpense(expense.planId, expense.id);
+      if (context.mounted) Navigator.of(context).pop(true);
     } catch (error) {
       if (context.mounted) {
         ErrorDisplayService.handleError(context, error, showDialog: true);
@@ -200,7 +335,11 @@ class _ExpenseCorrectionDraft {
     required this.description,
     required this.paymentNote,
     required this.reason,
-    this.receiptPath,
+    required this.splitStrategy,
+    required this.participants,
+    this.paidByUserId,
+    this.payments,
+    this.receiptFile,
   });
 
   final double amount;
@@ -208,18 +347,30 @@ class _ExpenseCorrectionDraft {
   final String description;
   final String paymentNote;
   final String reason;
-  final String? receiptPath;
+  final String splitStrategy;
+  final List<ExpenseParticipantInput> participants;
+  final String? paidByUserId;
+  final List<ExpensePaymentInput>? payments;
+  final XFile? receiptFile;
 }
 
 class _ExpenseCorrectionSheet extends StatefulWidget {
-  const _ExpenseCorrectionSheet({required this.expense});
+  const _ExpenseCorrectionSheet({
+    required this.expense,
+    required this.members,
+    this.participantsOnly = false,
+  });
 
   final ExpenseModel expense;
+  final List<UserSummary> members;
+  final bool participantsOnly;
 
   @override
   State<_ExpenseCorrectionSheet> createState() =>
       _ExpenseCorrectionSheetState();
 }
+
+enum _ExpenseCorrectionSection { details, participants }
 
 class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
   final _formKey = GlobalKey<FormState>();
@@ -228,8 +379,16 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
   late final TextEditingController _description;
   late final TextEditingController _paymentNote;
   final _reason = TextEditingController();
-  String? _receiptPath;
+  XFile? _receiptFile;
   String? _receiptName;
+  late String _splitStrategy;
+  late String? _paidByUserId;
+  late bool _hasMultiplePayers;
+  bool _paymentChoiceChanged = false;
+  late final Set<String> _selectedParticipantIds;
+  final Map<String, TextEditingController> _splitControllers = {};
+  final Map<String, TextEditingController> _paymentControllers = {};
+  late _ExpenseCorrectionSection _section;
 
   @override
   void initState() {
@@ -240,6 +399,44 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
     _category = TextEditingController(text: widget.expense.category);
     _description = TextEditingController(text: widget.expense.description);
     _paymentNote = TextEditingController(text: widget.expense.paymentNote);
+    _section = widget.participantsOnly
+        ? _ExpenseCorrectionSection.participants
+        : _ExpenseCorrectionSection.details;
+    _splitStrategy = widget.expense.splitStrategy;
+    _paidByUserId = widget.expense.paidByUserId;
+    _hasMultiplePayers = widget.expense.payments.length > 1;
+    _selectedParticipantIds = widget.expense.participants
+        .map((item) => item.user.id)
+        .toSet();
+    if (_selectedParticipantIds.isEmpty && widget.members.isNotEmpty) {
+      _selectedParticipantIds.addAll(widget.members.map((item) => item.id));
+    }
+    for (final member in widget.members) {
+      final contribution = widget.expense.payments
+          .where((item) => item.user.id == member.id)
+          .firstOrNull;
+      _paymentControllers[member.id] = TextEditingController(
+        text: contribution != null
+            ? contribution.amount.toStringAsFixed(2)
+            : widget.expense.payments.isEmpty &&
+                  member.id == widget.expense.paidByUserId
+            ? widget.expense.amount.toStringAsFixed(2)
+            : '',
+      );
+      ExpenseParticipantModel? participant;
+      for (final item in widget.expense.participants) {
+        if (item.user.id == member.id) {
+          participant = item;
+          break;
+        }
+      }
+      final value = _splitStrategy == 'percentage' && participant != null
+          ? participant.owedAmount / widget.expense.amount * 100
+          : participant?.owedAmount;
+      _splitControllers[member.id] = TextEditingController(
+        text: value == null ? '' : value.toStringAsFixed(2),
+      );
+    }
   }
 
   @override
@@ -249,123 +446,414 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
     _description.dispose();
     _paymentNote.dispose();
     _reason.dispose();
+    for (final controller in _splitControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _paymentControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        MediaQuery.viewInsetsOf(context).bottom + 20,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.l10n.t('budget.correct_expense'),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _amount,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: InputDecoration(
-                  labelText: context.l10n.t('budget.amount'),
-                ),
-                validator: (value) {
-                  final amount = double.tryParse(value?.trim() ?? '');
-                  return amount == null || amount <= 0
-                      ? context.l10n.t('budget.validation_amount_positive')
-                      : null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _category,
-                decoration: InputDecoration(
-                  labelText: context.l10n.t('budget.category'),
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? context.l10n.t('budget.validation_category_required')
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _description,
-                decoration: InputDecoration(
-                  labelText: context.l10n.t('budget.description'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _paymentNote,
-                minLines: 2,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  labelText: context.l10n.t('budget.payment_note'),
-                  hintText: context.l10n.t('budget.payment_note_hint'),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                leading: const Icon(Icons.receipt_long_outlined),
-                title: Text(
-                  _receiptName ?? context.l10n.t('budget.attach_new_receipt'),
-                ),
-                subtitle: Text(context.l10n.t('budget.receipt_formats')),
-                trailing: _receiptPath == null
-                    ? const Icon(Icons.add_rounded)
-                    : IconButton(
-                        tooltip: context.l10n.t('budget.remove_receipt'),
-                        onPressed: () => setState(() {
-                          _receiptPath = null;
-                          _receiptName = null;
-                        }),
+    final mediaQuery = MediaQuery.of(context);
+    final height = mediaQuery.size.height > 860
+        ? 760.0
+        : mediaQuery.size.height * .88;
+    final showParticipants = _section == _ExpenseCorrectionSection.participants;
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: height,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.l10n.t(
+                                widget.participantsOnly
+                                    ? 'budget.edit_participants'
+                                    : 'budget.correct_expense',
+                              ),
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              context.l10n.t(
+                                showParticipants
+                                    ? 'budget.edit_participants_hint'
+                                    : 'budget.correct_expense_hint',
+                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: context.l10n.t('common.close'),
+                        onPressed: () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.close_rounded),
                       ),
-                onTap: _pickReceipt,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _reason,
-                minLines: 2,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  labelText: context.l10n.t('budget.correction_reason'),
+                    ],
+                  ),
                 ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? context.l10n.t('budget.correction_reason')
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _submit,
-                  child: Text(context.l10n.t('common.save')),
+                if (!widget.participantsOnly)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    child: SegmentedButton<_ExpenseCorrectionSection>(
+                      expandedInsets: EdgeInsets.zero,
+                      segments: [
+                        ButtonSegment(
+                          value: _ExpenseCorrectionSection.details,
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          label: Text(
+                            context.l10n.t('budget.expense_information'),
+                          ),
+                        ),
+                        ButtonSegment(
+                          value: _ExpenseCorrectionSection.participants,
+                          icon: const Icon(Icons.group_outlined),
+                          label: Text(context.l10n.t('budget.split_expense')),
+                        ),
+                      ],
+                      selected: {_section},
+                      onSelectionChanged: _selectSection,
+                    ),
+                  ),
+                const Divider(height: 1),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: KeyedSubtree(
+                        key: ValueKey(_section),
+                        child: showParticipants
+                            ? _buildParticipantsSection(context)
+                            : _buildDetailsSection(context),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                  child: Row(
+                    children: [
+                      if (showParticipants && !widget.participantsOnly) ...[
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => setState(
+                              () =>
+                                  _section = _ExpenseCorrectionSection.details,
+                            ),
+                            child: Text(context.l10n.t('wizard.back')),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        flex: 2,
+                        child: FilledButton(
+                          onPressed: showParticipants
+                              ? _submit
+                              : _continueToParticipants,
+                          child: Text(
+                            context.l10n.t(
+                              showParticipants ? 'common.save' : 'wizard.next',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  Widget _buildDetailsSection(BuildContext context) {
+    return Column(
+      key: const ValueKey('expense-details'),
+      children: [
+        TextFormField(
+          controller: _amount,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            labelText: context.l10n.t('budget.amount'),
+          ),
+          validator: (value) {
+            final amount = double.tryParse(value?.trim() ?? '');
+            return amount == null || amount <= 0
+                ? context.l10n.t('budget.validation_amount_positive')
+                : null;
+          },
+        ),
+        const SizedBox(height: 12),
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: Text(context.l10n.t('budget.multiple_payers')),
+          subtitle: Text(context.l10n.t('budget.multiple_payers_description')),
+          value: _hasMultiplePayers,
+          onChanged: (enabled) => setState(() {
+            _paymentChoiceChanged = true;
+            if (enabled && !_hasMultiplePayers) {
+              for (final entry in _paymentControllers.entries) {
+                entry.value.text = entry.key == _paidByUserId
+                    ? _amount.text.trim()
+                    : '';
+              }
+            }
+            _hasMultiplePayers = enabled;
+          }),
+        ),
+        const SizedBox(height: 8),
+        if (_hasMultiplePayers)
+          _buildPaymentContributions(context)
+        else
+          AppSelectField<String>(
+            label: context.l10n.t('budget.paid_by'),
+            value: _paidByUserId,
+            prefixIcon: Icons.account_balance_wallet_outlined,
+            hintText: context.l10n.t('budget.select_payer'),
+            options: widget.members
+                .map(
+                  (member) => AppSelectOption(
+                    value: member.id,
+                    label: _memberName(member),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() {
+              _paidByUserId = value;
+              _paymentChoiceChanged = true;
+            }),
+          ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _category,
+          decoration: InputDecoration(
+            labelText: context.l10n.t('budget.category'),
+          ),
+          validator: (value) => value == null || value.trim().isEmpty
+              ? context.l10n.t('budget.validation_category_required')
+              : null,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _description,
+          decoration: InputDecoration(
+            labelText: context.l10n.t('budget.description'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _paymentNote,
+          minLines: 2,
+          maxLines: 4,
+          decoration: InputDecoration(
+            labelText: context.l10n.t('budget.payment_note'),
+            hintText: context.l10n.t('budget.payment_note_hint'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          leading: const Icon(Icons.receipt_long_outlined),
+          title: Text(
+            _receiptName ?? context.l10n.t('budget.attach_new_receipt'),
+          ),
+          subtitle: Text(context.l10n.t('budget.receipt_formats')),
+          trailing: _receiptFile == null
+              ? const Icon(Icons.add_rounded)
+              : IconButton(
+                  tooltip: context.l10n.t('budget.remove_receipt'),
+                  onPressed: () => setState(() {
+                    _receiptFile = null;
+                    _receiptName = null;
+                  }),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+          onTap: _pickReceipt,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildParticipantsSection(BuildContext context) {
+    return Column(
+      key: const ValueKey('expense-participants'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          context.l10n.t('budget.split_strategy'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<String>(
+          expandedInsets: EdgeInsets.zero,
+          segments: [
+            ButtonSegment(
+              value: 'equal',
+              label: Text(context.l10n.t('budget.split_equal')),
+            ),
+            ButtonSegment(
+              value: 'percentage',
+              label: Text(context.l10n.t('budget.split_percentage')),
+            ),
+            ButtonSegment(
+              value: 'exact',
+              label: Text(context.l10n.t('budget.split_exact')),
+            ),
+          ],
+          selected: {_splitStrategy},
+          onSelectionChanged: (values) => setState(() {
+            _splitStrategy = values.first;
+          }),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          context.l10n.t('budget.participants'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        ...widget.members.map(_buildParticipantRow),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _reason,
+          minLines: 2,
+          maxLines: 4,
+          decoration: InputDecoration(
+            labelText: context.l10n.t('budget.correction_reason'),
+            hintText: context.l10n.t('budget.correction_reason_hint'),
+          ),
+          validator: (value) => value == null || value.trim().isEmpty
+              ? context.l10n.t('budget.correction_reason_required')
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentContributions(BuildContext context) {
+    final l10n = context.l10n;
+    final total = widget.members.fold<double>(
+      0,
+      (sum, member) =>
+          sum +
+          (double.tryParse(_paymentControllers[member.id]?.text.trim() ?? '') ??
+              0),
+    );
+    final amount = double.tryParse(_amount.text.trim()) ?? 0;
+    final balanced = total > 0 && (total - amount).abs() <= 0.01;
+    final willRescale =
+        !_paymentChoiceChanged && (amount - widget.expense.amount).abs() > 0.01;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.t('budget.payment_contributions'),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        ...widget.members.map(
+          (member) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: TextFormField(
+              controller: _paymentControllers[member.id],
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              onChanged: (_) => setState(() => _paymentChoiceChanged = true),
+              decoration: InputDecoration(
+                labelText: _memberName(member),
+                prefixIcon: const Icon(Icons.payments_outlined),
+                hintText: '0',
+              ),
+            ),
+          ),
+        ),
+        Text(
+          willRescale
+              ? l10n.t('budget.payment_auto_scale_hint')
+              : l10n.t(
+                  'budget.payment_total_preview',
+                  params: {
+                    'total': total.toStringAsFixed(2),
+                    'amount': amount.toStringAsFixed(2),
+                  },
+                ),
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: willRescale || balanced
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.error,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _memberName(UserSummary member) {
+    if (member.fullName.trim().isNotEmpty) return member.fullName;
+    if (member.username.trim().isNotEmpty) return member.username;
+    return member.id;
+  }
+
+  void _selectSection(Set<_ExpenseCorrectionSection> sections) {
+    final next = sections.first;
+    if (next == _ExpenseCorrectionSection.participants &&
+        !(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    if (next == _ExpenseCorrectionSection.participants && !_validatePayer()) {
+      return;
+    }
+    setState(() => _section = next);
+  }
+
+  void _continueToParticipants() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!_validatePayer()) return;
+    setState(() => _section = _ExpenseCorrectionSection.participants);
+  }
+
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!widget.participantsOnly && !_validatePayer()) return;
+    final participantError = _validateParticipants();
+    if (participantError != null) {
+      ErrorDisplayService.showErrorSnackbar(context, participantError);
+      return;
+    }
     Navigator.of(context).pop(
       _ExpenseCorrectionDraft(
         amount: double.parse(_amount.text.trim()),
@@ -373,19 +861,150 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
         description: _description.text.trim(),
         paymentNote: _paymentNote.text.trim(),
         reason: _reason.text.trim(),
-        receiptPath: _receiptPath,
+        splitStrategy: _splitStrategy,
+        participants: _buildParticipantInputs(),
+        paidByUserId:
+            widget.participantsOnly ||
+                _hasMultiplePayers ||
+                !_paymentChoiceChanged
+            ? null
+            : _paidByUserId,
+        payments:
+            widget.participantsOnly ||
+                !_hasMultiplePayers ||
+                !_paymentChoiceChanged
+            ? null
+            : _buildPaymentInputs(),
+        receiptFile: _receiptFile,
       ),
     );
+  }
+
+  bool _validatePayer() {
+    String? error;
+    if (!_hasMultiplePayers) {
+      if (_paidByUserId == null ||
+          !widget.members.any((member) => member.id == _paidByUserId)) {
+        error = context.l10n.t('budget.validation_payer_required');
+      }
+    } else if (_paymentChoiceChanged) {
+      final payments = _buildPaymentInputs();
+      final hasInvalidAmount = widget.members.any((member) {
+        final raw = _paymentControllers[member.id]?.text.trim() ?? '';
+        if (raw.isEmpty) return false;
+        final value = double.tryParse(raw);
+        return value == null || value <= 0;
+      });
+      final amount = double.tryParse(_amount.text.trim()) ?? 0;
+      if (hasInvalidAmount) {
+        error = context.l10n.t('budget.validation_payment_amount');
+      } else if (payments.isEmpty) {
+        error = context.l10n.t('budget.validation_payment_required');
+      } else if ((payments.fold<double>(0, (sum, item) => sum + item.amount) -
+                  amount)
+              .abs() >
+          0.01) {
+        error = context.l10n.t('budget.validation_payment_total');
+      }
+    }
+    if (error == null) return true;
+    ErrorDisplayService.showErrorSnackbar(context, error);
+    return false;
+  }
+
+  List<ExpensePaymentInput> _buildPaymentInputs() => [
+    for (final member in widget.members)
+      if (double.tryParse(_paymentControllers[member.id]?.text.trim() ?? '')
+          case final value? when value > 0)
+        ExpensePaymentInput(userId: member.id, amount: value),
+  ];
+
+  Widget _buildParticipantRow(UserSummary member) {
+    final selected = _selectedParticipantIds.contains(member.id);
+    final name = member.fullName.trim().isNotEmpty
+        ? member.fullName
+        : member.username;
+    return Row(
+      children: [
+        Checkbox(
+          value: selected,
+          onChanged: (value) => setState(() {
+            if (value == true) {
+              _selectedParticipantIds.add(member.id);
+            } else {
+              _selectedParticipantIds.remove(member.id);
+            }
+          }),
+        ),
+        Expanded(child: Text(name)),
+        if (selected && _splitStrategy != 'equal')
+          SizedBox(
+            width: 112,
+            child: TextFormField(
+              controller: _splitControllers[member.id],
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: _splitStrategy == 'percentage'
+                    ? context.l10n.t('budget.percent')
+                    : context.l10n.t('budget.amount'),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<ExpenseParticipantInput> _buildParticipantInputs() {
+    return _selectedParticipantIds.map((userId) {
+      final value = double.tryParse(
+        _splitControllers[userId]?.text.trim() ?? '',
+      );
+      return ExpenseParticipantInput(
+        userId: userId,
+        amount: _splitStrategy == 'exact' ? value : null,
+        percentage: _splitStrategy == 'percentage' ? value : null,
+      );
+    }).toList();
+  }
+
+  String? _validateParticipants() {
+    if (_selectedParticipantIds.isEmpty) {
+      return context.l10n.t('budget.validation_participant_required');
+    }
+    if (_splitStrategy == 'equal') return null;
+    var total = 0.0;
+    for (final userId in _selectedParticipantIds) {
+      final value = double.tryParse(
+        _splitControllers[userId]?.text.trim() ?? '',
+      );
+      if (value == null || value < 0) {
+        return _splitStrategy == 'percentage'
+            ? context.l10n.t('budget.validation_percentage_each')
+            : context.l10n.t('budget.validation_amount_each');
+      }
+      total += value;
+    }
+    if (_splitStrategy == 'percentage' && (total - 100).abs() > 0.01) {
+      return context.l10n.t('budget.validation_percentage_total');
+    }
+    final amount = double.tryParse(_amount.text.trim()) ?? 0;
+    if (_splitStrategy == 'exact' && (total - amount).abs() > 0.01) {
+      return context.l10n.t('budget.validation_exact_total');
+    }
+    return null;
   }
 
   Future<void> _pickReceipt() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+      withData: kIsWeb,
     );
     final file = result?.files.single;
-    if (file?.path == null || !mounted) return;
-    if (file!.size > 10 * 1024 * 1024) {
+    if (file == null || (!kIsWeb && file.path == null) || !mounted) return;
+    if (file.size > 10 * 1024 * 1024) {
       ErrorDisplayService.showErrorSnackbar(
         context,
         context.l10n.t('budget.receipt_too_large'),
@@ -393,7 +1012,7 @@ class _ExpenseCorrectionSheetState extends State<_ExpenseCorrectionSheet> {
       return;
     }
     setState(() {
-      _receiptPath = file.path;
+      _receiptFile = file.xFile;
       _receiptName = file.name;
     });
   }

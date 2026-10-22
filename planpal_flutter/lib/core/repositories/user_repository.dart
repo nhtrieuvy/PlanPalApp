@@ -1,7 +1,7 @@
-import 'dart:io';
-
+import 'package:cross_file/cross_file.dart';
 import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/auth/auth_session.dart';
+import 'package:planpal_flutter/core/files/upload_file.dart';
 
 import '../dtos/user_model.dart';
 import '../services/api_error.dart';
@@ -41,7 +41,7 @@ class UserRepository {
     String? email,
     String? phoneNumber,
     String? bio,
-    File? avatar,
+    XFile? avatar,
   }) async {
     try {
       final formData = FormData.fromMap({
@@ -52,10 +52,7 @@ class UserRepository {
         if (phoneNumber != null) 'phone_number': phoneNumber,
         if (bio != null) 'bio': bio,
         if (avatar != null)
-          'avatar': await MultipartFile.fromFile(
-            avatar.path,
-            filename: 'avatar.jpg',
-          ),
+          'avatar': await multipartFromXFile(avatar, filename: avatar.name),
       });
       final Response res = await auth.requestWithAutoRefresh(
         (c) => c.dio.patch(Endpoints.updateProfile, data: formData),
@@ -116,7 +113,7 @@ class UserRepository {
     required String firstName,
     required String lastName,
     String? phoneNumber,
-    File? avatar,
+    XFile? avatar,
   }) async {
     final apiClient = ApiClient();
     final formData = FormData.fromMap({
@@ -129,10 +126,7 @@ class UserRepository {
       if (phoneNumber != null && phoneNumber.isNotEmpty)
         'phone_number': phoneNumber,
       if (avatar != null)
-        'avatar': await MultipartFile.fromFile(
-          avatar.path,
-          filename: 'avatar.jpg',
-        ),
+        'avatar': await multipartFromXFile(avatar, filename: avatar.name),
     });
 
     try {

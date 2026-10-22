@@ -53,10 +53,14 @@ class AvailabilityVoteInputSerializer(serializers.Serializer):
 class AvailabilityOptionSerializer(serializers.ModelSerializer):
     vote_counts = serializers.SerializerMethodField()
     current_user_vote = serializers.SerializerMethodField()
+    votes = serializers.SerializerMethodField()
 
     class Meta:
         model = AvailabilityOption
-        fields = ['id', 'label', 'start_at', 'end_at', 'vote_counts', 'current_user_vote']
+        fields = [
+            'id', 'label', 'start_at', 'end_at', 'vote_counts',
+            'current_user_vote', 'votes',
+        ]
 
     def get_vote_counts(self, obj):
         counts = Counter(vote.status for vote in obj.votes.all())
@@ -66,6 +70,15 @@ class AvailabilityOptionSerializer(serializers.ModelSerializer):
         user_id = self.context.get('user_id')
         return next((vote.status for vote in obj.votes.all()
                      if str(vote.user_id) == str(user_id)), None)
+
+    def get_votes(self, obj):
+        return [
+            {
+                'status': vote.status,
+                'user': user_summary(vote.user),
+            }
+            for vote in obj.votes.all()
+        ]
 
 
 class AvailabilityPollSerializer(serializers.ModelSerializer):

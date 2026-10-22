@@ -48,7 +48,9 @@ class AnalyticsTopEntitiesCard extends StatelessWidget {
             const SizedBox(height: 18),
             for (var index = 0; index < entities.length; index += 1)
               Padding(
-                padding: EdgeInsets.only(bottom: index == entities.length - 1 ? 0 : 12),
+                padding: EdgeInsets.only(
+                  bottom: index == entities.length - 1 ? 0 : 12,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -117,8 +119,12 @@ class AnalyticsTopEntitiesCard extends StatelessWidget {
         ),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,

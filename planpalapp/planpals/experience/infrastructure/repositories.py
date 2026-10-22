@@ -64,8 +64,12 @@ class DjangoExperienceRepository(ExperienceRepository):
         queryset = GroupPoll.objects
         if for_update:
             queryset = queryset.select_for_update()
+        votes = GroupPollVote.objects.select_related('user').order_by('created_at')
+        options = GroupPollOption.objects.annotate(
+            vote_count=Count('votes')
+        ).prefetch_related(Prefetch('votes', queryset=votes))
         return queryset.select_related('created_by', 'group').prefetch_related(
-            'options__votes'
+            Prefetch('options', queryset=options)
         ).filter(id=poll_id).first()
 
     @transaction.atomic
@@ -110,6 +114,8 @@ class DjangoExperienceRepository(ExperienceRepository):
 
     @transaction.atomic
     def create_live_location(self, conversation_id, user_id, data):
+        # Serialize starts for the same conversation before checking idempotency.
+        Conversation.objects.select_for_update().only('id').get(id=conversation_id)
         mutation_id = data.get('client_mutation_id')
         if mutation_id:
             existing = LiveLocationShare.objects.select_related('user').filter(

@@ -6,11 +6,13 @@ import 'package:geolocator/geolocator.dart';
 import 'package:planpal_flutter/core/dtos/conversation.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/maps/planpal_map.dart';
+import 'package:planpal_flutter/core/platform/platform_capabilities.dart';
 import 'package:planpal_flutter/core/repositories/location_repository.dart';
 import 'package:planpal_flutter/core/riverpod/conversation_providers.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/core/services/error_display_service.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 import 'package:planpal_flutter/shared/ui_states/ui_states.dart';
 
 class CurrentLocationMapPage extends ConsumerStatefulWidget {
@@ -88,6 +90,9 @@ class _CurrentLocationMapPageState
     final currentLocationErrorMessage = context.l10n.t(
       'location_picker.current_location_error',
     );
+    final webLocationRequirementsMessage = context.l10n.t(
+      'map.web_location_requirements',
+    );
 
     if (mounted) {
       setState(() {
@@ -134,7 +139,11 @@ class _CurrentLocationMapPageState
 
       _applyLoadedPosition(nextPosition, hasPermission: true);
     } catch (_) {
-      _showSnackBar(currentLocationErrorMessage);
+      _showSnackBar(
+        PlatformCapabilities.locationRequiresSecureContext
+            ? webLocationRequirementsMessage
+            : currentLocationErrorMessage,
+      );
       _applyLoadedPosition(
         _selectedPosition,
         hasPermission: _hasLocationPermission,
@@ -408,58 +417,65 @@ class _CurrentLocationMapPageState
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.t('map.title'))),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: PlanPalMap(
-              initialCameraPosition: const MapCameraPosition(
-                target: _defaultPosition,
-                zoom: 14,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final desktop = constraints.maxWidth > 1024;
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: PlanPalMap(
+                  initialCameraPosition: const MapCameraPosition(
+                    target: _defaultPosition,
+                    zoom: 14,
+                  ),
+                  onMapCreated: (controller) async {
+                    _mapController = controller;
+                    await _animateTo(_selectedPosition, zoom: 16);
+                  },
+                  pins: _markers,
+                  onTap: _selectPositionOnMap,
+                  myLocationEnabled: _hasLocationPermission,
+                  compassEnabled: true,
+                ),
               ),
-              onMapCreated: (controller) async {
-                _mapController = controller;
-                await _animateTo(_selectedPosition, zoom: 16);
-              },
-              pins: _markers,
-              onTap: _selectPositionOnMap,
-              myLocationEnabled: _hasLocationPermission,
-              compassEnabled: true,
-            ),
-          ),
-          if (_isLoadingLocation)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: LinearProgressIndicator(
-                minHeight: 3,
-                color: AppColors.primary,
-                backgroundColor: AppColors.primary.withAlpha(35),
+              if (_isLoadingLocation)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: LinearProgressIndicator(
+                    minHeight: 3,
+                    color: AppColors.primary,
+                    backgroundColor: AppColors.primary.withAlpha(35),
+                  ),
+                ),
+              Positioned(
+                right: desktop ? 416 : AppSpacing.md,
+                bottom: desktop ? AppSpacing.md : 210,
+                child: FloatingActionButton.small(
+                  heroTag: 'current_location_map_button',
+                  onPressed: _loadCurrentLocation,
+                  backgroundColor: theme.colorScheme.surface,
+                  foregroundColor: AppColors.primary,
+                  child: const Icon(Icons.my_location),
+                ),
               ),
-            ),
-          Positioned(
-            right: 16,
-            bottom: 210,
-            child: FloatingActionButton.small(
-              heroTag: 'current_location_map_button',
-              onPressed: _loadCurrentLocation,
-              backgroundColor: theme.colorScheme.surface,
-              foregroundColor: AppColors.primary,
-              child: const Icon(Icons.my_location),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildLocationCard(theme),
-          ),
-        ],
+              Positioned(
+                left: desktop ? null : 0,
+                right: desktop ? AppSpacing.md : 0,
+                top: desktop ? AppSpacing.md : null,
+                bottom: desktop ? null : 0,
+                width: desktop ? 380 : null,
+                child: _buildLocationCard(theme, desktop: desktop),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildLocationCard(ThemeData theme) {
+  Widget _buildLocationCard(ThemeData theme, {required bool desktop}) {
     final displayName = _locationName.isNotEmpty
         ? _locationName
         : context.l10n.t('map.selected_location');
@@ -468,10 +484,19 @@ class _CurrentLocationMapPageState
         : _formatCoordinates(_selectedPosition);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: desktop
+            ? BorderRadius.circular(AppRadius.sheet)
+            : const BorderRadius.vertical(
+                top: Radius.circular(AppRadius.sheet),
+              ),
         boxShadow: const [
           BoxShadow(
             color: Color(0x22000000),

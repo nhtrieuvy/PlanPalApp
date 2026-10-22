@@ -1,8 +1,10 @@
 import 'dart:convert';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:dio/dio.dart';
 import 'package:planpal_flutter/core/auth/auth_session.dart';
 import 'package:planpal_flutter/core/dtos/budget_model.dart';
+import 'package:planpal_flutter/core/files/upload_file.dart';
 import 'package:planpal_flutter/core/services/api_error.dart';
 import 'package:planpal_flutter/core/services/apis.dart';
 
@@ -59,7 +61,7 @@ class BudgetRepository {
     List<ExpenseParticipantInput> participants = const [],
     List<ExpensePaymentInput> payments = const [],
     String paymentNote = '',
-    String? receiptPath,
+    XFile? receiptFile,
     RecurrenceInput? recurrence,
   }) async {
     try {
@@ -79,7 +81,7 @@ class BudgetRepository {
         if (recurrence != null) 'recurrence': recurrence.toJson(),
       };
       Object data = payload;
-      if (receiptPath != null && receiptPath.isNotEmpty) {
+      if (receiptFile != null) {
         data = FormData.fromMap({
           ...payload,
           if (participants.isNotEmpty)
@@ -87,7 +89,7 @@ class BudgetRepository {
           if (payments.isNotEmpty) 'payments': jsonEncode(payload['payments']),
           if (recurrence != null)
             'recurrence': jsonEncode(payload['recurrence']),
-          'receipt': await MultipartFile.fromFile(receiptPath),
+          'receipt': await multipartFromXFile(receiptFile),
         });
       }
       final Response res = await _auth.requestWithAutoRefresh(
@@ -130,7 +132,7 @@ class BudgetRepository {
     String currency = 'VND',
     String note = '',
     String paymentNote = '',
-    String? receiptPath,
+    XFile? receiptFile,
   }) async {
     try {
       final payload = <String, dynamic>{
@@ -142,11 +144,11 @@ class BudgetRepository {
         'note': note,
         'payment_note': paymentNote,
       };
-      final Object data = receiptPath == null || receiptPath.isEmpty
+      final Object data = receiptFile == null
           ? payload
           : FormData.fromMap({
               ...payload,
-              'receipt': await MultipartFile.fromFile(receiptPath),
+              'receipt': await multipartFromXFile(receiptFile),
             });
       final Response res = await _auth.requestWithAutoRefresh(
         (c) => c.dio.post(Endpoints.settlements, data: data),
@@ -284,7 +286,11 @@ class BudgetRepository {
     required String reason,
     String description = '',
     String paymentNote = '',
-    String? receiptPath,
+    XFile? receiptFile,
+    String? paidByUserId,
+    List<ExpensePaymentInput>? payments,
+    String? splitStrategy,
+    List<ExpenseParticipantInput>? participants,
   }) async {
     try {
       final payload = <String, dynamic>{
@@ -293,12 +299,21 @@ class BudgetRepository {
         'description': description,
         'payment_note': paymentNote,
         'reason': reason,
+        if (paidByUserId != null) 'paid_by_user_id': paidByUserId,
+        if (payments != null)
+          'payments': payments.map((item) => item.toJson()).toList(),
+        if (splitStrategy != null) 'split_strategy': splitStrategy,
+        if (participants != null)
+          'participants': participants.map((item) => item.toJson()).toList(),
       };
-      final Object data = receiptPath == null || receiptPath.isEmpty
+      final Object data = receiptFile == null
           ? payload
           : FormData.fromMap({
               ...payload,
-              'receipt': await MultipartFile.fromFile(receiptPath),
+              if (participants != null)
+                'participants': jsonEncode(payload['participants']),
+              if (payments != null) 'payments': jsonEncode(payload['payments']),
+              'receipt': await multipartFromXFile(receiptFile),
             });
       final Response res = await _auth.requestWithAutoRefresh(
         (c) => c.dio.post(
@@ -311,6 +326,19 @@ class BudgetRepository {
           Map<String, dynamic>.from(res.data as Map),
         );
       }
+      throw buildApiException(res);
+    } on DioException catch (e) {
+      if (e.response != null) throw buildApiException(e.response!);
+      rethrow;
+    }
+  }
+
+  Future<void> deleteExpense(String planId, String expenseId) async {
+    try {
+      final Response res = await _auth.requestWithAutoRefresh(
+        (c) => c.dio.delete(Endpoints.planExpense(planId, expenseId)),
+      );
+      if (res.statusCode == 204) return;
       throw buildApiException(res);
     } on DioException catch (e) {
       if (e.response != null) throw buildApiException(e.response!);

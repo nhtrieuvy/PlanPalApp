@@ -50,7 +50,7 @@ machine before replacing application machines. A failed migration fails the
 release and leaves the previous application version serving traffic.
 
 ```powershell
-fly deploy -a planpal-backend
+fly deploy --ha=false -a planpal-backend
 fly scale count 1 -a planpal-backend
 fly status -a planpal-backend
 ```
@@ -65,6 +65,29 @@ fly logs -a planpal-backend
 
 Confirm the single machine has started one `beat` scheduler and one worker that
 consumes `high_priority`, `default`, `plan_status`, and `low_priority`.
+
+For 48 hours after deployment, compare Upstash's Usage > Top Commands Usage
+(`BRPOP` and `PUBLISH`) and the database's monthly request quota at deployment,
+24 hours, and 48 hours. Record the timestamps and deltas, not just the graph's
+absolute values. With a single idle worker, expect roughly 180 `BRPOP` and 60
+worker-heartbeat `PUBLISH` calls per hour; periodic jobs and user activity add
+to this baseline. If the quota grows faster, inspect Upstash Monitor and Fly
+logs before changing polling or heartbeat settings again. Operational `AUTH`
+and `PING` commands appear in the usage graph but are not billed by Upstash.
+
+To record comparable snapshots without copying chart values manually, create
+an Upstash **read-only Developer API key** and set `UPSTASH_API_EMAIL` and
+`UPSTASH_API_KEY` in the local shell (never in Git or Flutter build defines).
+Find the database ID in Upstash Console, then run at deployment, +24 h, +48 h:
+
+```powershell
+.\scripts\check_upstash_usage.ps1 -DatabaseId 'YOUR_DATABASE_ID' `
+  -OutputPath .\logs\upstash-usage.csv
+```
+
+The script reads the monthly quota counter and the latest `BRPOP`/`PUBLISH`
+samples through Upstash's Developer API. A Redis URL alone cannot access these
+account-level statistics. `logs/` is ignored by Git.
 
 ## Rollback
 

@@ -33,6 +33,7 @@ class AvailabilityOptionModel {
   final DateTime endAt;
   final Map<String, int> voteCounts;
   final String? currentUserVote;
+  final List<AvailabilityVoteModel> votes;
 
   const AvailabilityOptionModel({
     required this.id,
@@ -41,21 +42,46 @@ class AvailabilityOptionModel {
     required this.endAt,
     required this.voteCounts,
     this.currentUserVote,
+    this.votes = const [],
   });
 
-  factory AvailabilityOptionModel.fromJson(Map<String, dynamic> json) =>
-      AvailabilityOptionModel(
-        id: json['id'].toString(),
-        label: json['label']?.toString() ?? '',
-        startAt: _date(json['start_at'])!,
-        endAt: _date(json['end_at'])!,
-        voteCounts: Map<String, int>.from(
-          (json['vote_counts'] as Map? ?? {}).map(
-            (key, value) =>
-                MapEntry(key.toString(), (value as num?)?.toInt() ?? 0),
-          ),
+  factory AvailabilityOptionModel.fromJson(
+    Map<String, dynamic> json,
+  ) => AvailabilityOptionModel(
+    id: json['id'].toString(),
+    label: json['label']?.toString() ?? '',
+    startAt: _date(json['start_at'])!,
+    endAt: _date(json['end_at'])!,
+    voteCounts: Map<String, int>.from(
+      (json['vote_counts'] as Map? ?? {}).map(
+        (key, value) => MapEntry(key.toString(), (value as num?)?.toInt() ?? 0),
+      ),
+    ),
+    currentUserVote: json['current_user_vote']?.toString(),
+    votes: (json['votes'] as List? ?? const [])
+        .whereType<Map>()
+        .map(
+          (item) =>
+              AvailabilityVoteModel.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .toList(),
+  );
+}
+
+class AvailabilityVoteModel {
+  const AvailabilityVoteModel({required this.user, required this.status});
+
+  final CollaborationUser user;
+  final String status;
+
+  factory AvailabilityVoteModel.fromJson(Map<String, dynamic> json) =>
+      AvailabilityVoteModel(
+        user: CollaborationUser.fromJson(
+          json['user'] is Map
+              ? Map<String, dynamic>.from(json['user'] as Map)
+              : null,
         ),
-        currentUserVote: json['current_user_vote']?.toString(),
+        status: json['status']?.toString() ?? '',
       );
 }
 

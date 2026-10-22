@@ -2,19 +2,22 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/riverpod/auth_notifier.dart';
 import '../../../core/riverpod/conversation_providers.dart';
 import '../../../core/dtos/conversation.dart';
+import '../../../core/responsive/app_breakpoints.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../../core/services/notification_websocket_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/common/custom_search_bar.dart';
 import '../../widgets/common/refreshable_page_wrapper.dart';
-import 'chat_page.dart';
+import '../../widgets/layout/responsive_content.dart';
 import '../friends/friend_search_page.dart';
+import 'chat_page.dart';
 import '../../../shared/ui_states/ui_states.dart';
 
 class ConversationListPage extends ConsumerStatefulWidget {
@@ -26,10 +29,7 @@ class ConversationListPage extends ConsumerStatefulWidget {
 }
 
 class _ConversationListPageState extends ConsumerState<ConversationListPage>
-    with
-        AutomaticKeepAliveClientMixin,
-        WidgetsBindingObserver,
-        RefreshablePage {
+    with WidgetsBindingObserver, RefreshablePage {
   final TextEditingController _searchController = TextEditingController();
   final NotificationWebSocketService _presenceSocket =
       NotificationWebSocketService();
@@ -37,9 +37,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
   Timer? _presenceRefreshTimer;
   String _searchQuery = '';
   bool _showOnlineOnly = false;
-
-  @override
-  bool get wantKeepAlive => true;
+  Conversation? _selectedConversation;
 
   @override
   void initState() {
@@ -51,7 +49,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
 
   @override
   Future<void> onRefresh() async {
-    await ref.read(conversationListProvider.notifier).refresh();
+    await ref.read(conversationListProvider.notifier).refresh(silent: true);
   }
 
   @override
@@ -68,7 +66,9 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     _connectPresenceSocket();
-    ref.read(conversationListProvider.notifier).refresh();
+    unawaited(
+      ref.read(conversationListProvider.notifier).refresh(silent: true),
+    );
   }
 
   void _setupPresenceUpdates() {
@@ -81,7 +81,8 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
   void _startPresenceRefreshTimer() {
     _presenceRefreshTimer?.cancel();
     _presenceRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
-      if (!mounted) return;
+      if (!mounted || _presenceSocket.isConnected) return;
+      _connectPresenceSocket();
       unawaited(
         ref.read(conversationListProvider.notifier).refresh(silent: true),
       );
@@ -116,23 +117,115 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     final theme = Theme.of(context);
     final conversationsAsync = ref.watch(conversationListProvider);
+    final isDesktop = AppBreakpoints.isExpanded(context);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: _buildAppBar(theme),
-      body: RefreshablePageWrapper(
-        onRefresh: onRefresh,
-        child: Column(
-          children: [
-            _buildSearchSection(theme),
-            Expanded(child: _buildConversationsList(theme, conversationsAsync)),
-          ],
+      body: isDesktop
+          ? _buildDesktopBody(theme, conversationsAsync)
+          : RefreshablePageWrapper(
+              onRefresh: onRefresh,
+              child: ResponsiveContent(
+                mediumMaxWidth: 820,
+                expandedMaxWidth: 960,
+                child: Column(
+                  children: [
+                    _buildSearchSection(theme),
+                    Expanded(
+                      child: _buildConversationsList(theme, conversationsAsync),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+      floatingActionButton: isDesktop
+          ? null
+          : _buildFloatingActionButton(theme),
+    );
+  }
+
+  Widget _buildDesktopBody(
+    ThemeData theme,
+    AsyncValue<List<Conversation>> conversationsAsync,
+  ) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 380,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              border: Border(
+                right: BorderSide(color: theme.colorScheme.outlineVariant),
+              ),
+            ),
+            child: Column(
+              children: [
+                _buildSearchSection(theme),
+                Expanded(
+                  child: RefreshablePageWrapper(
+                    onRefresh: onRefresh,
+                    child: _buildConversationsList(theme, conversationsAsync),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: _selectedConversation == null
+                ? _buildConversationPlaceholder(theme)
+                : ChatPage(
+                    key: ValueKey(_selectedConversation!.id),
+                    conversation: _selectedConversation!,
+                    showBackButton: false,
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConversationPlaceholder(ThemeData theme) {
+    return Center(
+      key: const ValueKey('conversation-placeholder'),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.forum_outlined,
+                size: 48,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                context.l10n.t('chat.select_conversation_title'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                context.l10n.t('chat.select_conversation_description'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: _buildFloatingActionButton(theme),
     );
   }
 
@@ -143,8 +236,8 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
       title: Row(
         children: [
           Text(
-            'Messages',
-            style: GoogleFonts.inter(
+            context.l10n.t('chat.title'),
+            style: GoogleFonts.manrope(
               fontSize: 24,
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
@@ -160,7 +253,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
               ),
               child: Text(
                 unreadCount > 99 ? '99+' : unreadCount.toString(),
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
@@ -171,6 +264,15 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
         ],
       ),
       actions: [
+        if (AppBreakpoints.isExpanded(context))
+          IconButton(
+            tooltip: context.l10n.t('chat.find_friends'),
+            onPressed: _navigateToFriends,
+            icon: Icon(
+              PhosphorIcons.userPlus(),
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
         IconButton(
           onPressed: () => _showFilterOptions(theme),
           icon: Icon(
@@ -199,7 +301,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
       ),
       child: CustomSearchBar(
         controller: _searchController,
-        hintText: 'Search conversations...',
+        hintText: context.l10n.t('chat.search_hint'),
         onChanged: (query) {
           setState(() {
             _searchQuery = query;
@@ -264,7 +366,9 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
 
   Widget _buildConversationTile(ThemeData theme, Conversation conversation) {
     return Material(
-      color: Colors.transparent,
+      color: _selectedConversation?.id == conversation.id
+          ? theme.colorScheme.primaryContainer.withValues(alpha: .36)
+          : Colors.transparent,
       child: InkWell(
         onTap: () => _navigateToChat(conversation),
         child: Container(
@@ -282,7 +386,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
                         Expanded(
                           child: Text(
                             conversation.displayName,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 16,
                               fontWeight: conversation.hasUnreadMessages
                                   ? FontWeight.w600
@@ -296,7 +400,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
                         if (conversation.lastMessageTime != null) ...[
                           Text(
                             conversation.lastMessageTime!,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
                               color: conversation.hasUnreadMessages
@@ -324,7 +428,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
                             ),
                             child: Text(
                               conversation.unreadCountText,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
@@ -345,6 +449,10 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
   }
 
   Widget _buildAvatar(ThemeData theme, Conversation conversation) {
+    final palette = AppColors.avatarPalette(
+      conversation.id.isNotEmpty ? conversation.id : conversation.displayName,
+      theme.brightness,
+    );
     return Stack(
       children: [
         Container(
@@ -352,11 +460,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
           height: 56,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: AppColors.primaryGradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: palette.background,
           ),
           child: conversation.avatarUrl.isNotEmpty
               ? ClipOval(
@@ -364,10 +468,10 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
                     conversation.avatarUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>
-                        _buildAvatarPlaceholder(conversation),
+                        _buildAvatarPlaceholder(conversation, palette),
                   ),
                 )
-              : _buildAvatarPlaceholder(conversation),
+              : _buildAvatarPlaceholder(conversation, palette),
         ),
         if (conversation.isDirect && conversation.isOtherUserOnline)
           Positioned(
@@ -387,7 +491,10 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
     );
   }
 
-  Widget _buildAvatarPlaceholder(Conversation conversation) {
+  Widget _buildAvatarPlaceholder(
+    Conversation conversation,
+    AvatarPalette palette,
+  ) {
     final displayName = conversation.displayName;
     final avatarText = displayName.isNotEmpty
         ? displayName.substring(0, 1).toUpperCase()
@@ -396,10 +503,10 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
     return Center(
       child: Text(
         avatarText,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: palette.foreground,
         ),
       ),
     );
@@ -408,8 +515,8 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
   Widget _buildLastMessage(ThemeData theme, Conversation conversation) {
     if (conversation.lastMessagePreview == null) {
       return Text(
-        'No messages yet',
-        style: GoogleFonts.inter(
+        context.l10n.t('chat.empty_title'),
+        style: GoogleFonts.manrope(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: theme.colorScheme.onSurface.withAlpha(153),
@@ -428,7 +535,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
               conversation.isGroup) ...[
             TextSpan(
               text: '${conversation.lastMessageSender}: ',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: theme.colorScheme.primary,
@@ -437,7 +544,7 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
           ],
           TextSpan(
             text: conversation.lastMessagePreview!,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: conversation.hasUnreadMessages
                   ? FontWeight.w500
@@ -503,8 +610,8 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Filter Conversations',
-              style: GoogleFonts.inter(
+              context.l10n.t('chat.filter_title'),
+              style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: theme.colorScheme.onSurface,
@@ -513,8 +620,8 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
             const SizedBox(height: 16),
             SwitchListTile(
               title: Text(
-                'Show online friends only',
-                style: GoogleFonts.inter(
+                context.l10n.t('chat.online_only'),
+                style: GoogleFonts.manrope(
                   fontSize: 16,
                   color: theme.colorScheme.onSurface,
                 ),
@@ -539,12 +646,12 @@ class _ConversationListPageState extends ConsumerState<ConversationListPage>
   }
 
   void _navigateToChat(Conversation conversation) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ChatPage(conversation: conversation),
-      ),
-    );
+    if (AppBreakpoints.isExpanded(context)) {
+      setState(() => _selectedConversation = conversation);
+      return;
+    }
+
+    await context.push('/conversations/${conversation.id}');
 
     // Refresh conversations when returning from ChatPage to update unread counts
     if (mounted) {

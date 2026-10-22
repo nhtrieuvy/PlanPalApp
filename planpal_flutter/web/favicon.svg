@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="PlanPal">
+  <rect width="160" height="160" rx="34" fill="#062B28"/><defs><linearGradient id="mint" x1="39" y1="132" x2="139" y2="30" gradientUnits="userSpaceOnUse"><stop stop-color="#52CFC1"/><stop offset="1" stop-color="#80E1D2"/></linearGradient></defs>
+  <path d="M40 127V75C40 43 67 27 107 27" fill="none" stroke="#FFFDF8" stroke-width="22" stroke-linecap="round"/><path d="M40 127C67 127 64 96 87 92H104C126 92 139 75 139 53C139 36 127 27 107 27" fill="none" stroke="url(#mint)" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="40" cy="75" r="15" fill="#FFFDF8"/><circle cx="40" cy="75" r="5" fill="#062B28"/><circle cx="107" cy="27" r="15" fill="#FFFDF8"/><circle cx="107" cy="27" r="5" fill="#062B28"/><circle cx="40" cy="127" r="16" fill="#FF7358"/><circle cx="40" cy="127" r="5.5" fill="#062B28"/>
+</svg>

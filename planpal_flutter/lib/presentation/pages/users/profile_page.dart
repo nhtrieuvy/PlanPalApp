@@ -1,21 +1,23 @@
-import 'dart:io';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:getwidget/getwidget.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:planpal_flutter/core/dtos/user_model.dart';
+import 'package:planpal_flutter/core/dtos/plan_summary.dart';
 import 'package:planpal_flutter/core/localization/app_formatters.dart';
+import 'package:planpal_flutter/core/localization/app_locale.dart';
 import 'package:planpal_flutter/core/localization/app_localizations.dart';
 import 'package:planpal_flutter/core/repositories/user_repository.dart';
-import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
-import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
+import 'package:planpal_flutter/core/riverpod/providers.dart';
 import 'package:planpal_flutter/core/theme/app_colors.dart';
+import 'package:planpal_flutter/core/theme/app_design_tokens.dart';
 import 'package:planpal_flutter/presentation/pages/friends/friends_page.dart';
+import 'package:planpal_flutter/presentation/widgets/common/x_file_image.dart';
+import 'package:planpal_flutter/presentation/widgets/design_system/journey_ui.dart';
+import 'package:planpal_flutter/presentation/widgets/layout/responsive_content.dart';
 
 import '../../../shared/ui_states/ui_states.dart';
-import '../../../shared/widgets/widgets.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -27,10 +29,7 @@ class ProfilePage extends ConsumerStatefulWidget {
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   static const double _avatarRadius = 54.0;
   static const double _editIconSize = 20.0;
-  static const EdgeInsets _pagePadding = EdgeInsets.symmetric(
-    horizontal: 24,
-    vertical: 32,
-  );
+  static const EdgeInsets _pagePadding = EdgeInsets.all(AppSpacing.lg);
 
   UserRepository get _repo => ref.read(userRepositoryProvider);
 
@@ -43,7 +42,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(context.l10n.t('profile.refresh_error')),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -57,6 +56,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
     final user = ref.watch(authNotifierProvider).user;
+    final recentPlans =
+        ref.watch(plansNotifierProvider).valueOrNull?.items.take(3).toList() ??
+        const <PlanSummary>[];
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.t('profile.title')), centerTitle: true),
@@ -69,30 +71,115 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: _pagePadding,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Center(child: _buildAvatarSection(user, colorScheme)),
-                    const SizedBox(height: 24),
-                    ..._buildStatisticsCards(context, user, colorScheme),
-                    const SizedBox(height: 24),
-                    _buildUserNameSection(user, theme, colorScheme),
-                    const SizedBox(height: 24),
-                    _buildPersonalInfoCard(context, user, theme, colorScheme),
-                    const SizedBox(height: 32),
-                    _buildLogoutButton(context),
-                  ],
+                child: ResponsiveContent(
+                  mediumMaxWidth: 760,
+                  expandedMaxWidth: 1080,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildIdentityHero(context, user, theme, colorScheme),
+                      const SizedBox(height: AppSpacing.lg),
+                      _buildStatistics(context, user),
+                      const SizedBox(height: AppSpacing.lg),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final journeys = _buildRecentJourneys(
+                            context,
+                            recentPlans,
+                          );
+                          final preferences = _buildPreferences(context, user);
+                          if (constraints.maxWidth < 820) {
+                            return Column(
+                              children: [
+                                journeys,
+                                const SizedBox(height: AppSpacing.md),
+                                preferences,
+                              ],
+                            );
+                          }
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(flex: 3, child: journeys),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(flex: 2, child: preferences),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      _buildLogoutButton(context),
+                    ],
+                  ),
                 ),
               ),
             ),
     );
   }
 
+  Widget _buildIdentityHero(
+    BuildContext context,
+    UserModel user,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    final displayName = user.fullName.isNotEmpty
+        ? user.fullName
+        : user.username;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.primary,
+        borderRadius: BorderRadius.circular(AppRadius.sheet),
+      ),
+      child: JourneyPathBackdrop(
+        color: colorScheme.onPrimary,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Row(
+            children: [
+              _buildAvatarSection(user, colorScheme),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: colorScheme.onPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      '@${user.username}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onPrimary.withValues(alpha: .78),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildAvatarSection(UserModel user, ColorScheme colorScheme) {
+    final avatarPalette = AppColors.avatarPalette(
+      user.id.isNotEmpty ? user.id : user.username,
+      Theme.of(context).brightness,
+    );
     return Stack(
       children: [
-        GFAvatar(
-          backgroundColor: colorScheme.primary.withAlpha(30),
+        CircleAvatar(
+          backgroundColor: colorScheme.surfaceContainerHighest,
           radius: _avatarRadius,
           child: ClipOval(
             child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
@@ -111,12 +198,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                       ),
                     ),
-                    errorWidget: (context, url, error) => _buildAvatarFallback(
-                      user.initials,
-                      colorScheme,
-                    ),
+                    errorWidget: (context, url, error) =>
+                        _buildAvatarFallback(user.initials, avatarPalette),
                   )
-                : _buildAvatarFallback(user.initials, colorScheme),
+                : _buildAvatarFallback(user.initials, avatarPalette),
           ),
         ),
         Positioned(
@@ -149,131 +234,194 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  Widget _buildAvatarFallback(String initials, ColorScheme colorScheme) {
+  Widget _buildAvatarFallback(String initials, AvatarPalette palette) {
     return Container(
-      color: colorScheme.surfaceContainerHighest,
+      color: palette.background,
       child: Center(
         child: Text(
           initials,
           style: TextStyle(
             fontSize: 36,
             fontWeight: FontWeight.bold,
-            color: colorScheme.primary,
+            color: palette.foreground,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildUserNameSection(
-    UserModel user,
-    ThemeData theme,
-    ColorScheme colorScheme,
-  ) {
-    return Text(
-      user.fullName.isNotEmpty
-          ? user.fullName
-          : (user.username.isNotEmpty ? user.username : ''),
-      style: theme.textTheme.headlineSmall?.copyWith(
-        fontWeight: FontWeight.bold,
-        color: colorScheme.onSurface,
-      ),
-      textAlign: TextAlign.center,
+  Widget _buildStatistics(BuildContext context, UserModel user) {
+    final l10n = context.l10n;
+    return JourneyMetricStrip(
+      metrics: [
+        JourneyMetricData(
+          icon: Icons.travel_explore,
+          label: l10n.t('profile.stats.plans'),
+          value: '${user.plansCount}',
+          emphasis: true,
+        ),
+        JourneyMetricData(
+          icon: Icons.group,
+          label: l10n.t('profile.stats.groups'),
+          value: '${user.groupsCount}',
+        ),
+        JourneyMetricData(
+          icon: Icons.people,
+          label: l10n.t('profile.stats.friends'),
+          value: '${user.friendsCount}',
+        ),
+      ],
     );
   }
 
-  List<Widget> _buildStatisticsCards(
-    BuildContext context,
-    UserModel user,
-    ColorScheme colorScheme,
-  ) {
+  Widget _buildRecentJourneys(BuildContext context, List<PlanSummary> plans) {
     final l10n = context.l10n;
-    final statisticsData = [
-      (
-        icon: Icons.travel_explore,
-        label: l10n.t('profile.stats.plans'),
-        count: user.plansCount,
-        color: colorScheme.primary,
-        background: colorScheme.primaryContainer,
-      ),
-      (
-        icon: Icons.group,
-        label: l10n.t('profile.stats.groups'),
-        count: user.groupsCount,
-        color: colorScheme.secondary,
-        background: colorScheme.secondaryContainer,
-      ),
-      (
-        icon: Icons.people,
-        label: l10n.t('profile.stats.friends'),
-        count: user.friendsCount,
-        color: colorScheme.tertiary,
-        background: colorScheme.tertiaryContainer,
-      ),
-    ];
-
-    return statisticsData.asMap().entries.map((entry) {
-      final index = entry.key;
-      final stat = entry.value;
-      final isFriendsCard = stat.label == l10n.t('profile.stats.friends');
-      final card = StatCard(
-        icon: stat.icon,
-        label: stat.label,
-        value: '${stat.count}',
-        color: stat.color,
-        backgroundColor: stat.background,
-        onTap: isFriendsCard
-            ? () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const FriendsPage()),
-                );
-              }
-            : null,
-      );
-
-      return Column(
-        children: [
-          card,
-          if (index < statisticsData.length - 1) const SizedBox(height: 12),
-        ],
-      );
-    }).toList();
-  }
-
-  Widget _buildPersonalInfoCard(
-    BuildContext context,
-    UserModel user,
-    ThemeData theme,
-    ColorScheme colorScheme,
-  ) {
-    final l10n = context.l10n;
-    return GFCard(
-      color: colorScheme.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 2,
-      content: Column(
+    return JourneySurface(
+      padding: EdgeInsets.zero,
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.t('profile.personal_info'),
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colorScheme.primary,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.xs,
+            ),
+            child: JourneySectionHeader(
+              title: l10n.t('profile.recent_journeys'),
+              subtitle: l10n.t('profile.recent_journeys_hint'),
+              icon: Icons.route_outlined,
+              trailing: TextButton(
+                onPressed: () => context.go('/plans'),
+                child: Text(l10n.t('common.view_all')),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          _buildInfoRow(l10n.t('profile.username'), user.username),
-          _buildInfoRow(l10n.t('profile.full_name'), user.fullName),
-          _buildInfoRow(l10n.t('auth.email'), user.email ?? ''),
-          _buildInfoRow(l10n.t('profile.phone'), user.phoneNumber ?? ''),
-          _buildInfoRow(
-            l10n.t('profile.birth_date'),
-            user.dateOfBirth != null
-                ? AppFormatters.shortDate(context, user.dateOfBirth!)
-                : l10n.t('profile.not_updated'),
+          if (plans.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.map_outlined,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      l10n.t('profile.no_recent_journeys'),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          for (var index = 0; index < plans.length; index++) ...[
+            if (index > 0) const Divider(height: 1),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                foregroundColor: Theme.of(
+                  context,
+                ).colorScheme.onPrimaryContainer,
+                child: const Icon(Icons.near_me_outlined),
+              ),
+              title: Text(
+                plans[index].title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(_planDateLabel(context, plans[index])),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/plans/${plans[index].id}'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _planDateLabel(BuildContext context, PlanSummary plan) {
+    if (plan.startDate == null) return context.l10n.t('plan.no_date');
+    final start = AppFormatters.shortDate(context, plan.startDate!);
+    if (plan.endDate == null) return start;
+    return '$start - ${AppFormatters.shortDate(context, plan.endDate!)}';
+  }
+
+  Widget _buildPreferences(BuildContext context, UserModel user) {
+    final l10n = context.l10n;
+    final themeMode = ref.watch(themeNotifierProvider);
+    final language = ref.watch(currentAppLanguageProvider);
+    return JourneySurface(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.xs,
+            ),
+            child: Text(
+              l10n.t('profile.preferences'),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
           ),
-          const SizedBox(height: 8),
-          _buildInfoRow(l10n.t('profile.bio'), user.bio ?? ''),
+          ListTile(
+            leading: const Icon(Icons.people_outline_rounded),
+            title: Text(l10n.t('profile.stats.friends')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const FriendsPage())),
+          ),
+          if (user.isStaff) ...[
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.insights_outlined),
+              title: Text(l10n.t('profile.system_analytics')),
+              subtitle: Text(l10n.t('profile.system_analytics_hint')),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/analytics'),
+            ),
+          ],
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.manage_accounts_outlined),
+            title: Text(l10n.t('profile.account_details')),
+            subtitle: Text(l10n.t('profile.account_details_hint')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => _showAccountDetailsSheet(context, user),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.contrast_rounded),
+            title: Text(l10n.t('profile.appearance')),
+            subtitle: Text(
+              themeMode == ThemeMode.dark
+                  ? l10n.t('profile.theme_dark')
+                  : themeMode == ThemeMode.light
+                  ? l10n.t('profile.theme_light')
+                  : l10n.t('profile.theme_system'),
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => _showThemeSheet(context),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.language_rounded),
+            title: Text(l10n.t('common.language')),
+            subtitle: Text(l10n.languageName(language.code)),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => _showLanguageSheet(context),
+          ),
         ],
       ),
     );
@@ -281,20 +429,125 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   Widget _buildLogoutButton(BuildContext context) {
     final l10n = context.l10n;
-    return GFButton(
+    return OutlinedButton.icon(
       onPressed: () async {
         await ref.read(authNotifierProvider).logout();
-        if (context.mounted) {
-          Navigator.of(context).pushReplacementNamed('/login');
-        }
+        if (context.mounted) context.go('/login');
       },
-      text: l10n.t('profile.logout'),
-      icon: const Icon(Icons.logout, color: Colors.white),
-      type: GFButtonType.solid,
-      shape: GFButtonShape.pills,
-      size: GFSize.LARGE,
-      color: AppColors.error,
-      fullWidthButton: true,
+      icon: const Icon(Icons.logout_rounded),
+      label: Text(l10n.t('profile.logout')),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        foregroundColor: AppColors.error,
+        side: const BorderSide(color: AppColors.error),
+      ),
+    );
+  }
+
+  Future<void> _showThemeSheet(BuildContext context) async {
+    final l10n = context.l10n;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: RadioGroup<ThemeMode>(
+          groupValue: ref.read(themeNotifierProvider),
+          onChanged: (value) async {
+            if (value == null) return;
+            await ref.read(themeNotifierProvider.notifier).setThemeMode(value);
+            if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: ThemeMode.values.map((mode) {
+              final label = mode == ThemeMode.dark
+                  ? l10n.t('profile.theme_dark')
+                  : mode == ThemeMode.light
+                  ? l10n.t('profile.theme_light')
+                  : l10n.t('profile.theme_system');
+              return RadioListTile<ThemeMode>(value: mode, title: Text(label));
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showLanguageSheet(BuildContext context) async {
+    final l10n = context.l10n;
+    final current = ref.read(currentAppLanguageProvider);
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: RadioGroup<AppLanguage>(
+          groupValue: current,
+          onChanged: (value) async {
+            if (value == null) return;
+            await ref.read(localeNotifierProvider.notifier).setLanguage(value);
+            if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: AppLanguage.values.map((language) {
+              return RadioListTile<AppLanguage>(
+                value: language,
+                title: Text(l10n.languageName(language.code)),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAccountDetailsSheet(
+    BuildContext pageContext,
+    UserModel user,
+  ) async {
+    final l10n = pageContext.l10n;
+    await showModalBottomSheet<void>(
+      context: pageContext,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.xs,
+          AppSpacing.lg,
+          AppSpacing.xl,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            JourneySectionHeader(
+              title: l10n.t('profile.account_details'),
+              subtitle: l10n.t('profile.account_details_hint'),
+              icon: Icons.manage_accounts_outlined,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _buildInfoRow(l10n.t('profile.username'), user.username),
+            _buildInfoRow(l10n.t('auth.email'), user.email ?? ''),
+            _buildInfoRow(l10n.t('profile.phone'), user.phoneNumber ?? ''),
+            _buildInfoRow(
+              l10n.t('profile.birth_date'),
+              user.dateOfBirth != null
+                  ? AppFormatters.shortDate(pageContext, user.dateOfBirth!)
+                  : l10n.t('profile.not_updated'),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.of(sheetContext).pop();
+                Future<void>.delayed(Duration.zero, () async {
+                  if (mounted) await _showEditProfileDialog(context, user);
+                });
+              },
+              icon: const Icon(Icons.edit_outlined),
+              label: Text(l10n.t('profile.edit_info')),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -326,10 +579,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     final updated = await showDialog<UserModel>(
       context: pageContext,
-      builder: (_) => _EditProfileDialog(
-        user: user,
-        repository: _repo,
-      ),
+      builder: (_) => _EditProfileDialog(user: user, repository: _repo),
     );
 
     if (!mounted || updated == null) return;
@@ -339,7 +589,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     scaffoldMessenger.showSnackBar(
       SnackBar(
         content: Text(l10n.t('profile.updated_success')),
-        backgroundColor: Colors.green,
+        backgroundColor: AppColors.success,
         duration: const Duration(seconds: 2),
       ),
     );
@@ -347,10 +597,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 }
 
 class _EditProfileDialog extends StatefulWidget {
-  const _EditProfileDialog({
-    required this.user,
-    required this.repository,
-  });
+  const _EditProfileDialog({required this.user, required this.repository});
 
   final UserModel user;
   final UserRepository repository;
@@ -365,7 +612,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
   late final TextEditingController _bioController;
   final ImagePicker _picker = ImagePicker();
 
-  File? _selectedImage;
+  XFile? _selectedImage;
   bool _isSaving = false;
 
   @override
@@ -394,7 +641,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
       imageQuality: 85,
     );
     if (!mounted || image == null) return;
-    setState(() => _selectedImage = File(image.path));
+    setState(() => _selectedImage = image);
   }
 
   Future<void> _save() async {
@@ -415,7 +662,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(context.l10n.t('profile.updated_error')),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -432,41 +679,45 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            GestureDetector(
-              onTap: _isSaving ? null : _pickAvatar,
-              child: CircleAvatar(
-                radius: 40,
-                backgroundColor: colorScheme.surfaceContainerHighest,
-                child: _selectedImage != null
-                    ? ClipOval(
-                        child: Image.file(
-                          _selectedImage!,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : (widget.user.avatarUrl != null &&
-                              widget.user.avatarUrl!.isNotEmpty
-                          ? ClipOval(
-                              child: CachedNetworkImage(
-                                imageUrl: widget.user.avatarUrl!,
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) =>
-                                    const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
+            MouseRegion(
+              cursor: _isSaving
+                  ? SystemMouseCursors.basic
+                  : SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: _isSaving ? null : _pickAvatar,
+                child: CircleAvatar(
+                  radius: 40,
+                  backgroundColor: colorScheme.surfaceContainerHighest,
+                  child: _selectedImage != null
+                      ? ClipOval(
+                          child: XFileImage(
+                            file: _selectedImage!,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : (widget.user.avatarUrl != null &&
+                                widget.user.avatarUrl!.isNotEmpty
+                            ? ClipOval(
+                                child: CachedNetworkImage(
+                                  imageUrl: widget.user.avatarUrl!,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
                                     ),
-                                errorWidget: (context, url, error) =>
-                                    const Icon(Icons.error),
-                              ),
-                            )
-                          : const Icon(Icons.camera_alt, size: 30)),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      const Icon(Icons.error),
+                                ),
+                              )
+                            : const Icon(Icons.camera_alt, size: 30)),
+                ),
               ),
             ),
             const SizedBox(height: 12),

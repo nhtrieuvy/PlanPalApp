@@ -10,6 +10,7 @@ import '../../../core/riverpod/group_invite_providers.dart';
 import '../../../core/services/error_display_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/ui_states/ui_states.dart';
+import '../../widgets/layout/responsive_content.dart';
 
 class GroupInviteManagementPage extends ConsumerWidget {
   final String groupId;
@@ -48,44 +49,48 @@ class GroupInviteManagementPage extends ConsumerWidget {
         data: (invites) {
           final shouldShowRequests = groupVisibility == 'private';
           final shouldShowEmptyState = invites.isEmpty;
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(groupInvitesProvider(groupId));
-              ref.invalidate(groupJoinRequestsProvider(groupId));
-            },
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount:
-                  invites.length +
-                  (shouldShowEmptyState ? 1 : 0) +
-                  (shouldShowRequests ? 1 : 0),
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                if (shouldShowEmptyState && index == 0) {
-                  return _EmptyInvites(
-                    onCreate: () => _showCreateInviteSheet(context, ref),
-                  );
-                }
-                final inviteIndex = shouldShowEmptyState ? index - 1 : index;
-                if (inviteIndex >= 0 && inviteIndex < invites.length) {
-                  final invite = invites[inviteIndex];
-                  return _InviteCard(
-                    invite: invite,
-                    onCopy: () => _copyInvite(context, invite),
-                    onShare: () => _shareInvite(context, invite),
-                    onRevoke: () => _revokeInvite(context, ref, invite),
-                  );
-                }
-                return _JoinRequestsCard(
-                  state: requestsState,
-                  onRetry: () =>
-                      ref.invalidate(groupJoinRequestsProvider(groupId)),
-                  onApprove: (requestId) =>
-                      _approveJoinRequest(context, ref, requestId),
-                  onReject: (requestId) =>
-                      _rejectJoinRequest(context, ref, requestId),
-                );
+          return ResponsiveContent(
+            mediumMaxWidth: 760,
+            expandedMaxWidth: 900,
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(groupInvitesProvider(groupId));
+                ref.invalidate(groupJoinRequestsProvider(groupId));
               },
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount:
+                    invites.length +
+                    (shouldShowEmptyState ? 1 : 0) +
+                    (shouldShowRequests ? 1 : 0),
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  if (shouldShowEmptyState && index == 0) {
+                    return _EmptyInvites(
+                      onCreate: () => _showCreateInviteSheet(context, ref),
+                    );
+                  }
+                  final inviteIndex = shouldShowEmptyState ? index - 1 : index;
+                  if (inviteIndex >= 0 && inviteIndex < invites.length) {
+                    final invite = invites[inviteIndex];
+                    return _InviteCard(
+                      invite: invite,
+                      onCopy: () => _copyInvite(context, invite),
+                      onShare: () => _shareInvite(context, invite),
+                      onRevoke: () => _revokeInvite(context, ref, invite),
+                    );
+                  }
+                  return _JoinRequestsCard(
+                    state: requestsState,
+                    onRetry: () =>
+                        ref.invalidate(groupJoinRequestsProvider(groupId)),
+                    onApprove: (requestId) =>
+                        _approveJoinRequest(context, ref, requestId),
+                    onReject: (requestId) =>
+                        _rejectJoinRequest(context, ref, requestId),
+                  );
+                },
+              ),
             ),
           );
         },
@@ -141,12 +146,20 @@ class GroupInviteManagementPage extends ConsumerWidget {
     BuildContext context,
     GroupInviteModel invite,
   ) async {
-    await Share.share(
-      context.l10n.t(
-        'group_invites.share_text',
-        params: {'group': groupName, 'code': invite.inviteCode},
-      ),
+    final text = context.l10n.t(
+      'group_invites.share_text',
+      params: {'group': groupName, 'code': invite.inviteCode},
     );
+    try {
+      await Share.share(text);
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (!context.mounted) return;
+      ErrorDisplayService.showSuccessSnackbar(
+        context,
+        context.l10n.t('group_invites.share_fallback_copied'),
+      );
+    }
   }
 
   Future<void> _revokeInvite(
@@ -245,7 +258,11 @@ class _EmptyInvites extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.password_rounded, size: 64, color: Colors.grey.shade500),
+            const Icon(
+              Icons.password_rounded,
+              size: 64,
+              color: AppColors.neutral500,
+            ),
             const SizedBox(height: 16),
             Text(
               l10n.t('group_invites.empty_title'),
@@ -397,7 +414,7 @@ class _InviteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatter = DateFormat('dd/MM/yyyy HH:mm');
-    final statusColor = invite.isUsable ? AppColors.success : Colors.red;
+    final statusColor = invite.isUsable ? AppColors.success : AppColors.error;
     final l10n = context.l10n;
     return Card(
       child: Padding(
@@ -587,7 +604,7 @@ class _JoinRequestsCard extends StatelessWidget {
                           IconButton(
                             tooltip: l10n.t('group_invites.reject'),
                             icon: const Icon(Icons.close),
-                            color: Colors.red,
+                            color: AppColors.error,
                             onPressed: () => onReject(request.id),
                           ),
                           IconButton(

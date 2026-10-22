@@ -10,6 +10,7 @@ import 'package:planpal_flutter/core/riverpod/analytics_providers.dart';
 import 'package:planpal_flutter/core/riverpod/auth_notifier.dart';
 import 'package:planpal_flutter/core/riverpod/repository_providers.dart';
 import 'package:planpal_flutter/presentation/pages/analytics/analytics_dashboard_page.dart';
+import 'package:planpal_flutter/presentation/widgets/analytics/analytics_kpi_card.dart';
 import 'test_app.dart';
 
 void main() {
@@ -21,8 +22,16 @@ void main() {
     range: '30d',
     currentDate: DateTime(2026, 4, 5),
     generatedAt: DateTime(2026, 4, 6, 8),
-    dau: const AnalyticsKpi(label: 'Daily Active Users', value: 18, changePct: 12.5),
-    mau: const AnalyticsKpi(label: 'Monthly Active Users', value: 64, changePct: 8.4),
+    dau: const AnalyticsKpi(
+      label: 'Daily Active Users',
+      value: 18,
+      changePct: 12.5,
+    ),
+    mau: const AnalyticsKpi(
+      label: 'Monthly Active Users',
+      value: 64,
+      changePct: 8.4,
+    ),
     planCreationRate: const AnalyticsKpi(
       label: 'Plan Creation Rate',
       value: 42.2,
@@ -126,18 +135,36 @@ void main() {
   testWidgets('AnalyticsDashboardPage renders KPI cards and top entities', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final repository = FakeAnalyticsRepository(
       summary: summary,
       seriesByMetric: {
         'dau': buildSeries('dau', [10, 12, 14, 16, 18]),
         'mau': buildSeries('mau', [30, 35, 40, 50, 64]),
-        'plan_creation_rate': buildSeries('plan_creation_rate', [20, 28, 32, 39, 42]),
-        'plan_completion_rate': buildSeries('plan_completion_rate', [15, 19, 23, 30, 41]),
+        'plan_creation_rate': buildSeries('plan_creation_rate', [
+          20,
+          28,
+          32,
+          39,
+          42,
+        ]),
+        'plan_completion_rate': buildSeries('plan_completion_rate', [
+          15,
+          19,
+          23,
+          30,
+          41,
+        ]),
         'group_join_rate': buildSeries('group_join_rate', [10, 11, 14, 16, 18]),
-        'notification_open_rate': buildSeries(
-          'notification_open_rate',
-          [30, 35, 42, 48, 52],
-        ),
+        'notification_open_rate': buildSeries('notification_open_rate', [
+          30,
+          35,
+          42,
+          48,
+          52,
+        ]),
       },
       topEntities: topEntities,
     );
@@ -145,9 +172,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authNotifierProvider.overrideWith(
-            (ref) => buildStaffAuthProvider(),
-          ),
+          authNotifierProvider.overrideWith((ref) => buildStaffAuthProvider()),
           analyticsRepositoryProvider.overrideWithValue(repository),
         ],
         child: buildLocalizedTestApp(const AnalyticsDashboardPage()),
@@ -159,6 +184,9 @@ void main() {
     expect(find.text('Product Pulse'), findsOneWidget);
     expect(find.text('Daily Active Users'), findsWidgets);
     expect(find.text('18'), findsWidgets);
+    final firstKpiSize = tester.getSize(find.byType(AnalyticsKpiCard).first);
+    expect(firstKpiSize.height, 164);
+    expect(firstKpiSize.width, lessThan(500));
 
     await tester.scrollUntilVisible(
       find.text('Da Nang Trip'),
@@ -178,21 +206,24 @@ void main() {
         'dau': buildSeries('dau', [10, 12, 14]),
         'mau': buildSeries('mau', [30, 40, 50]),
         'plan_creation_rate': buildSeries('plan_creation_rate', [22, 28, 33]),
-        'plan_completion_rate': buildSeries('plan_completion_rate', [11, 18, 24]),
+        'plan_completion_rate': buildSeries('plan_completion_rate', [
+          11,
+          18,
+          24,
+        ]),
         'group_join_rate': buildSeries('group_join_rate', [12, 13, 15]),
-        'notification_open_rate': buildSeries(
-          'notification_open_rate',
-          [20, 35, 50],
-        ),
+        'notification_open_rate': buildSeries('notification_open_rate', [
+          20,
+          35,
+          50,
+        ]),
       },
       topEntities: topEntities,
     );
 
     final container = ProviderContainer(
       overrides: [
-        authNotifierProvider.overrideWith(
-          (ref) => buildStaffAuthProvider(),
-        ),
+        authNotifierProvider.overrideWith((ref) => buildStaffAuthProvider()),
         analyticsRepositoryProvider.overrideWithValue(repository),
       ],
     );

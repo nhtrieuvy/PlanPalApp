@@ -8,9 +8,7 @@ class AppFormatters {
   static final Map<String, NumberFormat> _currencyFormatCache = {};
 
   static String localeTag(BuildContext context) {
-    return AppLocaleStore.resolve(
-      Localizations.localeOf(context),
-    ).languageCode;
+    return AppLocaleStore.resolve(Localizations.localeOf(context)).languageCode;
   }
 
   static String fullDateTime(BuildContext context, DateTime value) {
